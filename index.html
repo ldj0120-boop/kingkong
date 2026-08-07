@@ -825,9 +825,14 @@ function originTitle(cat, origin){
 // 어떤 규칙에도 안 걸리면 원문 그대로 새 카테고리로 자동 추가되어(ensureCategory) 데이터 손실 없이 눈에 띄게 남는다.
 const CATE_RULES = [
   [/^XLA/, "XLA"], [/^XLB/, "XLB"], [/^XLC/, "XLC"], [/^XLE/, "XLE"],
+  [/^XLS/, "XLA"], // 사용자 지정: XLS LOT 전체출고 등 XLS 계열 = XLA
   [/^XLK/, "대형가전"], // 방도리(가전센터) 출고내역서 전용 표기 — 사용자 지정: XLK=대형가전
   [/^XLG.*생산/, "생산재고"], [/^XLG/, "XLG"],
   [/^XLW/, "대형가구"], // 수식어(가구/매트리스/쇼파 등) 없이 단독으로 나오는 경우도 전부 대형가구
+  // 사용자 지정: "생산가전" 계열(생산가전/생산가전 H·E·G·F 등)=대형가전, 그 외 "생산N" 계열=생산재고
+  [/생산\s*가전/, "대형가전"],
+  [/^생산/, "생산재고"], // 생산1·생산2·생산3·… 번호가 붙어도 전부 생산재고
+  [/전산\s*추적\s*불가/, "미분류"], // 사용자 지정: 전산추적불가 = 미분류
   [/^대형가전/, "대형가전"], [/^대형가구/, "대형가구"], [/^생산가구/, "생산재고"],
   [/FC.*사입|사입.*FC/, "FC_사입"], // "FC / 사입"처럼 FC와 사입이 같이 있는 문구는 별도 카테고리로 분리
   [/임박/, "임박"], [/사입/, "사입"],
@@ -839,9 +844,11 @@ const CATE_RULES = [
 // 규칙(CATE_RULES)이나 사용자가 이미 확인해둔 매핑(SHIP_CAT_MAP)으로 판단이 안 되는, 완전히 새로운 CATE 문구인지 검사.
 // null이면 "아직 아무도 정해준 적 없는 신규 물류 문구" → 업로드 전에 모달로 사용자에게 물어봐야 한다.
 function classifyShipCategory(raw){
-  const t = String(raw||"").replace(/[\n\r]+/g,' ').trim();
+  const t = String(raw||"").replace(/[\n\r]+/g,' ').replace(/\s+/g,' ').trim();
   if(!t) return "미분류";
   if(Object.prototype.hasOwnProperty.call(SHIP_CAT_MAP, t)) return SHIP_CAT_MAP[t];
+  // 저장된 지정을 공백 정규화해서도 대조(파일마다 공백 개수가 달라도 같은 문구로 인식)
+  for(const k of Object.keys(SHIP_CAT_MAP)){ if(String(k).replace(/\s+/g,' ').trim()===t) return SHIP_CAT_MAP[k]; }
   for(const [re,cat] of CATE_RULES){ if(re.test(t)) return cat; }
   return null;
 }
