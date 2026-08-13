@@ -1539,16 +1539,27 @@ function renderSalesMonthly(){
     A += `<tr><td>${s}</td>${months.map(m=>{const v=storeMonth[m][s]||0;return `<td><span class="num">${v?Math.round(v).toLocaleString():''}</span>${v?cellDeltas(m,v,(mm)=>storeMonth[mm][s]||0):''}</td>`;}).join("")}<td class="total-col"><span class="num">${Math.round(storeGrand(s)).toLocaleString()}</span></td></tr>`;
   });
   A += `</tbody><tfoot><tr><td>합계</td>${months.map(m=>{const v=monthGrand(m);return `<td><span class="num">${Math.round(v).toLocaleString()}</span>${cellDeltas(m,v,(mm)=>monthGrand(mm))}</td>`;}).join("")}<td class="total-col"><span class="num">${Math.round(months.reduce((a,m)=>a+monthGrand(m),0)).toLocaleString()}</span></td></tr></tfoot></table>`;
-  // 카테고리별 월 점유율 (실매출액 기준)
+  // 카테고리별 월 점유율 (실매출액 기준) — 매장 선택 시 그 매장만, 전체면 합산
   const catMonth = {};
-  months.forEach(m=>{ const mg=mergeByStoreCat(SALES_HISTORY.filter(h=>h.date.slice(0,7)===m)); const o={}; Object.values(mg).forEach(x=>Object.entries(x).forEach(([c,v])=>o[c]=(o[c]||0)+v.amount)); catMonth[m]=o; });
+  months.forEach(m=>{
+    const mg = mergeByStoreCat(SALES_HISTORY.filter(h=>h.date.slice(0,7)===m));
+    const o = {};
+    if(selectedMonthlyStore==="__all__"){
+      Object.values(mg).forEach(x=>Object.entries(x).forEach(([c,v])=>o[c]=(o[c]||0)+v.amount));
+    } else {
+      const sc = mg[selectedMonthlyStore] || {};
+      Object.entries(sc).forEach(([c,v])=>o[c]=(o[c]||0)+v.amount);
+    }
+    catMonth[m]=o;
+  });
+  const catStoreLabel = selectedMonthlyStore==="__all__" ? "전체 매장" : selectedMonthlyStore;
   const catList = Array.from(new Set(months.flatMap(m=>Object.keys(catMonth[m]))));
   const catGrand = c => months.reduce((a,m)=>a+(catMonth[m][c]||0),0);
   catList.sort((a,b)=>catGrand(b)-catGrand(a));
   const monthCatSum = m => Object.values(catMonth[m]).reduce((a,v)=>a+v,0)||1;
   let B = "";
   if(catList.length){
-    B = `<div style="padding:16px 4px 4px;font-family:'Oswald';font-size:12px;letter-spacing:.06em;color:var(--muted2);">월별 카테고리 점유율 (실매출액 기준 · 셀 = 점유율%, 아래 금액)</div>`;
+    B = `<div style="padding:16px 4px 4px;font-family:'Oswald';font-size:12px;letter-spacing:.06em;color:var(--muted2);">월별 카테고리 점유율 · ${escHtml(catStoreLabel)} (실매출액 기준 · 셀 = 점유율%, 아래 금액)</div>`;
     B += `<table><thead><tr><th>카테고리</th>${months.map(m=>`<th>${mlabel(m)}</th>`).join("")}</tr></thead><tbody>`;
     catList.forEach(c=>{
       B += `<tr><td>${escHtml(c)}</td>${months.map(m=>{const v=catMonth[m][c]||0;const pct=v/monthCatSum(m)*100;const bg=v>0?` style="background:rgba(245,178,17,${(0.06+0.5*(pct/100)).toFixed(2)})"`:'';return `<td${bg}><span class="num">${v?pct.toFixed(1)+'%':''}</span>${v?`<div style="font-size:9px;color:var(--muted2)">${Math.round(v).toLocaleString()}</div>`:''}</td>`;}).join("")}</tr>`;
@@ -2605,9 +2616,10 @@ function renderSalesDetail(){
     <div class="panel">
       <div class="p-hd"><span class="store-name">${s}</span><span class="meta">${escHtml(salesModeLabel())} · 매장별 매출</span></div>
       <div class="detail-split">
-        <div class="detail-left">${donutSection}${clockSection}</div>
+        <div class="detail-left">${donutSection}</div>
         <div class="detail-right">
           ${cardHtml}
+          ${clockSection}
           ${eventBlock}
           ${insightsHtml}
         </div>
