@@ -679,6 +679,7 @@
       <div style="padding:8px 12px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <label for="eventCommonInput" style="font-family:'Oswald';font-size:11px;letter-spacing:.06em;color:var(--amber);text-transform:uppercase;white-space:nowrap;">이 달 전매장 공통행사</label>
         <input id="eventCommonInput" type="text" placeholder="예: 창립기념 세일, 여름 빅세일(7/10~7/20) …" style="flex:1;min-width:220px;background:var(--ink);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:7px 10px;font-size:12.5px;">
+        <button id="eventCommonApply" style="background:var(--amber);color:#1a1200;border:none;border-radius:8px;padding:7px 16px;font-weight:700;font-size:12.5px;cursor:pointer;white-space:nowrap;">적용</button>
       </div>
       <div class="entry" style="padding:10px;">
         <div class="stores" id="salesStoreList" style="max-height:60vh;"><div class="hd">매장</div></div>
@@ -1884,12 +1885,15 @@ function renderPeriodCompare(){
       coverageWarning = `⚠ 업로드된 날짜가 비어있어 기간이 어긋날 수 있습니다 — A(${aMlabel}) ${spanDays}일 중 ${curSnaps.length}일치, B(${bMlabel}) 동일 일자 중 ${cmpSnaps.length}일치만 업로드되어 있어 증감률이 실제와 다를 수 있습니다.`;
     }
   } else {
-    const aSnap = SALES_HISTORY.find(h=>h.date===periodA);
-    const bSnap = SALES_HISTORY.find(h=>h.date===periodB);
-    curSnaps = bSnap ? [bSnap] : [];
-    cmpSnaps = aSnap ? [aSnap] : [];
-    curLabel = periodB;
-    cmpLabel = periodA;
+    // 두 날짜 직접 비교: 나중 날짜를 "현재", 이전 날짜를 "기준"으로 둬서 증가가 +로 나오게 한다.
+    const earlier = periodA < periodB ? periodA : periodB;
+    const later   = periodA < periodB ? periodB : periodA;
+    const eSnap = SALES_HISTORY.find(h=>h.date===earlier);
+    const lSnap = SALES_HISTORY.find(h=>h.date===later);
+    curSnaps = lSnap ? [lSnap] : [];   // 현재(나중)
+    cmpSnaps = eSnap ? [eSnap] : [];   // 기준(이전)
+    curLabel = later;
+    cmpLabel = earlier;
   }
   const curTotals = categoryTotalsFiltered(mergeByStoreCat(curSnaps), periodStore);
   const cmpTotals = categoryTotalsFiltered(mergeByStoreCat(cmpSnaps), periodStore);
@@ -1905,9 +1909,9 @@ function renderPeriodCompare(){
     let deltaHtml;
     if(cmp===0){ deltaHtml = cur===0 ? '<span class="delta flat">변동 없음</span>' : `<span class="delta up">▲ 신규 ${Math.round(cur).toLocaleString()}</span>`; }
     else{
-      const pct = Math.round((cur-cmp)/cmp*100);
+      const pct = Math.round((cur-cmp)/cmp*100); // (현재 − 기준)/기준 → 현재가 크면 +
       const cls = pct>0?'up':(pct<0?'down':'flat'); const arrow = pct>0?'▲':(pct<0?'▼':'－');
-      deltaHtml = `<span class="delta ${cls}">${arrow} ${Math.abs(pct)}%</span>`;
+      deltaHtml = `<span class="delta ${cls}">${arrow} ${pct>0?'+':(pct<0?'-':'')}${Math.abs(pct)}%<span class="ref">(기준 대비)</span></span>`;
     }
     const basePct = Math.max(2, Math.round(cmp/maxV*100));
     const curPct = Math.max(2, Math.round(cur/maxV*100));
@@ -1926,8 +1930,9 @@ function renderPeriodCompare(){
   }).join("");
   const warnHtml = coverageWarning ? `<p style="font-size:12px;color:var(--amber);margin:0 0 10px;">${escHtml(coverageWarning)}</p>` : "";
   const legend = `<div class="period-legend">
-      <span><span class="sw" style="background:var(--info);"></span><b style="color:var(--info);">기준(A)</b> = ${escHtml(cmpLabel)}</span>
-      <span><span class="sw" style="background:var(--amber);"></span><b style="color:var(--amber);">비교(B)</b> = ${escHtml(curLabel)}</span>
+      <span><span class="sw" style="background:var(--info);"></span><b style="color:var(--info);">기준</b> = ${escHtml(cmpLabel)}</span>
+      <span><span class="sw" style="background:var(--amber);"></span><b style="color:var(--amber);">현재(비교)</b> = ${escHtml(curLabel)}</span>
+      <span style="color:var(--muted2);">· 증감%는 <b>기준 대비 현재</b>가 얼마나 늘었/줄었는지입니다(증가=＋).</span>
     </div>`;
   body.innerHTML = `<p style="font-size:12.5px;color:var(--muted);margin:0 0 8px;"><b style="color:var(--text);">${escHtml(storeLabel)}</b></p>${legend}${warnHtml}<div class="cat-bar-list">${rows}</div>`;
 }
@@ -2134,26 +2139,50 @@ function storeDailySeries(store){
 }
 function buildStoreDeepInsights(store, snaps){
   const findings = [];
-  const cur = salesStoreTotal(snaps.latest.byStoreCat, store);
-  const yest = snaps.yest ? salesStoreTotal(snaps.yest.byStoreCat, store) : null;
-  const week = snaps.week ? salesStoreTotal(snaps.week.byStoreCat, store) : null;
-  const month = snaps.month ? salesStoreTotal(snaps.month.byStoreCat, store) : null;
+  // 월 누적 보기일 땐 "전월 동기간(같은 일수)"과 비교해야 공평하다.
+  // (예: 8월 18일까지 누적 vs 7월 1~18일 누적 — 7월 한 달 총액과 비교하면 하락폭이 과장된다)
+  const dayOnly = (typeof selectedDetailDay!=="undefined" && selectedDetailDay!=="__all__");
+  const upto = (typeof selectedSalesDate==="string" && selectedSalesDate) ? selectedSalesDate : snaps.latest.date;
+  const shiftMonthStr = (d)=>{ const dt=parseYMD(d); dt.setMonth(dt.getMonth()-1); return fmtDate(dt); };
+  const shiftDayStr = (d,n)=>{ const dt=parseYMD(d); dt.setDate(dt.getDate()-n); return fmtDate(dt); };
+  let cur, yest, week, month, monthLabel;
+  if(dayOnly){
+    cur  = salesStoreTotal(snaps.latest.byStoreCat, store);
+    yest = snaps.yest ? salesStoreTotal(snaps.yest.byStoreCat, store) : null;
+    week = snaps.week ? salesStoreTotal(snaps.week.byStoreCat, store) : null;
+    month= snaps.month ? salesStoreTotal(snaps.month.byStoreCat, store) : null;
+    monthLabel = '전월';
+  } else {
+    // 월 누적: 현재 = 그 달 upto까지 누적, 전월 = 전월 같은 일자까지 누적(동기간)
+    cur  = salesStoreTotal(cumulativeSalesMap(upto), store);
+    const prevSame = cumulativeSalesMap(shiftMonthStr(upto));
+    month= prevSame ? salesStoreTotal(prevSame, store) : null;
+    const wk = cumulativeSalesMap(shiftDayStr(upto,7)); // 7일 전까지 누적(전주 동기간)
+    week = wk ? salesStoreTotal(wk, store) : null;
+    yest = null; // 누적 보기에서 전일 대비는 의미가 약해 생략
+    monthLabel = '전월 동기간';
+  }
   const pct = (c,p) => (p && p>0) ? (c-p)/p*100 : null;
   const dPct = pct(cur,yest), wPct = pct(cur,week), mPct = pct(cur,month);
 
-  // 1) 종합 추세 진단 — 전일·전주·전월이 같은 방향이면 구조적, 전일만 튀면 일시적 요인으로 구분
-  const labeled = [['전일',dPct],['전주',wPct],['전월',mPct]].filter(([,v])=>v!==null);
+  // 1) 종합 추세 진단 — 같은 방향이면 구조적, 전일만 튀면 일시적 요인으로 구분
+  const labeled = [['전일',dPct],['전주',wPct],[monthLabel,mPct]].filter(([,v])=>v!==null);
   if(labeled.length){
     const vals = labeled.map(([,v])=>v);
+    const names = labeled.map(([l])=>l).join('·');
     const detail = labeled.map(([l,v])=>`${l} ${v>0?'+':''}${Math.round(v)}%`).join(', ');
     if(vals.every(v=>v<=-5)){
-      findings.push({type:'down', icon:'📉', html:`전일·전주·전월 대비 모두 하락세입니다(${detail}). 일시적 변동이 아니라 <b>구조적인 하락</b>일 가능성이 높습니다 — 재고 부족, 인근 경쟁 매장 신규 출점, 매장 운영시간 변경 여부를 먼저 확인해보세요.`});
+      findings.push({type:'down', icon:'📉', html:`${names} 대비 모두 하락세입니다(${detail}). 일시적 변동이 아니라 <b>구조적인 하락</b>일 가능성이 높습니다 — 재고 부족, 인근 경쟁 매장 신규 출점, 매장 운영시간 변경 여부를 먼저 확인해보세요.`});
     } else if(vals.every(v=>v>=5)){
-      findings.push({type:'up', icon:'📈', html:`전일·전주·전월 대비 모두 상승세입니다(${detail}). 일시적 이벤트 효과가 아니라면 <b>지속 성장</b>으로 보이니, 상승을 이끈 카테고리에 출고를 더 배정하는 방안을 검토해보세요.`});
+      findings.push({type:'up', icon:'📈', html:`${names} 대비 모두 상승세입니다(${detail}). 일시적 이벤트 효과가 아니라면 <b>지속 성장</b>으로 보이니, 상승을 이끈 카테고리에 출고를 더 배정하는 방안을 검토해보세요.`});
     } else if(dPct!==null && wPct!==null && dPct<=-8 && wPct>-3){
       findings.push({type:'warn', icon:'⚠', html:`전주 대비로는 안정적(${Math.round(wPct)}%)이지만 전일 대비로는 <b>${Math.round(Math.abs(dPct))}%</b> 급락했습니다 — 어제만의 특이 요인(휴무, 재고 소진, 날씨, 행사 종료 등)일 가능성이 있습니다.`});
     } else if(dPct!==null && wPct!==null && dPct>=8 && wPct<3){
       findings.push({type:'up', icon:'⚠', html:`전주 대비로는 큰 변화가 없지만 전일 대비로는 <b>${Math.round(dPct)}%</b> 급등했습니다 — 특정 상품 대량 판매나 일시 행사 효과인지 확인해보세요(지속성 여부 판단 필요).`});
+    } else if(!dayOnly && mPct!==null){
+      // 월 누적 단독 코멘트(전월 동기간 대비)
+      const dir = mPct>=0 ? '상승' : '하락';
+      findings.push({type: mPct>=0?'up':'down', icon: mPct>=0?'📈':'📉', html:`전월 같은 기간(동일 일수) 대비 <b>${mPct>0?'+':''}${Math.round(mPct)}%</b> ${dir}했습니다 — 같은 영업일수 기준의 공평한 비교입니다.`});
     }
   }
 
@@ -2235,6 +2264,28 @@ function buildStoreDeepInsights(store, snaps){
     const low=effRows[0], high=effRows[effRows.length-1];
     findings.push({type:'na', icon:'📊', html:`카테고리별 PLT당 매출: 최저 <b>${escHtml(low.cat)}</b> ${Math.round(low.perPlt).toLocaleString()}원/PLT ↔ 최고 <b>${escHtml(high.cat)}</b> ${Math.round(high.perPlt).toLocaleString()}원/PLT. 효율 높은 카테고리로 출고를 더 배정하면 같은 물량으로 매출을 키울 수 있습니다.`});
   }
+
+  // 5) 행사 반영 분석 — 입력된 행사 내용 + 매출 방향(전월 동기간 대비)으로 해석
+  try{
+    const evM = eventMonth();
+    const commonEv = (EVENTS_COMMON[evM]||"").trim();
+    const storeEv = (EVENTS_STORE[eventStoreKey(store, evM)]||"").trim();
+    const evTexts = [commonEv && `전매장: ${commonEv}`, storeEv && `${store}: ${storeEv}`].filter(Boolean);
+    if(evTexts.length){
+      const evJoined = evTexts.join(" · ");
+      if(mPct!==null){
+        if(mPct >= 5){
+          findings.push({type:'up', icon:'🎪', html:`행사(<b>${escHtml(evJoined)}</b>) 기간 매출이 전월 동기간 대비 <b>+${Math.round(mPct)}%</b> — <b>행사 효과가 있는 것</b>으로 보입니다. 행사 종료 후 반락에 대비해 인기 카테고리 재고 확보와 후속 프로모션을 미리 준비하세요.`});
+        } else if(mPct <= -5){
+          findings.push({type:'down', icon:'🎪', html:`행사(<b>${escHtml(evJoined)}</b>)를 진행 중인데도 매출이 전월 동기간 대비 <b>${Math.round(mPct)}%</b> 하락했습니다 — 행사 효과가 약하거나 다른 하락 요인이 더 큽니다. 행사 노출/진열 위치/할인폭과, 하락을 주도한 카테고리를 함께 점검하세요.`});
+        } else {
+          findings.push({type:'na', icon:'🎪', html:`행사(<b>${escHtml(evJoined)}</b>) 반영 — 전월 동기간 대비 매출 변화는 크지 않습니다(${mPct>0?'+':''}${Math.round(mPct)}%). 행사 효과가 특정 카테고리·시간대에 집중됐는지 위 카테고리·시간대 분석과 함께 보세요.`});
+        }
+      } else {
+        findings.push({type:'na', icon:'🎪', html:`행사(<b>${escHtml(evJoined)}</b>)가 입력되어 분석에 반영합니다. 비교할 전월 동기간 데이터가 쌓이면 행사 효과(증감)를 자동으로 판정합니다.`});
+      }
+    }
+  }catch(_){}
 
   return findings;
 }
@@ -2423,7 +2474,11 @@ function wireEventCommon(){
   const cin = document.getElementById("eventCommonInput");
   if(!cin) return;
   cin.value = EVENTS_COMMON[month] || "";
-  cin.onchange = ()=>{ if(month){ EVENTS_COMMON[month] = cin.value.trim(); saveState(); renderSalesDetail(); } };
+  const apply = ()=>{ if(month){ EVENTS_COMMON[month] = cin.value.trim(); saveState(); renderSalesDetail(); showNotice(EVENTS_COMMON[month] ? "행사 내용을 반영해 매장 상세 자동분석을 갱신했습니다." : "행사 내용을 지웠습니다."); } };
+  cin.onchange = apply;
+  cin.onkeydown = (e)=>{ if(e.key==="Enter"){ e.preventDefault(); apply(); } };
+  const btn = document.getElementById("eventCommonApply");
+  if(btn) btn.onclick = apply;
 }
 let selectedDetailDay = "__all__";
 function renderSalesDetailDaySelect(){
@@ -2616,9 +2671,13 @@ function renderSalesDetail(){
   const dayLabel = selectedDetailDay==="__all__" ? (eventMonth().replace('-','년 ')+"월 전체") : selectedDetailDay.slice(5).replace('-','/');
   const clockSection = hasHours
     ? `<div style="margin-top:16px;"><div class="insight-tag">시간대별 매출 점유율 · 손님 방문시간 (${escHtml(dayLabel)})</div>
-         <div style="display:flex;justify-content:center;">${buildClockSVG(hourly)}</div>
-         <div style="font-size:11.5px;color:var(--amber);text-align:center;margin-top:4px;">${escHtml(hourlyTopText(hourly))}</div>
-         ${hourlyShareTable(hourly)}</div>`
+         <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-top:6px;">
+           <div style="flex:0 0 240px;max-width:260px;">
+             ${buildClockSVG(hourly, 240)}
+             <div style="font-size:11.5px;color:var(--amber);text-align:center;margin-top:4px;">${escHtml(hourlyTopText(hourly))}</div>
+           </div>
+           <div style="flex:1;min-width:260px;">${hourlyShareTable(hourly)}</div>
+         </div></div>`
     : `<div style="margin-top:16px;font-size:11.5px;color:var(--muted2);">시간대별 매출 점유율(방문시간) 표는 <b>카테고리별 매출 파일(등록일시 포함)</b>을 불러오면 표시됩니다.</div>`;
   panel.innerHTML = `
     <div class="panel">
@@ -2627,11 +2686,11 @@ function renderSalesDetail(){
         <div class="detail-left">${donutSection}</div>
         <div class="detail-right">
           ${cardHtml}
-          ${clockSection}
           ${eventBlock}
           ${insightsHtml}
         </div>
       </div>
+      ${clockSection}
     </div>`;
   const sin = document.getElementById("eventStoreInput");
   if(sin) sin.onchange = ()=>{ if(evMonth){ EVENTS_STORE[eventStoreKey(s, evMonth)] = sin.value.trim(); saveState(); renderSalesDetail(); } };
@@ -3744,9 +3803,28 @@ function storeSalesMapAt(uptoDate){
     const bs = STORE_SALES_HISTORY.find(h=>h.date===uptoDate);
     return bs ? {...bs.byStore} : null;
   }
-  // 월 누적: 그 달 더 완전한 소스(청구금액/실매출액) 총액
-  const best = monthStoreTotals(uptoDate.slice(0,7));
-  return best.total>0 ? best.map : null;
+  // 월 누적: 그 달 시작 ~ uptoDate까지 "누적"으로 반환한다.
+  //  · 소스(청구금액/실매출액)는 그 달의 더 완전한 쪽(monthStoreTotals 기준)을 따른다.
+  //  · 마지막 날짜까지 누적하면 그 달 전체 총액과 같아지므로 검증값(5·6·7·8월)은 그대로 유지되고,
+  //    중간 날짜에서는 날짜별로 값이 커져 전일/전주 대비가 의미있게 활성화된다.
+  const month = uptoDate.slice(0,7);
+  const best = monthStoreTotals(month);
+  if(!(best.total>0)) return null;
+  const cum = {};
+  if(best.source==="청구금액"){
+    let noStore=0;
+    STORE_SALES_HISTORY.filter(h=>h.date.slice(0,7)===month && h.date<=uptoDate).forEach(x=>{
+      Object.keys(x.byStore||{}).forEach(s=> cum[s]=(cum[s]||0)+x.byStore[s]);
+      noStore += (x.noStore||0);
+    });
+    if(noStore>0){ const sum=Object.values(cum).reduce((a,v)=>a+v,0); if(sum>0) Object.keys(cum).forEach(s=> cum[s]+=noStore*(cum[s]/sum)); }
+  } else {
+    SALES_HISTORY.filter(h=>h.date.slice(0,7)===month && h.date<=uptoDate).forEach(x=>{
+      const bsc = x.byStoreCat||{};
+      Object.keys(bsc).forEach(s=>{ const t=Object.values(bsc[s]).reduce((a,v)=>a+(v.amount||0),0); cum[s]=(cum[s]||0)+t; });
+    });
+  }
+  return Object.keys(cum).length ? cum : best.map;
 }
 // 그 달의 매장별 총액을 "더 완전한(합계 큰) 소스"로 돌려준다.
 // 청구금액(매장별매출 파일)이 그 달 일부만 올라오면(예: 5월) 실매출액(카테고리 파일)이 채택되어 실제 총액과 맞는다.
