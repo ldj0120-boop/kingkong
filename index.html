@@ -945,6 +945,7 @@ let CENTER_M = {};    // month -> store -> {cat: qty}  (센터 출고내역서)
 let HQ_M = {};        // month -> store -> {cat: qty}  (본사 출고계획서)
 let APPLIANCE_M = {}; // month -> store -> {cat: qty}  (가전센터)
 let FRESH_M = {};     // month -> store -> {신선식품|수박: qty}
+let LOTTE_M = {};     // month -> store -> {롯데제타: qty} (김해점 독점 공급)
 let shipScope = "all"; // "all"=모든 달 합계 | "YYYY-MM"=그 달만
 function mergeMonthMap(target, incoming){ // incoming의 각 달로 target의 그 달을 교체(누적)
   if(!incoming) return;
@@ -952,7 +953,7 @@ function mergeMonthMap(target, incoming){ // incoming의 각 달로 target의 �
 }
 function shipMonths(){
   const s = new Set();
-  [CENTER_M, HQ_M, APPLIANCE_M, FRESH_M].forEach(mm=> Object.keys(mm||{}).forEach(m=>s.add(m)));
+  [CENTER_M, HQ_M, APPLIANCE_M, FRESH_M, LOTTE_M].forEach(mm=> Object.keys(mm||{}).forEach(m=>s.add(m)));
   return Array.from(s).sort();
 }
 let unmatchedHQStores = [];
@@ -1001,7 +1002,13 @@ const actualQty = (s,c) => {
   } else {
     fresh = num(FRESH_ACTUAL[s] && FRESH_ACTUAL[s][c]);
   }
-  return Math.round(base + fresh);
+  // 롯데제타(김해점 독점): LOTTE_M[month][store]["롯데제타"] — c가 "롯데제타"일 때만 기여
+  let lotte = 0;
+  if(months.length){
+    if(shipScope==="all"){ months.forEach(m=> lotte += _mv(LOTTE_M,m,s,c)); }
+    else { lotte = _mv(LOTTE_M,shipScope,s,c); }
+  }
+  return Math.round(base + fresh + lotte);
 };
 // [{label, date, total, stores, stock}] 주차별 재고 스냅샷 (기준일 선택 시 전환됨) — num()이 선언된 뒤에 만들어야 함
 let STOCK_HISTORY = [{ label:"2026-07-20 (기본값·마지막 시트)", date:"2026-07-20", total:computeStockGrandTotal(STOCK, STORES), stores:STORES.slice(), stock:STOCK }];
@@ -1020,7 +1027,7 @@ function persistCatMaps(){
 function saveState(){
   const st = {
       STORES, STOCK, CATEGORIES, CATEGORY_ORIGIN, SHIP, ACTUAL,
-      HQ_ACTUAL, APPLIANCE_ACTUAL, FRESH_ACTUAL, CENTER_M, HQ_M, APPLIANCE_M, FRESH_M, shipScope, HQ_SUPPLY_HISTORY, APPLIANCE_SUPPLY_HISTORY, unmatchedHQStores, unmatchedApplianceStores,
+      HQ_ACTUAL, APPLIANCE_ACTUAL, FRESH_ACTUAL, CENTER_M, HQ_M, APPLIANCE_M, FRESH_M, LOTTE_M, shipScope, HQ_SUPPLY_HISTORY, APPLIANCE_SUPPLY_HISTORY, unmatchedHQStores, unmatchedApplianceStores,
       selected, SUPPLY_HISTORY, STOCK_HISTORY, unmatchedActualStores,
       SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, selectedSalesMonth, selectedMonthlyStore, salesViewMode, EVENTS_COMMON, EVENTS_STORE,
       basedateIdx: (typeof basedateEl!=="undefined" && basedateEl.value!=="") ? +basedateEl.value : STOCK_HISTORY.length-1
@@ -1080,6 +1087,7 @@ function applyStateObject(s){
     HQ_M = (s.HQ_M && typeof s.HQ_M==="object") ? s.HQ_M : {};
     APPLIANCE_M = (s.APPLIANCE_M && typeof s.APPLIANCE_M==="object") ? s.APPLIANCE_M : {};
     FRESH_M = (s.FRESH_M && typeof s.FRESH_M==="object") ? s.FRESH_M : {};
+    LOTTE_M = (s.LOTTE_M && typeof s.LOTTE_M==="object") ? s.LOTTE_M : {};
     shipScope = s.shipScope || "all";
     // 구버전 저장 호환: 신선(신선식품·수박)이 FRESH_ACTUAL에만 있고 FRESH_M(월별)에 없으면, 최신 출고 월로 이관해 출고현황에 뜨게 한다.
     const _freshMHas = FRESH_M && Object.keys(FRESH_M).some(m=>FRESH_M[m] && Object.keys(FRESH_M[m]).length);
@@ -3186,6 +3194,63 @@ function parseFreshWorkbook(wb, fileName){
   }
   return { cat, byStore, byMonthStore, unmatchedCols:Array.from(unmatchedCols), month };
 }
+/* ===== 롯데제타(김해점 독점 공급) — "하차 (plt)" 시트: 월×일 매트릭스 ===== */
+function parseLotteZetaWorkbook(wb){
+  const byMonth = {};                 // {YYYY-MM: {김해점: {롯데제타: qty}}}
+  const store = "김해점";
+  const flat = n => String(n||"").replace(/\s/g,"");
+  const sheetName = wb.SheetNames.find(n=>/하차.*plt|plt.*하차/i.test(flat(n)))
+                 || wb.SheetNames.find(n=>/하차/.test(n))
+                 || wb.SheetNames[wb.SheetNames.length-1];
+  const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, raw:true, defval:null});
+  // 헤더행: A열에 매장명(김해점), 이후 1~31 일자 + TOTAL
+  let hdrRow = -1;
+  for(let r=0;r<Math.min(aoa.length,6);r++){ if((aoa[r]||[]).some(c=>/김해|매장|점$/.test(String(c==null?"":c)))){ hdrRow=r; break; } }
+  if(hdrRow<0) hdrRow = 0;
+  const hdr = aoa[hdrRow]||[];
+  const year = 2026;
+  for(let r=hdrRow+1;r<aoa.length;r++){
+    const row = aoa[r]||[];
+    const mo = parseInt(String(row[0]==null?"":row[0]).trim(),10);
+    if(!(mo>=1 && mo<=12)) continue;
+    let sum = 0;
+    for(let c=1;c<row.length;c++){
+      const h = String(hdr[c]==null?"":hdr[c]).trim();
+      if(/total|합계|누계|소계|계$/i.test(h)) continue; // TOTAL 열 제외
+      const v = parseFloat(String(row[c]==null?"":row[c]).replace(/,/g,""));
+      if(!isNaN(v) && v>0) sum += v;
+    }
+    if(sum>0){
+      const mk = `${year}-${String(mo).padStart(2,'0')}`;
+      if(!byMonth[mk]) byMonth[mk] = {};
+      if(!byMonth[mk][store]) byMonth[mk][store] = {};
+      byMonth[mk][store]["롯데제타"] = sum;
+    }
+  }
+  return { byMonth, store };
+}
+function handleLotteZetaFile(file){
+  if(!file) return Promise.resolve();
+  if(typeof XLSX==="undefined"){ alert("엑셀 라이브러리를 불러오지 못했습니다."); return Promise.resolve(); }
+  return new Promise((resolve)=>{
+    const reader = new FileReader();
+    reader.onerror = ()=>{ alert(`"${file.name}" 읽기 실패`); resolve(); };
+    reader.onload = (ev)=>{
+      try{
+        const wb = XLSX.read(new Uint8Array(ev.target.result), {type:"array"});
+        const { byMonth } = parseLotteZetaWorkbook(wb);
+        ensureCategory("롯데제타", "롯데제타(김해점 독점)");
+        LOTTE_M = byMonth; // 마스터 파일 통째 교체(항상 최신 전체가 들어있음)
+        const tot = Object.values(byMonth).reduce((a,mm)=>a+Object.values(mm).reduce((b,ss)=>b+Object.values(ss).reduce((c,v)=>c+v,0),0),0);
+        const monLbl = Object.keys(byMonth).sort().map(m=>`${m.slice(5)}월 ${Math.round(Object.values(byMonth[m]["김해점"]||{}).reduce((a,v)=>a+v,0))}`).join(" · ");
+        saveState();
+        showNotice(`롯데제타 반영 완료 — 김해점 독점, 총 ${Math.round(tot)} PLT (${monLbl}).`);
+        resolve();
+      }catch(err){ alert(`롯데제타 파일 처리 오류: ${err.message}`); resolve(); }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
 function handleFreshFile(file){
   if(!file) return Promise.resolve();
   if(typeof XLSX==="undefined"){ alert("엑셀 라이브러리를 불러오지 못했습니다."); return Promise.resolve(); }
@@ -4250,6 +4315,7 @@ async function handleFolderBatch(fileList){
   const norm = s => String(s||"").replace(/\s+/g,"");
   const pathOf = f => norm(f.webkitRelativePath || f.name);
   const routeOf = p => {
+    if(/롯데제타|제타|zeta/i.test(p)) return "lotte";
     if(/신선|수박/.test(p)) return "fresh";
     if(/가전센터|방도리/.test(p)) return "appliance";
     if(/본사|출고계획서/.test(p)) return "hq";
@@ -4260,7 +4326,7 @@ async function handleFolderBatch(fileList){
     if(/매출현황/.test(p)) return "store";
     return null;
   };
-  const buckets = {stock:[],center:[],appliance:[],hq:[],store:[],cat:[],fresh:[]};
+  const buckets = {stock:[],center:[],appliance:[],hq:[],store:[],cat:[],fresh:[],lotte:[]};
   const unrouted=[];
   files.forEach(f=>{ const r=routeOf(pathOf(f)); if(r) buckets[r].push(f); else unrouted.push(f.name); });
   const latest = arr => arr.slice().sort((a,b)=>a.name.localeCompare(b.name)).pop();
@@ -4274,6 +4340,8 @@ async function handleFolderBatch(fileList){
   buckets.appliance.forEach(f=> handleApplianceFile(f));
   if(buckets.appliance.length) done.push(`가전센터출고(${buckets.appliance.length})`);
   if(buckets.fresh.length){ await handleFreshFiles(buckets.fresh); done.push(`신선출고(${buckets.fresh.length}개)`); }
+  for(const f of buckets.lotte){ await handleLotteZetaFile(f); }
+  if(buckets.lotte.length) done.push(`롯데제타(${buckets.lotte.length})`);
   // 모달 가능 — 순차 대기
   for(const f of buckets.hq){ await handleHQFile(f); }
   if(buckets.hq.length) done.push(`본사출고(${buckets.hq.length})`);
@@ -4295,7 +4363,7 @@ document.getElementById("resetBtn").onclick=()=>{
     STORES.forEach(s=>{ CATEGORIES.forEach(c=>{ SHIP[s][c]=0; ACTUAL[s][c]=0; if(HQ_ACTUAL[s]) HQ_ACTUAL[s][c]=0; if(APPLIANCE_ACTUAL[s]) APPLIANCE_ACTUAL[s][c]=0; }); });
     SUPPLY_HISTORY = []; HQ_SUPPLY_HISTORY = []; APPLIANCE_SUPPLY_HISTORY = [];
     unmatchedActualStores = []; unmatchedHQStores = []; unmatchedApplianceStores = [];
-    FRESH_ACTUAL = {}; CENTER_M = {}; HQ_M = {}; APPLIANCE_M = {}; FRESH_M = {}; shipScope = "all";
+    FRESH_ACTUAL = {}; CENTER_M = {}; HQ_M = {}; APPLIANCE_M = {}; FRESH_M = {}; LOTTE_M = {}; shipScope = "all";
     afterChange();
   }
 };
@@ -4338,7 +4406,7 @@ document.getElementById("resetAllBtn").onclick=()=>{
   STORES.forEach(s=>{ CATEGORIES.forEach(c=>{ SHIP[s][c]=0; ACTUAL[s][c]=0; if(HQ_ACTUAL[s]) HQ_ACTUAL[s][c]=0; if(APPLIANCE_ACTUAL[s]) APPLIANCE_ACTUAL[s][c]=0; }); });
   SUPPLY_HISTORY = []; HQ_SUPPLY_HISTORY = []; APPLIANCE_SUPPLY_HISTORY = [];
   unmatchedActualStores = []; unmatchedHQStores = []; unmatchedApplianceStores = [];
-  FRESH_ACTUAL = {}; CENTER_M = {}; HQ_M = {}; APPLIANCE_M = {}; FRESH_M = {}; shipScope = "all";
+  FRESH_ACTUAL = {}; CENTER_M = {}; HQ_M = {}; APPLIANCE_M = {}; FRESH_M = {}; LOTTE_M = {}; shipScope = "all";
   // 재고
   STORES.forEach(s=>{ STOCK[s] = new Array(STOCK_COLS+1).fill(null); });
   STOCK_HISTORY = [{ label:"재고 없음 (초기화됨)", date:"", total:0, stores:STORES.slice(), stock:JSON.parse(JSON.stringify(STOCK)) }];
