@@ -345,6 +345,18 @@
   .detail-right{display:flex;flex-direction:column;gap:14px;}
   .detail-right .insight-tag{margin-top:2px;}
   @media (max-width:1040px){ .detail-split{grid-template-columns:1fr;gap:18px;} }
+  /* 매장별 매출 상세 A안: 도넛/요약/카테고리/시간대 2×2 + 아래 분석 */
+  .da-wrap{padding:16px 22px 22px;}
+  .da-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 24px;align-items:start;}
+  .da-cell{min-width:0;}
+  .da-tag{font-family:'Oswald';font-size:11px;letter-spacing:.06em;color:var(--muted2);text-transform:uppercase;margin-bottom:6px;}
+  .da-full{margin-top:18px;display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:14px;}
+  .da-details{border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:var(--ink);}
+  .da-details summary{cursor:pointer;font-size:12px;color:var(--amber);font-family:'Oswald';letter-spacing:.04em;list-style:none;}
+  .da-details summary::-webkit-details-marker{display:none;}
+  .da-details summary::before{content:'▸ ';}
+  .da-details[open] summary::before{content:'▾ ';}
+  @media (max-width:1040px){ .da-grid{grid-template-columns:1fr;} }
   /* 매장별 매출 카테고리: 도넛만, 카드 클릭 시 상세로 이동 */
   .pie-grid.donuts{grid-template-columns:repeat(auto-fill,minmax(230px,1fr));}
   .pie-grid-cell.clickable{cursor:pointer;transition:border-color .15s ease, box-shadow .15s ease, transform .08s ease;}
@@ -2628,15 +2640,15 @@ function renderSalesDetail(){
   const scaleNote = hasBill && hasCats && Math.abs(scale-1)>0.001
     ? `<p style="font-size:11.5px;color:var(--muted2);margin:10px 0 0;">※ 총액은 청구금액 기준입니다. 카테고리별 금액은 상품별 실매출액 비율(${(catTotal/(cur||1)*100).toFixed(1)}%)을 청구금액 총액에 맞춰 배분한 값이라, 상품별 파일의 원 실매출액과는 소폭 차이가 있습니다.</p>`
     : `<p style="font-size:11.5px;color:var(--muted2);margin:10px 0 0;">※ 총액·카테고리 모두 실매출액 기준입니다.</p>`;
-  const donutSection = hasCats
-    ? `<div class="donut-hero-wrap">${buildDonutSVG(chartData, 210)}
+  const donutHero = hasCats
+    ? `<div class="donut-hero-wrap">${buildDonutSVG(chartData, 188)}
          <div class="donut-hero-caption"><div class="dh-total">${Math.round(cur).toLocaleString()}<span class="won">원</span></div>
-           <div class="dh-sub">${escHtml(salesModeLabel())} · 청구금액${topShareText}</div></div></div>
-       ${buildSharePercentBars(chartData)}
-       ${scaleNote}`
+           <div class="dh-sub">${escHtml(salesModeLabel())} · 청구금액${topShareText}</div></div></div>`
     : `<div class="donut-hero-wrap"><div class="donut-hero-caption"><div class="dh-total">${Math.round(cur).toLocaleString()}<span class="won">원</span></div>
-         <div class="dh-sub">${escHtml(salesModeLabel())} · 청구금액</div></div></div>
-       <p class="trend-empty">카테고리별 구성을 보려면 <b>카테고리별 매출 업로드</b>로 상품별 매출 파일을 올리세요.</p>`;
+         <div class="dh-sub">${escHtml(salesModeLabel())} · 청구금액</div></div></div>`;
+  const shareBars = hasCats
+    ? `${buildSharePercentBars(chartData, {compact:true})}${scaleNote}`
+    : `<p class="trend-empty">카테고리별 구성을 보려면 <b>카테고리별 매출 업로드</b>로 상품별 매출 파일을 올리세요.</p>`;
   let cardHtml = "";
   if(snaps){
     const dcur = salesStoreTotal(snaps.latest.byStoreCat, s);
@@ -2655,42 +2667,38 @@ function renderSalesDetail(){
   const commonEv = EVENTS_COMMON[evMonth] || "";
   const storeEv = EVENTS_STORE[eventStoreKey(s, evMonth)] || "";
   const evLabel = evMonth ? evMonth.replace('-','년 ')+"월" : "";
-  const evList = [commonEv && `전매장 공통: ${commonEv}`, storeEv && `${s}: ${storeEv}`].filter(Boolean);
-  const eventNote = evList.length
-    ? `<div class="insight-item" style="border-left:3px solid var(--amber);padding-left:10px;margin:8px 0;"><b>🎪 행사 반영 분석</b> — ${evLabel}에 <b>${escHtml(evList.join(' · '))}</b> 행사가 있었습니다. 위 전월·작년 대비 증감은 <b>행사 효과가 포함</b>된 수치이니, 순수 매출력과 구분해 해석하세요. (행사 달의 상승은 행사 종료 후 반락 가능성도 함께 점검)</div>`
-    : `<div class="insight-item" style="border-left:3px solid var(--line);padding-left:10px;margin:8px 0;color:var(--muted2);">이 달 행사가 입력되지 않았습니다. 아래에 입력하면 분석에 자동 반영됩니다.</div>`;
   const eventBlock = `
     <div class="insight-tag">행사 / 프로모션${evLabel?` · ${evLabel}`:""}</div>
-    ${eventNote}
-    <div style="margin:6px 0 10px;">
-      <label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:3px;">${escHtml(s)} 개별 행사</label>
+    <div style="margin:2px 0 8px;">
+      <label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:3px;">${escHtml(s)} 개별 행사 (전매장 공통행사는 상단에서 입력·적용)</label>
       <input id="eventStoreInput" type="text" value="${escHtml(storeEv)}" placeholder="이 매장만의 행사(예: 지역 특판, 리뉴얼 오픈)" style="width:100%;box-sizing:border-box;background:var(--ink);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:7px 10px;font-size:12.5px;">
     </div>`;
   const hourly = storeHourly(s);
   const hasHours = Object.keys(hourly).length>0;
   const dayLabel = selectedDetailDay==="__all__" ? (eventMonth().replace('-','년 ')+"월 전체") : selectedDetailDay.slice(5).replace('-','/');
-  const clockSection = hasHours
-    ? `<div style="margin-top:16px;"><div class="insight-tag">시간대별 매출 점유율 · 손님 방문시간 (${escHtml(dayLabel)})</div>
-         <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-top:6px;">
-           <div style="flex:0 0 240px;max-width:260px;">
-             ${buildClockSVG(hourly, 240)}
-             <div style="font-size:11.5px;color:var(--amber);text-align:center;margin-top:4px;">${escHtml(hourlyTopText(hourly))}</div>
-           </div>
-           <div style="flex:1;min-width:260px;">${hourlyShareTable(hourly)}</div>
-         </div></div>`
-    : `<div style="margin-top:16px;font-size:11.5px;color:var(--muted2);">시간대별 매출 점유율(방문시간) 표는 <b>카테고리별 매출 파일(등록일시 포함)</b>을 불러오면 표시됩니다.</div>`;
+  const clockOnly = hasHours
+    ? `<div style="display:flex;flex-direction:column;align-items:center;">${buildClockSVG(hourly, 196)}
+         <div style="font-size:11.5px;color:var(--amber);text-align:center;margin-top:2px;">${escHtml(hourlyTopText(hourly))}</div></div>`
+    : `<p class="trend-empty" style="font-size:11.5px;">시간대(방문시간)는 <b>카테고리별 매출 파일(등록일시 포함)</b>이 있어야 표시됩니다.</p>`;
+  const hourTableBlock = hasHours
+    ? `<details class="da-details"><summary>시간대별 매출 점유율 표 보기 (${escHtml(dayLabel)})</summary><div style="margin-top:8px;">${hourlyShareTable(hourly)}</div></details>`
+    : "";
   panel.innerHTML = `
     <div class="panel">
       <div class="p-hd"><span class="store-name">${s}</span><span class="meta">${escHtml(salesModeLabel())} · 매장별 매출</span></div>
-      <div class="detail-split">
-        <div class="detail-left">${donutSection}</div>
-        <div class="detail-right">
-          ${cardHtml}
+      <div class="da-wrap">
+        <div class="da-grid">
+          <div class="da-cell"><div class="da-tag">카테고리 구성 (도넛)</div>${donutHero}</div>
+          <div class="da-cell"><div class="da-tag">매출 요약 · 대비</div>${cardHtml || '<p class="trend-empty" style="font-size:12px;">일자별 매출 파일을 올리면 전일·전주·전월 대비가 표시됩니다.</p>'}</div>
+          <div class="da-cell"><div class="da-tag">카테고리 점유율</div>${shareBars}</div>
+          <div class="da-cell"><div class="da-tag">시간대 · 손님 방문시간 (${escHtml(dayLabel)})</div>${clockOnly}</div>
+        </div>
+        <div class="da-full">
           ${eventBlock}
           ${insightsHtml}
+          ${hourTableBlock}
         </div>
       </div>
-      ${clockSection}
     </div>`;
   const sin = document.getElementById("eventStoreInput");
   if(sin) sin.onchange = ()=>{ if(evMonth){ EVENTS_STORE[eventStoreKey(s, evMonth)] = sin.value.trim(); saveState(); renderSalesDetail(); } };
