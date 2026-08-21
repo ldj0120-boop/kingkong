@@ -499,6 +499,8 @@
           <button class="act dropzone" id="importSalesBtn" title="일자별 매출현황 파일(매출현황-YYYYMMDD.xlsx)을 클릭 또는 끌어다 놓으세요. 여러 날짜를 한 번에 올려도 됩니다. 금액은 G열 청구금액 기준으로 누적 집계됩니다.">매장별 매출 업로드 (일자별)</button>
           <input type="file" id="importCatSalesFile" accept=".xlsx,.xls" multiple hidden>
           <button class="act dropzone" id="importCatSalesBtn" title="카테고리별 매출용 상품별 매출현황 파일(상품분류 포함)을 클릭 또는 끌어다 놓으세요">카테고리별 매출 업로드</button>
+          <input type="file" id="importSalesSummaryFile" accept=".json" multiple hidden>
+          <button class="act dropzone" id="importSalesSummaryBtn" title="매출요약변환기로 만든 요약본(.json)을 올리면 대용량 원본 없이 즉시 반영됩니다(카테고리·시간대 포함)">매출 요약본 불러오기 (빠름)</button>
         </div>
       </div>
       <div class="tool-group manage">
@@ -1161,6 +1163,27 @@ function showNotice(msg){
   noticeBar.hidden = false;
   noticeBar.querySelector(".x").onclick = ()=>{ noticeBar.hidden = true; };
 }
+// 대용량 파싱 진행률 오버레이 (화면 멈춤 없이 진행 상황을 보여줌)
+function showProgress(pct, label){
+  let el = document.getElementById("pltProgress");
+  if(!el){
+    el = document.createElement("div");
+    el.id = "pltProgress";
+    el.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:9999;background:rgba(14,17,22,.96);border-top:1px solid var(--line);padding:12px 20px;font-family:'Oswald',sans-serif;color:var(--text);";
+    el.innerHTML = `<div style="display:flex;align-items:center;gap:12px;max-width:900px;margin:0 auto;">
+        <span id="pltProgLabel" style="font-size:13px;color:var(--muted);white-space:nowrap;">처리 중…</span>
+        <div style="flex:1;height:10px;background:var(--ink);border:1px solid var(--line);border-radius:6px;overflow:hidden;"><div id="pltProgBar" style="height:100%;width:0%;background:var(--amber);transition:width .15s;"></div></div>
+        <span id="pltProgPct" style="font-family:'JetBrains Mono';font-size:13px;color:var(--amber);white-space:nowrap;">0%</span>
+      </div>`;
+    document.body.appendChild(el);
+  }
+  el.hidden = false;
+  const p = Math.max(0, Math.min(100, Math.round(pct*100)));
+  const bar = document.getElementById("pltProgBar"); if(bar) bar.style.width = p + "%";
+  const pctEl = document.getElementById("pltProgPct"); if(pctEl) pctEl.textContent = p + "%";
+  const lb = document.getElementById("pltProgLabel"); if(lb && label) lb.textContent = label;
+}
+function hideProgress(){ const el = document.getElementById("pltProgress"); if(el) el.hidden = true; }
 
 /* ================= 데이터 품질 점검 (합계·집계가 모호해지는 상황을 감지해 경고) ================= */
 // 알 수 없는 카테고리 자동 추가, 매장 미매칭, 카테고리 유추(상품명 기반) 등 "이 값이 정확한지 확신할 수 없는" 상황을 모아
@@ -4071,7 +4094,7 @@ async function ensureShipCategoriesResolved(wb){
   saveState();
   return true;
 }
-function parseSalesTransactionRows(aoa, header){
+async function parseSalesTransactionRows(aoa, header, onProgress){
   const colDate = findSalesDateCol(header);
   const colCat = header.indexOf("상품분류");
   const colProduct = header.indexOf("상품명");
@@ -4110,7 +4133,9 @@ function parseSalesTransactionRows(aoa, header){
     if(m[1]==="오후" && hr<12) hr+=12; if(m[1]==="오전" && hr===12) hr=0;
     return (hr>=0&&hr<=23)?hr:-1;
   };
-  for(let r=1;r<aoa.length;r++){
+  const N = aoa.length;
+  const CHUNK = 15000;
+  for(let r=1;r<N;r++){
     const row = aoa[r];
     if(!row) continue;
     const catSourceCell = useCat ? row[colCat] : row[colProduct];
@@ -4147,7 +4172,9 @@ function parseSalesTransactionRows(aoa, header){
       }
     }
     rowCount++;
+    if((r % CHUNK)===0){ if(onProgress) onProgress(r/N); await new Promise(res=>setTimeout(res,0)); }
   }
+  if(onProgress) onProgress(1);
   return { byDate, byDateHour, unmatched: Array.from(unmatched), rowCount, skippedNoCat, skippedNoDate, fallbackCats: Array.from(fallbackCats), amountBasis };
 }
 function handleSalesFile(file){
@@ -4177,7 +4204,8 @@ function handleSalesFile(file){
         // 상품분류가 있는 파일이면, 자동 규칙으로 못 정한 대분류가 있는지 먼저 확인하고 사용자에게 물어본 뒤 계속 진행한다.
         const proceed = await ensureSalesCategoriesResolved(aoa, colCatT, colProductT);
         if(!proceed){ showNotice("업로드를 취소했습니다. 카테고리 분류를 확정하지 않아 매출 데이터를 반영하지 않았습니다."); return; }
-        const result = parseSalesTransactionRows(aoa, header);
+        const result = await parseSalesTransactionRows(aoa, header, (pct)=> showProgress(pct, `"${file.name}" 매출 분석 중`));
+        hideProgress();
         if(!result){
           alert('필요한 열("영업일자","매장명","수량","세일적용가")과 카테고리를 유추할 열("상품분류" 또는 "상품명") 중 하나를 찾지 못했습니다. 파일 형식을 확인해 주세요.');
           return;
@@ -4359,7 +4387,7 @@ function handleSalesFile(file){
       showNotice(msg);
     }catch(err){
       alert("엑셀을 읽는 중 오류가 발생했습니다: " + err.message);
-    } finally { resolve(); }
+    } finally { hideProgress(); resolve(); }
   };
   reader.readAsArrayBuffer(file);
   });
@@ -4371,7 +4399,76 @@ async function handleCatSalesFiles(files){
   for(const f of list){ await handleSalesFile(f); }
   if(list.length>1) showNotice(`카테고리별 매출 ${list.length}개 파일을 순서대로 반영했습니다. 누적 매출 스냅샷: ${SALES_HISTORY.length}개. 금액은 M열 실매출액 기준입니다.`);
 }
-// 매장별 매출(일자별, 청구금액) 슬롯 — 여러 날짜 파일을 한 번에 받아 누적
+// 매출 요약본(.json) 불러오기 — 매출요약변환기가 만든 요약을 즉시 반영(대용량 원본 파싱 불필요)
+async function handleSalesSummaryFiles(files){
+  const list = Array.from(files||[]).filter(Boolean);
+  if(!list.length) return;
+  let daysAll = {};
+  for(const f of list){
+    try{
+      const text = await f.text();
+      const obj = JSON.parse(text);
+      if(!obj || obj.type!=="plt-sales-summary" || !obj.days){ showNotice(`"${f.name}"은(는) 이 앱의 매출 요약본 형식이 아닙니다. 매출요약변환기로 만든 .json을 올려주세요.`); continue; }
+      Object.keys(obj.days).forEach(d=>{ daysAll[d]=obj.days[d]; }); // 같은 날짜는 최신 파일로 교체
+    }catch(err){ showNotice(`"${f.name}" 읽기 실패: ${err.message}`); }
+  }
+  const dates = Object.keys(daysAll);
+  if(!dates.length) return;
+  // 1) 미지정 카테고리(rawTop) 모으기 → 필요시 한 번만 지정
+  try{ const cm=JSON.parse(localStorage.getItem("plt_catmap_v1")||"null"); if(cm && cm.SALES_CAT_MAP && typeof cm.SALES_CAT_MAP==="object") SALES_CAT_MAP=Object.assign({}, cm.SALES_CAT_MAP, SALES_CAT_MAP); }catch(_){}
+  const unknown = new Set();
+  dates.forEach(d=>{ const cat=daysAll[d].cat||{}; Object.values(cat).forEach(sc=> Object.keys(sc).forEach(rt=>{ if(classifySalesCategory(rt, null)===null) unknown.add(rt); })); });
+  if(unknown.size){
+    const mapping = await showCategoryMappingModal(unknown, { sourceLabel:"매출 요약본(사용자 지정)" });
+    if(!mapping) return;
+    Object.assign(SALES_CAT_MAP, mapping); persistCatMaps();
+  }
+  // 2) 각 날짜를 SALES_HISTORY 스냅샷으로 변환(매장 resolve + 카테고리 classify)
+  let added=0;
+  dates.forEach(d=>{
+    const src = daysAll[d];
+    const byStoreCat = {}, byStoreHour = {};
+    Object.keys(src.cat||{}).forEach(rawStore=>{
+      const store = resolveSalesStoreName(rawStore);
+      if(!STORES.includes(store)) return;
+      if(!byStoreCat[store]) byStoreCat[store]={};
+      Object.keys(src.cat[rawStore]).forEach(rt=>{
+        const cat = classifySalesCategory(rt, null) || "미분류";
+        ensureCategory(cat, "매출 요약본");
+        const arr = src.cat[rawStore][rt]; // [qty, amount]
+        if(!byStoreCat[store][cat]) byStoreCat[store][cat]={qty:0, amount:0};
+        byStoreCat[store][cat].qty += (arr[0]||0);
+        byStoreCat[store][cat].amount += (arr[1]||0);
+      });
+    });
+    Object.keys(src.hour||{}).forEach(rawStore=>{
+      const store = resolveSalesStoreName(rawStore);
+      if(!STORES.includes(store)) return;
+      if(!byStoreHour[store]) byStoreHour[store]={};
+      Object.keys(src.hour[rawStore]).forEach(hr=>{
+        const arr = src.hour[rawStore][hr]; // [count, amount]
+        byStoreHour[store][hr] = {count:(arr[0]||0), amount:(arr[1]||0)};
+      });
+    });
+    const idx = SALES_HISTORY.findIndex(h=>h.date===d);
+    const snap = { date:d, byStoreCat, byStoreHour };
+    if(idx>=0) SALES_HISTORY[idx]=snap; else SALES_HISTORY.push(snap);
+    added++;
+  });
+  SALES_HISTORY.sort((a,b)=>a.date.localeCompare(b.date));
+  if(SALES_HISTORY.length) selectedSalesDate = SALES_HISTORY[SALES_HISTORY.length-1].date;
+  saveState();
+  afterChange();
+  const sorted = dates.sort();
+  showNotice(`매출 요약본 반영 완료 — ${added}일치 (${sorted[0]} ~ ${sorted[sorted.length-1]}). 카테고리·시간대 분석 포함, 즉시 표시됩니다.`);
+}
+const importSalesSummaryInput = document.getElementById("importSalesSummaryFile");
+const importSalesSummaryBtn = document.getElementById("importSalesSummaryBtn");
+if(importSalesSummaryBtn){
+  importSalesSummaryBtn.onclick = ()=> importSalesSummaryInput.click();
+  importSalesSummaryInput.onchange = (e)=>{ handleSalesSummaryFiles(e.target.files); importSalesSummaryInput.value=""; };
+  setupDropZoneMulti(importSalesSummaryBtn, handleSalesSummaryFiles);
+}
 // 매장별 매출(일자별, 청구금액) 슬롯 — 여러 날짜 파일을 한 번에 받아 누적
 const importSalesInput = document.getElementById("importSalesFile");
 const importSalesBtn = document.getElementById("importSalesBtn");
