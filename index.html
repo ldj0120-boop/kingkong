@@ -511,6 +511,7 @@
             <input type="file" id="importMapFile" accept=".json" hidden>
             <button class="act" id="exportMapBtn" title="지금까지 지정한 상품분류→카테고리 매핑을 파일로 저장합니다. 다른 PC/새 파일에서 불러오면 다시 지정할 필요가 없습니다">카테고리 지정 저장</button>
             <button class="act" id="importMapBtn" title="이전에 내보낸 카테고리 지정(JSON)을 불러와 매핑을 복원합니다">카테고리 지정 불러오기</button>
+            <button class="act" id="editMapBtn" title="지금까지 지정한 카테고리 매핑을 보고 수정·삭제합니다">카테고리 지정 보기/수정</button>
           </div>
           <div class="tool-divider"></div>
           <span class="tool-cap">초기화</span>
@@ -737,6 +738,21 @@
       <div class="modal-actions">
         <button class="act" id="catMapCancel">취소 (이 파일 업로드 취소)</button>
         <button class="act primary" id="catMapConfirm">확인하고 집계 계속</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="catEditModal" class="modal-overlay" hidden>
+    <div class="modal-box">
+      <h3>카테고리 지정 보기 / 수정</h3>
+      <p>지금까지 지정한 <b>상품분류 → 카테고리</b> 매핑입니다. 카테고리를 바꾸거나(드롭다운) 삭제(✕)할 수 있습니다. 삭제하면 다음 업로드 때 다시 물어봅니다.</p>
+      <div style="display:flex;gap:8px;margin:6px 0 10px;">
+        <input type="text" id="catEditFilter" placeholder="검색(상품분류/카테고리)" style="flex:1;background:var(--ink);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:7px 10px;font-size:12.5px;">
+      </div>
+      <div id="catEditList" style="max-height:52vh;overflow:auto;"></div>
+      <div class="modal-actions">
+        <button class="act" id="catEditClose">닫기</button>
+        <button class="act primary" id="catEditSave">저장</button>
       </div>
     </div>
   </div>
@@ -1964,12 +1980,39 @@ function renderPeriodCompare(){
       </div>`;
   }).join("");
   const warnHtml = coverageWarning ? `<p style="font-size:12px;color:var(--amber);margin:0 0 10px;">${escHtml(coverageWarning)}</p>` : "";
+  // 기간 총합 요약(한눈에) — 실매출액 기준
+  const curSum = cats.reduce((a,c)=>a+(curTotals[c]?curTotals[c].amount:0),0);
+  const cmpSum = cats.reduce((a,c)=>a+(cmpTotals[c]?cmpTotals[c].amount:0),0);
+  const sumPct = cmpSum>0 ? Math.round((curSum-cmpSum)/cmpSum*100) : null;
+  const sumCls = sumPct==null ? 'flat' : (sumPct>0?'up':(sumPct<0?'down':'flat'));
+  const sumArrow = sumPct==null ? '' : (sumPct>0?'▲':(sumPct<0?'▼':'－'));
+  const eok = v => (v/100000000).toFixed(2)+'억';
+  const curDays = curSnaps.length, cmpDays = cmpSnaps.length;
+  const totalBox = `
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin:0 0 12px;">
+      <div style="flex:1;min-width:200px;background:var(--ink);border:1px solid var(--amber);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:11px;color:var(--amber);font-family:'Oswald';letter-spacing:.04em;">현재(비교) · ${escHtml(curLabel)} · ${curDays}일치</div>
+        <div style="font-size:22px;font-weight:800;font-family:'JetBrains Mono';color:var(--text);margin-top:2px;">${Math.round(curSum).toLocaleString()}<span style="font-size:13px;color:var(--muted);">원</span></div>
+        <div style="font-size:12px;color:var(--muted2);">${eok(curSum)}</div>
+      </div>
+      <div style="flex:1;min-width:200px;background:var(--ink);border:1px solid var(--info);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:11px;color:var(--info);font-family:'Oswald';letter-spacing:.04em;">기준 · ${escHtml(cmpLabel)} · ${cmpDays}일치</div>
+        <div style="font-size:22px;font-weight:800;font-family:'JetBrains Mono';color:var(--text);margin-top:2px;">${Math.round(cmpSum).toLocaleString()}<span style="font-size:13px;color:var(--muted);">원</span></div>
+        <div style="font-size:12px;color:var(--muted2);">${eok(cmpSum)}</div>
+      </div>
+      <div style="flex:0 0 150px;min-width:130px;background:var(--ink);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;justify-content:center;">
+        <div style="font-size:11px;color:var(--muted2);font-family:'Oswald';">기준 대비 증감</div>
+        <div class="delta ${sumCls}" style="font-size:20px;font-weight:800;margin-top:2px;">${sumPct==null?'-':`${sumArrow} ${sumPct>0?'+':(sumPct<0?'-':'')}${Math.abs(sumPct)}%`}</div>
+        <div style="font-size:11px;color:var(--muted2);">차액 ${(curSum-cmpSum>=0?'+':'')}${Math.round(curSum-cmpSum).toLocaleString()}원</div>
+      </div>
+    </div>
+    ${(curDays!==cmpDays)?`<p style="font-size:11.5px;color:var(--amber);margin:-4px 0 10px;">※ 두 기간의 업로드 일수가 다릅니다(현재 ${curDays}일 / 기준 ${cmpDays}일) — 총합 비교 시 감안하세요.</p>`:''}`;
   const legend = `<div class="period-legend">
       <span><span class="sw" style="background:var(--info);"></span><b style="color:var(--info);">기준</b> = ${escHtml(cmpLabel)}</span>
       <span><span class="sw" style="background:var(--amber);"></span><b style="color:var(--amber);">현재(비교)</b> = ${escHtml(curLabel)}</span>
-      <span style="color:var(--muted2);">· 증감%는 <b>기준 대비 현재</b>가 얼마나 늘었/줄었는지입니다(증가=＋).</span>
+      <span style="color:var(--muted2);">· 증감%는 <b>기준 대비 현재</b>가 얼마나 늘었/줄었는지입니다(증가=＋). 금액은 실매출액 기준.</span>
     </div>`;
-  body.innerHTML = `<p style="font-size:12.5px;color:var(--muted);margin:0 0 8px;"><b style="color:var(--text);">${escHtml(storeLabel)}</b></p>${legend}${warnHtml}<div class="cat-bar-list">${rows}</div>`;
+  body.innerHTML = `<p style="font-size:12.5px;color:var(--muted);margin:0 0 8px;"><b style="color:var(--text);">${escHtml(storeLabel)}</b> · 기간 총합(실매출액)</p>${totalBox}${legend}${warnHtml}<div class="cat-bar-list">${rows}</div>`;
 }
 
 /* ================= 집계 현황 : 매출 추이 (전일/전주/전월/작년 대비) ================= */
@@ -4647,6 +4690,58 @@ importMapInput.onchange=(e)=>{
   };
   reader.readAsText(file);
 };
+// 카테고리 지정 보기/수정
+(function(){
+  const btn = document.getElementById("editMapBtn");
+  const modal = document.getElementById("catEditModal");
+  if(!btn || !modal) return;
+  const listEl = document.getElementById("catEditList");
+  const filterEl = document.getElementById("catEditFilter");
+  let workSales, workShip; // 편집 중 임시본
+  function catOptions(sel){ return CATEGORIES.map(c=>`<option value="${escHtml(c)}"${c===sel?' selected':''}>${escHtml(c)}</option>`).join("") + `<option value="__del__">🗑 삭제(다시 묻기)</option>`; }
+  function render(){
+    const q = (filterEl.value||"").trim().toLowerCase();
+    const rows = [];
+    const add = (raw, cat, kind) => {
+      if(q && !(raw.toLowerCase().includes(q) || String(cat).toLowerCase().includes(q))) return;
+      rows.push(`<div class="catmap-row" style="align-items:center;">
+        <div><div class="rawname">${escHtml(raw)}</div><div class="sample">${kind}</div></div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <select data-kind="${kind==='매출'?'sales':'ship'}" data-raw="${escHtml(raw)}">${catOptions(cat)}</select>
+        </div>
+      </div>`);
+    };
+    Object.keys(workSales).sort().forEach(k=> add(k, workSales[k], "매출"));
+    Object.keys(workShip).sort().forEach(k=> add(k, workShip[k], "출고"));
+    listEl.innerHTML = rows.length ? rows.join("") : `<p class="trend-empty">지정된 카테고리가 없습니다.</p>`;
+    listEl.querySelectorAll("select").forEach(sel=>{
+      sel.onchange = ()=>{
+        const raw = sel.dataset.raw, kind = sel.dataset.kind, v = sel.value;
+        const tgt = kind==="sales" ? workSales : workShip;
+        if(v==="__del__"){ delete tgt[raw]; render(); }
+        else { tgt[raw] = v; }
+      };
+    });
+  }
+  btn.onclick = ()=>{
+    // 최신 저장본까지 반영해서 편집
+    try{ const cm=JSON.parse(localStorage.getItem("plt_catmap_v1")||"null"); if(cm){ if(cm.SALES_CAT_MAP) SALES_CAT_MAP=Object.assign({}, cm.SALES_CAT_MAP, SALES_CAT_MAP); if(cm.SHIP_CAT_MAP) SHIP_CAT_MAP=Object.assign({}, cm.SHIP_CAT_MAP, SHIP_CAT_MAP); } }catch(_){}
+    workSales = Object.assign({}, SALES_CAT_MAP);
+    workShip = Object.assign({}, SHIP_CAT_MAP);
+    filterEl.value = "";
+    render();
+    modal.hidden = false;
+  };
+  filterEl.oninput = render;
+  document.getElementById("catEditClose").onclick = ()=>{ modal.hidden = true; };
+  document.getElementById("catEditSave").onclick = ()=>{
+    SALES_CAT_MAP = workSales;
+    SHIP_CAT_MAP = workShip;
+    persistCatMaps(); saveState(); afterChange();
+    modal.hidden = true;
+    showNotice(`카테고리 지정을 수정했습니다 (매출 ${Object.keys(SALES_CAT_MAP).length}건 · 출고 ${Object.keys(SHIP_CAT_MAP).length}건).`);
+  };
+})();
 
 /* ================= 엑셀 내보내기 ================= */
 document.getElementById("exportBtn").onclick=()=>{
