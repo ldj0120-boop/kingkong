@@ -58,6 +58,8 @@
     background:var(--ink);border:1px solid var(--line);color:var(--text);
     font-family:"JetBrains Mono";font-size:13px;padding:7px 10px;border-radius:8px;width:170px;
   }
+  .datefield input[type=date]{ color-scheme:dark; }
+  .datefield input[type=date]::-webkit-calendar-picker-indicator{ filter:invert(0.8); cursor:pointer; }
   .count-pill{
     display:flex;align-items:center;gap:9px;
     background:var(--ink);border:1px solid var(--line);border-radius:999px;padding:7px 14px;
@@ -463,7 +465,14 @@
   .catmap-row select,.catmap-row input{width:100%;background:var(--ink);border:1px solid var(--line);color:var(--text);padding:7px 9px;border-radius:6px;font-size:12.5px;font-family:"Inter";}
   .catmap-row .newcat-input{margin-top:6px;}
   .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}
+  /* 실시간 공유 배지 + 뷰어 모드 숨김 */
+  #cloudBadge{position:fixed;top:8px;right:10px;z-index:9998;font-size:12px;font-family:'Oswald';padding:5px 12px;border-radius:20px;border:1px solid var(--line);background:var(--panel);cursor:pointer;}
+  #cloudBadge.admin{border-color:var(--amber);color:var(--amber);}
+  #cloudBadge.viewer{border-color:var(--info);color:var(--info);}
+  body.viewer-mode .admin-only{display:none !important;}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -647,22 +656,14 @@
           <div class="datefield">
             <label for="periodModeSelect">비교 방식</label>
             <select id="periodModeSelect">
+              <option value="range">기간 합계 비교 (A구간 vs B구간)</option>
               <option value="two">두 날짜 직접 비교</option>
-              <option value="range">기간 합계 비교 (대상 월의 같은 일자와)</option>
             </select>
           </div>
-          <div class="datefield">
-            <label id="periodALabel" for="periodASelect">비교 A (기준일)</label>
-            <select id="periodASelect"></select>
-          </div>
-          <div class="datefield">
-            <label id="periodBLabel" for="periodBSelect">비교 B (대상일)</label>
-            <select id="periodBSelect"></select>
-          </div>
-          <div class="datefield" id="periodCmpMonthField" style="display:none;">
-            <label for="periodCmpMonthSelect">비교 B (대상 월)</label>
-            <select id="periodCmpMonthSelect"></select>
-          </div>
+          <div class="datefield"><label for="periodAStart">비교 A 시작일</label><input type="date" id="periodAStart"></div>
+          <div class="datefield" id="periodAEndField"><label for="periodAEnd">비교 A 종료일</label><input type="date" id="periodAEnd"></div>
+          <div class="datefield"><label for="periodBStart" id="periodBStartLabel">비교 B 시작일</label><input type="date" id="periodBStart"></div>
+          <div class="datefield" id="periodBEndField"><label for="periodBEnd">비교 B 종료일</label><input type="date" id="periodBEnd"></div>
           <div class="datefield">
             <label for="periodStoreSelect">매장</label>
             <select id="periodStoreSelect"></select>
@@ -998,8 +999,9 @@ let unmatchedSalesStores = []; // 매출현황 파일에는 있지만 매장 목
 // 이것이 매장별 매출 "금액"의 기준(authoritative). 카테고리 구성은 별도의 상품별 매출 파일(SALES_HISTORY)에서 온다.
 let STORE_SALES_HISTORY = []; // [{date, byStore:{매장:청구금액}, total, file}]
 let selectedSalesDate = null;   // "매장별 매출" 탭 기준일 드롭다운에서 고른 날짜 (null이면 최신 스냅샷)
-let periodA = null, periodB = null, periodMode = "two"; // "기간별 카테고리별 매출 비교" 카드에서 고른 두 날짜/모드
-let periodCmpMonth = null; // range 모드에서 비교 B의 대상 월(YYYY-MM)
+let periodA = null, periodB = null, periodMode = "range"; // A구간 시작(periodA)·종료(periodB)
+let periodCmpMonth = null; // (구버전 호환용, 미사용)
+let periodBStart = null, periodBEnd = null; // 비교 B 구간 시작·종료
 let periodStore = "__all__"; // 같은 카드에서 고른 매장 ("__all__" = 전체 매장 합계)
 let LAST_SALES_UPLOAD = null; // 가장 최근 매출현황 업로드의 신규/변경/동일 날짜 요약 (매일 업로드 시 뭐가 갱신됐는지 보여주기 위함)
 let SALES_CAT_MAP = {}; // 매출현황의 "상품분류"(맨 앞 대분류) 원문 -> 실제 집계에 쓸 PLT 출고 카테고리. 자동 규칙으로 못 정하면 사용자에게 물어봐서 여기 저장하고, 다음부터는 자동 적용된다.
@@ -1057,14 +1059,17 @@ let _saveWarned = false;
 function persistCatMaps(){
   try{ localStorage.setItem("plt_catmap_v1", JSON.stringify({ SALES_CAT_MAP, SHIP_CAT_MAP, CATEGORIES, CATEGORY_ORIGIN })); }catch(_){}
 }
-function saveState(){
-  const st = {
+function buildStateObject(){
+  return {
       STORES, STOCK, CATEGORIES, CATEGORY_ORIGIN, SHIP, ACTUAL,
       HQ_ACTUAL, APPLIANCE_ACTUAL, FRESH_ACTUAL, CENTER_M, HQ_M, APPLIANCE_M, FRESH_M, LOTTE_M, shipScope, HQ_SUPPLY_HISTORY, APPLIANCE_SUPPLY_HISTORY, unmatchedHQStores, unmatchedApplianceStores,
       selected, SUPPLY_HISTORY, STOCK_HISTORY, unmatchedActualStores,
-      SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, selectedSalesMonth, selectedMonthlyStore, salesViewMode, EVENTS_COMMON, EVENTS_STORE, PROCESSED_FILES,
+      SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodBStart, periodBEnd, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, selectedSalesMonth, selectedMonthlyStore, salesViewMode, EVENTS_COMMON, EVENTS_STORE, PROCESSED_FILES,
       basedateIdx: (typeof basedateEl!=="undefined" && basedateEl.value!=="") ? +basedateEl.value : STOCK_HISTORY.length-1
   };
+}
+function saveState(){
+  const st = buildStateObject();
   // 1차: 용량 큰 IndexedDB에 저장(대용량 매출 데이터도 안전하게 보존)
   try{ idbSet("state", st).catch(()=>{}); }catch(_){}
   // 카테고리 지정(매핑)은 별도의 작은 키에 항상 저장 → 전체 상태가 용량 초과로 실패해도 지정은 유지된다.
@@ -1077,6 +1082,8 @@ function saveState(){
     try{ localStorage.removeItem(STORAGE_KEY); }catch(_){}
     if(!_saveWarned){ _saveWarned = true; }
   }
+  // 3차: 관리자면 클라우드(실시간 공유)에도 반영
+  try{ if(typeof cloudPush==="function") cloudPush(); }catch(_){}
 }
 // 창을 닫거나 새로고침하기 직전에도 마지막 상태를 한 번 더 저장(백그라운드 보존).
 if(typeof window!=="undefined"){
@@ -1107,6 +1114,7 @@ function applyStateObject(s){
     periodB = (s.periodB && SALES_HISTORY.some(h=>h.date===s.periodB)) ? s.periodB : null;
     periodMode = (s.periodMode==="range") ? "range" : "two";
     periodCmpMonth = s.periodCmpMonth || null;
+    periodBStart = s.periodBStart || null; periodBEnd = s.periodBEnd || null;
     periodStore = s.periodStore || "__all__";
     SALES_CAT_MAP = (s.SALES_CAT_MAP && typeof s.SALES_CAT_MAP==="object") ? s.SALES_CAT_MAP : {};
     if(s.salesViewMode==="daily"||s.salesViewMode==="cumulative") salesViewMode = s.salesViewMode;
@@ -1866,46 +1874,40 @@ function categoryTotalsFiltered(byStoreCat, store){
 }
 function renderPeriodSelects(){
   const modeSel = document.getElementById("periodModeSelect");
-  const aSel = document.getElementById("periodASelect");
-  const bSel = document.getElementById("periodBSelect");
+  const aS = document.getElementById("periodAStart");
+  const aE = document.getElementById("periodAEnd");
+  const bS = document.getElementById("periodBStart");
+  const bE = document.getElementById("periodBEnd");
   const storeSel = document.getElementById("periodStoreSelect");
-  if(!modeSel || !aSel || !bSel || !storeSel) return;
-  if(!SALES_HISTORY.length){ aSel.innerHTML=""; bSel.innerHTML=""; storeSel.innerHTML=""; return; }
+  if(!modeSel || !aS || !aE || !bS || !bE || !storeSel) return;
+  if(!SALES_HISTORY.length){ storeSel.innerHTML=""; return; }
   const dates = SALES_HISTORY.slice().sort((a,b)=>a.date<b.date?-1:1).map(h=>h.date);
-  if(!periodA || !dates.includes(periodA)) periodA = dates[Math.max(0, dates.length-2)];
-  if(!periodB || !dates.includes(periodB)) periodB = dates[dates.length-1];
+  const first = dates[0], last = dates[dates.length-1];
+  const months = Array.from(new Set(dates.map(d=>d.slice(0,7)))).sort();
+  // 기본값: A = 최신 달 전체 구간, B = 그 전 달 같은 구간
+  const monthRange = (mk)=>{ const inm = dates.filter(d=>d.slice(0,7)===mk); return inm.length?[inm[0],inm[inm.length-1]]:[first,last]; };
+  if(!periodA || !periodB){ const [s,e]=monthRange(months[months.length-1]); periodA=s; periodB=e; }
+  if(!periodBStart || !periodBEnd){ const pm = months.length>=2?months[months.length-2]:months[0]; const [s,e]=monthRange(pm); periodBStart=s; periodBEnd=e; }
   modeSel.value = periodMode;
-  const opts = sel => dates.map(d=>`<option value="${d}"${d===sel?' selected':''}>${d}</option>`).join("");
-  aSel.innerHTML = opts(periodA);
-  bSel.innerHTML = opts(periodB);
-  document.getElementById("periodALabel").textContent = periodMode==="range" ? "비교 A (구간 시작일)" : "비교 A (기준일)";
-  document.getElementById("periodBLabel").textContent = periodMode==="range" ? "비교 A (구간 종료일)" : "비교 B (대상일)";
-  // range 모드: 비교 B는 "대상 월" 선택 → A와 같은 일자를 그 달에서 비교
-  const cmField = document.getElementById("periodCmpMonthField");
-  const cmSel = document.getElementById("periodCmpMonthSelect");
-  if(cmField && cmSel){
-    if(periodMode==="range"){
-      cmField.style.display = "";
-      const aMonth = (periodA||"").slice(0,7);
-      const months = Array.from(new Set(dates.map(d=>d.slice(0,7)))).sort().filter(mm=>mm!==aMonth);
-      if(!periodCmpMonth || !months.includes(periodCmpMonth)){
-        // 기본값: A 바로 전 달(있으면), 없으면 가장 최근 다른 달
-        const prev = months.filter(mm=>mm<aMonth).pop();
-        periodCmpMonth = prev || months[months.length-1] || null;
-      }
-      cmSel.innerHTML = months.map(mm=>`<option value="${mm}"${mm===periodCmpMonth?' selected':''}>${mm.replace('-','년 ')}월</option>`).join("");
-      cmSel.onchange = ()=>{ periodCmpMonth = cmSel.value; renderPeriodCompare(); saveState(); };
-    } else {
-      cmField.style.display = "none";
-    }
-  }
+  // 달력 입력 범위·값 설정
+  [aS,aE,bS,bE].forEach(inp=>{ inp.min=first; inp.max=last; });
+  aS.value=periodA; aE.value=periodB; bS.value=periodBStart; bE.value=periodBEnd;
+  // 모드에 따라 종료일 필드 표시/숨김 (두 날짜 모드는 시작일만 = 단일 날짜)
+  const twoMode = periodMode==="two";
+  document.getElementById("periodAEndField").style.display = twoMode ? "none" : "";
+  document.getElementById("periodBEndField").style.display = twoMode ? "none" : "";
+  document.getElementById("periodBStartLabel").textContent = twoMode ? "비교 B 날짜" : "비교 B 시작일";
+  aS.previousElementSibling && (document.querySelector('label[for="periodAStart"]').textContent = twoMode ? "비교 A 날짜" : "비교 A 시작일");
+  // 매장
   const storesWithSales = STORES.filter(s=>SALES_HISTORY.some(h=>h.byStoreCat[s]));
   if(!periodStore || (periodStore!=="__all__" && !storesWithSales.includes(periodStore))) periodStore = "__all__";
   storeSel.innerHTML = `<option value="__all__"${periodStore==="__all__"?' selected':''}>전체 매장 합계</option>`
     + storesWithSales.map(s=>`<option value="${escHtml(s)}"${s===periodStore?' selected':''}>${escHtml(s)}</option>`).join("");
   modeSel.onchange = ()=>{ periodMode = modeSel.value; renderPeriodSelects(); renderPeriodCompare(); saveState(); };
-  aSel.onchange = ()=>{ periodA = aSel.value; renderPeriodCompare(); saveState(); };
-  bSel.onchange = ()=>{ periodB = bSel.value; renderPeriodCompare(); saveState(); };
+  aS.onchange = ()=>{ periodA = aS.value; if(periodB<periodA) periodB=periodA; renderPeriodSelects(); renderPeriodCompare(); saveState(); };
+  aE.onchange = ()=>{ periodB = aE.value; if(periodB<periodA){ periodA=periodB; } renderPeriodSelects(); renderPeriodCompare(); saveState(); };
+  bS.onchange = ()=>{ periodBStart = bS.value; if(periodBEnd<periodBStart) periodBEnd=periodBStart; renderPeriodSelects(); renderPeriodCompare(); saveState(); };
+  bE.onchange = ()=>{ periodBEnd = bE.value; if(periodBEnd<periodBStart){ periodBStart=periodBEnd; } renderPeriodSelects(); renderPeriodCompare(); saveState(); };
   storeSel.onchange = ()=>{ periodStore = storeSel.value; renderPeriodCompare(); saveState(); };
 }
 function renderPeriodCompare(){
@@ -1922,30 +1924,25 @@ function renderPeriodCompare(){
     const loD = parseYMD(lo), hiD = parseYMD(hi);
     const spanDays = Math.round((hiD-loD)/86400000) + 1;
     curSnaps = SALES_HISTORY.filter(h=>h.date>=lo && h.date<=hi);
-    // 비교 B: 선택한 "대상 월"에서 A와 같은 일자(일 숫자) 구간
-    const dayLo = +lo.slice(8,10), dayHi = +hi.slice(8,10);
-    const cm = periodCmpMonth || lo.slice(0,7);
-    const [cy, cmo] = cm.split("-").map(Number);
-    const dim = new Date(cy, cmo, 0).getDate();
-    const cLoDay = Math.min(dayLo, dim), cHiDay = Math.min(dayHi, dim);
-    const prevLo = `${cm}-${String(cLoDay).padStart(2,'0')}`;
-    const prevHi = `${cm}-${String(cHiDay).padStart(2,'0')}`;
-    cmpSnaps = SALES_HISTORY.filter(h=>h.date>=prevLo && h.date<=prevHi);
-    const aMlabel = lo.slice(0,7).replace('-','년 ')+"월";
-    const bMlabel = cm.replace('-','년 ')+"월";
-    curLabel = `비교 A · ${aMlabel} (${lo.slice(5)}~${hi.slice(5)}) 합계`;
-    cmpLabel = cmpSnaps.length ? `비교 B · ${bMlabel} (${prevLo.slice(5)}~${prevHi.slice(5)}, 동일 일자) 합계` : `비교 B · ${bMlabel} 데이터 없음`;
-    if(curSnaps.length < spanDays || cmpSnaps.length < spanDays){
-      coverageWarning = `⚠ 업로드된 날짜가 비어있어 기간이 어긋날 수 있습니다 — A(${aMlabel}) ${spanDays}일 중 ${curSnaps.length}일치, B(${bMlabel}) 동일 일자 중 ${cmpSnaps.length}일치만 업로드되어 있어 증감률이 실제와 다를 수 있습니다.`;
+    // 비교 B: 사용자가 고른 B 구간(시작~종료)
+    const blo = (periodBStart<periodBEnd?periodBStart:periodBEnd) || lo;
+    const bhi = (periodBStart<periodBEnd?periodBEnd:periodBStart) || hi;
+    const bSpan = Math.round((parseYMD(bhi)-parseYMD(blo))/86400000)+1;
+    cmpSnaps = SALES_HISTORY.filter(h=>h.date>=blo && h.date<=bhi);
+    curLabel = `비교 A · ${lo}~${hi} 합계`;
+    cmpLabel = cmpSnaps.length ? `비교 B · ${blo}~${bhi} 합계` : `비교 B · ${blo}~${bhi} 데이터 없음`;
+    if(curSnaps.length < spanDays || cmpSnaps.length < bSpan){
+      coverageWarning = `⚠ 업로드된 날짜가 비어있어 기간이 어긋날 수 있습니다 — A(${lo}~${hi}) ${spanDays}일 중 ${curSnaps.length}일치, B(${blo}~${bhi}) ${bSpan}일 중 ${cmpSnaps.length}일치만 업로드되어 있습니다. 두 구간의 일수가 다르면 총합 비교 시 감안하세요.`;
     }
   } else {
-    // 두 날짜 직접 비교: 나중 날짜를 "현재", 이전 날짜를 "기준"으로 둬서 증가가 +로 나오게 한다.
-    const earlier = periodA < periodB ? periodA : periodB;
-    const later   = periodA < periodB ? periodB : periodA;
+    // 두 날짜 직접 비교: A 날짜(periodA) vs B 날짜(periodBStart). 나중 날짜를 "현재", 이전을 "기준".
+    const d1 = periodA, d2 = periodBStart || periodB;
+    const earlier = d1 < d2 ? d1 : d2;
+    const later   = d1 < d2 ? d2 : d1;
     const eSnap = SALES_HISTORY.find(h=>h.date===earlier);
     const lSnap = SALES_HISTORY.find(h=>h.date===later);
-    curSnaps = lSnap ? [lSnap] : [];   // 현재(나중)
-    cmpSnaps = eSnap ? [eSnap] : [];   // 기준(이전)
+    curSnaps = lSnap ? [lSnap] : [];
+    cmpSnaps = eSnap ? [eSnap] : [];
     curLabel = later;
     cmpLabel = earlier;
   }
@@ -4867,6 +4864,77 @@ idbGet("state").then(st=>{
   try{ renderSalesDateSelect(); renderSalesTrend(); renderSalesVsSupply(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderSalesMonthly(); }catch(_){}
   showNotice("저장된 전체 데이터를 불러왔습니다 (대용량 포함).");
 }).catch(()=>{});
+
+/* ================= 실시간 공유 (Firebase Realtime Database) ================= */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBsHr9wMm-7J-5LGDuWhY9gSU0cqUZu6S8",
+  authDomain: "kingkong-dba2a.firebaseapp.com",
+  databaseURL: "https://kingkong-dba2a-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "kingkong-dba2a",
+  storageBucket: "kingkong-dba2a.firebasestorage.app",
+  messagingSenderId: "179352269732",
+  appId: "1:179352269732:web:db8f06b614c78f9c2d8731"
+};
+const ADMIN_PW = "1234";
+let CLOUD_ON=false, IS_ADMIN=false, _cloudRef=null, _cloudPushTimer=null, _cloudPulled=false;
+function updateCloudBadge(){
+  let b=document.getElementById("cloudBadge");
+  if(!b){ b=document.createElement("div"); b.id="cloudBadge"; document.body.appendChild(b); b.onclick=adminLoginToggle; }
+  if(!CLOUD_ON){ b.textContent="⚠ 공유 연결 안됨"; b.className=""; return; }
+  if(IS_ADMIN){ b.textContent="🔑 관리자 모드 (업로드 가능)"; b.className="admin"; document.body.classList.remove("viewer-mode"); }
+  else { b.textContent="👁 뷰어 모드 (관리자 로그인)"; b.className="viewer"; document.body.classList.add("viewer-mode"); }
+}
+function adminLoginToggle(){
+  if(IS_ADMIN){
+    if(confirm("관리자 모드를 해제하고 뷰어 모드로 전환할까요?")){ IS_ADMIN=false; localStorage.removeItem("plt_is_admin"); updateCloudBadge(); }
+    return;
+  }
+  const pw = prompt("관리자 비밀번호를 입력하세요 (업로드하려면 필요):");
+  if(pw===null) return;
+  if(pw===ADMIN_PW){ IS_ADMIN=true; localStorage.setItem("plt_is_admin","1"); updateCloudBadge(); showNotice("관리자 모드로 전환됐습니다. 이제 업로드하면 모든 사람에게 실시간 공유됩니다."); cloudPush(); }
+  else alert("비밀번호가 틀렸습니다.");
+}
+function cloudPush(){
+  if(!CLOUD_ON || !IS_ADMIN || !_cloudRef) return;
+  clearTimeout(_cloudPushTimer);
+  _cloudPushTimer = setTimeout(()=>{
+    try{ _cloudRef.set(JSON.stringify(buildStateObject())).catch(()=>{}); }catch(_){}
+  }, 1500);
+}
+function cloudInit(){
+  try{
+    if(typeof firebase==="undefined"){ CLOUD_ON=false; updateCloudBadge(); return; }
+    firebase.initializeApp(FIREBASE_CONFIG);
+    _cloudRef = firebase.database().ref("state");
+    CLOUD_ON = true;
+    IS_ADMIN = localStorage.getItem("plt_is_admin")==="1";
+    updateCloudBadge();
+    // 실시간 수신: 뷰어는 클라우드 값이 바뀌면 화면 자동 갱신. 관리자는 자기 로컬이 소스라 최초 1회만 참고.
+    _cloudRef.on("value", snap=>{
+      const val = snap.val();
+      if(!val) return;
+      if(IS_ADMIN) return; // 관리자는 클라우드로 덮어쓰지 않음
+      try{
+        const st = (typeof val==="string") ? JSON.parse(val) : val;
+        const r = applyStateObject(st);
+        if(!r) return;
+        renderBasedateOptions(r.basedateIdx!=null ? r.basedateIdx : STOCK_HISTORY.length-1);
+        renderStoreList(); renderPanel(); refreshSlotStates(); renderDataQuality();
+        document.getElementById("totalCount").textContent = grandTotal();
+        try{ renderStockAgg(); renderShipAgg(); renderTrend(); }catch(_){}
+        try{ renderSalesDateSelect(); renderSalesTrend(); renderSalesVsSupply(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderSalesMonthly(); }catch(_){}
+        if(!_cloudPulled){ _cloudPulled=true; showNotice("☁ 실시간 공유: 최신 데이터를 불러왔습니다(뷰어 모드). 관리자가 업로드하면 자동으로 갱신됩니다."); }
+      }catch(e){}
+    });
+  }catch(e){ CLOUD_ON=false; updateCloudBadge(); }
+}
+// 업로드/초기화 버튼을 뷰어에게서 숨기기 위해 admin-only 표시
+(function markAdminOnly(){
+  ["importFolderBtn","importStockBtn","importActualBtn","importApplianceBtn","importHQBtn","importSalesBtn","importCatSalesBtn","importSalesSummaryBtn","importFreshBtn","importLotteBtn","resetAllBtn","resetBtn","resetSalesBtn","resetStockBtn","exportMapBtn","importMapBtn","editMapBtn"].forEach(id=>{
+    const el=document.getElementById(id); if(el){ const g=el.closest(".tool-group"); (g||el).classList.add("admin-only"); }
+  });
+})();
+cloudInit();
 </script>
 </body>
 </html>
