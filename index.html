@@ -3671,13 +3671,14 @@ function hqDateFromSheet(aoa){
 function findMarkerCol(row){
   return row.findIndex(c=> c!=null && String(c).trim().startsWith("출고지"));
 }
-function parseHQPlanWorkbook(wb){
+async function parseHQPlanWorkbook(wb, onProgress){
   const byStoreCat = {};
   const byMonth = {};
   const dayTotals = {};
   const unmatched = new Set();
   const sheets = findHQDaySheets(wb);
-  sheets.forEach(sheetName=>{
+  for(let si=0; si<sheets.length; si++){
+    const sheetName = sheets[si];
     const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, raw:true, defval:null});
     const date = hqDateFromSheet(aoa);
     const month = date ? date.slice(0,7) : null;
@@ -3725,14 +3726,17 @@ function parseHQPlanWorkbook(wb){
         }
       }
     }
-  });
+    if((si % 3)===0){ if(onProgress) onProgress(si/sheets.length); await new Promise(res=>setTimeout(res,0)); }
+  }
+  if(onProgress) onProgress(1);
   const days = Object.keys(dayTotals).sort().map(date=>({date, total:dayTotals[date].total, byCategory:dayTotals[date].byCategory}));
   return { byStoreCat, byMonth, days, unmatched: Array.from(unmatched), sheetCount: sheets.length };
 }
-function collectUnknownHQCategories(wb){
-  const unknown = new Map();
-  findHQDaySheets(wb).forEach(sheetName=>{
-    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, raw:true, defval:null});
+async function collectUnknownHQCategories(wb){
+  const unknown = new Map(); // 기본문구(base) -> 예시 매장
+  const sheets = findHQDaySheets(wb);
+  for(let si=0; si<sheets.length; si++){
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheets[si]], {header:1, raw:true, defval:null});
     for(let r=0; r<aoa.length; r++){
       const row = aoa[r] || [];
       const markerCol = findMarkerCol(row);
@@ -3744,16 +3748,20 @@ function collectUnknownHQCategories(wb){
       for(let dr=r+2; dr<aoa.length; dr++){
         const drow = aoa[dr] || [];
         if(findMarkerCol(drow) >= 0) break;
-        const t = String(drow[cateCol]||"").replace(/[\n\r]+/g,' ').trim();
-        if(!t || unknown.has(t)) continue;
-        if(classifyShipCategory(t) === null) unknown.set(t, row[markerCol+1]);
+        const cq = drow[cateCol];
+        if(cq==null || String(cq).trim()==="") continue;
+        const base = cateBaseKey(cq);
+        if(!base || unknown.has(base)) continue;
+        if(classifyShipCategory(cq) === null) unknown.set(base, row[markerCol+1]);
       }
     }
-  });
+    if((si % 3)===0){ showProgress(si/sheets.length, "본사출고 카테고리 확인 중"); await new Promise(res=>setTimeout(res,0)); }
+  }
+  hideProgress();
   return unknown;
 }
 async function ensureHQCategoriesResolved(wb){
-  const unknown = collectUnknownHQCategories(wb);
+  const unknown = await collectUnknownHQCategories(wb);
   if(!unknown.size) return true;
   const mapping = await showCategoryMappingModal(unknown, {
     title: "⚠ 본사 출고계획서 — 새 카테고리 확인",
@@ -3783,7 +3791,8 @@ function handleHQFile(file){
       const proceed = await ensureHQCategoriesResolved(wb);
       if(!proceed){ showNotice("업로드를 취소했습니다. 새 카테고리를 확정하지 않아 본사 출고완료 데이터를 반영하지 않았습니다."); return; }
       const beforeCats = CATEGORIES.length;
-      const result = parseHQPlanWorkbook(wb);
+      const result = await parseHQPlanWorkbook(wb, (pct)=> showProgress(pct, `"${file.name}" 본사출고 분석 중`));
+      hideProgress();
       mergeMonthMap(HQ_M, result.byMonth);
 
       HQ_ACTUAL = {};
