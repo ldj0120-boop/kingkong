@@ -876,12 +876,29 @@ const CATE_RULES = [
 ];
 // 규칙(CATE_RULES)이나 사용자가 이미 확인해둔 매핑(SHIP_CAT_MAP)으로 판단이 안 되는, 완전히 새로운 CATE 문구인지 검사.
 // null이면 "아직 아무도 정해준 적 없는 신규 물류 문구" → 업로드 전에 모달로 사용자에게 물어봐야 한다.
+// CATE 문구에서 매달/매건 바뀌는 꼬리표(‥월, (NPLT), 날짜코드, LOT일련번호 등)를 떼어 "기본 문구"로 만든다.
+// 예) "칼라파타르 7월" → "칼라파타르", "컬래버레이션 8월" → "컬래버레이션". 한 번 지정하면 다음 달에도 안 묻게 하는 핵심.
+function cateBaseKey(raw){
+  let t = String(raw||"").replace(/[\n\r]+/g,' ').replace(/\s+/g,' ').trim();
+  t = t.replace(/\([^)]*\)/g, " ");              // (9PLT), (경산2) 등 괄호 주석 제거
+  t = t.replace(/\b\d{6,8}\b/g, " ");            // 20260818 같은 날짜/로트 코드 제거
+  t = t.replace(/\s*\d{1,2}\s*월/g, " ");        // "7월", " 8 월" 등 월 표기 제거(한글이라 \b 미사용)
+  t = t.replace(/[_\-]\s*[A-Za-z0-9]{1,4}$/,""); // 끝의 _J, -20 같은 구분자+일련 꼬리만 제거(순수 코드는 보존)
+  t = t.replace(/\s+/g,' ').trim();
+  return t;
+}
 function classifyShipCategory(raw){
   const t = String(raw||"").replace(/[\n\r]+/g,' ').replace(/\s+/g,' ').trim();
   if(!t) return "미분류";
   if(Object.prototype.hasOwnProperty.call(SHIP_CAT_MAP, t)) return SHIP_CAT_MAP[t];
   // 저장된 지정을 공백 정규화해서도 대조(파일마다 공백 개수가 달라도 같은 문구로 인식)
   for(const k of Object.keys(SHIP_CAT_MAP)){ if(String(k).replace(/\s+/g,' ').trim()===t) return SHIP_CAT_MAP[k]; }
+  // 기본 문구(월·코드 제거)로도 대조 — "칼라파타르 7월"을 지정했으면 "칼라파타르 8월"도 자동 인식
+  const base = cateBaseKey(t);
+  if(base){
+    if(Object.prototype.hasOwnProperty.call(SHIP_CAT_MAP, base)) return SHIP_CAT_MAP[base];
+    for(const k of Object.keys(SHIP_CAT_MAP)){ if(cateBaseKey(k)===base) return SHIP_CAT_MAP[k]; }
+  }
   for(const [re,cat] of CATE_RULES){ if(re.test(t)) return cat; }
   return null;
 }
@@ -4122,16 +4139,23 @@ async function ensureSalesCategoriesResolved(aoa, colCat, colProduct){
 // 출고내역서 CATE 문구 중 규칙에도 없고 이전에 물어본 적도 없는(SHIP_CAT_MAP에 없는) 완전히 새로운 문구만 모아
 // "하차지" 블록당 1번씩이 아니라 고유 문구당 1번만 물어본다.
 function collectUnknownShipCategories(wb){
-  const unknown = new Map(); // rawCate 문구 -> 예시 매장명
+  const unknown = new Map(); // 기본문구(base) -> 예시 매장명
   findShipmentDaySheets(wb).forEach(sheetName=>{
     const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, raw:true, defval:null});
     for(let r=0; r<aoa.length; r++){
       const row = aoa[r] || [];
       if(row[0] !== "하차지 :") continue;
-      const catRow = aoa[r+2] || [];
-      const t = String(catRow[2]||"").replace(/[\n\r]+/g,' ').trim();
-      if(!t || unknown.has(t)) continue;
-      if(classifyShipCategory(t) === null) unknown.set(t, row[1]);
+      // 블록 안 모든 CATE 라인을 검사(첫 줄만 보던 것 → 누락 방지)
+      for(let dr=r+2; dr<aoa.length; dr++){
+        const drow = aoa[dr] || [];
+        if(drow[0] === "하차지 :") break;
+        if(String(drow[0]||"").trim() === "NO.") continue;
+        const cq = drow[2];
+        if(cq==null || String(cq).trim()==="") continue;
+        const base = cateBaseKey(cq);
+        if(!base || unknown.has(base)) continue;
+        if(classifyShipCategory(cq) === null) unknown.set(base, row[1]);
+      }
     }
   });
   return unknown;
