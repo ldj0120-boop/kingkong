@@ -3214,36 +3214,50 @@ function parseShipmentWorkbook(wb){
       storeNames.filter(s=>!STORES.includes(s)).forEach(s=>unmatched.add(s));
       // 이 블록 총 파레트 수 = D열 매니페스트 합계
       const blockPallets = parseManifestPallets(row[3]);
-      // 카테고리 가중치: 상세행을 훑어 CATE(C열)별 라인 수(빈 CATE는 fill-down). "0"·빈칸·날짜는 실 라인 아님.
-      const catWeight = {};
-      let firstCat = null, lastCat = null, totalLines = 0;
+      // 파레트 수량 산정(정확 규칙):
+      //  · "전체출고" 라인 → REMARKS의 (NPLT) 값(한 줄이어도 로트 전량). 없으면 그 라인의 실물 행 수.
+      //  · "부분출고"/기타 라인 → PLT NO.(B열)에 그 카테고리 코드(XLA/XLB…)가 든 칸 수(=실제 파레트 수).
+      //    코드가 없는 CATE(서비스솔루션/비품 등)는 B열 값이 있는 행 수로 카운트.
+      //  · "(연장)" 행(CATE 빈칸)은 앞 CATE에 이어짐 → 위 카운트에 자연히 포함.
+      const catQty = {};
+      let lastCat = null, lastMode = null, lastCode = null, lastHint = 0, lastCnt = 0, firstCat = null;
+      const flushLine = ()=>{
+        if(!lastCat) return;
+        let plt;
+        if(lastMode === "full") plt = lastHint>0 ? lastHint : 1;
+        else                    plt = lastCnt>0 ? lastCnt : (lastHint>0 ? lastHint : 1);
+        catQty[lastCat] = (catQty[lastCat]||0) + plt;
+      };
       for(let dr=r+2; dr<aoa.length; dr++){
         const drow = aoa[dr] || [];
         if(drow[0] === "하차지 :") break;
         if(String(drow[0]||"").trim() === "NO.") continue;
         const cateRaw = drow[2];
-        const pltS = drow[1]==null?"":String(drow[1]).trim();
+        const pno = drow[1]==null?"":String(drow[1]).trim().toUpperCase();
         const remS = drow[3]==null?"":String(drow[3]).trim();
         const hasCate = cateRaw!=null && String(cateRaw).trim()!=="";
-        const hasPlt  = pltS!=="" && pltS!=="0";
-        const hasRem  = remS!=="" && remS!=="0" && !/^\d{4}-\d\d-\d\d/.test(remS);
-        if(hasCate){ lastCat = ensureCategory(extractCategoryFromRaw(cateRaw), "출고내역서(하차지 블록)"); if(!firstCat) firstCat = lastCat; }
-        if(!hasCate && !hasPlt && !hasRem) continue;      // 빈행/0/날짜 → 실 라인 아님
-        if(!lastCat) continue;                             // 아직 CATE가 안 나온 라인 → 보류
-        catWeight[lastCat] = (catWeight[lastCat]||0) + 1;
-        totalLines++;
-      }
-      // 파레트 수량 배분
-      const catQty = {};
-      if(blockPallets > 0){
-        if(totalLines > 0){
-          Object.keys(catWeight).forEach(c=>{ catQty[c] = blockPallets * (catWeight[c]/totalLines); });
-        } else {
-          const only = firstCat || ensureCategory("미분류", "출고내역서(하차지 블록)");
-          catQty[only] = blockPallets;
+        if(hasCate){
+          flushLine();
+          lastCat = ensureCategory(extractCategoryFromRaw(cateRaw), "출고내역서(하차지 블록)");
+          if(!firstCat) firstCat = lastCat;
+          lastMode = /전체출고/.test(String(cateRaw)) ? "full" : "part";
+          lastCode = /^XL[A-Z]$/.test(lastCat) ? lastCat : null;
+          const hm = remS.match(/\((\d+)\s*PLT\)/i);
+          lastHint = hm ? parseInt(hm[1],10) : 0;
+          lastCnt = 0;
         }
-      } else {
-        Object.keys(catWeight).forEach(c=>{ catQty[c] = catWeight[c]; }); // KPP 없는 블록은 라인 수로 폴백
+        // 파레트 카운트: 부분출고에서만, B열에 코드가 든 칸(코드 없으면 B열 값 있는 행)
+        if(lastCat && lastMode==="part"){
+          if(lastCode){ if(pno && pno.indexOf(lastCode)>=0) lastCnt++; }
+          else if(pno!=="" && pno!=="0"){ lastCnt++; }
+        }
+      }
+      flushLine();
+      // KPP 매니페스트가 있는데 산정 합이 0이면(코드 미검출 등) 블록 총량을 첫 카테고리에 배정(누락 방지)
+      const sumQty = Object.values(catQty).reduce((a,v)=>a+v,0);
+      if(blockPallets > 0 && sumQty === 0){
+        const only = firstCat || ensureCategory("미분류", "출고내역서(하차지 블록)");
+        catQty[only] = blockPallets;
       }
       if(matched.length){
         Object.keys(catQty).forEach(cat=>{
