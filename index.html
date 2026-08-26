@@ -489,6 +489,38 @@
   .g-rank-num{width:20px;text-align:center;font-family:"JetBrains Mono";font-size:10.5px;color:var(--muted2);flex:0 0 auto;}
   .g-rank-name{width:110px;flex:0 0 auto;font-size:12.5px;color:var(--pale);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .g-rank-pct{width:54px;text-align:right;flex:0 0 auto;font-family:"JetBrains Mono";font-size:12px;font-weight:700;color:var(--text);}
+  /* 2차 상세화(2026-08-26): 카테고리 전체 격차표 · 월별 이력 스트립 · 전사 카테고리 효율표 */
+  .g-eff-wrap{margin:14px 0;background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px 6px;}
+  .g-eff-title{font-family:"Oswald";font-size:11px;letter-spacing:.06em;color:var(--pale);text-transform:uppercase;margin-bottom:8px;}
+  .g-eff-row{display:grid;grid-template-columns:110px 1fr 108px 92px 118px;gap:8px;align-items:center;padding:5px 2px;border-bottom:1px solid var(--line-soft);font-size:11.5px;}
+  .g-eff-row:last-child{border-bottom:0;}
+  .g-eff-row.hd{color:var(--muted2);font-family:"Oswald";font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;}
+  .g-eff-name{color:var(--pale);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .g-eff-bar-wrap{height:8px;background:var(--line-soft);border-radius:4px;overflow:hidden;}
+  .g-eff-bar{height:100%;background:var(--amber);border-radius:4px;}
+  .g-eff-num{font-family:"JetBrains Mono";text-align:right;color:var(--muted);}
+  .g-eff-perplt{font-family:"JetBrains Mono";text-align:right;font-weight:700;color:var(--text);}
+  .g-diag-wrap{margin-top:10px;padding-top:10px;border-top:1px solid var(--line-soft);}
+  .g-diag-title{font-size:10.5px;color:var(--muted2);font-family:"Oswald";letter-spacing:.05em;text-transform:uppercase;margin-bottom:5px;}
+  .g-diag-row{display:grid;grid-template-columns:76px 1fr 50px 50px 58px;align-items:center;gap:6px;padding:2.5px 0;font-size:10.8px;}
+  .g-diag-row.hd{color:var(--muted2);font-family:"Oswald";font-size:9px;letter-spacing:.03em;text-transform:uppercase;}
+  .g-diag-name{color:var(--pale);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .g-diag-bars{position:relative;height:11px;background:var(--line-soft);border-radius:3px;overflow:hidden;}
+  .g-diag-bars .store-bar{position:absolute;top:0;left:0;height:5px;background:var(--info);border-radius:3px 3px 0 0;}
+  .g-diag-bars .company-bar{position:absolute;bottom:0;left:0;height:5px;background:var(--muted2);opacity:.65;border-radius:0 0 3px 3px;}
+  .g-diag-num{font-family:"JetBrains Mono";text-align:right;color:var(--muted);}
+  .g-diag-delta{font-family:"JetBrains Mono";text-align:right;font-weight:700;}
+  .g-diag-delta.pos{color:var(--green);}
+  .g-diag-delta.neg{color:var(--red);}
+  .g-month-wrap{margin-top:10px;padding-top:10px;border-top:1px solid var(--line-soft);}
+  .g-month-title{font-size:10.5px;color:var(--muted2);font-family:"Oswald";letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;}
+  .g-month-strip{display:flex;gap:5px;overflow-x:auto;padding-bottom:2px;}
+  .g-month-cell{flex:0 0 auto;min-width:42px;text-align:center;}
+  .g-month-cell .mm{font-size:9px;color:var(--muted2);font-family:"Oswald";}
+  .g-month-cell .mv{font-family:"JetBrains Mono";font-size:10.5px;font-weight:700;margin-top:2px;color:var(--text);}
+  .g-month-cell .mb{width:100%;height:30px;background:var(--line-soft);border-radius:2px;margin-top:3px;position:relative;overflow:hidden;}
+  .g-month-cell .mb-fill{position:absolute;bottom:0;left:0;width:100%;border-radius:2px;}
+  .g-month-cell.cur .mm{color:var(--amber);}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -3277,11 +3309,14 @@ function parseShipmentWorkbook(wb){
       //    코드가 없는 CATE(서비스솔루션/비품 등)는 B열 값이 있는 행 수로 카운트.
       //  · "(연장)" 행(CATE 빈칸)은 앞 CATE에 이어짐 → 위 카운트에 자연히 포함.
       const catQty = {};
-      let lastCat = null, lastMode = null, lastCode = null, lastHint = 0, lastCnt = 0, firstCat = null;
+      let lastCat = null, lastMode = null, lastCode = null, lastHint = 0, lastCnt = 0, lastRowCnt = 0, firstCat = null;
       const flushLine = ()=>{
         if(!lastCat) return;
         let plt;
-        if(lastMode === "full") plt = lastHint>0 ? lastHint : 1;
+        // "전체출고"인데 REMARKS에 (NPLT) 힌트가 없으면 → 그 라인의 실물 행 수(lastRowCnt)로 대체한다.
+        // (예전엔 무조건 1로 처리해서, 힌트 없이 2행 이상 걸친 전체출고 블록이 1PLT로 축소 집계되는 버그가 있었음.
+        //  2026-08-26: 인천점 7월 대형가구(XLW) 실제 4PLT가 3PLT로 집계되는 문제로 발견·수정.)
+        if(lastMode === "full") plt = lastHint>0 ? lastHint : (lastRowCnt>0 ? lastRowCnt : 1);
         else                    plt = lastCnt>0 ? lastCnt : (lastHint>0 ? lastHint : 1);
         catQty[lastCat] = (catQty[lastCat]||0) + plt;
       };
@@ -3302,12 +3337,15 @@ function parseShipmentWorkbook(wb){
           const hm = remS.match(/\((\d+)\s*PLT\)/i);
           lastHint = hm ? parseInt(hm[1],10) : 0;
           lastCnt = 0;
+          lastRowCnt = 0;
         }
         // 파레트 카운트: 부분출고에서만, B열에 코드가 든 칸(코드 없으면 B열 값 있는 행)
         if(lastCat && lastMode==="part"){
           if(lastCode){ if(pno && pno.indexOf(lastCode)>=0) lastCnt++; }
           else if(pno!=="" && pno!=="0"){ lastCnt++; }
         }
+        // 전체출고 힌트 부재 대비: 이 CATE 구간의 실물 행 수(B열 값 있는 행)를 항상 세어 둔다
+        if(lastCat && pno!=="" && pno!=="0"){ lastRowCnt++; }
       }
       flushLine();
       // KPP 매니페스트가 있는데 산정 합이 0이면(코드 미검출 등) 블록 총량을 첫 카테고리에 배정(누락 방지)
@@ -4114,21 +4152,39 @@ function goalsCategoryDiagnosis(store){
     .sort((a,b)=>b.value-a.value);
   return { strength: diffs[0], opportunity: diffs[diffs.length-1], diffs, chartData };
 }
+// 카테고리별 전사 PLT당 매출효율(엑셀 v2 05시트와 동일 개념) — 매출액(SALES_HISTORY, 카테고리는
+// SALES_CAT_MAP으로 이미 PLT 출고 카테고리와 같은 이름 체계로 매핑되어 있음) ÷ 이번달 출고(출고예정+출고완료)
+// PLT 합계. "매장별 매출" 탭의 "PLT당 매출"(매장 단위)과 같은 방식을 카테고리 단위로 확장한 것 — 판매수량(개)을
+// PLT처럼 잘못 쓰지 않도록, 반드시 storeShipTotal이 쓰는 것과 같은 PLT 소스(planQty+actualQty)로만 계산한다.
+function goalsCategoryEfficiency(){
+  const merged = mergeByStoreCat(SALES_HISTORY);
+  const catAmt = categoryTotals(merged);
+  const rows = CATEGORIES.map(cat=>{
+    const amount = (catAmt[cat] && catAmt[cat].amount) || 0;
+    const pltTotal = STORES.reduce((a,s)=>a + planQty(s,cat) + actualQty(s,cat), 0);
+    return { cat, amount, pltTotal, perPlt: pltTotal>0 ? amount/pltTotal : null };
+  }).filter(r=>r.amount>0 || r.pltTotal>0);
+  rows.sort((a,b)=>(b.perPlt||-1)-(a.perPlt||-1));
+  return rows;
+}
+function goalsEffMap(){ const m={}; goalsCategoryEfficiency().forEach(r=>m[r.cat]=r); return m; }
 // 매장별 4~5문장 진단 문구를 규칙 기반으로 만든다(엑셀 리포트 06시트와 같은 로직) —
 // 데이터가 바뀌면 문구도 매번 새로 생성되어, 사람이 쓴 고정 문구처럼 낡지 않는다.
-function goalsActionText(diag){
+function goalsActionText(diag, effMap){
   if(!diag) return "카테고리 데이터가 없어 진단할 수 없습니다.";
   const find = c => diag.diffs.find(d=>d.cat===c);
   const sain = find("사입");
   const opp = diag.opportunity;
+  const effRow = effMap && effMap[opp.cat];
+  const effNote = effRow && effRow.perPlt ? ` (전사 PLT당 매출 ${Math.round(effRow.perPlt).toLocaleString()}원)` : "";
   if(sain && sain.storePct>=60){
     return `사입(외부소싱) 의존도가 ${sain.storePct.toFixed(0)}%로 매우 높은 아울렛형 매장 — 카테고리 다각화보다 사입 상품 자체의 회전율·구성 개선이 우선입니다.`;
   }
   if(opp.cat==="신선식품" && Math.abs(opp.diff)>=15){
-    return `신선식품 공백이 가장 큰 레버리지 — 전사 대비 ${Math.abs(opp.diff).toFixed(1)}%p 열위인 신선식품 편성을 확대하면 개선 여지가 가장 큽니다.`;
+    return `신선식품 공백이 가장 큰 레버리지 — 전사 대비 ${Math.abs(opp.diff).toFixed(1)}%p 열위인 신선식품 편성을 확대하면 개선 여지가 가장 큽니다${effNote}.`;
   }
   if(Math.abs(opp.diff)>=10){
-    return `${escHtml(opp.cat)} 카테고리 공급 확대가 다음 개선 레버리지입니다 — 전사 대비 ${Math.abs(opp.diff).toFixed(1)}%p 열위.`;
+    return `${escHtml(opp.cat)} 카테고리 공급 확대가 다음 개선 레버리지입니다 — 전사 대비 ${Math.abs(opp.diff).toFixed(1)}%p 열위${effNote}.`;
   }
   return `카테고리별 격차가 크지 않아 특정 카테고리 편중보다 공급량·트래픽 등 전반적 요인 점검이 유효합니다.`;
 }
@@ -4159,6 +4215,67 @@ function goalsTrendPhrase(hist){
   return `최근 흐름이 전체 평균(${hist.avg.toFixed(1)}%)과 비슷한 수준으로 안정적`;
 }
 function goalsLine(text){ return `<div style="font-size:11.5px;color:var(--muted2);margin-top:3px;">${text}</div>`; }
+// 매장 카드 안에 넣을 "카테고리 구성비 - 전사 평균 격차" 전체 표(엑셀 v2 03/04시트와 동일 — 강점/기회 1개씩만이 아니라
+// 그 매장에 존재하는 카테고리 전부를 격차 큰 순으로 나열한다).
+function goalsDiagTableHtml(diag){
+  if(!diag || !diag.diffs.length) return "";
+  const maxAbs = Math.max(1, ...diag.diffs.map(d=>Math.max(d.storePct,d.companyPct)));
+  const rows = diag.diffs.map(d=>{
+    const deltaCls = d.diff>=0 ? "pos":"neg";
+    const deltaSign = d.diff>=0 ? "+":"";
+    return `<div class="g-diag-row">
+      <span class="g-diag-name" title="${escHtml(d.cat)}">${escHtml(d.cat)}</span>
+      <div class="g-diag-bars" title="매장 ${d.storePct.toFixed(1)}% · 전사 ${d.companyPct.toFixed(1)}%">
+        <div class="store-bar" style="width:${Math.min(100,d.storePct/maxAbs*100).toFixed(1)}%"></div>
+        <div class="company-bar" style="width:${Math.min(100,d.companyPct/maxAbs*100).toFixed(1)}%"></div>
+      </div>
+      <span class="g-diag-num">${d.storePct.toFixed(1)}%</span>
+      <span class="g-diag-num">${d.companyPct.toFixed(1)}%</span>
+      <span class="g-diag-delta ${deltaCls}">${deltaSign}${d.diff.toFixed(1)}%p</span>
+    </div>`;
+  }).join("");
+  return `<div class="g-diag-wrap">
+    <div class="g-diag-title">카테고리 구성비 — 매장 vs 전사 평균 (격차 큰 순, 전체 ${diag.diffs.length}개 카테고리)</div>
+    <div class="g-diag-row hd"><span></span><span>매장(위) · 전사(아래)</span><span>매장%</span><span>전사%</span><span>격차</span></div>
+    ${rows}
+  </div>`;
+}
+// 매장 카드 안 월별 달성률 이력 전체(엑셀 v2 07시트와 동일 — 추세 한 줄 문구뿐 아니라 있는 달 전부를 막대로 표시).
+function goalsMonthStripHtml(hist, curMonth){
+  if(!hist || !hist.points.length) return "";
+  const cells = hist.points.map(p=>{
+    const tier = goalsTier(p.pct);
+    const color = tier.cls==="g-tier-great" ? "var(--green)" : tier.cls==="g-tier-good" ? "var(--info)" : tier.cls==="g-tier-warn" ? "var(--amber)" : "var(--red)";
+    const h = Math.max(4, Math.min(100, p.pct));
+    const isCur = p.month===curMonth;
+    return `<div class="g-month-cell${isCur?' cur':''}" title="${p.month} 달성률 ${p.pct.toFixed(1)}%">
+      <div class="mm">${p.month.slice(5)}월${isCur?'*':''}</div>
+      <div class="mb"><div class="mb-fill" style="height:${h}%;background:${color}"></div></div>
+      <div class="mv">${p.pct.toFixed(0)}%</div>
+    </div>`;
+  }).join("");
+  return `<div class="g-month-wrap">
+    <div class="g-month-title">월별 달성률 이력 (${hist.points.length}개월 · 8개월 평균 ${hist.avg!=null?hist.avg.toFixed(1)+'%':'-'} · 최근 3개월 평균 ${hist.recent3!=null?hist.recent3.toFixed(1)+'%':'-'} · *는 진행중인 달로 일할 환산치)</div>
+    <div class="g-month-strip">${cells}</div>
+  </div>`;
+}
+// 전사 카테고리별 매출·PLT당 효율 표(엑셀 v2 05시트와 동일한 정보를 사이트에도 그대로 표시).
+function goalsEffTableHtml(effRows){
+  if(!effRows.length) return "";
+  const maxPerPlt = Math.max(1, ...effRows.filter(r=>r.perPlt).map(r=>r.perPlt));
+  const rows = effRows.map(r=>`<div class="g-eff-row">
+      <span class="g-eff-name" title="${escHtml(r.cat)}">${escHtml(r.cat)}</span>
+      <div class="g-eff-bar-wrap" title="PLT당 매출 ${r.perPlt?Math.round(r.perPlt).toLocaleString()+'원':'PLT 실적 없음'}"><div class="g-eff-bar" style="width:${r.perPlt?Math.max(2,r.perPlt/maxPerPlt*100).toFixed(1):0}%"></div></div>
+      <span class="g-eff-num">${Math.round(r.amount).toLocaleString()}원</span>
+      <span class="g-eff-num">${r.pltTotal.toLocaleString()}PLT</span>
+      <span class="g-eff-perplt">${r.perPlt?Math.round(r.perPlt).toLocaleString()+'원/PLT':'-'}</span>
+    </div>`).join("");
+  return `<div class="g-eff-wrap">
+    <div class="g-eff-title">카테고리별 전사 매출 · PLT당 매출효율 (PLT당 매출 높은 순 — 공급 확대 시 매출 레버리지가 큰 카테고리)</div>
+    <div class="g-eff-row hd"><span></span><span></span><span>매출액</span><span>출고 PLT</span><span>PLT당 매출</span></div>
+    ${rows}
+  </div>`;
+}
 function renderGoals(){
   const summaryWrap = document.getElementById("goalsSummaryWrap");
   const summaryMeta = document.getElementById("goalsSummaryMeta");
@@ -4207,6 +4324,10 @@ function renderGoals(){
         <div style="flex:1;min-width:220px;">${buildSharePercentBars(companyCatData, {compact:true})}</div>
       </div>`
     : "";
+  // ---- 카테고리별 전사 매출·PLT당 효율 표(엑셀 v2 05시트 파트) — 매장별 액션 문구에도 재사용 ----
+  const effRows = goalsCategoryEfficiency();
+  const effMap = {}; effRows.forEach(r=>effMap[r.cat]=r);
+  const effTableHtml = goalsEffTableHtml(effRows);
 
   summaryWrap.innerHTML = `<div class="stat-row">
     ${statCard(`전사 달성률 · ${curMonth.replace('-','년 ')}월 (${elapsedDays}/${daysInMonth}일 경과)`, totalPct.toFixed(1)+"%", [
@@ -4217,6 +4338,7 @@ function renderGoals(){
     ${statCard("위험군 매장 (65% 미만)", dangerCnt+" / "+rows.length, [goalsLine("우선 대응이 필요한 매장 수")])}
   </div>
   ${companyDonutHtml}
+  ${effTableHtml}
   <div class="g-rank-list">
     ${rows.map((r,i)=>{
       const tier = goalsTier(r.pct);
@@ -4240,13 +4362,15 @@ function renderGoals(){
     const strengthTxt = r.diag ? `${escHtml(r.diag.strength.cat)}(${r.diag.strength.diff>=0?'+':''}${r.diag.strength.diff.toFixed(1)}%p)` : "-";
     const oppTxt = r.diag ? `${escHtml(r.diag.opportunity.cat)}(${r.diag.opportunity.diff.toFixed(1)}%p)` : "-";
     const trendTxt = goalsTrendPhrase(r.hist);
-    const actionTxt = goalsActionText(r.diag);
+    const actionTxt = goalsActionText(r.diag, effMap);
     const catVisual = r.diag && r.diag.chartData.length
       ? `<div class="g-store-cat">
           <div class="pie-donut-only">${buildDonutSVG(r.diag.chartData, 108)}</div>
           <div style="flex:1;min-width:180px;">${buildSharePercentBars(r.diag.chartData.slice(0,5), {compact:true})}</div>
         </div>`
       : "";
+    const diagTableHtml = goalsDiagTableHtml(r.diag);
+    const monthStripHtml = goalsMonthStripHtml(r.hist, curMonth);
     return `<div class="g-store-card ${tier.cls}">
       <div class="g-store-hd">
         <span class="g-store-name">${escHtml(r.store)} <span class="g-store-rank">23개 중 ${rank}위(낮은 순)</span></span>
@@ -4255,10 +4379,12 @@ function renderGoals(){
       <div class="g-store-body">
         <div>이번 달 실적 ${Math.round(r.actual).toLocaleString()}원 / 목표(일할) ${Math.round(r.proratedTarget).toLocaleString()}원</div>
         <div>${cumText}</div>
-        <div>강점 카테고리 ${strengthTxt} · 기회 카테고리 ${oppTxt}</div>
-        <div>추세: ${trendTxt}</div>
+        <div>강점 카테고리 ${strengthTxt} · 기회 카테고리 ${oppTxt} (아래 전체 표 참고)</div>
+        <div>추세: ${trendTxt} (아래 월별 이력 참고)</div>
         <div style="margin-top:4px;color:var(--pale);">${actionTxt}</div>
       </div>
+      ${monthStripHtml}
+      ${diagTableHtml}
       ${catVisual}
     </div>`;
   }).join("");
