@@ -480,6 +480,15 @@
   .g-tier-good .g-store-badge{background:var(--info-dim);color:var(--info);}
   .g-tier-warn .g-store-badge{background:var(--amber-dim);color:var(--amber);}
   .g-tier-bad .g-store-badge{background:var(--red-dim);color:var(--red);}
+  .g-store-rank{font-family:"JetBrains Mono";font-size:10.5px;color:var(--muted2);font-weight:400;margin-left:6px;}
+  .g-store-cat{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--line-soft);}
+  .g-summary-cat{display:flex;gap:18px;align-items:center;flex-wrap:wrap;background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin:14px 0;}
+  .g-rank-list{margin:16px 0 4px;}
+  .g-rank-row{display:flex;align-items:center;gap:10px;padding:5px 2px;border-bottom:1px solid var(--line-soft);}
+  .g-rank-row:last-child{border-bottom:0;}
+  .g-rank-num{width:20px;text-align:center;font-family:"JetBrains Mono";font-size:10.5px;color:var(--muted2);flex:0 0 auto;}
+  .g-rank-name{width:110px;flex:0 0 auto;font-size:12.5px;color:var(--pale);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .g-rank-pct{width:54px;text-align:right;flex:0 0 auto;font-family:"JetBrains Mono";font-size:12px;font-weight:700;color:var(--text);}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -4085,7 +4094,8 @@ function goalsCumulative(store, months, curMonth){
 }
 function goalsCategoryDiagnosis(store){
   // 이 매장의 카테고리 구성비 - 전사 평균 구성비 격차로 강점/기회 카테고리를 자동 진단.
-  // (매장별 매출카테고리분석 리포트의 04/06 시트와 동일한 방식.)
+  // (매장별 매출카테고리분석 리포트의 04/06 시트와 동일한 방식.) diffs/chartData도 함께 돌려줘서
+  // 도넛차트·막대·액션 문구 생성에 재사용한다.
   const merged = mergeByStoreCat(SALES_HISTORY);
   const storeCat = categoryTotalsFiltered(merged, store);
   const companyCat = categoryTotals(merged);
@@ -4099,7 +4109,54 @@ function goalsCategoryDiagnosis(store){
     return { cat:c, storePct, companyPct, diff: storePct-companyPct };
   });
   diffs.sort((a,b)=>b.diff-a.diff);
-  return { strength: diffs[0], opportunity: diffs[diffs.length-1] };
+  const chartData = Object.keys(storeCat)
+    .map(c=>({label:c, value:storeCat[c].amount, qty:storeCat[c].qty}))
+    .sort((a,b)=>b.value-a.value);
+  return { strength: diffs[0], opportunity: diffs[diffs.length-1], diffs, chartData };
+}
+// 매장별 4~5문장 진단 문구를 규칙 기반으로 만든다(엑셀 리포트 06시트와 같은 로직) —
+// 데이터가 바뀌면 문구도 매번 새로 생성되어, 사람이 쓴 고정 문구처럼 낡지 않는다.
+function goalsActionText(diag){
+  if(!diag) return "카테고리 데이터가 없어 진단할 수 없습니다.";
+  const find = c => diag.diffs.find(d=>d.cat===c);
+  const sain = find("사입");
+  const opp = diag.opportunity;
+  if(sain && sain.storePct>=60){
+    return `사입(외부소싱) 의존도가 ${sain.storePct.toFixed(0)}%로 매우 높은 아울렛형 매장 — 카테고리 다각화보다 사입 상품 자체의 회전율·구성 개선이 우선입니다.`;
+  }
+  if(opp.cat==="신선식품" && Math.abs(opp.diff)>=15){
+    return `신선식품 공백이 가장 큰 레버리지 — 전사 대비 ${Math.abs(opp.diff).toFixed(1)}%p 열위인 신선식품 편성을 확대하면 개선 여지가 가장 큽니다.`;
+  }
+  if(Math.abs(opp.diff)>=10){
+    return `${escHtml(opp.cat)} 카테고리 공급 확대가 다음 개선 레버리지입니다 — 전사 대비 ${Math.abs(opp.diff).toFixed(1)}%p 열위.`;
+  }
+  return `카테고리별 격차가 크지 않아 특정 카테고리 편중보다 공급량·트래픽 등 전반적 요인 점검이 유효합니다.`;
+}
+// store의 월별 달성률 이력(있는 달만) + 8개월 평균 vs 최근 3개월 평균으로 추세를 판단.
+// 결측 월은 0%로 채우지 않고 그냥 건너뛴다 — goalsCumulative와 같은 "결측은 결측대로" 원칙.
+function goalsMonthlyHistory(store, months, curMonth){
+  const target = STORE_MONTHLY_TARGETS[store];
+  if(target == null) return null;
+  const elapsedDays = goalsElapsedDays(curMonth), daysInMonth = goalsDaysInMonth(curMonth);
+  const points = [];
+  months.forEach(m=>{
+    const v = monthStoreTotals(m).map[store] || 0;
+    if(v<=0) return;
+    const t = (m===curMonth) ? target*(elapsedDays/daysInMonth) : target;
+    points.push({ month:m, pct: t>0 ? v/t*100 : 0 });
+  });
+  if(!points.length) return { points, avg:null, recent3:null };
+  const avg = points.reduce((a,p)=>a+p.pct,0)/points.length;
+  const tail = points.slice(-Math.min(3,points.length));
+  const recent3 = tail.reduce((a,p)=>a+p.pct,0)/tail.length;
+  return { points, avg, recent3 };
+}
+function goalsTrendPhrase(hist){
+  if(!hist || hist.avg==null) return "월별 데이터가 부족해 추세 판단 불가";
+  const delta = hist.recent3 - hist.avg;
+  if(delta>=2)  return `최근 흐름이 전체 평균(${hist.avg.toFixed(1)}%)보다 ${delta.toFixed(1)}%p 높아 개선 추세`;
+  if(delta<=-2) return `최근 흐름이 전체 평균(${hist.avg.toFixed(1)}%)보다 ${Math.abs(delta).toFixed(1)}%p 낮아 둔화 추세 — 주의 필요`;
+  return `최근 흐름이 전체 평균(${hist.avg.toFixed(1)}%)과 비슷한 수준으로 안정적`;
 }
 function goalsLine(text){ return `<div style="font-size:11.5px;color:var(--muted2);margin-top:3px;">${text}</div>`; }
 function renderGoals(){
@@ -4127,14 +4184,30 @@ function renderGoals(){
     const pct = proratedTarget>0 ? actual/proratedTarget*100 : 0;
     return { store:s, target, actual, proratedTarget, pct,
              cum: goalsCumulative(s, months, curMonth),
-             diag: goalsCategoryDiagnosis(s) };
-  }).sort((a,b)=>a.pct-b.pct);
+             diag: goalsCategoryDiagnosis(s),
+             hist: goalsMonthlyHistory(s, months, curMonth) };
+  }).sort((a,b)=>a.pct-b.pct);  // 낮은 순 — rows[i]의 순위는 i+1 (1위=최하위)
 
   const totalTarget = rows.reduce((a,r)=>a+r.proratedTarget,0);
   const totalActual = rows.reduce((a,r)=>a+r.actual,0);
   const totalPct = totalTarget>0 ? totalActual/totalTarget*100 : 0;
   const achievedCnt = rows.filter(r=>r.pct>=100).length;
   const dangerCnt = rows.filter(r=>r.pct<65).length;
+
+  // ---- 전사 카테고리 구성 도넛(+막대) — 08월 누적 실매출액 기준, 사이트의 다른 도넛과 동일한 컴포넌트 재사용 ----
+  const companyMerged = mergeByStoreCat(SALES_HISTORY);
+  const companyCatData = Object.entries(categoryTotals(companyMerged))
+    .map(([c,v])=>({label:c, value:v.amount, qty:v.qty}))
+    .sort((a,b)=>b.value-a.value);
+  const companyDonutHtml = companyCatData.length
+    ? `<div class="g-summary-cat">
+        <div class="donut-hero-wrap">${buildDonutSVG(companyCatData, 158)}
+          <div class="donut-hero-caption"><div class="dh-total">${Math.round(companyCatData.reduce((a,d)=>a+d.value,0)).toLocaleString()}<span class="won">원</span></div>
+          <div class="dh-sub">전사 카테고리 구성 · 실매출액</div></div></div>
+        <div style="flex:1;min-width:220px;">${buildSharePercentBars(companyCatData, {compact:true})}</div>
+      </div>`
+    : "";
+
   summaryWrap.innerHTML = `<div class="stat-row">
     ${statCard(`전사 달성률 · ${curMonth.replace('-','년 ')}월 (${elapsedDays}/${daysInMonth}일 경과)`, totalPct.toFixed(1)+"%", [
         goalsLine("목표(일할) "+Math.round(totalTarget).toLocaleString()+"원"),
@@ -4142,30 +4215,54 @@ function renderGoals(){
       ])}
     ${statCard("목표 달성 매장", achievedCnt+" / "+rows.length, [goalsLine("100% 이상 달성한 매장 수")])}
     ${statCard("위험군 매장 (65% 미만)", dangerCnt+" / "+rows.length, [goalsLine("우선 대응이 필요한 매장 수")])}
+  </div>
+  ${companyDonutHtml}
+  <div class="g-rank-list">
+    ${rows.map((r,i)=>{
+      const tier = goalsTier(r.pct);
+      const barColor = tier.cls==="g-tier-great" ? "var(--green)" : tier.cls==="g-tier-good" ? "var(--info)" : tier.cls==="g-tier-warn" ? "var(--amber)" : "var(--red)";
+      return `<div class="g-rank-row">
+        <span class="g-rank-num">${i+1}</span>
+        <span class="g-rank-name" title="${escHtml(r.store)}">${escHtml(r.store)}</span>
+        <div class="mini-bar" style="flex:1;"><div class="mini-bar-fill" style="width:${Math.min(100,r.pct).toFixed(1)}%;background:${barColor}"></div></div>
+        <span class="g-rank-pct">${r.pct.toFixed(1)}%</span>
+      </div>`;
+    }).join("")}
   </div>`;
-  if(summaryMeta) summaryMeta.textContent = `기준월 ${curMonth} · 데이터 소스: ${curTot.source} · 목표는 코드(STORE_MONTHLY_TARGETS)에 고정 입력된 월 목표 기준(연간 아님)`;
+  if(summaryMeta) summaryMeta.textContent = `기준월 ${curMonth} · 데이터 소스: ${curTot.source} · 목표는 코드(STORE_MONTHLY_TARGETS)에 고정 입력된 월 목표 기준(연간 아님) · 순위는 달성률 낮은 순(1위=최하위)`;
 
-  storeWrap.innerHTML = rows.map(r=>{
+  storeWrap.innerHTML = rows.map((r,i)=>{
     const tier = goalsTier(r.pct);
+    const rank = i+1;
     const cumText = r.cum && !r.cum.gap
-      ? `누적 실적 ${Math.round(r.cum.actualCum).toLocaleString()}원 / 누적 목표 ${Math.round(r.cum.targetCum).toLocaleString()}원 (${r.cum.pct.toFixed(1)}%)`
+      ? `누적 실적 ${Math.round(r.cum.actualCum).toLocaleString()}원 / 누적 목표 ${Math.round(r.cum.targetCum).toLocaleString()}원 (${r.cum.pct.toFixed(1)}%, ${r.cum.actualCum>=r.cum.targetCum ? Math.round(r.cum.actualCum-r.cum.targetCum).toLocaleString()+"원 초과 달성" : Math.round(r.cum.targetCum-r.cum.actualCum).toLocaleString()+"원 미달"})`
       : (r.cum && r.cum.gap ? `누적 비교: 과거 특정 월 데이터 결측으로 산출 제외` : "");
-    const diagText = r.diag
-      ? `강점 카테고리 ${escHtml(r.diag.strength.cat)} (전사 대비 +${r.diag.strength.diff.toFixed(1)}%p) · 기회 카테고리 ${escHtml(r.diag.opportunity.cat)} (전사 대비 ${r.diag.opportunity.diff.toFixed(1)}%p)`
-      : "카테고리 데이터 없음";
+    const strengthTxt = r.diag ? `${escHtml(r.diag.strength.cat)}(${r.diag.strength.diff>=0?'+':''}${r.diag.strength.diff.toFixed(1)}%p)` : "-";
+    const oppTxt = r.diag ? `${escHtml(r.diag.opportunity.cat)}(${r.diag.opportunity.diff.toFixed(1)}%p)` : "-";
+    const trendTxt = goalsTrendPhrase(r.hist);
+    const actionTxt = goalsActionText(r.diag);
+    const catVisual = r.diag && r.diag.chartData.length
+      ? `<div class="g-store-cat">
+          <div class="pie-donut-only">${buildDonutSVG(r.diag.chartData, 108)}</div>
+          <div style="flex:1;min-width:180px;">${buildSharePercentBars(r.diag.chartData.slice(0,5), {compact:true})}</div>
+        </div>`
+      : "";
     return `<div class="g-store-card ${tier.cls}">
       <div class="g-store-hd">
-        <span class="g-store-name">${escHtml(r.store)}</span>
+        <span class="g-store-name">${escHtml(r.store)} <span class="g-store-rank">23개 중 ${rank}위(낮은 순)</span></span>
         <span class="g-store-badge">${tier.label} · ${r.pct.toFixed(1)}%</span>
       </div>
       <div class="g-store-body">
         <div>이번 달 실적 ${Math.round(r.actual).toLocaleString()}원 / 목표(일할) ${Math.round(r.proratedTarget).toLocaleString()}원</div>
         <div>${cumText}</div>
-        <div>${diagText}</div>
+        <div>강점 카테고리 ${strengthTxt} · 기회 카테고리 ${oppTxt}</div>
+        <div>추세: ${trendTxt}</div>
+        <div style="margin-top:4px;color:var(--pale);">${actionTxt}</div>
       </div>
+      ${catVisual}
     </div>`;
   }).join("");
-  if(storeMeta) storeMeta.textContent = `달성률 낮은 매장부터 표시 · 목표 숫자는 코드 상단 STORE_MONTHLY_TARGETS에서 관리`;
+  if(storeMeta) storeMeta.textContent = `달성률 낮은 매장부터 표시 · 목표 숫자는 코드 상단 STORE_MONTHLY_TARGETS에서 관리 · 카테고리 도넛은 8월 누적 실매출액 기준`;
 }
 
 function storeSalesActiveMap(){
