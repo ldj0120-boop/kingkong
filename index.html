@@ -1233,6 +1233,47 @@ const actualQty = (s,c) => {
   }
   return Math.round(base + fresh + lotte);
 };
+// 어떤 파일에서 온 값이 채택됐는지 그대로 돌려준다. 화면의 숫자가 "왜 그 값인지"를 칸에 마우스만
+// 올려도 확인할 수 있게 하려는 것 — 본사/센터가 서로 다른 수량을 갖고 있을 때(둘 중 큰 값 채택)
+// 어느 쪽이 이겼는지, 혹은 한쪽 파일이 아직 안 올라왔는지가 숫자만 봐서는 구분이 안 되기 때문이다.
+function actualQtyBreakdown(s,c){
+  const months = shipMonths();
+  const scope = m => shipScope==="all" || shipScope===m;
+  let hq=0, center=0, appliance=0, fresh=0, lotte=0;
+  if(months.length){
+    months.forEach(m=>{ if(!scope(m)) return;
+      hq += _mv(HQ_M,m,s,c); center += _mv(CENTER_M,m,s,c); appliance += _mv(APPLIANCE_M,m,s,c);
+      lotte += _mv(LOTTE_M,m,s,c);
+    });
+    const inM = months.some(m=> FRESH_M[m] && FRESH_M[m][s] && FRESH_M[m][s][c]!=null);
+    if(inM) months.forEach(m=>{ if(scope(m)) fresh += _mv(FRESH_M,m,s,c); });
+    else fresh = num(FRESH_ACTUAL[s] && FRESH_ACTUAL[s][c]);
+  } else {
+    hq = num(HQ_ACTUAL[s] && HQ_ACTUAL[s][c]);
+    center = num(ACTUAL[s] && ACTUAL[s][c]);
+    appliance = num(APPLIANCE_ACTUAL[s] && APPLIANCE_ACTUAL[s][c]);
+    fresh = num(FRESH_ACTUAL[s] && FRESH_ACTUAL[s][c]);
+  }
+  const winner = hq===0 && center===0 ? "없음" : (hq>center ? "본사" : center>hq ? "센터" : "본사=센터");
+  return { hq, center, appliance, fresh, lotte, winner, total: actualQty(s,c) };
+}
+// 칸 툴팁 문구: "출고예정 N · 출고완료 M (본사 x / 센터 y …)"
+function shipCellTitle(s,c){
+  const b = actualQtyBreakdown(s,c);
+  const r = v => Math.round(v*10)/10;
+  const parts = [];
+  parts.push(`본사 출고계획서 ${r(b.hq)}`);
+  parts.push(`센터 출고내역서 ${r(b.center)}`);
+  if(b.appliance) parts.push(`가전센터 ${r(b.appliance)}`);
+  if(b.fresh) parts.push(`신선 ${r(b.fresh)}`);
+  if(b.lotte) parts.push(`롯데제타 ${r(b.lotte)}`);
+  let verdict;
+  if(b.hq===0 && b.center===0) verdict = "본사·센터 모두 이 매장·카테고리 데이터 없음";
+  else if(b.hq>b.center) verdict = `→ 큰 값인 본사 ${r(b.hq)} 채택 (센터 파일이 아직 안 올라왔거나 이 건이 빠져 있으면 이렇게 됩니다)`;
+  else if(b.center>b.hq) verdict = `→ 큰 값인 센터 ${r(b.center)} 채택`;
+  else verdict = "→ 본사·센터 값이 같음";
+  return `출고예정 ${planQty(s,c)} · 출고완료 ${b.total}\n${parts.join(" / ")}\n${verdict}`;
+}
 // [{label, date, total, stores, stock}] 주차별 재고 스냅샷 (기준일 선택 시 전환됨) — num()이 선언된 뒤에 만들어야 함
 let STOCK_HISTORY = [{ label:"2026-07-20 (기본값·마지막 시트)", date:"2026-07-20", total:computeStockGrandTotal(STOCK, STORES), stores:STORES.slice(), stock:STOCK }];
 const storeShipTotal = s => CATEGORIES.reduce((a,c)=>a+planQty(s,c)+actualQty(s,c),0);
@@ -1720,7 +1761,7 @@ function renderShipAgg(){
     CATEGORIES.forEach((cat,ci)=>{
       const plan = planQty(s,cat), act = actualQty(s,cat), total = plan+act;
       const style = total>0 ? ` style="background:rgba(245,178,17,${(0.12+0.55*(total/colMax[ci])).toFixed(2)})"` : '';
-      body += `<td${style} title="출고예정 ${plan} · 출고완료 ${act}"><span class="num">${total===0?'':total}</span></td>`;
+      body += `<td${style} title="${escHtml(shipCellTitle(s,cat))}"><span class="num">${total===0?'':total}</span></td>`;
     });
     body += `<td class="total-col"><span class="num">${rowSum}</span></td></tr>`;
   });
@@ -1735,9 +1776,22 @@ function renderShipAgg(){
   tbl.innerHTML = head + body + foot;
   const dated = SUPPLY_HISTORY.filter(h=>h.date);
   const meta = document.getElementById("shipAggMeta");
-  meta.textContent = dated.length
+  let metaTxt = dated.length
     ? `출고완료 반영 기간 ${dated[0].date.slice(5).replace('-','/')}~${dated[dated.length-1].date.slice(5).replace('-','/')}`
     : "출고내역서 업로드 전 (출고예정 입력값만 반영됨)";
+  // 보고 있는 달에 본사/센터 중 한쪽만 올라와 있으면 그 사실을 표에 바로 알린다.
+  // 두 파일이 같은 매장·카테고리에 서로 다른 수량을 갖고 있을 때 큰 값을 채택하므로, 한쪽이 없으면
+  // 남은 쪽 수량이 그대로 화면에 나오는데 숫자만 봐서는 그걸 알 수 없어 "왜 이 값이지?"가 된다.
+  const scopeMonths = shipScope==="all" ? shipMonths() : [shipScope];
+  const hasIn = mp => scopeMonths.some(m=> mp[m] && Object.keys(mp[m]).length);
+  const hqOn = hasIn(HQ_M), ceOn = hasIn(CENTER_M);
+  if(scopeMonths.length && (hqOn !== ceOn)){
+    const label = shipScope==="all" ? "전체 기간" : shipScope;
+    metaTxt += hqOn
+      ? ` · ⚠ ${label}에 센터 출고내역서가 반영되어 있지 않습니다 — 지금 숫자는 본사 출고계획서 기준입니다(센터 파일을 올리면 둘 중 큰 값으로 갱신됩니다)`
+      : ` · ⚠ ${label}에 본사 출고계획서가 반영되어 있지 않습니다 — 지금 숫자는 센터 출고내역서 기준입니다`;
+  }
+  meta.textContent = metaTxt;
 }
 
 /* ================= 월별 매장 매출 (업로드된 날짜들을 달 단위로 묶어 언제든 다시 조회) ================= */
@@ -3450,11 +3504,23 @@ function parseShipmentWorkbook(wb){
         if(lastCat && pno!=="" && pno!=="0"){ lastRowCnt++; }
       }
       flushLine();
-      // KPP 매니페스트가 있는데 산정 합이 0이면(코드 미검출 등) 블록 총량을 첫 카테고리에 배정(누락 방지)
       const sumQty = Object.values(catQty).reduce((a,v)=>a+v,0);
+      // KPP 매니페스트가 있는데 산정 합이 0이면(코드 미검출 등) 블록 총량을 첫 카테고리에 배정(누락 방지)
       if(blockPallets > 0 && sumQty === 0){
         const only = firstCat || ensureCategory("미분류", "출고내역서(하차지 블록)");
         catQty[only] = blockPallets;
+      }
+      // ★ 매니페스트 상한 (2026-08-26 수정)
+      // REMARKS의 "(60PLT)"는 그 매장으로 나간 수량이 아니라 출발 창고에 있던 **LOT 전체 크기**다.
+      // 예) 260724 양주점: D열 매니페스트는 "KPP 6"(=6PLT)인데 REMARKS는
+      //     "20260715_FC_임박식품_XLW_금왕3(60PLT)" — 트럭 한 대에 60PLT가 실릴 수 없다.
+      // 이걸 그대로 수량으로 쓰면 한 줄이 60PLT로 부풀어(양주점 대형가구가 9→63으로) 집계가 망가진다.
+      // D열 매니페스트(KPP/AJ/EL18 …)가 그 배송의 실제 파레트 수이므로, 산정 합이 매니페스트를
+      // 넘으면 카테고리 비율을 유지한 채 매니페스트 값으로 눌러준다(적을 때는 건드리지 않는다 —
+      // 상세행에 적히지 않은 품목이 있을 수 있어 올려 잡으면 없는 물량을 만들어내기 때문).
+      else if(blockPallets > 0 && sumQty > blockPallets){
+        const k = blockPallets / sumQty;
+        Object.keys(catQty).forEach(c=> catQty[c] *= k);
       }
       if(matched.length){
         Object.keys(catQty).forEach(cat=>{
