@@ -470,6 +470,16 @@
   #cloudBadge.admin{border-color:var(--amber);color:var(--amber);}
   #cloudBadge.viewer{border-color:var(--info);color:var(--info);}
   body.viewer-mode .admin-only{display:none !important;}
+
+  .g-store-card{background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;}
+  .g-store-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px;}
+  .g-store-name{font-weight:600;color:var(--text);font-size:14px;}
+  .g-store-badge{font-family:"JetBrains Mono";font-size:12px;padding:3px 10px;border-radius:20px;white-space:nowrap;}
+  .g-store-body{font-size:12px;color:var(--muted);line-height:1.7;}
+  .g-tier-great .g-store-badge{background:var(--green-dim);color:var(--green);}
+  .g-tier-good .g-store-badge{background:var(--info-dim);color:var(--info);}
+  .g-tier-warn .g-store-badge{background:var(--amber-dim);color:var(--amber);}
+  .g-tier-bad .g-store-badge{background:var(--red-dim);color:var(--red);}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -542,6 +552,7 @@
     <button class="tab" role="tab" id="tab-entry" aria-selected="true" aria-controls="view-entry">출고 입력</button>
     <button class="tab" role="tab" id="tab-agg" aria-selected="false" aria-controls="view-agg">매장별 재고/공급 현황</button>
     <button class="tab" role="tab" id="tab-sales" aria-selected="false" aria-controls="view-sales">매장별 매출</button>
+    <button class="tab" role="tab" id="tab-goals" aria-selected="false" aria-controls="view-goals">목표매출 달성 방안</button>
   </div>
 
   <section id="view-entry" role="tabpanel" aria-labelledby="tab-entry">
@@ -730,6 +741,23 @@
       <div class="agg-scroll" id="salesAggTable"></div>
     </div>
   </section>
+  <section id="view-goals" role="tabpanel" aria-labelledby="tab-goals" hidden>
+    <div class="agg-card">
+      <div class="p-hd">
+        <span class="store-name">전사 목표매출 달성 현황</span>
+        <span class="meta" id="goalsSummaryMeta"></span>
+      </div>
+      <div class="agg-scroll" id="goalsSummaryWrap"></div>
+    </div>
+    <div class="agg-card">
+      <div class="p-hd">
+        <span class="store-name">매장별 목표매출 달성 방안</span>
+        <span class="meta" id="goalsStoreMeta"></span>
+      </div>
+      <div class="agg-scroll" id="goalsStoreWrap"></div>
+    </div>
+  </section>
+
 
   <div id="catMapModal" class="modal-overlay" hidden>
     <div class="modal-box">
@@ -1469,6 +1497,7 @@ function afterChange(){
   renderPanel();
   if(!document.getElementById("view-agg").hidden){ renderStockAgg(); renderShipAgg(); renderTrend(); }
   if(!document.getElementById("view-sales").hidden){ renderSalesDateSelect(); renderSalesTrend(); renderSalesVsSupply(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); }
+  if(!document.getElementById("view-goals").hidden){ renderGoals(); }
   renderDataQuality();
   saveState();
 }
@@ -3000,20 +3029,22 @@ function renderTrend(){
 }
 
 /* ================= 탭 ================= */
-const tabEntry=document.getElementById("tab-entry"), tabAgg=document.getElementById("tab-agg"), tabSales=document.getElementById("tab-sales");
-const viewEntry=document.getElementById("view-entry"), viewAgg=document.getElementById("view-agg"), viewSales=document.getElementById("view-sales");
+const tabEntry=document.getElementById("tab-entry"), tabAgg=document.getElementById("tab-agg"), tabSales=document.getElementById("tab-sales"), tabGoals=document.getElementById("tab-goals");
+const viewEntry=document.getElementById("view-entry"), viewAgg=document.getElementById("view-agg"), viewSales=document.getElementById("view-sales"), viewGoals=document.getElementById("view-goals");
 function selectTab(which){
-  [["entry",tabEntry,viewEntry],["agg",tabAgg,viewAgg],["sales",tabSales,viewSales]].forEach(([name,tab,view])=>{
+  [["entry",tabEntry,viewEntry],["agg",tabAgg,viewAgg],["sales",tabSales,viewSales],["goals",tabGoals,viewGoals]].forEach(([name,tab,view])=>{
     const on = name===which;
     tab.setAttribute("aria-selected", on);
     view.hidden = !on;
   });
   if(which==="agg"){ renderStockAgg(); renderShipAgg(); renderTrend(); }
   if(which==="sales"){ renderSalesDateSelect(); renderSalesTrend(); renderSalesVsSupply(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); }
+  if(which==="goals"){ renderGoals(); }
 }
 tabEntry.onclick=()=>selectTab("entry");
 tabAgg.onclick=()=>selectTab("agg");
 tabSales.onclick=()=>selectTab("sales");
+tabGoals.onclick=()=>selectTab("goals");
 
 /* ================= 재고 엑셀 업로드 ================= */
 // 시트를 "헤더명 기준"으로 해석한다. 열 순서가 바뀌거나 새 열이 생겨도 위치가 어긋나지 않고,
@@ -3965,6 +3996,178 @@ function monthStoreTotals(month){
   if(realTot>0) return { map: real, total: realTot, source: "실매출액" };
   return { map: bill, total: billTot, source: "청구금액" };
 }
+/* ================= 목표매출 달성 방안 (하드코딩 월 목표 대비) ================= */
+// "목표매출 달성 방안" 탭에서 쓰는 매장별 월 목표(원). 사용자가 매일 매출을 업로드하는
+// 것과 달리 이 목표 숫자는 자주 바뀌지 않으므로 파일 업로드가 아니라 코드에 직접 고정값으로
+// 넣는다(2026-08-26 세션에서 사용자가 선택한 방식). 목표가 바뀌거나 매장이 추가/폐점되면
+// 이 표만 수정하면 된다. "목표매출"은 연간이 아니라 월 목표로 취급함 — 근거는
+// STORE_MONTHLY_TARGETS 바로 아래 goalsCumulative()의 주석 참고.
+const STORE_MONTHLY_TARGETS = {
+  "용인점": 650000000,
+  "인천점": 520000000,
+  "이천점": 420000000,
+  "기흥점": 400000000,
+  "기흥 패션관": 60000000,
+  "김포점": 250000000,
+  "안중점": 250000000,
+  "청주점": 230000000,
+  "경안점": 300000000,
+  "김해점": 200000000,
+  "평택점": 210000000,
+  "광주점": 180000000,
+  "패션관광주점": 50000000,
+  "충주점": 200000000,
+  "양주점": 200000000,
+  "아산점": 200000000,
+  "수원점": 200000000,
+  "천안점": 150000000,
+  "원주점": 150000000,
+  "남양주점": 130000000,
+  "제주점": 80000000,
+  "대소점": 70000000,
+  "제주서귀포점": 150000000,
+};
+
+// mergeByStoreCat / categoryTotals / categoryTotalsFiltered / monthStoreTotals /
+// statCard / escHtml / num 은 모두 기존 함수를 그대로 재사용한다(새로 만들지 않음).
+function goalsAllMonths(){
+  const s = new Set();
+  STORE_SALES_HISTORY.forEach(h=>s.add(h.date.slice(0,7)));
+  SALES_HISTORY.forEach(h=>s.add(h.date.slice(0,7)));
+  return Array.from(s).sort();
+}
+function goalsDaysInMonth(ym){ const [y,m]=ym.split('-').map(Number); return new Date(y,m,0).getDate(); }
+function goalsElapsedDays(ym){
+  // 그 달에 실제로 업로드된 날짜 중 가장 늦은 날짜의 '일'을 경과일로 본다.
+  // 기존 "청구금액 업로드 진단"(renderSalesMonthly) 블록과 같은 사고방식 — 월중 부분
+  // 데이터를 정직하게 일할 환산하기 위함이며, 별도 진단 파일이나 수동 입력이 필요 없다.
+  const dates = [];
+  STORE_SALES_HISTORY.forEach(h=>{ if(h.date.slice(0,7)===ym) dates.push(h.date); });
+  SALES_HISTORY.forEach(h=>{ if(h.date.slice(0,7)===ym) dates.push(h.date); });
+  if(!dates.length) return goalsDaysInMonth(ym);
+  const last = dates.sort().slice(-1)[0];
+  return Number(last.slice(8,10));
+}
+function goalsTier(pct){
+  // 달성률 자체로 우선순위를 매기기 위한 4단계 배지. 정확한 "매출 인센티브 수당" 금액표는
+  // 목표매출 엑셀의 별도 시트를 참고할 것 — 여기서는 그 금액을 재현하지 않는다(부정확한
+  // 값을 코드에 박아 넣는 것을 피하기 위함).
+  if(pct >= 100) return {label:"목표 달성", cls:"g-tier-great"};
+  if(pct >= 85)  return {label:"근접",     cls:"g-tier-good"};
+  if(pct >= 65)  return {label:"주의",     cls:"g-tier-warn"};
+  return              {label:"위험",     cls:"g-tier-bad"};
+}
+function goalsCumulative(store, months, curMonth){
+  // 목표매출 컬럼은 "연간"이 아니라 "월" 목표로 취급한다 — 목표 규모가 월평균 실적과
+  // 같은 자릿수이고(예: 용인점 6.5억 vs 상반기 월평균 5.5억), 이 회사의 매출 인센티브
+  // 구간표도 월 단위 달성률(±%) 구조라서 그렇다. 2026-08-26 세션에서 확인.
+  //
+  // 누적 목표 = 월목표 × 경과 개월수(이번 달 제외) + 월목표 × 이번 달 경과일 비율.
+  // 과거 어느 한 달이라도 그 매장 실적이 0으로 나오면(=그 달 업로드 자체가 없었던 것으로
+  // 추정) "결측"으로 보고 누적 비교를 만들지 않는다 — 없는 달을 0으로 채워 억지로
+  // 달성률을 계산하면 실제보다 낮게 나와 오해를 부르기 때문(제주서귀포점처럼 중간 한 달
+  // 데이터가 통째로 빠진 매장에서 실제로 있었던 문제).
+  const target = STORE_MONTHLY_TARGETS[store];
+  if(target == null) return null;
+  const pastMonths = months.filter(m=>m!==curMonth);
+  let actualCum = 0, hasGap = false;
+  pastMonths.forEach(m=>{
+    const v = monthStoreTotals(m).map[store] || 0;
+    if(v<=0) hasGap = true;
+    actualCum += v;
+  });
+  const curActual = monthStoreTotals(curMonth).map[store] || 0;
+  actualCum += curActual;
+  if(hasGap) return { actualCum, targetCum:null, pct:null, gap:true };
+  const elapsedDays = goalsElapsedDays(curMonth), daysInMonth = goalsDaysInMonth(curMonth);
+  const targetCum = target*pastMonths.length + target*(elapsedDays/daysInMonth);
+  return { actualCum, targetCum, pct: targetCum>0 ? actualCum/targetCum*100 : 0, gap:false };
+}
+function goalsCategoryDiagnosis(store){
+  // 이 매장의 카테고리 구성비 - 전사 평균 구성비 격차로 강점/기회 카테고리를 자동 진단.
+  // (매장별 매출카테고리분석 리포트의 04/06 시트와 동일한 방식.)
+  const merged = mergeByStoreCat(SALES_HISTORY);
+  const storeCat = categoryTotalsFiltered(merged, store);
+  const companyCat = categoryTotals(merged);
+  const storeTotal = Object.values(storeCat).reduce((a,v)=>a+v.amount,0);
+  const companyTotal = Object.values(companyCat).reduce((a,v)=>a+v.amount,0);
+  if(!storeTotal || !companyTotal) return null;
+  const cats = Array.from(new Set([...Object.keys(storeCat), ...Object.keys(companyCat)]));
+  const diffs = cats.map(c=>{
+    const storePct = (storeCat[c]?.amount||0)/storeTotal*100;
+    const companyPct = (companyCat[c]?.amount||0)/companyTotal*100;
+    return { cat:c, storePct, companyPct, diff: storePct-companyPct };
+  });
+  diffs.sort((a,b)=>b.diff-a.diff);
+  return { strength: diffs[0], opportunity: diffs[diffs.length-1] };
+}
+function goalsLine(text){ return `<div style="font-size:11.5px;color:var(--muted2);margin-top:3px;">${text}</div>`; }
+function renderGoals(){
+  const summaryWrap = document.getElementById("goalsSummaryWrap");
+  const summaryMeta = document.getElementById("goalsSummaryMeta");
+  const storeWrap = document.getElementById("goalsStoreWrap");
+  const storeMeta = document.getElementById("goalsStoreMeta");
+  if(!summaryWrap || !storeWrap) return;
+  const months = goalsAllMonths();
+  if(!months.length){
+    summaryWrap.innerHTML = ""; storeWrap.innerHTML = "";
+    if(summaryMeta) summaryMeta.textContent = "매출을 업로드하면 목표 대비 달성 현황이 표시됩니다.";
+    if(storeMeta) storeMeta.textContent = "";
+    return;
+  }
+  const curMonth = months[months.length-1];
+  const elapsedDays = goalsElapsedDays(curMonth), daysInMonth = goalsDaysInMonth(curMonth);
+  const curTot = monthStoreTotals(curMonth);
+  const targetStores = Object.keys(STORE_MONTHLY_TARGETS).filter(s=>STORES.includes(s));
+
+  const rows = targetStores.map(s=>{
+    const target = STORE_MONTHLY_TARGETS[s];
+    const actual = curTot.map[s] || 0;
+    const proratedTarget = target*(elapsedDays/daysInMonth);
+    const pct = proratedTarget>0 ? actual/proratedTarget*100 : 0;
+    return { store:s, target, actual, proratedTarget, pct,
+             cum: goalsCumulative(s, months, curMonth),
+             diag: goalsCategoryDiagnosis(s) };
+  }).sort((a,b)=>a.pct-b.pct);
+
+  const totalTarget = rows.reduce((a,r)=>a+r.proratedTarget,0);
+  const totalActual = rows.reduce((a,r)=>a+r.actual,0);
+  const totalPct = totalTarget>0 ? totalActual/totalTarget*100 : 0;
+  const achievedCnt = rows.filter(r=>r.pct>=100).length;
+  const dangerCnt = rows.filter(r=>r.pct<65).length;
+  summaryWrap.innerHTML = `<div class="stat-row">
+    ${statCard(`전사 달성률 · ${curMonth.replace('-','년 ')}월 (${elapsedDays}/${daysInMonth}일 경과)`, totalPct.toFixed(1)+"%", [
+        goalsLine("목표(일할) "+Math.round(totalTarget).toLocaleString()+"원"),
+        goalsLine("실적 "+Math.round(totalActual).toLocaleString()+"원")
+      ])}
+    ${statCard("목표 달성 매장", achievedCnt+" / "+rows.length, [goalsLine("100% 이상 달성한 매장 수")])}
+    ${statCard("위험군 매장 (65% 미만)", dangerCnt+" / "+rows.length, [goalsLine("우선 대응이 필요한 매장 수")])}
+  </div>`;
+  if(summaryMeta) summaryMeta.textContent = `기준월 ${curMonth} · 데이터 소스: ${curTot.source} · 목표는 코드(STORE_MONTHLY_TARGETS)에 고정 입력된 월 목표 기준(연간 아님)`;
+
+  storeWrap.innerHTML = rows.map(r=>{
+    const tier = goalsTier(r.pct);
+    const cumText = r.cum && !r.cum.gap
+      ? `누적 실적 ${Math.round(r.cum.actualCum).toLocaleString()}원 / 누적 목표 ${Math.round(r.cum.targetCum).toLocaleString()}원 (${r.cum.pct.toFixed(1)}%)`
+      : (r.cum && r.cum.gap ? `누적 비교: 과거 특정 월 데이터 결측으로 산출 제외` : "");
+    const diagText = r.diag
+      ? `강점 카테고리 ${escHtml(r.diag.strength.cat)} (전사 대비 +${r.diag.strength.diff.toFixed(1)}%p) · 기회 카테고리 ${escHtml(r.diag.opportunity.cat)} (전사 대비 ${r.diag.opportunity.diff.toFixed(1)}%p)`
+      : "카테고리 데이터 없음";
+    return `<div class="g-store-card ${tier.cls}">
+      <div class="g-store-hd">
+        <span class="g-store-name">${escHtml(r.store)}</span>
+        <span class="g-store-badge">${tier.label} · ${r.pct.toFixed(1)}%</span>
+      </div>
+      <div class="g-store-body">
+        <div>이번 달 실적 ${Math.round(r.actual).toLocaleString()}원 / 목표(일할) ${Math.round(r.proratedTarget).toLocaleString()}원</div>
+        <div>${cumText}</div>
+        <div>${diagText}</div>
+      </div>
+    </div>`;
+  }).join("");
+  if(storeMeta) storeMeta.textContent = `달성률 낮은 매장부터 표시 · 목표 숫자는 코드 상단 STORE_MONTHLY_TARGETS에서 관리`;
+}
+
 function storeSalesActiveMap(){
   const allDates = Array.from(new Set([...STORE_SALES_HISTORY.map(h=>h.date), ...SALES_HISTORY.map(h=>h.date)])).sort();
   if(!allDates.length) return { map:{}, source:"", upto:"" };
