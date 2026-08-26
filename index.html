@@ -1108,25 +1108,93 @@ function makeCatDedupe(){
   const seen = new Set();
   return key => { const s = squashKey(key); if(!s || seen.has(s)) return true; seen.add(s); return false; };
 }
+/* ===== 13차 성능 개선 (2026-08-26) =====
+   기존 classifyShipCategory는 CATE 셀 한 칸마다 SHIP_CAT_MAP 전체를 최대 5번 훑고,
+   그때마다 키별로 cateBaseKey()를 다시 계산했다. 지정이 150건이면 셀당 수백~수천 번,
+   400건이면 그 3배 — 실측으로 CATE 셀 1,297개에 대해 지정 150건일 때 552ms,
+   400건일 때 1,456ms, 800건일 때 3,121ms가 걸렸다(선형 증가).
+   출고내역서 하나를 사전 스캔 + 본 파싱으로 두 번 훑으니 이 비용이 두 배로 들고,
+   폴더를 통째로 올리면 파일 수만큼 곱해져 "느려서 뭘 할 수가 없는" 상태가 된다.
+   → 지정 목록이 바뀔 때 한 번만 조회 인덱스(Map 5종)를 만들고, 원문별 판정 결과도
+     기억해 둔다. 판정 순서와 "먼저 등록된 지정이 이긴다"는 규칙은 그대로 유지한다. */
+let _catIdx = null;        // {exact,norm,squash,base,baseSquash,n}
+let _catIdxRef = null;     // 인덱스를 만들 때의 SHIP_CAT_MAP 객체 참조
+let _catMemo = new Map();  // 정규화된 CATE 원문 -> 판정 결과(같은 문구가 수십 번 반복되므로 효과가 크다)
+function invalidateCatIndex(){ _catIdx = null; _catIdxRef = null; _catMemo = new Map(); }
+function catIndex(){
+  const keys = Object.keys(SHIP_CAT_MAP);
+  // 지정을 새로 배정하면 객체 참조가 바뀌고, 추가/삭제하면 개수가 바뀐다.
+  // 값만 바뀌는 경우(같은 키의 카테고리 변경)는 persistCatMaps()에서 무효화한다.
+  if(_catIdx && _catIdxRef === SHIP_CAT_MAP && _catIdx.n === keys.length) return _catIdx;
+  const exact=new Map(), norm=new Map(), squash=new Map(), base=new Map(), baseSquash=new Map();
+  for(const k of keys){
+    const v = SHIP_CAT_MAP[k];
+    if(!exact.has(k)) exact.set(k, v);
+    const nk = String(k).replace(/\s+/g,' ').trim();
+    if(nk && !norm.has(nk)) norm.set(nk, v);
+    const sk = squashKey(k);
+    if(sk && !squash.has(sk)) squash.set(sk, v);
+    const bk = cateBaseKey(k);
+    if(bk){
+      if(!base.has(bk)) base.set(bk, v);
+      const bs = squashKey(bk);
+      if(bs && !baseSquash.has(bs)) baseSquash.set(bs, v);
+    }
+  }
+  _catIdx = {exact, norm, squash, base, baseSquash, n: keys.length};
+  _catIdxRef = SHIP_CAT_MAP;
+  _catMemo = new Map();
+  return _catIdx;
+}
 function classifyShipCategory(raw){
   const t = String(raw||"").replace(/[\n\r]+/g,' ').replace(/\s+/g,' ').trim();
   if(!t) return "미분류";
-  if(Object.prototype.hasOwnProperty.call(SHIP_CAT_MAP, t)) return SHIP_CAT_MAP[t];
-  // 저장된 지정을 공백 정규화해서도 대조(파일마다 공백 개수가 달라도 같은 문구로 인식)
-  for(const k of Object.keys(SHIP_CAT_MAP)){ if(String(k).replace(/\s+/g,' ').trim()===t) return SHIP_CAT_MAP[k]; }
-  // 공백을 아예 없앤 형태로도 대조 — "지정  FC파손" ≡ "지정FC파손"
+  const idx = catIndex();                       // 지정이 바뀌었으면 여기서 인덱스+기억을 새로 만든다
+  if(_catMemo.has(t)) return _catMemo.get(t);
+  const r = _classifyShipCategoryCore(t, idx);
+  _catMemo.set(t, r);
+  return r;
+}
+// 판정 순서는 개선 전과 동일: 원문 일치 → 공백 정규화 일치 → 공백 제거 일치
+//                            → 기본문구 원문 일치 → 기본문구 일치 → 기본문구 공백제거 일치 → 규칙
+function _classifyShipCategoryCore(t, idx){
+  if(idx.exact.has(t)) return idx.exact.get(t);
+  if(idx.norm.has(t)) return idx.norm.get(t);   // t는 이미 공백 정규화된 문구
   const sq = squashKey(t);
-  if(sq){ for(const k of Object.keys(SHIP_CAT_MAP)){ if(squashKey(k)===sq) return SHIP_CAT_MAP[k]; } }
-  // 기본 문구(월·코드 제거)로도 대조 — "칼라파타르 7월"을 지정했으면 "칼라파타르 8월"도 자동 인식
+  if(sq && idx.squash.has(sq)) return idx.squash.get(sq);
   const base = cateBaseKey(t);
   if(base){
-    if(Object.prototype.hasOwnProperty.call(SHIP_CAT_MAP, base)) return SHIP_CAT_MAP[base];
-    for(const k of Object.keys(SHIP_CAT_MAP)){ if(cateBaseKey(k)===base) return SHIP_CAT_MAP[k]; }
+    if(idx.exact.has(base)) return idx.exact.get(base);
+    if(idx.base.has(base)) return idx.base.get(base);
     const bsq = squashKey(base);
-    if(bsq){ for(const k of Object.keys(SHIP_CAT_MAP)){ if(squashKey(cateBaseKey(k))===bsq) return SHIP_CAT_MAP[k]; } }
+    if(bsq && idx.baseSquash.has(bsq)) return idx.baseSquash.get(bsq);
   }
   for(const [re,cat] of CATE_RULES){ if(re.test(t)) return cat; }
   return null;
+}
+// 시트를 배열(AoA)로 바꾸는 비용도 무시할 수 없다. 같은 워크북을 사전 스캔(모달용)과 본 파싱에서
+// 두 번 훑기 때문에, 워크북 단위로 결과를 기억해 두면 그 절반이 사라진다.
+// (AoA를 고쳐 쓰는 코드는 없으므로 공유해도 안전하다.)
+// 진행 표시를 위해 3시트마다 setTimeout(0)으로 브라우저에 제어를 넘기던 코드가 있었다.
+// 브라우저는 setTimeout(0)을 최소 4ms로 늘려 잡고, 그때마다 진행률 DOM을 다시 그리므로
+// 파싱 자체가 빨라진 지금은 이 양보가 오히려 대기 시간의 대부분을 차지한다.
+// → 횟수가 아니라 "마지막 양보 후 흐른 시간"으로 판단해 화면이 멈춰 보일 때만 넘긴다.
+let _yieldAt = 0;
+function shouldYield(ms){ const now = Date.now(); if(now - _yieldAt >= (ms||60)){ _yieldAt = now; return true; } return false; }
+// 화면을 한 프레임 그릴 틈을 준다. 단, 탭이 백그라운드로 가면 requestAnimationFrame이 멈추므로
+// (사용자가 다른 탭을 보는 동안 불러오기가 영원히 멈추는 일이 생긴다) 타이머로 반드시 풀어준다.
+const nextFrame = ()=> new Promise(res=>{
+  let done=false; const fire=()=>{ if(done) return; done=true; res(); };
+  if(typeof requestAnimationFrame==="function") requestAnimationFrame(fire);
+  setTimeout(fire, 32);
+});
+const _aoaCache = new WeakMap();
+function sheetAoA(wb, sheetName){
+  let m = _aoaCache.get(wb);
+  if(!m){ m = new Map(); _aoaCache.set(wb, m); }
+  let a = m.get(sheetName);
+  if(!a){ a = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, raw:true, defval:null}); m.set(sheetName, a); }
+  return a;
 }
 function extractCategoryFromRaw(raw){
   const t = String(raw||"").replace(/[\n\r]+/g,' ').trim();
@@ -1358,6 +1426,7 @@ let _saveWarned = false;
 // 카테고리 지정(매핑)을 지정 즉시 항상 별도 키에 자동 백업한다(버튼을 안 눌러도 유지·복원됨).
 const CATMAP_KEY = "plt_catmap_v1";
 function persistCatMaps(){
+  invalidateCatIndex(); // 지정이 바뀌었으니 조회 인덱스/판정 기억을 버린다(같은 키의 값만 바뀐 경우까지 확실히 반영)
   try{ localStorage.setItem(CATMAP_KEY, JSON.stringify({ SALES_CAT_MAP, SHIP_CAT_MAP, CATEGORIES, CATEGORY_ORIGIN, savedAt:new Date().toISOString() })); }catch(_){}
 }
 // ★ 카테고리 지정은 전용 키(plt_catmap_v1)가 "단일 진실 소스"다. (2026-08-26 수정)
@@ -1407,24 +1476,55 @@ function staleParseSources(){
    → 업로드할 때 원본 파일 바이트를 IndexedDB에 함께 넣어두고, 로직 버전이 올라가면 시작 시
      저장된 원본으로 조용히 다시 파싱한다. 사용자가 할 일이 없어진다.
    (localStorage에는 넣지 않는다 — 용량 초과로 전체 저장이 깨진다. IndexedDB 전용.) */
-const RAW_KEY = "rawfiles_v1";
-async function rawFilesLoad(){ try{ return (await idbGet(RAW_KEY)) || []; }catch(_){ return []; } }
-async function rawFileSave(src, file, buf){
-  if(!IDB_AVAILABLE || !buf) return;
-  try{
-    const list = await rawFilesLoad();
-    const name = (file && file.name) ? String(file.name) : (src + ".xlsx");
-    const keep = list.filter(f=> !(f.src===src && f.name===name));
-    keep.push({ src, name, size: buf.byteLength, savedAt: new Date().toISOString(), buf });
-    await idbSet(RAW_KEY, keep);
-  }catch(_){ /* 보관 실패는 기능에 영향 없음 — 그때는 예전처럼 재업로드 안내가 뜬다 */ }
+// ★ 파일별 키로 저장한다. 처음에는 배열 하나(rawfiles_v1)에 모든 원본을 담았는데,
+//   파일을 하나 올릴 때마다 이미 저장된 원본 전체(수 MB~수십 MB)를 읽어 들였다가 다시 통째로
+//   써야 해서 파일 수의 제곱으로 느려졌다. 목록(작은 메타데이터)과 내용(버퍼)을 분리한다.
+const RAW_KEY = "rawfiles_v1";       // 예전 형식(배열). 처음 읽을 때 파일별 키로 옮긴다.
+const RAW_IDX_KEY = "rawfiles_idx_v1"; // [{src,name,size,savedAt,key}] — 버퍼는 담지 않는다
+const rawFileKey = (src,name)=> "rawfile:"+src+":"+name;
+async function rawIndexLoad(){ try{ return (await idbGet(RAW_IDX_KEY)) || []; }catch(_){ return []; } }
+// 예전 배열 형식이 남아 있으면 파일별 키로 한 번만 이관한다(사용자는 아무것도 안 해도 된다).
+async function rawMigrateLegacy(){
+  let legacy = [];
+  try{ legacy = (await idbGet(RAW_KEY)) || []; }catch(_){ return; }
+  if(!legacy.length) return;
+  const idx = await rawIndexLoad();
+  for(const f of legacy){
+    if(!f || !f.buf) continue;
+    const key = rawFileKey(f.src, f.name);
+    try{ await idbSet(key, f.buf); }catch(_){ continue; }
+    if(!idx.some(e=>e.key===key)) idx.push({src:f.src, name:f.name, size:f.size, savedAt:f.savedAt, key});
+  }
+  try{ await idbSet(RAW_IDX_KEY, idx); await idbSet(RAW_KEY, []); }catch(_){}
+}
+// 목록(rawfiles_idx_v1)은 한 줄로 된 배열이라 두 파일이 동시에 저장하면 뒤에 쓴 쪽이 앞을 지운다.
+// (실제로 센터 원본이 본사 원본에 덮여 사라지는 것을 테스트에서 확인했다.)
+// → 목록을 건드리는 작업은 모두 한 줄로 세워서 차례대로 실행한다.
+let _rawChain = Promise.resolve();
+function rawQueue(fn){ const next = _rawChain.then(fn).catch(()=>null); _rawChain = next.catch(()=>null); return next; }
+// 목록만 돌려준다(버퍼 없음). 필요한 파일의 내용은 rawFileRead()로 그때만 읽는다.
+function rawFilesList(){ return rawQueue(async()=>{ await rawMigrateLegacy(); return await rawIndexLoad(); }).then(v=>v||[]); }
+async function rawFileRead(entry){ try{ return entry ? await idbGet(entry.key) : null; }catch(_){ return null; } }
+function rawFileSave(src, file, buf){
+  if(!IDB_AVAILABLE || !buf) return Promise.resolve();
+  const name = (file && file.name) ? String(file.name) : (src + ".xlsx");
+  return rawQueue(async()=>{
+    try{
+      const key = rawFileKey(src, name);
+      await idbSet(key, buf);                     // 내용은 자기 키에만 쓴다 — 다른 원본은 건드리지 않는다
+      const idx = await rawIndexLoad();
+      const keep = idx.filter(e=> e.key !== key);
+      keep.push({ src, name, size: buf.byteLength, savedAt: new Date().toISOString(), key });
+      await idbSet(RAW_IDX_KEY, keep);
+    }catch(_){ /* 보관 실패는 기능에 영향 없음 — 그때는 예전처럼 재업로드 안내가 뜬다 */ }
+  });
 }
 // 낡은 종류를 저장된 원본으로 다시 파싱한다. 확인 모달은 띄우지 않는다
 // (카테고리 지정은 이미 저장돼 있고, 새 문구가 있으면 원문 그대로 남아 눈에 띈다).
 async function reparseStaleSources(){
   const stale = staleParseSources();
   if(!stale.length || typeof XLSX==="undefined") return [];
-  const files = await rawFilesLoad();
+  const files = await rawFilesList();
   if(!files.length) return [];
   const done = [];
   for(const src of stale){
@@ -1436,7 +1536,9 @@ async function reparseStaleSources(){
       else if(src==="appliance"){ APPLIANCE_M = {}; APPLIANCE_SUPPLY_HISTORY = []; }
       else continue;
       for(const f of mine){
-        const wb = XLSX.read(new Uint8Array(f.buf), {type:"array"});
+        const buf = await rawFileRead(f);   // 필요한 파일만 그때 읽는다(전체를 메모리에 올리지 않는다)
+        if(!buf) continue;
+        const wb = XLSX.read(new Uint8Array(buf), {type:"array"});
         if(src==="center"){
           const r = parseShipmentWorkbook(wb);
           mergeMonthMap(CENTER_M, r.byMonth);
@@ -1455,7 +1557,7 @@ async function reparseStaleSources(){
       done.push(src);
     }catch(e){ /* 이 종류만 실패 — 나머지는 계속하고, 실패분은 배너로 안내된다 */ }
   }
-  if(done.length){ try{ saveState(); }catch(_){} }
+  if(done.length){ try{ saveStateNow(); }catch(_){} }
   return done;
 }
 function buildStateObject(){
@@ -1468,7 +1570,18 @@ function buildStateObject(){
       basedateIdx: (typeof basedateEl!=="undefined" && basedateEl.value!=="") ? +basedateEl.value : STOCK_HISTORY.length-1
   };
 }
+// 폴더를 통째로 올리면 파일마다 saveState()가 돌았다. 한 번에 전체 상태를 JSON으로 직렬화하고
+// localStorage·IndexedDB·클라우드에 세 번 쓰기 때문에, 파일 수만큼 곱해지면 화면이 그때마다 멈춘다.
+// → saveState()는 짧게 몰아서 한 번만 실제 저장하고, 창을 닫기 전이나 즉시 필요할 때는
+//   saveStateNow()로 강제 저장한다. 카테고리 지정은 persistCatMaps()가 따로 즉시 저장하므로
+//   이 지연 때문에 "같은 문구를 또 묻는" 문제가 다시 생기지는 않는다.
+let _saveTimer = null;
 function saveState(){
+  if(_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(()=>{ _saveTimer=null; saveStateNow(); }, 350);
+}
+function saveStateNow(){
+  if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer=null; }
   const st = buildStateObject();
   // 1차: 용량 큰 IndexedDB에 저장(대용량 매출 데이터도 안전하게 보존)
   try{ idbSet("state", st).catch(()=>{}); }catch(_){}
@@ -1487,8 +1600,8 @@ function saveState(){
 }
 // 창을 닫거나 새로고침하기 직전에도 마지막 상태를 한 번 더 저장(백그라운드 보존).
 if(typeof window!=="undefined"){
-  window.addEventListener("beforeunload", ()=>{ try{ saveState(); }catch(_){} });
-  window.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden"){ try{ saveState(); }catch(_){} } });
+  window.addEventListener("beforeunload", ()=>{ try{ saveStateNow(); }catch(_){} });
+  window.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden"){ try{ saveStateNow(); }catch(_){} } });
 }
 function applyStateObject(s){
   try{
@@ -1857,7 +1970,14 @@ function refreshSlotStates(){
   set("importSalesBtn",     STORE_SALES_HISTORY.length>0);                        // 매장별 매출(일자별·청구금액)
   set("importCatSalesBtn",  SALES_HISTORY.length>0);                              // 카테고리별 매출(상품별 파일)
 }
+// 폴더를 통째로 올릴 때는 파일마다 afterChange()가 돌면서 매장표·집계표·추이·매출·목표 탭을
+// 전부 다시 그렸다. 파일이 10개면 화면 전체를 10번 그리는 셈이고, 그 사이 확인창을 눌러야 하니
+// "느려서 뭘 할 수가 없는" 상태가 된다. 일괄 처리 중에는 미뤄두고 끝난 뒤 한 번만 그린다.
+let _renderBatch = 0, _renderPending = false;
+function beginRenderBatch(){ _renderBatch++; }
+function endRenderBatch(){ _renderBatch = Math.max(0, _renderBatch-1); if(_renderBatch===0 && _renderPending){ _renderPending=false; afterChange(); } }
 function afterChange(){
+  if(_renderBatch>0){ _renderPending = true; return; }
   document.getElementById("totalCount").textContent = grandTotal();
   refreshSlotStates();
   renderStoreList();
@@ -3590,9 +3710,14 @@ importBtn.onclick = ()=> importInput.click();
 importInput.onchange = (e)=>{ handleStockFile(e.target.files[0]); importInput.value=""; };
 setupDropZone(importBtn, handleStockFile);
 function handleStockFile(file){
-  if(!file) return;
-  if(typeof XLSX==="undefined"){ alert("엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요."); return; }
+  if(!file) return Promise.resolve();
+  if(typeof XLSX==="undefined"){ alert("엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요."); return Promise.resolve(); }
+  // 폴더 일괄 불러오기에서 파일을 하나씩 순서대로 처리할 수 있도록 완료 시점을 알린다.
+  // 예전에는 이 함수가 즉시 반환돼 폴더 안의 파일이 전부 동시에 파싱됐다 —
+  // 카테고리 확인창이 여러 개 겹쳐 뜨고 진행률이 실제와 어긋나던 원인이다.
+  return new Promise((resolve)=>{
   const reader = new FileReader();
+  reader.onerror = ()=>{ alert(`"${file.name}" 파일을 읽지 못했습니다.`); resolve(); };
   reader.onload = (ev)=>{
     try{
       const data = new Uint8Array(ev.target.result);
@@ -3600,7 +3725,7 @@ function handleStockFile(file){
       if(!wb.SheetNames.length){ alert("시트가 없는 파일입니다."); return; }
       // 센터 LOT 재고현황(이천/도척/방도리 센터 단위 원장)은 매장별 재고가 아니므로 자동 제외한다("전추불" 시트도 여기 포함).
       const isLotCenterFile = /LOT.?재고|낙찰|센터재고현황/i.test(file.name) || wb.SheetNames.some(sn=>{
-        try{ const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sn], {header:1, raw:true, defval:null});
+        try{ const aoa = sheetAoA(wb, sn);
           const flat = aoa.slice(0,6).map(r=>(r||[]).map(c=>String(c==null?"":c)).join(" ")).join(" ");
           return (/낙찰명/.test(flat) && /보관장소/.test(flat)) || /LOT\s*재고현황/.test(flat);
         }catch(_){ return false; }
@@ -3632,7 +3757,7 @@ function handleStockFile(file){
       };
       let dated = [], dateless = [];
       wb.SheetNames.forEach(sheetName=>{
-        const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, raw:true, defval:null});
+        const aoa = sheetAoA(wb, sheetName);
         const parsed = parseStockSheet(aoa);
         if(!parsed) return; // 매장·카테고리 인식 안 되는 시트는 스킵
         const snapDate = detectStockDate(aoa, parsed, sheetName);
@@ -3667,9 +3792,10 @@ function handleStockFile(file){
       showNotice(`재고 스냅샷 ${snapshots.length}건을 불러왔습니다 (${snapshots.map(s=>s.date||s.label).join(', ')}). 상단 "기준일" 드롭다운에서 날짜를 골라 비교할 수 있습니다.`);
     }catch(err){
       alert("엑셀을 읽는 중 오류가 발생했습니다: " + err.message);
-    }
+    }finally{ resolve(); }
   };
   reader.readAsArrayBuffer(file);
+  });
 }
 
 /* ================= 출고내역서 업로드 (날짜별 시트 안의 "하차지 :" 블록 반복 구조) ================= */
@@ -3719,7 +3845,7 @@ function parseShipmentWorkbook(wb){
   const unmatched = new Set();
   const sheets = findShipmentDaySheets(wb);
   sheets.forEach(sheetName=>{
-    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, raw:true, defval:null});
+    const aoa = sheetAoA(wb, sheetName);
     const date = sheetDateFromName(sheetName);
     const month = date ? date.slice(0,7) : null;
     for(let r=0; r<aoa.length; r++){
@@ -3868,7 +3994,7 @@ function parseFreshWorkbook(wb, fileName){
   if(monthSheets.length){
     // 수박처럼 6·7·8월 시트가 있으면 각 월을 그 달에 넣는다(한 달로 뭉치지 않게).
     monthSheets.forEach(n=>{
-      const res = parseFreshSheet(XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null}));
+      const res = parseFreshSheet(sheetAoA(wb, n));
       res.unmatchedCols.forEach(x=>unmatchedCols.add(x));
       const tot = Object.values(res.byStore).reduce((a,v)=>a+v,0);
       if(tot>0){ byMonthStore[`${fileYear}-${String(parseInt(n,10)).padStart(2,'0')}`] = res.byStore; }
@@ -3878,7 +4004,7 @@ function parseFreshWorkbook(wb, fileName){
   } else {
     // 신선식품: 채널 시트 합산 금지 → "통합본"(마지막 시트)의 매장별 출고 내역만.
     const consolidated = wb.SheetNames.find(n=>/통합/.test(n)) || wb.SheetNames[wb.SheetNames.length-1];
-    const res = parseFreshSheet(XLSX.utils.sheet_to_json(wb.Sheets[consolidated],{header:1,raw:true,defval:null}));
+    const res = parseFreshSheet(sheetAoA(wb, consolidated));
     res.unmatchedCols.forEach(x=>unmatchedCols.add(x));
     byStore = res.byStore;
     if(month) byMonthStore[month] = res.byStore;
@@ -3893,7 +4019,7 @@ function parseLotteZetaWorkbook(wb){
   const sheetName = wb.SheetNames.find(n=>/하차.*plt|plt.*하차/i.test(flat(n)))
                  || wb.SheetNames.find(n=>/하차/.test(n))
                  || wb.SheetNames[wb.SheetNames.length-1];
-  const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, raw:true, defval:null});
+  const aoa = sheetAoA(wb, sheetName);
   // 헤더행: A열에 매장명(김해점), 이후 1~31 일자 + TOTAL
   let hdrRow = -1;
   for(let r=0;r<Math.min(aoa.length,6);r++){ if((aoa[r]||[]).some(c=>/김해|매장|점$/.test(String(c==null?"":c)))){ hdrRow=r; break; } }
@@ -3993,9 +4119,14 @@ importActualBtn.onclick = ()=> importActualInput.click();
 importActualInput.onchange = (e)=>{ handleActualFile(e.target.files[0]); importActualInput.value=""; };
 setupDropZone(importActualBtn, handleActualFile);
 function handleActualFile(file){
-  if(!file) return;
-  if(typeof XLSX==="undefined"){ alert("엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요."); return; }
+  if(!file) return Promise.resolve();
+  if(typeof XLSX==="undefined"){ alert("엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요."); return Promise.resolve(); }
+  // 폴더 일괄 불러오기에서 파일을 하나씩 순서대로 처리할 수 있도록 완료 시점을 알린다.
+  // 예전에는 이 함수가 즉시 반환돼 폴더 안의 파일이 전부 동시에 파싱됐다 —
+  // 카테고리 확인창이 여러 개 겹쳐 뜨고 진행률이 실제와 어긋나던 원인이다.
+  return new Promise((resolve)=>{
   const reader = new FileReader();
+  reader.onerror = ()=>{ alert(`"${file.name}" 파일을 읽지 못했습니다.`); resolve(); };
   reader.onload = async (ev)=>{
     try{
       const data = new Uint8Array(ev.target.result);
@@ -4029,9 +4160,10 @@ function handleActualFile(file){
       showNotice(msg);
     }catch(err){
       alert("엑셀을 읽는 중 오류가 발생했습니다: " + err.message);
-    }
+    }finally{ resolve(); }
   };
   reader.readAsArrayBuffer(file);
+  });
 }
 
 /* ================= 가전센터(방도리) 출고내역서 업로드 =================
@@ -4053,7 +4185,7 @@ function parseApplianceWorkbook(wb){
   const unmatched = new Set();
   const sheets = findApplianceDaySheets(wb);
   sheets.forEach(sheetName=>{
-    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, raw:true, defval:null});
+    const aoa = sheetAoA(wb, sheetName);
     const date = sheetDateFromA1(aoa);
     const month = date ? date.slice(0,7) : null;
     for(let r=0; r<aoa.length; r++){
@@ -4103,7 +4235,7 @@ function collectUnknownApplianceCategories(wb){
   const unknown = new Map();
   const dup = makeCatDedupe();
   findApplianceDaySheets(wb).forEach(sheetName=>{
-    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, raw:true, defval:null});
+    const aoa = sheetAoA(wb, sheetName);
     for(let r=0; r<aoa.length; r++){
       const row = aoa[r] || [];
       if(row[0] !== "출고지 :") continue;
@@ -4139,9 +4271,14 @@ importApplianceBtn.onclick = ()=> importApplianceInput.click();
 importApplianceInput.onchange = (e)=>{ handleApplianceFile(e.target.files[0]); importApplianceInput.value=""; };
 setupDropZone(importApplianceBtn, handleApplianceFile);
 function handleApplianceFile(file){
-  if(!file) return;
-  if(typeof XLSX==="undefined"){ alert("엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요."); return; }
+  if(!file) return Promise.resolve();
+  if(typeof XLSX==="undefined"){ alert("엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요."); return Promise.resolve(); }
+  // 폴더 일괄 불러오기에서 파일을 하나씩 순서대로 처리할 수 있도록 완료 시점을 알린다.
+  // 예전에는 이 함수가 즉시 반환돼 폴더 안의 파일이 전부 동시에 파싱됐다 —
+  // 카테고리 확인창이 여러 개 겹쳐 뜨고 진행률이 실제와 어긋나던 원인이다.
+  return new Promise((resolve)=>{
   const reader = new FileReader();
+  reader.onerror = ()=>{ alert(`"${file.name}" 파일을 읽지 못했습니다.`); resolve(); };
   reader.onload = async (ev)=>{
     try{
       const data = new Uint8Array(ev.target.result);
@@ -4176,9 +4313,10 @@ function handleApplianceFile(file){
       showNotice(msg);
     }catch(err){
       alert("엑셀을 읽는 중 오류가 발생했습니다: " + err.message);
-    }
+    }finally{ resolve(); }
   };
   reader.readAsArrayBuffer(file);
+  });
 }
 
 /* ================= 본사 출고계획서 업로드 =================
@@ -4223,7 +4361,7 @@ async function parseHQPlanWorkbook(wb, onProgress){
   const sheets = findHQDaySheets(wb);
   for(let si=0; si<sheets.length; si++){
     const sheetName = sheets[si];
-    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, raw:true, defval:null});
+    const aoa = sheetAoA(wb, sheetName);
     const date = hqDateFromSheet(aoa, sheetName);
     const month = date ? date.slice(0,7) : null;
     for(let r=0; r<aoa.length; r++){
@@ -4275,7 +4413,7 @@ async function parseHQPlanWorkbook(wb, onProgress){
         }
       }
     }
-    if((si % 3)===0){ if(onProgress) onProgress(si/sheets.length); await new Promise(res=>setTimeout(res,0)); }
+    if(shouldYield(60)){ if(onProgress) onProgress(si/sheets.length); await nextFrame(); }
   }
   if(onProgress) onProgress(1);
   const days = Object.keys(dayTotals).sort().map(date=>({date, total:dayTotals[date].total, byCategory:dayTotals[date].byCategory}));
@@ -4286,7 +4424,7 @@ async function collectUnknownHQCategories(wb){
   const dup = makeCatDedupe();
   const sheets = findHQDaySheets(wb);
   for(let si=0; si<sheets.length; si++){
-    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheets[si]], {header:1, raw:true, defval:null});
+    const aoa = sheetAoA(wb, sheets[si]);
     for(let r=0; r<aoa.length; r++){
       const row = aoa[r] || [];
       const markerCol = findMarkerCol(row);
@@ -4307,7 +4445,7 @@ async function collectUnknownHQCategories(wb){
         unknown.set(base, row[markerCol+1]);
       }
     }
-    if((si % 3)===0){ showProgress(si/sheets.length, "본사출고 카테고리 확인 중"); await new Promise(res=>setTimeout(res,0)); }
+    if(shouldYield(60)){ showProgress(si/sheets.length, "본사출고 카테고리 확인 중"); await nextFrame(); }
   }
   hideProgress();
   return unknown;
@@ -4386,7 +4524,7 @@ function parseStoreSalesWorkbook(wb){
   const norm = x => String(x==null?"":x).replace(/\s+/g,"");
   const num = v => { const n = parseFloat(String(v==null?"":v).replace(/[,\s₩원]/g,"")); return isNaN(n)?0:n; };
   wb.SheetNames.forEach(sn=>{
-    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sn], {header:1, raw:true, defval:null});
+    const aoa = sheetAoA(wb, sn);
     if(!aoa.length) return;
     let hr=-1, colBill=-1, colStore=-1, colDate=-1;
     for(let r=0;r<Math.min(aoa.length,8);r++){
@@ -5408,26 +5546,29 @@ function showCategoryMappingModal(unknownMap, opts){
     const sourceLabel = opts.sourceLabel || "사용자 지정";
     const list = document.getElementById("catMapList");
     const entries = Array.from(unknownMap.entries());
-    list.innerHTML = entries.map(([raw,sample],i)=>`
-      <div class="catmap-row">
-        <div>
-          <div class="rawname">${escHtml(raw)}</div>
-          <div class="sample">예시 상품: ${escHtml(String(sample||"(없음)").slice(0,50))}</div>
-        </div>
-        <div>
-          <select data-idx="${i}">
-            ${CATEGORIES.map(c=>`<option value="${escHtml(c)}">${escHtml(c)}</option>`).join("")}
-            <option value="__new__">+ 새 카테고리로 추가</option>
-          </select>
-          <input type="text" class="newcat-input" data-idx="${i}" placeholder="새 카테고리명 입력" style="display:none;">
-        </div>
-      </div>`).join("");
-    list.querySelectorAll("select").forEach(sel=>{
-      sel.onchange = ()=>{
-        const inp = list.querySelector(`.newcat-input[data-idx="${sel.dataset.idx}"]`);
-        inp.style.display = sel.value==="__new__" ? "block" : "none";
-      };
-    });
+    // 성능: 항목이 수백 개면 <option> 목록을 항목마다 다시 만드느라(카테고리 수 × 항목 수) 창이 늦게 뜬다.
+    // 옵션 HTML은 한 번만 만들어 재사용하고, onchange도 항목마다 붙이지 않고 목록 한 곳에서 위임 처리한다.
+    const optHtml = CATEGORIES.map(c=>`<option value="${escHtml(c)}">${escHtml(c)}</option>`).join("")
+                  + `<option value="__new__">+ 새 카테고리로 추가</option>`;
+    const parts = new Array(entries.length);
+    for(let i=0;i<entries.length;i++){
+      const raw = entries[i][0], sample = entries[i][1];
+      parts[i] = `<div class="catmap-row"><div>`
+        + `<div class="rawname">${escHtml(raw)}</div>`
+        + `<div class="sample">예시 상품: ${escHtml(String(sample||"(없음)").slice(0,50))}</div>`
+        + `</div><div><select data-idx="${i}">${optHtml}</select>`
+        + `<input type="text" class="newcat-input" data-idx="${i}" placeholder="새 카테고리명 입력" style="display:none;"></div></div>`;
+    }
+    list.innerHTML = parts.join("");
+    // 확정할 때 항목마다 querySelector로 다시 찾으면 항목 수의 제곱만큼 DOM을 훑는다 → 미리 모아둔다.
+    const selNodes = Array.from(list.querySelectorAll("select"));
+    const inpNodes = Array.from(list.querySelectorAll(".newcat-input"));
+    list.onchange = (ev)=>{
+      const sel = ev.target;
+      if(!sel || sel.tagName!=="SELECT") return;
+      const inp = inpNodes[+sel.dataset.idx];
+      if(inp) inp.style.display = sel.value==="__new__" ? "block" : "none";
+    };
     modal.hidden = false;
     try{ if(typeof hideProgress==="function") hideProgress(); }catch(_){}
     const cancelBtn = document.getElementById("catMapCancel");
@@ -5436,11 +5577,11 @@ function showCategoryMappingModal(unknownMap, opts){
     confirmBtn.onclick = ()=>{
       const mapping = {};
       entries.forEach(([raw],i)=>{
-        const sel = list.querySelector(`select[data-idx="${i}"]`);
-        let target = sel.value;
+        const sel = selNodes[i];
+        let target = sel ? sel.value : raw;
         if(target==="__new__"){
-          const inp = list.querySelector(`.newcat-input[data-idx="${i}"]`);
-          const name = (inp.value||"").trim();
+          const inp = inpNodes[i];
+          const name = ((inp && inp.value)||"").trim();
           target = name || raw;
         }
         ensureCategory(target, target===raw ? null : sourceLabel);
@@ -5471,7 +5612,7 @@ function collectUnknownShipCategories(wb){
   const unknown = new Map(); // 기본문구(base) -> 예시 매장명
   const dup = makeCatDedupe();
   findShipmentDaySheets(wb).forEach(sheetName=>{
-    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, raw:true, defval:null});
+    const aoa = sheetAoA(wb, sheetName);
     for(let r=0; r<aoa.length; r++){
       const row = aoa[r] || [];
       if(row[0] !== "하차지 :") continue;
@@ -5585,7 +5726,7 @@ async function parseSalesTransactionRows(aoa, header, onProgress){
       }
     }
     rowCount++;
-    if((r % CHUNK)===0){ if(onProgress) onProgress(r/N); await new Promise(res=>setTimeout(res,0)); }
+    if((r % CHUNK)===0 && shouldYield(60)){ if(onProgress) onProgress(r/N); await nextFrame(); }
   }
   if(onProgress) onProgress(1);
   return { byDate, byDateHour, unmatched: Array.from(unmatched), rowCount, skippedNoCat, skippedNoDate, fallbackCats: Array.from(fallbackCats), amountBasis };
@@ -5943,12 +6084,14 @@ async function handleFolderBatch(fileList){
   let progDone = 0;
   const step = (label)=>{ progDone++; showProgress(totalNew?progDone/totalNew:1, label); };
   const mark = f => { PROCESSED_FILES[fpOf(f)] = true; };
+  beginRenderBatch(); // 파일마다 화면 전체를 다시 그리지 않고, 끝난 뒤 한 번만 그린다
+  try{
   // 재고·센터·가전: 여러 달 파일을 모두 반영(일별 이력/월별 스냅샷 누적)
-  for(const f of buckets.stock){ handleStockFile(f); mark(f); step(`매장재고 처리 중 (${f.name})`); }
+  for(const f of buckets.stock){ await handleStockFile(f); mark(f); step(`매장재고 처리 중 (${f.name})`); }
   if(buckets.stock.length) done.push(`매장재고(${buckets.stock.length})`);
-  for(const f of buckets.center){ handleActualFile(f); mark(f); step(`센터출고 처리 중 (${f.name})`); }
+  for(const f of buckets.center){ await handleActualFile(f); mark(f); step(`센터출고 처리 중 (${f.name})`); }
   if(buckets.center.length) done.push(`센터출고(${buckets.center.length})`);
-  for(const f of buckets.appliance){ handleApplianceFile(f); mark(f); step(`가전센터 처리 중 (${f.name})`); }
+  for(const f of buckets.appliance){ await handleApplianceFile(f); mark(f); step(`가전센터 처리 중 (${f.name})`); }
   if(buckets.appliance.length) done.push(`가전센터출고(${buckets.appliance.length})`);
   if(buckets.fresh.length){ await handleFreshFiles(buckets.fresh); buckets.fresh.forEach(mark); progDone+=buckets.fresh.length; showProgress(progDone/totalNew,"신선출고 처리"); done.push(`신선출고(${buckets.fresh.length}개)`); }
   for(const f of buckets.lotte){ await handleLotteZetaFile(f); mark(f); step(`롯데제타 처리 중`); }
@@ -5957,8 +6100,9 @@ async function handleFolderBatch(fileList){
   if(buckets.hq.length) done.push(`본사출고(${buckets.hq.length})`);
   if(buckets.store.length){ await handleStoreSalesFiles(buckets.store); buckets.store.forEach(mark); progDone+=buckets.store.length; showProgress(progDone/totalNew,"매장별매출 처리"); done.push(`매장별매출(${buckets.store.length}개)`); }
   if(buckets.cat.length){ await handleCatSalesFiles(buckets.cat); buckets.cat.forEach(mark); progDone+=buckets.cat.length; showProgress(1,"카테고리별매출 처리"); done.push(`카테고리별매출(${buckets.cat.length}개)`); }
+  }finally{ endRenderBatch(); }
   hideProgress();
-  saveState();
+  saveStateNow();
   afterChange();
   let msg = `폴더 일괄 불러오기 완료 — ${done.length?done.join(", "):"불러온 항목 없음"}.`;
   if(skipped) msg += ` (이미 반영된 ${skipped}개는 건너뜀 → 빠르게 완료)`;
