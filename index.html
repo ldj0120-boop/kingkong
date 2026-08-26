@@ -556,6 +556,9 @@
   .g-narr{font-size:12px;line-height:1.85;color:var(--muted);}
   .g-narr b{color:var(--pale);font-weight:600;}
   .g-narr .sn{display:block;padding:2px 0;}
+  .stale-warn{margin:0 18px 12px;padding:12px 14px;background:var(--red-dim);border:1px solid var(--red);border-radius:var(--r);font-size:12px;line-height:1.75;color:var(--pale);}
+  .stale-warn b{color:var(--red);}
+  .stale-warn .sw-ver{display:inline-block;margin-top:6px;font-family:"JetBrains Mono";font-size:10.5px;color:var(--muted2);}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -670,11 +673,29 @@
         <label for="shipScopeSelect2" style="font-family:'Oswald';font-size:11px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;">출고 월</label>
         <select id="shipScopeSelect2" style="max-width:200px;"></select>
       </div>
+      <div id="shipStaleWarn" hidden></div>
       <div class="agg-scroll"><table id="shipAggTable"></table></div>
       <div class="legend">
-        <span><span class="sw" style="background:var(--green-dim);border:1px solid var(--green)"></span>출고(출고예정+출고완료)가 있는 값 — 칸에 마우스를 올리면 출고예정/출고완료 구분이 보입니다</span>
+        <span><span class="sw" style="background:var(--green-dim);border:1px solid var(--green)"></span>출고(출고예정+출고완료)가 있는 값 — 칸에 마우스를 올리면 출고예정/출고완료 구분과 어느 파일에서 온 값인지가 보입니다</span>
         <span>확인필요·사입·GS·데드우드처럼 기존 10개 분류에 없던 카테고리는 열 제목에 마우스를 올리면 어느 파일에서 왔는지(출처)가 표시됩니다. 세부 품목은 원본 출고내역서에서 확인하세요.</span>
       </div>
+    </div>
+
+    <div class="agg-card">
+      <div class="p-hd">
+        <span class="store-name">출고 출처 비교 (본사 출고계획서 ↔ 센터 출고내역서)</span>
+        <span class="meta" id="shipSrcMeta"></span>
+      </div>
+      <div style="padding:12px 18px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <label for="shipMergeSelect" style="font-family:'Oswald';font-size:11px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;">두 파일이 다를 때</label>
+        <select id="shipMergeSelect" style="max-width:280px;">
+          <option value="center">센터 출고내역서 우선 (기본 · 실물 출고 기록)</option>
+          <option value="max">큰 값 채택</option>
+          <option value="hq">본사 출고계획서 우선</option>
+        </select>
+        <span class="meta" style="font-size:11px;">바꾸면 즉시 반영됩니다 — 파일 재업로드는 필요 없습니다(병합은 화면 그릴 때 계산).</span>
+      </div>
+      <div class="agg-scroll" id="shipSrcWrap"></div>
     </div>
   </section>
 
@@ -966,6 +987,22 @@ function resolveShipmentStoreName(raw){
     const stripped = resolveStoreName(base);
     if(STORES.includes(stripped)) return stripped; // "용인점*2" / "용인점2" → "용인점" (동일 매장으로 통합)
   }
+  // ② "점"이 빠진 표기 보정 (2026-08-26 추가)
+  // 본사 출고계획서에는 "남양주/김포/인천"처럼 '점'을 생략해 적은 블록이 있는데, 그대로는 매장으로
+  // 인식되지 않아 그 블록의 행이 **전부 집계에서 빠진다**. 실제로 0729 "남양주/김포/인천" 블록의
+  // 10행, 0723·0716 "남양주/양주" 22행, 0722 "청주/원주" 10행이 통째로 누락되고 있었다.
+  const withJeom = resolveStoreName(t + "점");
+  if(STORES.includes(withJeom)) return withJeom;
+  if(base && base!==t){
+    const bj = resolveStoreName(base + "점");
+    if(STORES.includes(bj)) return bj;
+  }
+  // ③ 매장명이 다른 문구에 묻혀 있는 경우 ("시그니처이천점", "수원점FC", "남양주점 FC")
+  // 짧은 이름이 긴 이름의 일부일 수 있어(“남양주점” ⊃ “양주점”) 반드시 긴 이름부터 본다.
+  const embedded = STORES
+    .filter(s=> t.includes(s.replace(/\s+/g,'')))
+    .sort((a,b)=> b.length - a.length)[0];
+  if(embedded) return embedded;
   return r;
 }
 // 한 "하차지" 줄에 매장이 "남양주점/양주점"처럼 "/"·","로 같이 적힌 경우, 각각을 개별 매장으로 분류한다
@@ -1197,24 +1234,38 @@ let SALES_CAT_MAP = {}; // 매출현황의 "상품분류"(맨 앞 대분류) 원
 const num = v => (typeof v === "number" && !isNaN(v)) ? v : 0;
 const escHtml = v => String(v).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const planQty = (s,c) => num(SHIP[s] && SHIP[s][c]);
-// 출고완료 수량 = (본사 기준) + 가전센터(방도리, 항상 더함).
-//  · 본사 출고계획서(07월 출고계획서)가 그 매장·카테고리에 "실제 출고 수량이 있으면" 본사 값을 기준으로 채택.
-//  · 본사에 없는(=0) 매장·카테고리는 센터 출고내역서(출고내역서_26년7월) 값으로 보완한다.
-//    (HQ_ACTUAL은 모든 매장·카테고리를 0으로 미리 채우므로 undefined 검사로는 구분이 안 된다 →
-//     "본사에 값이 있다"의 기준을 0 초과로 두어야 센터 값이 0에 덮여 사라지지 않는다. 출고내역서에는
-//     실제 나간 수량만 적히므로 본사 0 = "본사엔 이 건이 없음"으로 봐도 안전하다.)
-//  · 가전센터(방도리)는 센터·본사와 겹치지 않는 별도 품목이라 항상 더한다.
+// 출고완료 수량 = (본사 출고계획서 · 센터 출고내역서 중 정책에 따라 하나) + 가전센터(방도리, 항상 더함).
+//
+// 두 파일은 같은 출고를 다른 각도에서 적은 것이라 겹친다(그래서 더하면 이중 계상이 된다). 다만 서로
+// 수량이 다른 칸이 꽤 많은데(2026-07 기준 268칸), 어느 쪽이 맞는지는 칸마다 사정이 달라서 코드가
+// 일방적으로 정할 수 없다. 예를 들어 양주점 대형가구는 센터 9 / 본사 3인데 센터가 맞고(사용자 확인),
+// 경안점 XLB는 센터 1 / 본사 10으로 센터 기록이 부분적인 것으로 보인다.
+// → 병합 방식을 사용자가 고를 수 있게 하고(shipMergePolicy), "출고 출처 비교" 카드에서 어긋나는 칸을
+//   전부 보여준다. 이 병합은 화면을 그릴 때 계산하므로 정책을 바꾸면 재업로드 없이 바로 반영된다.
+//   · "center": (기본) 센터 출고내역서 우선, 센터에 없으면(0) 본사로 보완 → 실물 출고 기록을 신뢰
+//   · "max"   : 둘 중 큰 값
+//   · "hq"    : 본사 출고계획서 우선, 본사에 없으면(0) 센터로 보완
+// 기본값을 "center"로 둔 근거 — 사용자가 확인해준 4개 칸이 모두 센터 값과 일치한다:
+//   양주점 대형가구 9(본사 3) · 충주점 대형가전 1(본사 10) · 기흥점 대형가전 1(본사 8) · 경안점 XLB 10(본사 10)
+//   "큰 값" 규칙은 충주점·기흥점 대형가전에서 본사 10·8을 골라 틀린다.
+// 가전센터(방도리)는 센터·본사와 겹치지 않는 별도 품목이라 항상 더한다.
 // 이 함수 하나만 바꾸면 이 값을 쓰는 모든 화면(매장별 이번달 출고 현황, 공급 대비 매출, 엑셀 내보내기 등)에 자동 반영된다.
+let shipMergePolicy = "center"; // "max" | "center" | "hq" — 기본값은 센터 우선(아래 근거 참고)
+const SHIP_MERGE_LABEL = { max:"큰 값 채택", center:"센터 출고내역서 우선", hq:"본사 출고계획서 우선" };
+function mergePick(hq, center){
+  if(shipMergePolicy==="center") return center>0 ? center : hq;
+  if(shipMergePolicy==="hq")     return hq>0 ? hq : center;
+  return Math.max(hq, center);
+}
 const _mv = (mp,m,s,c)=>{ const a=mp[m]; if(!a)return 0; const b=a[s]; if(!b)return 0; return num(b[c]); };
 const actualQty = (s,c) => {
   const months = shipMonths();
-  // 출고완료(센터/본사/가전) — 본사·센터 겹치면 큰 값 채택
   let base = 0;
   if(months.length){
-    if(shipScope==="all"){ months.forEach(m=> base += Math.max(_mv(HQ_M,m,s,c), _mv(CENTER_M,m,s,c)) + _mv(APPLIANCE_M,m,s,c)); }
-    else { base = Math.max(_mv(HQ_M,shipScope,s,c), _mv(CENTER_M,shipScope,s,c)) + _mv(APPLIANCE_M,shipScope,s,c); }
+    if(shipScope==="all"){ months.forEach(m=> base += mergePick(_mv(HQ_M,m,s,c), _mv(CENTER_M,m,s,c)) + _mv(APPLIANCE_M,m,s,c)); }
+    else { base = mergePick(_mv(HQ_M,shipScope,s,c), _mv(CENTER_M,shipScope,s,c)) + _mv(APPLIANCE_M,shipScope,s,c); }
   } else {
-    base = Math.max(num(HQ_ACTUAL[s] && HQ_ACTUAL[s][c]), num(ACTUAL[s] && ACTUAL[s][c])) + num(APPLIANCE_ACTUAL[s] && APPLIANCE_ACTUAL[s][c]);
+    base = mergePick(num(HQ_ACTUAL[s] && HQ_ACTUAL[s][c]), num(ACTUAL[s] && ACTUAL[s][c])) + num(APPLIANCE_ACTUAL[s] && APPLIANCE_ACTUAL[s][c]);
   }
   // 신선(신선식품·수박): FRESH_M에 있으면 scope대로, 없으면 FRESH_ACTUAL(레거시)로 보정해 항상 잡히게 한다.
   let fresh = 0;
@@ -1254,8 +1305,11 @@ function actualQtyBreakdown(s,c){
     appliance = num(APPLIANCE_ACTUAL[s] && APPLIANCE_ACTUAL[s][c]);
     fresh = num(FRESH_ACTUAL[s] && FRESH_ACTUAL[s][c]);
   }
-  const winner = hq===0 && center===0 ? "없음" : (hq>center ? "본사" : center>hq ? "센터" : "본사=센터");
-  return { hq, center, appliance, fresh, lotte, winner, total: actualQty(s,c) };
+  const picked = mergePick(hq, center);
+  const winner = hq===0 && center===0 ? "없음"
+    : (picked===center && picked!==hq) ? "센터"
+    : (picked===hq && picked!==center) ? "본사" : "본사=센터";
+  return { hq, center, appliance, fresh, lotte, picked, winner, total: actualQty(s,c) };
 }
 // 칸 툴팁 문구: "출고예정 N · 출고완료 M (본사 x / 센터 y …)"
 function shipCellTitle(s,c){
@@ -1269,9 +1323,8 @@ function shipCellTitle(s,c){
   if(b.lotte) parts.push(`롯데제타 ${r(b.lotte)}`);
   let verdict;
   if(b.hq===0 && b.center===0) verdict = "본사·센터 모두 이 매장·카테고리 데이터 없음";
-  else if(b.hq>b.center) verdict = `→ 큰 값인 본사 ${r(b.hq)} 채택 (센터 파일이 아직 안 올라왔거나 이 건이 빠져 있으면 이렇게 됩니다)`;
-  else if(b.center>b.hq) verdict = `→ 큰 값인 센터 ${r(b.center)} 채택`;
-  else verdict = "→ 본사·센터 값이 같음";
+  else if(b.winner==="본사=센터") verdict = "→ 본사·센터 값이 같음";
+  else verdict = `→ [${SHIP_MERGE_LABEL[shipMergePolicy]}] 규칙으로 ${b.winner} ${r(b.picked)} 채택`;
   return `출고예정 ${planQty(s,c)} · 출고완료 ${b.total}\n${parts.join(" / ")}\n${verdict}`;
 }
 // [{label, date, total, stores, stock}] 주차별 재고 스냅샷 (기준일 선택 시 전환됨) — num()이 선언된 뒤에 만들어야 함
@@ -1288,8 +1341,26 @@ let _saveWarned = false;
 function persistCatMaps(){
   try{ localStorage.setItem("plt_catmap_v1", JSON.stringify({ SALES_CAT_MAP, SHIP_CAT_MAP, CATEGORIES, CATEGORY_ORIGIN })); }catch(_){}
 }
+// ★ 집계 로직 버전 (2026-08-26 신설)
+// 이 사이트는 엑셀을 **업로드하는 순간에만** 파싱하고, 그 결과(CENTER_M/HQ_M/…)를 브라우저에
+// 저장해두고 이후에는 저장된 숫자를 그대로 보여준다. 원본 엑셀은 보관하지 않으므로 다시 계산할 수 없다.
+// 따라서 파싱 로직을 고쳐서 새 index.html을 올려도, 이미 저장된 수치는 **옛 로직으로 계산된 값 그대로** 남는다.
+// → 로직을 바꿀 때마다 이 숫자를 올리고, 저장된 값이 더 낮으면 "파일을 다시 업로드하라"고 화면에 알린다.
+//   (2026-08-26 인천점 대형가구가 4PLT인데 계속 3PLT로 보였던 이유가 정확히 이것이었다.)
+const PARSE_LOGIC_VERSION = 4;
+// 파일 종류별로 "어느 버전 로직으로 계산된 값인지"를 따로 기록한다 — 센터만 고친 버전에서 본사까지
+// 다시 올리라고 하거나, 반대로 본사만 올리고 경고가 사라져 센터가 낡은 채 남는 일을 막기 위함.
+const PARSE_SRC_LABEL = { center:"출고내역서(센터)", hq:"출고계획서(본사)", appliance:"가전센터 출고내역서", fresh:"신선 출고내역서" };
+let _parseVerBySrc = {}; // {center:3, hq:2, …} 없으면 0(버전 개념 이전 데이터)으로 본다
+function markParsed(src){ _parseVerBySrc[src] = PARSE_LOGIC_VERSION; }
+function staleParseSources(){
+  const stored = { center:CENTER_M, hq:HQ_M, appliance:APPLIANCE_M, fresh:FRESH_M };
+  return Object.keys(stored).filter(src=>
+    Object.keys(stored[src]||{}).length && (_parseVerBySrc[src]||0) < PARSE_LOGIC_VERSION);
+}
 function buildStateObject(){
   return {
+      PARSE_LOGIC_VERSION, _parseVerBySrc, shipMergePolicy,
       STORES, STOCK, CATEGORIES, CATEGORY_ORIGIN, SHIP, ACTUAL,
       HQ_ACTUAL, APPLIANCE_ACTUAL, FRESH_ACTUAL, CENTER_M, HQ_M, APPLIANCE_M, FRESH_M, LOTTE_M, shipScope, HQ_SUPPLY_HISTORY, APPLIANCE_SUPPLY_HISTORY, unmatchedHQStores, unmatchedApplianceStores,
       selected, SUPPLY_HISTORY, STOCK_HISTORY, unmatchedActualStores,
@@ -1354,6 +1425,15 @@ function applyStateObject(s){
     HQ_ACTUAL = (s.HQ_ACTUAL && typeof s.HQ_ACTUAL==="object") ? s.HQ_ACTUAL : {};
     APPLIANCE_ACTUAL = (s.APPLIANCE_ACTUAL && typeof s.APPLIANCE_ACTUAL==="object") ? s.APPLIANCE_ACTUAL : {};
     FRESH_ACTUAL = (s.FRESH_ACTUAL && typeof s.FRESH_ACTUAL==="object") ? s.FRESH_ACTUAL : {};
+    // 저장된 수치가 어느 버전의 파싱 로직으로 만들어졌는지 복원(없으면 0 = 버전 개념 이전의 옛 데이터).
+    // 파일별 기록이 없는 옛 상태는 전체 버전값으로 일괄 채운다.
+    if(s._parseVerBySrc && typeof s._parseVerBySrc === "object"){
+      _parseVerBySrc = Object.assign({}, s._parseVerBySrc);
+    } else {
+      const v = (typeof s.PARSE_LOGIC_VERSION === "number") ? s.PARSE_LOGIC_VERSION : 0;
+      _parseVerBySrc = { center:v, hq:v, appliance:v, fresh:v };
+    }
+    if(typeof s.shipMergePolicy === "string" && SHIP_MERGE_LABEL[s.shipMergePolicy]) shipMergePolicy = s.shipMergePolicy;
     CENTER_M = (s.CENTER_M && typeof s.CENTER_M==="object") ? s.CENTER_M : {};
     HQ_M = (s.HQ_M && typeof s.HQ_M==="object") ? s.HQ_M : {};
     APPLIANCE_M = (s.APPLIANCE_M && typeof s.APPLIANCE_M==="object") ? s.APPLIANCE_M : {};
@@ -1545,7 +1625,7 @@ function renderShipScopeSelect(){
     const sel = document.getElementById(id);
     if(!sel) return;
     sel.innerHTML = opts; sel.value = shipScope;
-    sel.onchange = ()=>{ shipScope = sel.value; renderShipScopeSelect(); renderStoreList(); renderPanel(); try{ renderShipAgg(); renderStockAgg(); renderTrend(); }catch(_){}; saveState(); };
+    sel.onchange = ()=>{ shipScope = sel.value; renderShipScopeSelect(); renderStoreList(); renderPanel(); try{ renderShipAgg(); renderStockAgg(); renderTrend(); renderShipSourceDiff(); }catch(_){}; saveState(); };
   });
 }
 function renderStoreList(){
@@ -1679,7 +1759,7 @@ function afterChange(){
   refreshSlotStates();
   renderStoreList();
   renderPanel();
-  if(!document.getElementById("view-agg").hidden){ renderStockAgg(); renderShipAgg(); renderTrend(); }
+  if(!document.getElementById("view-agg").hidden){ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }
   if(!document.getElementById("view-sales").hidden){ renderSalesDateSelect(); renderSalesTrend(); renderSalesVsSupply(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); }
   if(!document.getElementById("view-goals").hidden){ renderGoals(); }
   renderDataQuality();
@@ -1774,6 +1854,28 @@ function renderShipAgg(){
   });
   foot += `<td>${grand}</td></tr></tfoot>`;
   tbl.innerHTML = head + body + foot;
+  // ★ 저장된 수치가 옛 파싱 로직으로 만들어진 것이면 크게 알린다.
+  // 이 표의 숫자는 "지금 코드가 계산한 값"이 아니라 "업로드 당시 계산돼 브라우저에 저장된 값"이다.
+  // 그래서 새 index.html을 올려도 파일을 다시 업로드하지 않으면 숫자가 그대로다 — 이 사실을 모르면
+  // "고쳤다는데 왜 그대로냐"가 반복된다.
+  const staleBox = document.getElementById("shipStaleWarn");
+  if(staleBox){
+    const stale = staleParseSources();
+    if(stale.length){
+      staleBox.hidden = false;
+      const list = stale.map(src=> `<b>${escHtml(PARSE_SRC_LABEL[src]||src)}</b> <span class="sw-ver">(저장된 값 v${_parseVerBySrc[src]||0})</span>`).join(" · ");
+      staleBox.innerHTML = `<div class="stale-warn">
+        <b>⚠ 아래 숫자 중 일부는 예전 집계 로직으로 계산된 값입니다 — 해당 파일을 다시 업로드해 주세요.</b>
+        이 사이트는 엑셀을 <b>업로드하는 순간에만</b> 파싱해서 그 결과를 브라우저에 저장하고, 이후에는 저장된 숫자를 그대로 보여줍니다
+        (원본 엑셀은 보관하지 않아 다시 계산할 수 없습니다). 그래서 집계 로직이 수정되어도 <b>파일을 다시 올리기 전까지는 화면 숫자가 바뀌지 않습니다.</b><br>
+        다시 올려야 하는 파일: ${list}<br>
+        "출고 입력" 탭에서 해당 파일을 다시 업로드하면 새 로직으로 재계산되고 이 안내는 사라집니다.
+        <span class="sw-ver">현재 코드 로직 v${PARSE_LOGIC_VERSION}</span>
+      </div>`;
+    } else {
+      staleBox.hidden = true; staleBox.innerHTML = "";
+    }
+  }
   const dated = SUPPLY_HISTORY.filter(h=>h.date);
   const meta = document.getElementById("shipAggMeta");
   let metaTxt = dated.length
@@ -1792,6 +1894,67 @@ function renderShipAgg(){
       : ` · ⚠ ${label}에 본사 출고계획서가 반영되어 있지 않습니다 — 지금 숫자는 센터 출고내역서 기준입니다`;
   }
   meta.textContent = metaTxt;
+}
+
+/* ================= 출고 출처 비교 (본사 출고계획서 ↔ 센터 출고내역서) =================
+   두 파일이 같은 매장·카테고리에 서로 다른 수량을 갖고 있는 칸을 전부 나열한다.
+   어느 쪽이 맞는지는 칸마다 사정이 달라 코드가 정할 수 없으므로(양주점 대형가구는 센터 9가 맞고,
+   경안점 XLB는 센터 기록이 부분적으로 보인다), 판단 근거를 그대로 펼쳐 보여주고 병합 방식을 고르게 한다. */
+function renderShipSourceDiff(){
+  const wrap = document.getElementById("shipSrcWrap");
+  const meta = document.getElementById("shipSrcMeta");
+  if(!wrap) return;
+  const months = shipScope==="all" ? shipMonths() : [shipScope];
+  const rows = [];
+  STORES.forEach(s=>{
+    CATEGORIES.forEach(cat=>{
+      let hq=0, center=0;
+      months.forEach(m=>{ hq += _mv(HQ_M,m,s,cat); center += _mv(CENTER_M,m,s,cat); });
+      if(Math.abs(hq-center) < 0.05) return;
+      rows.push({ s, cat, hq, center, picked: mergePick(hq,center) });
+    });
+  });
+  rows.sort((a,b)=> Math.abs(b.hq-b.center) - Math.abs(a.hq-a.center));
+  if(!rows.length){
+    wrap.innerHTML = `<p class="trend-empty" style="padding:16px 18px;">두 파일이 어긋나는 칸이 없습니다. (두 파일 중 하나만 올라와 있으면 비교할 대상이 없어 이 표도 비어 있습니다.)</p>`;
+    if(meta) meta.textContent = "";
+    return;
+  }
+  const r1 = v => Math.round(v*10)/10;
+  const body = rows.map(r=>{
+    const src = r.picked===r.center && r.picked!==r.hq ? "센터" : r.picked===r.hq && r.picked!==r.center ? "본사" : "동일";
+    const cls = src==="센터" ? "var(--green)" : src==="본사" ? "var(--info)" : "var(--muted2)";
+    // 한쪽이 0인 칸은 "다른 값"이 아니라 "한쪽에만 있는 건"이라 정책과 무관하게 있는 쪽이 쓰인다
+    const kind = (r.hq===0 || r.center===0)
+      ? `<span style="color:var(--muted2);font-size:10.5px;">한쪽에만 기록 (정책 무관)</span>`
+      : `<span style="color:${cls};font-size:10.5px;">${src} 값 채택</span>`;
+    return `<tr>
+      <td>${escHtml(r.s)}</td>
+      <td>${escHtml(r.cat)}</td>
+      <td><span class="num">${r1(r.hq)}</span></td>
+      <td><span class="num">${r1(r.center)}</span></td>
+      <td><span class="num" style="color:${r.center>r.hq?'var(--green)':'var(--red)'}">${(r.center>r.hq?'+':'')+r1(r.center-r.hq)}</span></td>
+      <td class="total-col"><span class="num">${r1(r.picked)}</span></td>
+      <td>${kind}</td>
+    </tr>`;
+  }).join("");
+  const both = rows.filter(r=> r.hq>0 && r.center>0);
+  const sumHq = both.reduce((a,r)=>a+r.hq,0), sumCen = both.reduce((a,r)=>a+r.center,0);
+  wrap.innerHTML = `<table class="g-tbl">
+    <thead><tr><th>매장</th><th>카테고리</th><th>본사 출고계획서</th><th>센터 출고내역서</th><th>차이<br>(센터−본사)</th><th>현재 채택값</th><th>판정</th></tr></thead>
+    <tbody>${body}</tbody></table>`;
+  if(meta) meta.textContent = `${shipScope==="all"?"전체 기간":shipScope} · 어긋나는 칸 ${rows.length}개 (양쪽 모두 값이 있는 칸 ${both.length}개: 본사 합계 ${Math.round(sumHq)} vs 센터 합계 ${Math.round(sumCen)} PLT) · 현재 규칙: ${SHIP_MERGE_LABEL[shipMergePolicy]}`;
+}
+function renderShipMergeSelect(){
+  const sel = document.getElementById("shipMergeSelect");
+  if(!sel) return;
+  sel.value = shipMergePolicy;
+  sel.onchange = ()=>{
+    shipMergePolicy = sel.value;
+    try{ renderShipAgg(); renderStockAgg(); renderTrend(); renderShipSourceDiff(); }catch(_){}
+    try{ renderStoreList(); renderPanel(); }catch(_){}
+    saveState();
+  };
 }
 
 /* ================= 월별 매장 매출 (업로드된 날짜들을 달 단위로 묶어 언제든 다시 조회) ================= */
@@ -3234,7 +3397,7 @@ function selectTab(which){
     tab.setAttribute("aria-selected", on);
     view.hidden = !on;
   });
-  if(which==="agg"){ renderStockAgg(); renderShipAgg(); renderTrend(); }
+  if(which==="agg"){ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }
   if(which==="sales"){ renderSalesDateSelect(); renderSalesTrend(); renderSalesVsSupply(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); }
   if(which==="goals"){ renderGoals(); }
 }
@@ -3425,22 +3588,28 @@ function mergeSupplyDays(existing, incoming){
   (incoming||[]).forEach(h=>{ if(h && h.date) map[h.date]=h; });
   return Object.keys(map).sort().map(d=>map[d]);
 }
-function parseManifestPallets(dcell){
+// 매니페스트를 파싱해서 {total, explicit}을 돌려준다.
+// explicit = 토큰에 실제 숫자가 적혀 있었는지. 개수 없이 타입만 적힌 "KPP"는 1PLT로 세지만(관행),
+// 그건 "정말 1파레트"일 수도 있고 "개수를 안 적은 것"일 수도 있어 총량으로 신뢰할 수 없다.
+// (실제로 이 파일의 하차지 블록 중 188개가 개수 없는 'KPP'였고, 260728 경안점 블록은 'KPP '인데
+//  상세행은 XLB 10파레트였다. 이걸 총량 1로 믿고 상한을 걸면 10 → 1로 뭉개진다 — 실제로 겪은 버그.)
+function parseManifestPalletsInfo(dcell){
   let s = String(dcell==null?"":dcell).trim();
-  if(!s || s==="0") return 0;
+  if(!s || s==="0") return { total:0, explicit:false };
   s = s.replace(/\([^)]*\)/g, " ");     // (10LOT) 등 괄호 주석 제거
-  let total = 0;
+  let total = 0, explicit = false;
   s.split("/").forEach(seg=>{
     seg = seg.trim();
     if(!seg) return;
     const spaceNum = seg.match(/\s(\d+)\s*$/);            // "KPP 9", "EL18 1", "무지 2" → 끝의 개수
-    if(spaceNum){ total += parseInt(spaceNum[1],10); return; }
+    if(spaceNum){ total += parseInt(spaceNum[1],10); explicit = true; return; }
     const attached = seg.match(/^(?:KPP|AJ)\s*(\d+)$/i);  // "KPP2"처럼 붙여쓴 경우
-    if(attached){ total += parseInt(attached[1],10); return; }
-    total += 1;                                            // 개수 없는 타입(KPP, AJ, EL18 …) = 1PLT
+    if(attached){ total += parseInt(attached[1],10); explicit = true; return; }
+    total += 1;                                            // 개수 없는 타입(KPP, AJ, EL18 …) = 1PLT로 간주
   });
-  return total;
+  return { total, explicit };
 }
+function parseManifestPallets(dcell){ return parseManifestPalletsInfo(dcell).total; }
 function parseShipmentWorkbook(wb){
   const byStoreCat = {};      // store -> {cat: qty} (전체 합계)
   const byMonth = {};         // month -> store -> {cat: qty}
@@ -3457,8 +3626,9 @@ function parseShipmentWorkbook(wb){
       const storeNames = resolveShipmentStoreNames(row[1]);
       const matched = storeNames.filter(s=>STORES.includes(s));
       storeNames.filter(s=>!STORES.includes(s)).forEach(s=>unmatched.add(s));
-      // 이 블록 총 파레트 수 = D열 매니페스트 합계
-      const blockPallets = parseManifestPallets(row[3]);
+      // 이 블록 총 파레트 수 = D열 매니페스트 합계 (explicit = 개수가 실제로 적혀 있었는지)
+      const manifest = parseManifestPalletsInfo(row[3]);
+      const blockPallets = manifest.total;
       // 파레트 수량 산정(정확 규칙):
       //  · "전체출고" 라인 → REMARKS의 (NPLT) 값(한 줄이어도 로트 전량). 없으면 그 라인의 실물 행 수.
       //  · "부분출고"/기타 라인 → PLT NO.(B열)에 그 카테고리 코드(XLA/XLB…)가 든 칸 수(=실제 파레트 수).
@@ -3518,7 +3688,10 @@ function parseShipmentWorkbook(wb){
       // D열 매니페스트(KPP/AJ/EL18 …)가 그 배송의 실제 파레트 수이므로, 산정 합이 매니페스트를
       // 넘으면 카테고리 비율을 유지한 채 매니페스트 값으로 눌러준다(적을 때는 건드리지 않는다 —
       // 상세행에 적히지 않은 품목이 있을 수 있어 올려 잡으면 없는 물량을 만들어내기 때문).
-      else if(blockPallets > 0 && sumQty > blockPallets){
+      // ★ 상한은 "개수가 실제로 적힌" 매니페스트에만 적용한다(manifest.explicit).
+      // 개수 없이 타입만 적힌 'KPP'는 1PLT로 세지만 그건 총량 근거가 못 된다 —
+      // 260728 경안점 블록이 'KPP '인데 상세행은 XLB 10파레트여서, 상한을 걸면 10→1로 뭉개졌다.
+      else if(manifest.explicit && blockPallets > 0 && sumQty > blockPallets){
         const k = blockPallets / sumQty;
         Object.keys(catQty).forEach(c=> catQty[c] *= k);
       }
@@ -3686,6 +3859,7 @@ function handleFreshFile(file){
           STORES.forEach(s=>{ if(FRESH_M[mk][s]) delete FRESH_M[mk][s][cat]; });
           Object.keys(byMonthStore[mk]).forEach(s=>{ if(!FRESH_M[mk][s]) FRESH_M[mk][s]={}; FRESH_M[mk][s][cat]=byMonthStore[mk][s]; });
         });
+        markParsed("fresh");
         let added=0, total=0;
         Object.keys(byStore).forEach(s=>{ if(!FRESH_ACTUAL[s]) FRESH_ACTUAL[s]={}; FRESH_ACTUAL[s][cat]=byStore[s]; added++; total+=byStore[s]; });
         saveState(); afterChange();
@@ -3723,6 +3897,7 @@ function handleActualFile(file){
       const beforeCats = CATEGORIES.length;
       const result = parseShipmentWorkbook(wb);
       mergeMonthMap(CENTER_M, result.byMonth);
+      markParsed("center"); // 새 로직으로 다시 계산됨 → 이 파일에 대한 경고 해제
 
       STORES.forEach(s=>ACTUAL[s]=freshCatMap());
       Object.keys(result.byStoreCat).forEach(store=>{
@@ -3864,6 +4039,7 @@ function handleApplianceFile(file){
       const beforeCats = CATEGORIES.length;
       const result = parseApplianceWorkbook(wb);
       mergeMonthMap(APPLIANCE_M, result.byMonth);
+      markParsed("appliance");
 
       APPLIANCE_ACTUAL = {};
       STORES.forEach(s=>APPLIANCE_ACTUAL[s]=freshCatMap());
@@ -3902,16 +4078,25 @@ function findHQDaySheets(wb){
   return wb.SheetNames.filter(n=> n!=="기본양식" && /^\d{4}$/.test(n));
 }
 // 시트 맨 위쪽 제목 문구(예: " 2026년  7월  28일  화요일  출고계획서")에서 날짜를 뽑는다. 열이 밀려도 셀 위치와 무관하게 찾는다.
-function hqDateFromSheet(aoa){
-  for(let r=0; r<Math.min(aoa.length,4); r++){
+function hqDateFromSheet(aoa, sheetName){
+  let titleDate = null;
+  for(let r=0; r<Math.min(aoa.length,4) && !titleDate; r++){
     const row = aoa[r] || [];
     for(const cell of row){
       if(cell==null) continue;
       const m = String(cell).match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/);
-      if(m) return `${m[1]}-${String(+m[2]).padStart(2,'0')}-${String(+m[3]).padStart(2,'0')}`;
+      if(m){ titleDate = `${m[1]}-${String(+m[2]).padStart(2,'0')}-${String(+m[3]).padStart(2,'0')}`; break; }
     }
   }
-  return null;
+  // 시트명(MMDD)이 제목 문구보다 신뢰도가 높다 — 제목은 손으로 적어서 오타가 난다.
+  // 이 파일의 "0721" 시트 제목이 "7월 22일"로 잘못 적혀 있어 21일 물량이 22일에 합산되고 있었다.
+  // 연도는 제목에서만 알 수 있으므로, 연도는 제목에서 가져오고 월·일은 시트명에서 가져온다. (2026-08-26 수정)
+  const sm = String(sheetName||"").match(/^(\d{2})(\d{2})$/);
+  if(sm && titleDate){
+    const mm = +sm[1], dd = +sm[2];
+    if(mm>=1 && mm<=12 && dd>=1 && dd<=31) return `${titleDate.slice(0,4)}-${sm[1]}-${sm[2]}`;
+  }
+  return titleDate;
 }
 // "출고지"로 시작하는 셀이 있는 열 번호를 찾는다(시트마다 밀린 정도가 달라서 고정 열을 쓰면 안 됨).
 function findMarkerCol(row){
@@ -3926,7 +4111,7 @@ async function parseHQPlanWorkbook(wb, onProgress){
   for(let si=0; si<sheets.length; si++){
     const sheetName = sheets[si];
     const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, raw:true, defval:null});
-    const date = hqDateFromSheet(aoa);
+    const date = hqDateFromSheet(aoa, sheetName);
     const month = date ? date.slice(0,7) : null;
     for(let r=0; r<aoa.length; r++){
       const row = aoa[r] || [];
@@ -3948,9 +4133,14 @@ async function parseHQPlanWorkbook(wb, onProgress){
         if(!cateRaw) continue;
         const cat = ensureCategory(extractCategoryFromRaw(cateRaw), "본사 출고계획서(HQ)");
         // 우선 그 행에 적힌 실제 목적지(Remarks)를 쓰고, 없으면 블록 헤더의 매장(들)에 고르게 나눠 배분한다.
+        // ★ Remarks 칸에는 목적지 매장이 적히기도 하고 수량·품목 메모("5ctn", "조립가구", "금주중 출고",
+        //   "매트리스", "침대 프레임")가 적히기도 한다. 예전에는 Remarks가 매장으로 인식되지 않으면
+        //   그 행을 **버려서** 118행이 집계에서 통째로 빠졌다(그중 94행은 블록 헤더 매장이 명확했다).
+        //   → 매장으로 인식되는 Remarks만 목적지로 쓰고, 그 외에는 블록 헤더 매장으로 돌린다. (2026-08-26 수정)
         const rowStoreRaw = remarksCol>=0 ? drow[remarksCol] : null;
         const rowStoreNames = rowStoreRaw ? resolveShipmentStoreNames(rowStoreRaw) : [];
-        const targets = rowStoreNames.length ? rowStoreNames : headerStoreNames;
+        const rowMatched = rowStoreNames.filter(s=>STORES.includes(s));
+        const targets = rowMatched.length ? rowMatched : headerStoreNames;
         if(!targets.length) continue;
         const matched = targets.filter(s=>STORES.includes(s));
         targets.filter(s=>!STORES.includes(s)).forEach(s=>unmatched.add(s));
@@ -4040,6 +4230,7 @@ function handleHQFile(file){
       const result = await parseHQPlanWorkbook(wb, (pct)=> showProgress(pct, `"${file.name}" 본사출고 분석 중`));
       hideProgress();
       mergeMonthMap(HQ_M, result.byMonth);
+      markParsed("hq");
 
       HQ_ACTUAL = {};
       STORES.forEach(s=>HQ_ACTUAL[s]=freshCatMap());
