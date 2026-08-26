@@ -1383,16 +1383,80 @@ function mergeStoredCatMaps(){
 // 따라서 파싱 로직을 고쳐서 새 index.html을 올려도, 이미 저장된 수치는 **옛 로직으로 계산된 값 그대로** 남는다.
 // → 로직을 바꿀 때마다 이 숫자를 올리고, 저장된 값이 더 낮으면 "파일을 다시 업로드하라"고 화면에 알린다.
 //   (2026-08-26 인천점 대형가구가 4PLT인데 계속 3PLT로 보였던 이유가 정확히 이것이었다.)
-const PARSE_LOGIC_VERSION = 5;
-// 파일 종류별로 "어느 버전 로직으로 계산된 값인지"를 따로 기록한다 — 센터만 고친 버전에서 본사까지
-// 다시 올리라고 하거나, 반대로 본사만 올리고 경고가 사라져 센터가 낡은 채 남는 일을 막기 위함.
+// ★ 파일 종류별 로직 버전 (2026-08-26) — 전역 하나로 두면 안 된다.
+// 센터 파서만 고쳤는데도 본사·가전·신선까지 "다시 올려라"고 떠서 사용자가 매번 4종을 재업로드해야 했다.
+// 파서를 고친 종류의 숫자만 올릴 것. (그 종류만 낡은 것으로 표시된다)
+//   center 5 : 파레트 산정 규칙 재정립(매니페스트 블록 상한 제거, 실물 행 절대 우선)
+//   hq     3 : Remarks 폴백 / '점' 생략 헤더 / 시트명 날짜 우선
+//   appliance/fresh 1 : 최초 로직 이후 변경 없음
+const PARSE_LOGIC_VERSIONS = { center:5, hq:3, appliance:1, fresh:1 };
+const PARSE_LOGIC_VERSION = 5; // (하위호환: 예전 상태에 통째로 저장돼 있던 값 비교용)
+function logicVer(src){ return PARSE_LOGIC_VERSIONS[src] || 1; }
 const PARSE_SRC_LABEL = { center:"출고내역서(센터)", hq:"출고계획서(본사)", appliance:"가전센터 출고내역서", fresh:"신선 출고내역서" };
-let _parseVerBySrc = {}; // {center:3, hq:2, …} 없으면 0(버전 개념 이전 데이터)으로 본다
-function markParsed(src){ _parseVerBySrc[src] = PARSE_LOGIC_VERSION; }
+let _parseVerBySrc = {}; // {center:5, hq:3, …} 없으면 0(버전 개념 이전 데이터)으로 본다
+function markParsed(src){ _parseVerBySrc[src] = logicVer(src); }
+function storedMapOf(src){ return ({center:CENTER_M, hq:HQ_M, appliance:APPLIANCE_M, fresh:FRESH_M})[src]; }
 function staleParseSources(){
-  const stored = { center:CENTER_M, hq:HQ_M, appliance:APPLIANCE_M, fresh:FRESH_M };
-  return Object.keys(stored).filter(src=>
-    Object.keys(stored[src]||{}).length && (_parseVerBySrc[src]||0) < PARSE_LOGIC_VERSION);
+  return Object.keys(PARSE_LOGIC_VERSIONS).filter(src=>
+    Object.keys(storedMapOf(src)||{}).length && (_parseVerBySrc[src]||0) < logicVer(src));
+}
+
+/* ===== 업로드한 원본 파일을 보관해서, 로직이 바뀌면 재업로드 없이 자동 재계산한다 (2026-08-26) =====
+   이 사이트는 업로드 순간에만 파싱하고 결과 숫자만 저장해왔다. 그래서 파서를 고칠 때마다 사용자가
+   같은 파일 4종을 다시 올려야 했고("이 메세지 왜 자꾸 뜨는거야?"), 그게 이 프로젝트 최대 불만이었다.
+   → 업로드할 때 원본 파일 바이트를 IndexedDB에 함께 넣어두고, 로직 버전이 올라가면 시작 시
+     저장된 원본으로 조용히 다시 파싱한다. 사용자가 할 일이 없어진다.
+   (localStorage에는 넣지 않는다 — 용량 초과로 전체 저장이 깨진다. IndexedDB 전용.) */
+const RAW_KEY = "rawfiles_v1";
+async function rawFilesLoad(){ try{ return (await idbGet(RAW_KEY)) || []; }catch(_){ return []; } }
+async function rawFileSave(src, file, buf){
+  if(!IDB_AVAILABLE || !buf) return;
+  try{
+    const list = await rawFilesLoad();
+    const name = (file && file.name) ? String(file.name) : (src + ".xlsx");
+    const keep = list.filter(f=> !(f.src===src && f.name===name));
+    keep.push({ src, name, size: buf.byteLength, savedAt: new Date().toISOString(), buf });
+    await idbSet(RAW_KEY, keep);
+  }catch(_){ /* 보관 실패는 기능에 영향 없음 — 그때는 예전처럼 재업로드 안내가 뜬다 */ }
+}
+// 낡은 종류를 저장된 원본으로 다시 파싱한다. 확인 모달은 띄우지 않는다
+// (카테고리 지정은 이미 저장돼 있고, 새 문구가 있으면 원문 그대로 남아 눈에 띈다).
+async function reparseStaleSources(){
+  const stale = staleParseSources();
+  if(!stale.length || typeof XLSX==="undefined") return [];
+  const files = await rawFilesLoad();
+  if(!files.length) return [];
+  const done = [];
+  for(const src of stale){
+    const mine = files.filter(f=>f.src===src).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+    if(!mine.length) continue;
+    try{
+      if(src==="center"){ CENTER_M = {}; SUPPLY_HISTORY = []; }
+      else if(src==="hq"){ HQ_M = {}; HQ_SUPPLY_HISTORY = []; }
+      else if(src==="appliance"){ APPLIANCE_M = {}; APPLIANCE_SUPPLY_HISTORY = []; }
+      else continue;
+      for(const f of mine){
+        const wb = XLSX.read(new Uint8Array(f.buf), {type:"array"});
+        if(src==="center"){
+          const r = parseShipmentWorkbook(wb);
+          mergeMonthMap(CENTER_M, r.byMonth);
+          SUPPLY_HISTORY = mergeSupplyDays(SUPPLY_HISTORY, r.days);
+        } else if(src==="hq"){
+          const r = await parseHQPlanWorkbook(wb);
+          mergeMonthMap(HQ_M, r.byMonth);
+          HQ_SUPPLY_HISTORY = mergeSupplyDays(HQ_SUPPLY_HISTORY, r.days);
+        } else if(src==="appliance"){
+          const r = parseApplianceWorkbook(wb);
+          mergeMonthMap(APPLIANCE_M, r.byMonth);
+          APPLIANCE_SUPPLY_HISTORY = mergeSupplyDays(APPLIANCE_SUPPLY_HISTORY, r.days);
+        }
+      }
+      markParsed(src);
+      done.push(src);
+    }catch(e){ /* 이 종류만 실패 — 나머지는 계속하고, 실패분은 배너로 안내된다 */ }
+  }
+  if(done.length){ try{ saveState(); }catch(_){} }
+  return done;
 }
 function buildStateObject(){
   return {
@@ -1902,14 +1966,13 @@ function renderShipAgg(){
     const stale = staleParseSources();
     if(stale.length){
       staleBox.hidden = false;
-      const list = stale.map(src=> `<b>${escHtml(PARSE_SRC_LABEL[src]||src)}</b> <span class="sw-ver">(저장된 값 v${_parseVerBySrc[src]||0})</span>`).join(" · ");
+      const list = stale.map(src=> `<b>${escHtml(PARSE_SRC_LABEL[src]||src)}</b> <span class="sw-ver">(저장된 값 v${_parseVerBySrc[src]||0} → 현재 v${logicVer(src)})</span>`).join(" · ");
       staleBox.innerHTML = `<div class="stale-warn">
-        <b>⚠ 아래 숫자 중 일부는 예전 집계 로직으로 계산된 값입니다 — 해당 파일을 다시 업로드해 주세요.</b>
-        이 사이트는 엑셀을 <b>업로드하는 순간에만</b> 파싱해서 그 결과를 브라우저에 저장하고, 이후에는 저장된 숫자를 그대로 보여줍니다
-        (원본 엑셀은 보관하지 않아 다시 계산할 수 없습니다). 그래서 집계 로직이 수정되어도 <b>파일을 다시 올리기 전까지는 화면 숫자가 바뀌지 않습니다.</b><br>
+        <b>⚠ 아래 파일의 숫자는 예전 집계 로직으로 계산된 값입니다 — 이번 한 번만 다시 업로드해 주세요.</b>
         다시 올려야 하는 파일: ${list}<br>
-        "출고 입력" 탭에서 해당 파일을 다시 업로드하면 새 로직으로 재계산되고 이 안내는 사라집니다.
-        <span class="sw-ver">현재 코드 로직 v${PARSE_LOGIC_VERSION}</span>
+        "출고 입력" 탭에서 해당 파일을 올리면 새 로직으로 재계산되고 이 안내는 사라집니다.
+        <b>이번에 올린 파일은 원본이 브라우저에 보관되므로, 앞으로 집계 로직이 바뀌어도 자동으로 다시 계산되고 이 안내가 다시 뜨지 않습니다.</b>
+        <span class="sw-ver">고쳐진 종류만 표시됩니다 — 손대지 않은 파일은 다시 올릴 필요 없습니다.</span>
       </div>`;
     } else {
       staleBox.hidden = true; staleBox.innerHTML = "";
@@ -3943,6 +4006,7 @@ function handleActualFile(file){
       const result = parseShipmentWorkbook(wb);
       mergeMonthMap(CENTER_M, result.byMonth);
       markParsed("center"); // 새 로직으로 다시 계산됨 → 이 파일에 대한 경고 해제
+      rawFileSave("center", file, ev.target.result); // 원본 보관 → 다음에 로직이 바뀌면 자동 재계산
 
       STORES.forEach(s=>ACTUAL[s]=freshCatMap());
       Object.keys(result.byStoreCat).forEach(store=>{
@@ -4088,6 +4152,7 @@ function handleApplianceFile(file){
       const result = parseApplianceWorkbook(wb);
       mergeMonthMap(APPLIANCE_M, result.byMonth);
       markParsed("appliance");
+      rawFileSave("appliance", file, ev.target.result);
 
       APPLIANCE_ACTUAL = {};
       STORES.forEach(s=>APPLIANCE_ACTUAL[s]=freshCatMap());
@@ -4282,6 +4347,7 @@ function handleHQFile(file){
       hideProgress();
       mergeMonthMap(HQ_M, result.byMonth);
       markParsed("hq");
+      rawFileSave("hq", file, ev.target.result);
 
       HQ_ACTUAL = {};
       STORES.forEach(s=>HQ_ACTUAL[s]=freshCatMap());
@@ -6193,16 +6259,28 @@ refreshSlotStates();
 renderDataQuality(); // 새로고침 직후에도 이전에 저장된 미매칭/자동추가 카테고리 경고가 바로 보이도록
 if(restoredState) showNotice("마지막으로 저장된 재고·출고 데이터를 불러왔습니다.");
 // IndexedDB(대용량·최신)에 저장된 전체 데이터가 있으면 그걸로 덮어쓰고 다시 그린다(localStorage 초과분까지 복원).
-idbGet("state").then(st=>{
+idbGet("state").then(async st=>{
   if(!st) return;
   const r = applyStateObject(st);
   if(!r) return;
+  // ★ 집계 로직이 올라갔고 원본 파일이 보관돼 있으면, 사용자가 아무것도 안 해도 여기서 다시 계산한다.
+  // (예전에는 이때 "파일을 다시 올려주세요" 배너만 띄웠고, 파서를 고칠 때마다 4종을 재업로드해야 했다)
+  let reparsed = [];
+  try{
+    if(staleParseSources().length){
+      showProgress(0.3, "집계 로직이 업데이트되어 보관된 원본으로 다시 계산 중…");
+      reparsed = await reparseStaleSources();
+      hideProgress();
+    }
+  }catch(_){ try{ hideProgress(); }catch(__){} }
   renderBasedateOptions(r.basedateIdx!=null ? r.basedateIdx : STOCK_HISTORY.length-1);
   renderStoreList(); renderPanel(); refreshSlotStates(); renderDataQuality();
   document.getElementById("totalCount").textContent = grandTotal();
-  try{ renderStockAgg(); renderShipAgg(); renderTrend(); }catch(_){}
+  try{ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }catch(_){}
   try{ renderSalesDateSelect(); renderSalesTrend(); renderSalesVsSupply(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderSalesMonthly(); }catch(_){}
-  showNotice("저장된 전체 데이터를 불러왔습니다 (대용량 포함).");
+  showNotice(reparsed.length
+    ? `저장된 전체 데이터를 불러왔습니다. 집계 로직이 업데이트되어 보관된 원본으로 ${reparsed.map(s=>PARSE_SRC_LABEL[s]||s).join(" · ")}를 자동으로 다시 계산했습니다 — 재업로드하실 필요 없습니다.`
+    : "저장된 전체 데이터를 불러왔습니다 (대용량 포함).");
 }).catch(()=>{});
 
 /* ================= 실시간 공유 (Firebase Realtime Database) ================= */
