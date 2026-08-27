@@ -1076,7 +1076,6 @@ const CATE_RULES = [
   // 사용자 지정: "생산가전" 계열(생산가전/생산가전 H·E·G·F 등)=대형가전, 그 외 "생산N" 계열=생산재고
   [/생산\s*가전/, "대형가전"],
   [/^생산/, "생산재고"], // 생산1·생산2·생산3·… 번호가 붙어도 전부 생산재고
-  [/전산\s*추적\s*불가/, "미분류"], // 사용자 지정: 전산추적불가 = 미분류
   [/^대형가전/, "대형가전"], [/^대형가구/, "대형가구"], [/^생산가구/, "생산재고"],
   [/FC.*사입|사입.*FC/, "FC_사입"], // "FC / 사입"처럼 FC와 사입이 같이 있는 문구는 별도 카테고리로 분리
   [/컬래버|컬레버|콜라보|collab/i, "사입"], // 사용자 지정: "컬래버레이션 N월" 등 협업 상품 = 사입 (월이 바뀌어도 자동)
@@ -1084,7 +1083,13 @@ const CATE_RULES = [
   [/^FC/, "FC파손"], // 단독 "FC" 표기도 FC파손에 합산
   [/혼합/, "혼합"], [/기저귀|분유/, "기저귀_분유"],
   [/서비스솔루션/, "서비스솔루션"], [/데드우드/, "데드우드"], [/더스트레/, "더스트레이"],
-  [/하우저/, "하우저"], [/GS/, "GS"]
+  [/하우저/, "하우저"], [/GS/, "GS"],
+  // ★ "전산추적불가"는 카테고리가 아니라 꼬리표다 — 맨 마지막에 둔다. (2026-08-27 14차)
+  //   예전에는 이 규칙이 위쪽(생산재고 바로 다음)에 있어서 "FC파손 / 전산추적불가",
+  //   "사입 / 전산추적불가", "임박 / 전산추적불가"처럼 **앞에 진짜 카테고리가 적힌 문구까지
+  //   전부 미분류로 빨아들였다**(7·8월 합계 164줄). 용인점 8월 FC파손이 22PLT인데 화면에
+  //   1PLT로 나온 원인 중 하나. 앞에 붙은 실제 카테고리가 이기고, "전산추적불가" 단독일 때만 미분류.
+  [/전산\s*추적\s*불가/, "미분류"]
 ];
 // 규칙(CATE_RULES)이나 사용자가 이미 확인해둔 매핑(SHIP_CAT_MAP)으로 판단이 안 되는, 완전히 새로운 CATE 문구인지 검사.
 // null이면 "아직 아무도 정해준 적 없는 신규 물류 문구" → 업로드 전에 모달로 사용자에게 물어봐야 한다.
@@ -1458,7 +1463,7 @@ function mergeStoredCatMaps(){
 //   center 5 : 파레트 산정 규칙 재정립(매니페스트 블록 상한 제거, 실물 행 절대 우선)
 //   hq     3 : Remarks 폴백 / '점' 생략 헤더 / 시트명 날짜 우선
 //   appliance/fresh 1 : 최초 로직 이후 변경 없음
-const PARSE_LOGIC_VERSIONS = { center:5, hq:3, appliance:1, fresh:1 };
+const PARSE_LOGIC_VERSIONS = { center: 6, hq: 4, appliance: 2, fresh: 2 };
 const PARSE_LOGIC_VERSION = 5; // (하위호환: 예전 상태에 통째로 저장돼 있던 값 비교용)
 function logicVer(src){ return PARSE_LOGIC_VERSIONS[src] || 1; }
 const PARSE_SRC_LABEL = { center:"출고내역서(센터)", hq:"출고계획서(본사)", appliance:"가전센터 출고내역서", fresh:"신선 출고내역서" };
@@ -3863,7 +3868,7 @@ function parseShipmentWorkbook(wb){
       //    코드가 없는 CATE(서비스솔루션/비품 등)는 B열 값이 있는 행 수로 카운트.
       //  · "(연장)" 행(CATE 빈칸)은 앞 CATE에 이어짐 → 위 카운트에 자연히 포함.
       const catQty = {};
-      let lastCat = null, lastMode = null, lastCode = null, lastHint = 0, lastCnt = 0, lastRowCnt = 0, firstCat = null;
+      let lastCat = null, lastMode = null, lastCode = null, lastHint = 0, lastCnt = 0, lastRowCnt = 0, lastNoCnt = 0, firstCat = null;
       // ★ 파레트 수량 산정 규칙 (2026-08-26 전면 재정립)
       // 원칙: **B열에 개별 PLT NO.가 찍힌 행은 실물 파레트 1장이다. 이 숫자는 어떤 이유로도 깎지 않는다.**
       //   예전에는 블록 합계가 D열 매니페스트를 넘으면 비례 축소했는데, 그 결과
@@ -3874,7 +3879,14 @@ function parseShipmentWorkbook(wb){
       //   ② 행이 하나도 없을 때만 REMARKS의 (NPLT) — 단 이 값은 출발 창고 LOT 크기일 수 있어
       //      (예: 260724 양주점 "금왕3(60PLT)"가 KPP 6으로 출고) 매니페스트가 신뢰할 만하면 그 값으로 제한.
       //      매니페스트 총량 1은 개수 없는 'KPP'의 기본값과 구분이 안 되는 자리표시값이라 근거로 쓰지 않는다.
-      //   ③ 둘 다 없으면 1PLT
+      //   ③ 둘 다 없어도, A열 NO.(연번)가 매겨진 실물 행이 있으면 그 행 수 (2026-08-27 14차 추가)
+      //      PLT NO.를 안 적는 블록(FC파손/전산추적불가, 임박 등)은 B열이 통째로 비어 있어서
+      //      예전 규칙으로는 20줄짜리 블록도 1PLT가 됐다. 이런 블록은 A열에 1,2,3…으로 연번이
+      //      매겨져 있고 그 연번 개수가 곧 파레트 수다. **7·8월 단일 CATE 블록 51건 전부에서
+      //      이 연번 개수가 D열 매니페스트 총량과 정확히 일치**(불일치 0건)해 교차검증됐다.
+      //      · B열이 숫자 0인 행 = 엑셀에서 숨겨둔 '안 쓴 서식 행'(숨김 행 판정과 100% 일치) → 제외
+      //      · A열 연번이 없는 행 = "워시테라피 10CTN 벌크상차"처럼 파레트가 아닌 벌크 화물 → 제외
+      //   ④ 그래도 근거가 없으면 1PLT
       const flushLine = ()=>{
         if(!lastCat) return;
         // 이 CATE 구간에서 실제로 센 파레트 행 수.
@@ -3890,6 +3902,8 @@ function parseShipmentWorkbook(wb){
           plt = (manifest.explicit && manifest.total > 1)
             ? Math.min(lastHint, manifest.total)
             : lastHint;
+        } else if(lastNoCnt > 0){
+          plt = lastNoCnt;
         } else {
           plt = 1;
         }
@@ -3899,9 +3913,13 @@ function parseShipmentWorkbook(wb){
         const drow = aoa[dr] || [];
         if(drow[0] === "하차지 :") break;
         if(String(drow[0]||"").trim() === "NO.") continue;
+        // B열 PLT NO.가 '숫자 0'인 행은 엑셀에서 숨겨둔 '안 쓴 서식 행'이다(7·8월 전수 대조에서
+        // 숨김 행 판정과 100% 일치, 반례 0건). 내용이 남아 있어 세면 과대집계가 된다 → 통째로 건너뛴다.
+        if(drow[1] === 0) continue;
         const cateRaw = drow[2];
         const pno = drow[1]==null?"":String(drow[1]).trim().toUpperCase();
         const remS = drow[3]==null?"":String(drow[3]).trim();
+        const noS  = drow[0]==null?"":String(drow[0]).trim();
         const hasCate = cateRaw!=null && String(cateRaw).trim()!=="";
         if(hasCate){
           flushLine();
@@ -3913,6 +3931,7 @@ function parseShipmentWorkbook(wb){
           lastHint = hm ? parseInt(hm[1],10) : 0;
           lastCnt = 0;
           lastRowCnt = 0;
+          lastNoCnt = 0;
         }
         // 파레트 카운트: 부분출고에서만, B열에 코드가 든 칸(코드 없으면 B열 값 있는 행)
         if(lastCat && lastMode==="part"){
@@ -3921,6 +3940,10 @@ function parseShipmentWorkbook(wb){
         }
         // 전체출고 힌트 부재 대비: 이 CATE 구간의 실물 행 수(B열 값 있는 행)를 항상 세어 둔다
         if(lastCat && pno!=="" && pno!=="0"){ lastRowCnt++; }
+        // ③순위용: A열 NO.(연번)가 매겨지고 REMARKS에 내용이 있는 실물 행 수
+        // (B열이 숫자 0인 '안 쓴 서식 행'은 위에서 이미 걸러졌다. REMARKS가 날짜 숫자만 있는
+        //  꼬리 행도 제외한다.)
+        if(lastCat && noS!=="" && remS!=="" && !/^\d+$/.test(remS)){ lastNoCnt++; }
       }
       flushLine();
       const sumQty = Object.values(catQty).reduce((a,v)=>a+v,0);
