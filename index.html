@@ -30,7 +30,10 @@
     font-family:"Inter",system-ui,"Malgun Gothic","맑은 고딕",sans-serif;
     min-height:100vh; -webkit-font-smoothing:antialiased;
   }
-  .wrap{max-width:1320px;margin:0 auto;padding:20px 20px 60px;}
+  /* 15차: 1320px 고정폭이라 와이드 모니터에서 좌우가 크게 남았다 → 화면 폭을 그대로 쓴다.
+     아주 넓은 화면에서 글줄이 지나치게 길어지지 않도록 상한만 아주 크게 둔다. */
+  .wrap{max-width:2560px;width:100%;margin:0 auto;padding:16px clamp(10px,1.2vw,22px) 60px;}
+  @media (min-width:1600px){ .wrap{padding-left:clamp(12px,1vw,26px);padding-right:clamp(12px,1vw,26px);} }
 
   /* ---------- header ---------- */
   header.top{
@@ -245,6 +248,10 @@
   .delta .ref{color:var(--muted2);font-weight:500;margin-left:4px;}
   .delta.up{color:var(--green);}
   .delta.down{color:var(--red);}
+  /* 기간 비교 카드에서는 사용자 요청대로 증가=파랑 / 감소=빨강으로 쓴다. */
+  .delta.pcmp.up{color:var(--info);}
+  .delta.pcmp.down{color:var(--red);}
+  .delta.pcmp.flat{color:var(--muted2);}
   .delta.flat,.delta.na{color:var(--muted2);font-weight:500;}
   .chart-wrap{background:var(--ink);border:1px solid var(--line-soft);border-radius:10px;padding:10px;}
   .chart-wrap svg{display:block;width:100%;height:160px;}
@@ -280,7 +287,7 @@
   /* 도넛 + 범례. 범례 한 줄 = [색][카테고리명 .......... 금액] 3열 그리드로 고정해 금액이 잘리지 않게 한다. */
   .pie-chart-wrap{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap;}
   .pie-chart-wrap svg{flex:0 0 auto;}
-  .pie-legend{display:flex;flex-direction:column;gap:0;flex:1 1 320px;min-width:0;max-width:560px;}
+  .pie-legend{display:flex;flex-direction:column;gap:0;flex:1 1 320px;min-width:0;max-width:820px;}
   .pie-legend-row{display:grid;grid-template-columns:13px minmax(0,1fr) minmax(120px,210px);align-items:baseline;column-gap:12px;
     font-size:14px;padding:9px 0;border-bottom:1px solid var(--line-soft);}
   .pie-legend-row:last-child{border-bottom:0;}
@@ -309,7 +316,7 @@
   .dh-total .won{font-size:16px;color:var(--muted);margin-left:4px;font-weight:500;}
   .dh-sub{font-size:12px;color:var(--muted2);margin-top:7px;}
   /* 월별 매장 매출 표: 3열뿐이라 전체 폭으로 늘리면 너무 넓다 → 적정 폭으로 제한 */
-  #salesMonthlyTable{width:auto;min-width:520px;max-width:760px;}
+  #salesMonthlyTable{width:auto;min-width:520px;max-width:1100px;}
   .mm-delta{font-size:9px;font-family:"JetBrains Mono";color:var(--muted2);margin-top:1px;line-height:1.25;}
   .mm-delta.mmd-up{color:var(--green);} .mm-delta.mmd-down{color:var(--red);}
   .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
@@ -540,10 +547,74 @@
   table.g-tbl td, table.g-tbl th{font-size:11.5px;padding:6px 8px;}
   table.g-tbl tbody td{height:34px;font-size:11.5px;}
   table.g-tbl tbody td .num{font-size:11.5px;}
+  /* ===== 15차: 이번 달 예상 총매출 카드 ===== */
+  .g-fc-card{background:linear-gradient(180deg,rgba(245,178,17,.07),rgba(0,0,0,0));border:1px solid var(--amber);border-radius:12px;padding:14px 16px;margin:0 0 16px;}
+  .g-fc-hd{font-family:"Oswald";font-size:15px;letter-spacing:.03em;color:var(--amber);display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .g-fc-grade{font-family:"Inter",sans-serif;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;border:1px solid var(--line);}
+  .g-fc-grade.ok{color:var(--green);border-color:var(--green);}
+  .g-fc-grade.mid{color:var(--amber);border-color:var(--amber);}
+  .g-fc-grade.low{color:var(--red);border-color:var(--red);}
+  .g-fc-empty{font-size:12.5px;color:var(--muted);margin-top:8px;}
+  .g-fc-main{display:flex;gap:16px;flex-wrap:wrap;align-items:stretch;margin-top:10px;}
+  .g-fc-big{flex:1 1 300px;background:var(--ink);border:1px solid var(--line-soft);border-radius:10px;padding:12px 14px;}
+  .g-fc-big .lbl{font-size:11px;color:var(--muted2);font-family:"Oswald";letter-spacing:.04em;}
+  .g-fc-big .val{font-family:"JetBrains Mono";font-size:28px;font-weight:800;color:var(--text);line-height:1.15;}
+  .g-fc-big .val .w{font-size:14px;color:var(--muted);margin-left:2px;}
+  .g-fc-big .ci{font-size:12px;color:var(--amber);font-family:"JetBrains Mono";margin-top:3px;}
+  .g-fc-sub{flex:1 1 320px;display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;align-content:center;background:var(--ink);border:1px solid var(--line-soft);border-radius:10px;padding:12px 14px;}
+  .g-fc-sub .row{display:flex;justify-content:space-between;gap:10px;font-size:12px;border-bottom:1px dashed var(--line-soft);padding:3px 0;}
+  .g-fc-sub .row .k{color:var(--muted2);}
+  .g-fc-sub .row .v{font-family:"JetBrains Mono";color:var(--text);}
+  .g-fc-sub .row .v.pos{color:var(--green);} .g-fc-sub .row .v.neg{color:var(--red);}
+  .g-fc-wdwrap{margin-top:10px;}
+  .g-fc-wdwrap .t{font-size:11px;color:var(--muted2);margin-bottom:4px;}
+  .g-fc-wdrow{display:flex;gap:6px;flex-wrap:wrap;}
+  .g-fc-wd{flex:1 1 62px;min-width:56px;text-align:center;background:var(--ink);border:1px solid var(--line-soft);border-radius:8px;padding:5px 2px;}
+  .g-fc-wd .d{display:block;font-size:11px;color:var(--muted);}
+  .g-fc-wd .v{display:block;font-family:"JetBrains Mono";font-size:13px;font-weight:700;color:var(--text);}
+  .g-fc-wd .n{display:block;font-size:9.5px;color:var(--muted2);}
+  .g-fc-wd.hi{border-color:var(--green);} .g-fc-wd.hi .v{color:var(--green);}
+  .g-fc-wd.lo{border-color:var(--red);}   .g-fc-wd.lo .v{color:var(--red);}
+  .g-fc-rows{margin-top:10px;display:flex;flex-direction:column;gap:5px;}
+  .g-fc-row{display:flex;gap:10px;font-size:11.8px;line-height:1.55;border-top:1px dashed var(--line-soft);padding-top:5px;}
+  .g-fc-row .k{flex:0 0 108px;color:var(--amber);font-family:"Oswald";letter-spacing:.03em;}
+  .g-fc-row .v{flex:1;color:var(--muted);word-break:keep-all;}
+  @media (max-width:820px){ .g-fc-sub{grid-template-columns:1fr;} .g-fc-row{flex-direction:column;gap:2px;} .g-fc-row .k{flex:none;} }
+
+  /* ===== 15차: 06 매장별 실행방안 레이아웃 재구성 ===== */
+  .g-store-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(560px,1fr));gap:12px;}
+  @media (max-width:1200px){ .g-store-list{grid-template-columns:1fr;} }
+  .g-store-card.v2{display:flex;flex-direction:column;gap:9px;}
+  .g-store-card.v2 .g-store-hd{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .g-store-gauge{display:flex;align-items:center;gap:8px;flex:1 1 160px;min-width:140px;}
+  .g-store-gauge .gg-track{flex:1;height:8px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden;}
+  .g-store-gauge .gg-fill{display:block;height:100%;border-radius:99px;}
+  .g-store-gauge .gg-num{font-family:"JetBrains Mono";font-size:15px;font-weight:800;min-width:56px;text-align:right;}
+  .g-store-tags{display:flex;gap:6px;flex-wrap:wrap;}
+  .g-store-tag{font-size:10.5px;color:var(--muted2);border:1px solid var(--line-soft);border-radius:99px;padding:1px 8px;}
+  .g-store-tag.off{color:var(--red);border-color:rgba(239,68,68,.45);}
+  .g-store-tag.warn{color:var(--amber);border-color:rgba(245,178,17,.5);}
+  .g-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:5px 12px;}
+  .g-kpi{display:flex;justify-content:space-between;gap:8px;font-size:11.8px;border-bottom:1px dashed var(--line-soft);padding:3px 0;}
+  .g-kpi.wide{grid-column:1 / -1;}
+  .g-kpi .k{color:var(--muted2);white-space:nowrap;}
+  .g-kpi .v{font-family:"JetBrains Mono";color:var(--text);text-align:right;}
+  .g-store-split{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px;align-items:start;}
+  @media (max-width:900px){ .g-store-split{grid-template-columns:1fr;} }
+  .g-store-leftcol{min-width:0;display:flex;flex-direction:column;gap:8px;}
+  .g-store-catcol{min-width:0;background:var(--ink);border:1px solid var(--line-soft);border-radius:10px;padding:10px;}
+  .g-store-catt{font-size:11px;color:var(--muted2);font-family:"Oswald";letter-spacing:.03em;margin-bottom:6px;}
+  .g-store-catcol .pie-donut-only{display:flex;justify-content:center;}
+  .g-store-catbars{margin-top:8px;}
+  .g-store-more{margin-top:2px;border-top:1px dashed var(--line-soft);padding-top:6px;}
+  .g-store-more>summary{cursor:pointer;font-size:11.5px;color:var(--amber);font-family:"Oswald";letter-spacing:.03em;list-style:none;}
+  .g-store-more>summary::-webkit-details-marker{display:none;}
+  .g-store-more>summary::before{content:"▸ ";}
+  .g-store-more[open]>summary::before{content:"▾ ";}
   table.g-tbl thead th{min-width:66px;max-width:112px;font-size:10px;}
   table.g-tbl tbody td:first-child, table.g-tbl thead th:first-child{min-width:104px;font-size:11.5px;}
   table.g-tbl tfoot td{font-family:"JetBrains Mono";font-weight:700;background:rgba(245,178,17,.07);border-top:1px solid var(--line);}
-  td.g-txt{text-align:left;white-space:normal;word-break:keep-all;line-height:1.6;min-width:260px;max-width:520px;}
+  td.g-txt{text-align:left;white-space:normal;word-break:keep-all;line-height:1.6;min-width:220px;max-width:760px;}
   td.g-band{white-space:nowrap;font-size:10.5px;}
   .g-tier-group{margin:22px 0 10px;}
   .g-tier-group:first-child{margin-top:6px;}
@@ -768,8 +839,8 @@
               <option value="two">두 날짜 직접 비교</option>
             </select>
           </div>
-          <div class="datefield"><label for="periodAStart">비교 A 시작일</label><input type="date" id="periodAStart"></div>
-          <div class="datefield" id="periodAEndField"><label for="periodAEnd">비교 A 종료일</label><input type="date" id="periodAEnd"></div>
+          <div class="datefield"><label for="periodAStart">기준 A 시작일</label><input type="date" id="periodAStart"></div>
+          <div class="datefield" id="periodAEndField"><label for="periodAEnd">기준 A 종료일</label><input type="date" id="periodAEnd"></div>
           <div class="datefield"><label for="periodBStart" id="periodBStartLabel">비교 B 시작일</label><input type="date" id="periodBStart"></div>
           <div class="datefield" id="periodBEndField"><label for="periodBEnd">비교 B 종료일</label><input type="date" id="periodBEnd"></div>
           <div class="datefield">
@@ -1571,7 +1642,7 @@ function buildStateObject(){
       STORES, STOCK, CATEGORIES, CATEGORY_ORIGIN, SHIP, ACTUAL,
       HQ_ACTUAL, APPLIANCE_ACTUAL, FRESH_ACTUAL, CENTER_M, HQ_M, APPLIANCE_M, FRESH_M, LOTTE_M, shipScope, HQ_SUPPLY_HISTORY, APPLIANCE_SUPPLY_HISTORY, unmatchedHQStores, unmatchedApplianceStores,
       selected, SUPPLY_HISTORY, STOCK_HISTORY, unmatchedActualStores,
-      SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodBStart, periodBEnd, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, selectedSalesMonth, selectedMonthlyStore, salesViewMode, EVENTS_COMMON, EVENTS_STORE, PROCESSED_FILES,
+      SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodBStart, periodBEnd, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, SPECIAL_DAYS, selectedSalesMonth, selectedMonthlyStore, salesViewMode, EVENTS_COMMON, EVENTS_STORE, PROCESSED_FILES,
       basedateIdx: (typeof basedateEl!=="undefined" && basedateEl.value!=="") ? +basedateEl.value : STOCK_HISTORY.length-1
   };
 }
@@ -1637,6 +1708,7 @@ function applyStateObject(s){
     SALES_CAT_MAP = (s.SALES_CAT_MAP && typeof s.SALES_CAT_MAP==="object") ? s.SALES_CAT_MAP : {};
     if(s.salesViewMode==="daily"||s.salesViewMode==="cumulative") salesViewMode = s.salesViewMode;
     EVENTS_COMMON = (s.EVENTS_COMMON && typeof s.EVENTS_COMMON==="object") ? s.EVENTS_COMMON : {};
+    SPECIAL_DAYS = (s.SPECIAL_DAYS && typeof s.SPECIAL_DAYS==="object") ? s.SPECIAL_DAYS : {};
     EVENTS_STORE = (s.EVENTS_STORE && typeof s.EVENTS_STORE==="object") ? s.EVENTS_STORE : {};
     PROCESSED_FILES = (s.PROCESSED_FILES && typeof s.PROCESSED_FILES==="object") ? s.PROCESSED_FILES : {};
     SHIP_CAT_MAP = (s.SHIP_CAT_MAP && typeof s.SHIP_CAT_MAP==="object") ? s.SHIP_CAT_MAP : {};
@@ -2021,7 +2093,7 @@ function renderStockAgg(){
   let body = "<tbody>";
   rows.forEach(({s,stk,rowSum})=>{
     const barPct = Math.round(rowSum/maxRowSum*100);
-    body += `<tr><td><div class="store-cell-name">${s}</div><div class="mini-bar"><div class="mini-bar-fill" style="width:${barPct}%"></div></div></td>`;
+    body += `<tr><td><div class="store-cell-name">${s}${storeNameTag(s)}</div><div class="mini-bar"><div class="mini-bar-fill" style="width:${barPct}%"></div></div></td>`;
     for(let i=0;i<STOCK_COLS;i++){
       const v = Math.round(num(stk[i]));
       const style = v>0 ? ` style="background:rgba(51,199,132,${(0.12+0.55*(v/colMax[i])).toFixed(2)})"` : '';
@@ -2065,7 +2137,7 @@ function renderShipAgg(){
   let body = "<tbody>";
   rows.forEach(({s,rowSum})=>{
     const barPct = Math.round(rowSum/maxRowSum*100);
-    body += `<tr><td><div class="store-cell-name">${s}</div><div class="mini-bar"><div class="mini-bar-fill amber" style="width:${barPct}%"></div></div></td>`;
+    body += `<tr><td><div class="store-cell-name">${s}${storeNameTag(s)}</div><div class="mini-bar"><div class="mini-bar-fill amber" style="width:${barPct}%"></div></div></td>`;
     CATEGORIES.forEach((cat,ci)=>{
       const plan = planQty(s,cat), act = actualQty(s,cat), total = plan+act;
       const style = total>0 ? ` style="background:rgba(245,178,17,${(0.12+0.55*(total/colMax[ci])).toFixed(2)})"` : '';
@@ -2529,8 +2601,8 @@ function renderPeriodSelects(){
   const twoMode = periodMode==="two";
   document.getElementById("periodAEndField").style.display = twoMode ? "none" : "";
   document.getElementById("periodBEndField").style.display = twoMode ? "none" : "";
-  document.getElementById("periodBStartLabel").textContent = twoMode ? "비교 B 날짜" : "비교 B 시작일";
-  aS.previousElementSibling && (document.querySelector('label[for="periodAStart"]').textContent = twoMode ? "비교 A 날짜" : "비교 A 시작일");
+  document.getElementById("periodBStartLabel").textContent = twoMode ? "비교 B 날짜 (비교 대상)" : "비교 B 시작일";
+  aS.previousElementSibling && (document.querySelector('label[for="periodAStart"]').textContent = twoMode ? "기준 A 날짜 (내 날짜)" : "기준 A 시작일");
   // 매장
   const storesWithSales = STORES.filter(s=>SALES_HISTORY.some(h=>h.byStoreCat[s]));
   if(!periodStore || (periodStore!=="__all__" && !storesWithSales.includes(periodStore))) periodStore = "__all__";
@@ -2562,22 +2634,23 @@ function renderPeriodCompare(){
     const bhi = (periodBStart<periodBEnd?periodBEnd:periodBStart) || hi;
     const bSpan = Math.round((parseYMD(bhi)-parseYMD(blo))/86400000)+1;
     cmpSnaps = SALES_HISTORY.filter(h=>h.date>=blo && h.date<=bhi);
-    curLabel = `비교 A · ${lo}~${hi} 합계`;
-    cmpLabel = cmpSnaps.length ? `비교 B · ${blo}~${bhi} 합계` : `비교 B · ${blo}~${bhi} 데이터 없음`;
+    curLabel = `${lo}~${hi} 합계`;
+    cmpLabel = cmpSnaps.length ? `${blo}~${bhi} 합계` : `${blo}~${bhi} 데이터 없음`;
     if(curSnaps.length < spanDays || cmpSnaps.length < bSpan){
       coverageWarning = `⚠ 업로드된 날짜가 비어있어 기간이 어긋날 수 있습니다 — A(${lo}~${hi}) ${spanDays}일 중 ${curSnaps.length}일치, B(${blo}~${bhi}) ${bSpan}일 중 ${cmpSnaps.length}일치만 업로드되어 있습니다. 두 구간의 일수가 다르면 총합 비교 시 감안하세요.`;
     }
   } else {
-    // 두 날짜 직접 비교: A 날짜(periodA) vs B 날짜(periodBStart). 나중 날짜를 "현재", 이전을 "기준".
-    const d1 = periodA, d2 = periodBStart || periodB;
-    const earlier = d1 < d2 ? d1 : d2;
-    const later   = d1 < d2 ? d2 : d1;
-    const eSnap = SALES_HISTORY.find(h=>h.date===earlier);
-    const lSnap = SALES_HISTORY.find(h=>h.date===later);
-    curSnaps = lSnap ? [lSnap] : [];
-    cmpSnaps = eSnap ? [eSnap] : [];
-    curLabel = later;
-    cmpLabel = earlier;
+    // ★ 15차 수정: 예전에는 "나중 날짜를 현재, 이전 날짜를 기준"으로 날짜 순서에 따라 자동으로
+    //   뒤집었다. 그래서 A에 오늘, B에 한 달 전을 넣으면 부호가 반대로 읽혔다.
+    //   이제 **A 날짜가 항상 기준(내 날짜), B 날짜가 비교 대상**이고 증감 = (A − B) / B 다.
+    //   → A가 B보다 많으면 ＋(파랑), 적으면 －(빨강). 날짜 순서와 무관하다.
+    const dA = periodA, dB = periodBStart || periodB;
+    const aSnap = SALES_HISTORY.find(h=>h.date===dA);
+    const bSnap = SALES_HISTORY.find(h=>h.date===dB);
+    curSnaps = aSnap ? [aSnap] : [];
+    cmpSnaps = bSnap ? [bSnap] : [];
+    curLabel = dA;
+    cmpLabel = dB;
   }
   const curTotals = categoryTotalsFiltered(mergeByStoreCat(curSnaps), periodStore);
   const cmpTotals = categoryTotalsFiltered(mergeByStoreCat(cmpSnaps), periodStore);
@@ -2591,11 +2664,12 @@ function renderPeriodCompare(){
     const cur = curTotals[c] ? curTotals[c].amount : 0;
     const cmp = cmpTotals[c] ? cmpTotals[c].amount : 0;
     let deltaHtml;
-    if(cmp===0){ deltaHtml = cur===0 ? '<span class="delta flat">변동 없음</span>' : `<span class="delta up">▲ 신규 ${Math.round(cur).toLocaleString()}</span>`; }
+    if(cmp===0){ deltaHtml = cur===0 ? '<span class="delta pcmp flat">변동 없음</span>' : `<span class="delta pcmp up">▲ 신규 ${Math.round(cur).toLocaleString()}</span>`; }
     else{
-      const pct = Math.round((cur-cmp)/cmp*100); // (현재 − 기준)/기준 → 현재가 크면 +
+      // (A − B) / B : A(기준 날짜/구간)가 B보다 많으면 ＋, 적으면 －
+      const pct = Math.round((cur-cmp)/cmp*100);
       const cls = pct>0?'up':(pct<0?'down':'flat'); const arrow = pct>0?'▲':(pct<0?'▼':'－');
-      deltaHtml = `<span class="delta ${cls}">${arrow} ${pct>0?'+':(pct<0?'-':'')}${Math.abs(pct)}%<span class="ref">(기준 대비)</span></span>`;
+      deltaHtml = `<span class="delta pcmp ${cls}">${arrow} ${pct>0?'+':(pct<0?'-':'')}${Math.abs(pct)}%<span class="ref">(B 대비 A)</span></span>`;
     }
     const basePct = Math.max(2, Math.round(cmp/maxV*100));
     const curPct = Math.max(2, Math.round(cur/maxV*100));
@@ -2603,12 +2677,12 @@ function renderPeriodCompare(){
       <div class="cat-bar-row">
         <div class="cat-bar-label" title="${escHtml(c)}">${escHtml(c)}</div>
         <div class="cat-bar-dual">
-          <div class="cat-bar-track" title="기준(${escHtml(cmpLabel)}) ${Math.round(cmp).toLocaleString()}원"><div class="cat-bar-fill base" style="width:${basePct}%"></div></div>
-          <div class="cat-bar-track" title="비교(${escHtml(curLabel)}) ${Math.round(cur).toLocaleString()}원"><div class="cat-bar-fill compare" style="width:${curPct}%"></div></div>
+          <div class="cat-bar-track" title="비교 B(${escHtml(cmpLabel)}) ${Math.round(cmp).toLocaleString()}원"><div class="cat-bar-fill base" style="width:${basePct}%"></div></div>
+          <div class="cat-bar-track" title="기준 A(${escHtml(curLabel)}) ${Math.round(cur).toLocaleString()}원"><div class="cat-bar-fill compare" style="width:${curPct}%"></div></div>
         </div>
         <div class="cat-bar-value">
           <span class="compare-v">${Math.round(cur).toLocaleString()}원</span>
-          <span class="qty"><span class="base-v">기준 ${Math.round(cmp).toLocaleString()}원</span> · ${deltaHtml}</span>
+          <span class="qty"><span class="base-v">B ${Math.round(cmp).toLocaleString()}원</span> · ${deltaHtml}</span>
         </div>
       </div>`;
   }).join("");
@@ -2616,7 +2690,7 @@ function renderPeriodCompare(){
   // 기간 총합 요약(한눈에) — 실매출액 기준
   const curSum = cats.reduce((a,c)=>a+(curTotals[c]?curTotals[c].amount:0),0);
   const cmpSum = cats.reduce((a,c)=>a+(cmpTotals[c]?cmpTotals[c].amount:0),0);
-  const sumPct = cmpSum>0 ? Math.round((curSum-cmpSum)/cmpSum*100) : null;
+  const sumPct = cmpSum>0 ? Math.round((curSum-cmpSum)/cmpSum*100) : null; // (A − B)/B
   const sumCls = sumPct==null ? 'flat' : (sumPct>0?'up':(sumPct<0?'down':'flat'));
   const sumArrow = sumPct==null ? '' : (sumPct>0?'▲':(sumPct<0?'▼':'－'));
   const eok = v => (v/100000000).toFixed(2)+'억';
@@ -2624,26 +2698,26 @@ function renderPeriodCompare(){
   const totalBox = `
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin:0 0 12px;">
       <div style="flex:1;min-width:200px;background:var(--ink);border:1px solid var(--amber);border-radius:10px;padding:12px 14px;">
-        <div style="font-size:11px;color:var(--amber);font-family:'Oswald';letter-spacing:.04em;">현재(비교) · ${escHtml(curLabel)} · ${curDays}일치</div>
+        <div style="font-size:11px;color:var(--amber);font-family:'Oswald';letter-spacing:.04em;">기준 A · ${escHtml(curLabel)} · ${curDays}일치</div>
         <div style="font-size:22px;font-weight:800;font-family:'JetBrains Mono';color:var(--text);margin-top:2px;">${Math.round(curSum).toLocaleString()}<span style="font-size:13px;color:var(--muted);">원</span></div>
         <div style="font-size:12px;color:var(--muted2);">${eok(curSum)}</div>
       </div>
       <div style="flex:1;min-width:200px;background:var(--ink);border:1px solid var(--info);border-radius:10px;padding:12px 14px;">
-        <div style="font-size:11px;color:var(--info);font-family:'Oswald';letter-spacing:.04em;">기준 · ${escHtml(cmpLabel)} · ${cmpDays}일치</div>
+        <div style="font-size:11px;color:var(--info);font-family:'Oswald';letter-spacing:.04em;">비교 B · ${escHtml(cmpLabel)} · ${cmpDays}일치</div>
         <div style="font-size:22px;font-weight:800;font-family:'JetBrains Mono';color:var(--text);margin-top:2px;">${Math.round(cmpSum).toLocaleString()}<span style="font-size:13px;color:var(--muted);">원</span></div>
         <div style="font-size:12px;color:var(--muted2);">${eok(cmpSum)}</div>
       </div>
       <div style="flex:0 0 150px;min-width:130px;background:var(--ink);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;justify-content:center;">
-        <div style="font-size:11px;color:var(--muted2);font-family:'Oswald';">기준 대비 증감</div>
-        <div class="delta ${sumCls}" style="font-size:20px;font-weight:800;margin-top:2px;">${sumPct==null?'-':`${sumArrow} ${sumPct>0?'+':(sumPct<0?'-':'')}${Math.abs(sumPct)}%`}</div>
+        <div style="font-size:11px;color:var(--muted2);font-family:'Oswald';">B 대비 A 증감</div>
+        <div class="delta pcmp ${sumCls}" style="font-size:20px;font-weight:800;margin-top:2px;">${sumPct==null?'-':`${sumArrow} ${sumPct>0?'+':(sumPct<0?'-':'')}${Math.abs(sumPct)}%`}</div>
         <div style="font-size:11px;color:var(--muted2);">차액 ${(curSum-cmpSum>=0?'+':'')}${Math.round(curSum-cmpSum).toLocaleString()}원</div>
       </div>
     </div>
-    ${(curDays!==cmpDays)?`<p style="font-size:11.5px;color:var(--amber);margin:-4px 0 10px;">※ 두 기간의 업로드 일수가 다릅니다(현재 ${curDays}일 / 기준 ${cmpDays}일) — 총합 비교 시 감안하세요.</p>`:''}`;
+    ${(curDays!==cmpDays)?`<p style="font-size:11.5px;color:var(--amber);margin:-4px 0 10px;">※ 두 기간의 업로드 일수가 다릅니다(A ${curDays}일 / B ${cmpDays}일) — 총합 비교 시 감안하세요.</p>`:''}`;
   const legend = `<div class="period-legend">
-      <span><span class="sw" style="background:var(--info);"></span><b style="color:var(--info);">기준</b> = ${escHtml(cmpLabel)}</span>
-      <span><span class="sw" style="background:var(--amber);"></span><b style="color:var(--amber);">현재(비교)</b> = ${escHtml(curLabel)}</span>
-      <span style="color:var(--muted2);">· 증감%는 <b>기준 대비 현재</b>가 얼마나 늘었/줄었는지입니다(증가=＋). 금액은 실매출액 기준.</span>
+      <span><span class="sw" style="background:var(--amber);"></span><b style="color:var(--amber);">기준 A</b> = ${escHtml(curLabel)}</span>
+      <span><span class="sw" style="background:var(--info);"></span><b style="color:var(--info);">비교 B</b> = ${escHtml(cmpLabel)}</span>
+      <span style="color:var(--muted2);">· 증감% = <b>(A − B) ÷ B</b> — <b style="color:var(--info);">A가 더 많으면 ＋(파랑)</b>, <b style="color:var(--red);">A가 더 적으면 －(빨강)</b>. 날짜 순서와 무관하게 항상 A가 기준입니다. 금액은 실매출액 기준.</span>
     </div>`;
   body.innerHTML = `<p style="font-size:12.5px;color:var(--muted);margin:0 0 8px;"><b style="color:var(--text);">${escHtml(storeLabel)}</b> · 기간 총합(실매출액)</p>${totalBox}${legend}${warnHtml}<div class="cat-bar-list">${rows}</div>`;
 }
@@ -4711,6 +4785,138 @@ const STORE_MONTHLY_TARGETS = {
   "대소점": 70000000,
   "제주서귀포점": 150000000,
 };
+/* ================= 매장 프로필 : 오픈 / 폐점 / 매출 합산 / 식품 취급 구분 =================
+   (2026-08-27 15차 · 사용자가 직접 확인해 준 사실들)
+   ① 제주서귀포점은 2026년 2월 오픈 → 1월 매출이 없는 것은 "결측"이 아니라 "영업 전"이다.
+      예전에는 결측으로 보고 누적목표 산출을 통째로 포기했는데, 이제 오픈 이후 달만 세어 정상 계산한다.
+   ② 광주점은 2026-08-23 영업 종결 → 8월 목표는 23/31일만 인정하고, 9월 이후는 대상에서 자동 제외된다.
+   ③ 기흥 패션관은 기흥점과 같은 매장 → 매출·목표를 기흥점에 합산한다(대표 매장 = 기흥점).
+      ※ "패션관광주점"은 사용자가 별도 매장이라고 확인한 곳이라 합산하지 않는다.
+   ④ 식품(냉장/냉동/상온) 운영 여부가 매장별로 다르다("식품 운영 매장 현황" 20260707 기준).
+      신선식품을 아예 취급하지 않는 매장에 "신선식품 편성 확대"를 권하면 안 되고,
+      전사 평균 구성비를 낼 때도 미취급 매장을 분모에 넣으면 안 된다.
+   이 표만 고치면 02·04·05·06·07 시트와 예상매출 계산에 전부 반영된다. */
+const F_ALL = { chilled:true, frozen:true, ambient:true };
+const STORE_PROFILE = {
+  "경안점":      { fresh:F_ALL },
+  "광주점":      { fresh:F_ALL, close:"2026-08-23" },   // 2026-08-23 영업 종결
+  "기흥점":      { fresh:F_ALL },
+  "김포점":      { fresh:F_ALL },
+  "김해점":      { fresh:F_ALL },
+  "남양주점":    { fresh:F_ALL },
+  "대소점":      { fresh:{chilled:false, frozen:false, ambient:false} },
+  "제주서귀포점":{ fresh:{chilled:false, frozen:false, ambient:false}, open:"2026-02-01" },
+  "수원점":      { fresh:F_ALL },
+  "아산점":      { fresh:F_ALL },
+  "안중점":      { fresh:F_ALL },
+  "양주점":      { fresh:F_ALL },
+  "용인점":      { fresh:F_ALL },
+  "원주점":      { fresh:{chilled:false, frozen:false, ambient:true} },
+  "이천점":      { fresh:F_ALL },
+  "인천점":      { fresh:F_ALL },
+  "제주점":      { fresh:F_ALL },
+  "천안점":      { fresh:{chilled:false, frozen:true,  ambient:true} },
+  "청주점":      { fresh:F_ALL },
+  "충주점":      { fresh:{chilled:false, frozen:true,  ambient:true} },
+  "평택점":      { fresh:{chilled:true,  frozen:false, ambient:true} },
+  "기흥 패션관": { mergeSalesInto:"기흥점" },
+};
+// 냉장·냉동 취급 여부로 판단할 "신선식품" 성격의 매출 카테고리
+const FRESH_CATS = ["신선식품"];
+function storeProfile(s){ return STORE_PROFILE[s] || {}; }
+// 매출 집계 시 이 매장이 묶여 들어갈 대표 매장(합산 대상이 아니면 자기 자신)
+function storeSalesGroup(s){ return storeProfile(s).mergeSalesInto || s; }
+function storeGroupMembers(s){
+  const extra = Object.keys(STORE_PROFILE).filter(k=>STORE_PROFILE[k].mergeSalesInto===s);
+  return [s, ...extra];
+}
+function storeGroupLabel(s){
+  const extra = storeGroupMembers(s).slice(1);
+  return extra.length ? `${s} (${extra.join("·")} 포함)` : s;
+}
+function storeHandlesFresh(s){
+  return storeGroupMembers(s).some(m=>{ const f=storeProfile(m).fresh; return !!(f && (f.chilled || f.frozen)); });
+}
+function storeFreshLabel(s){
+  const parts = storeGroupMembers(s).map(m=>{
+    const f = storeProfile(m).fresh;
+    if(!f) return null;
+    const on  = [f.chilled&&"냉장", f.frozen&&"냉동", f.ambient&&"상온"].filter(Boolean);
+    const off = [!f.chilled&&"냉장", !f.frozen&&"냉동", !f.ambient&&"상온"].filter(Boolean);
+    if(!off.length) return "식품 전 카테고리 운영(냉장·냉동·상온)";
+    if(!on.length)  return "식품 미운영 매장 — 냉장·냉동·상온 전부 미취급";
+    return `식품 일부 운영 — 운영 ${on.join("·")} / 미취급 ${off.join("·")}`;
+  }).filter(Boolean);
+  return parts.length ? parts[0] : null;
+}
+// 그 달에 이 매장이 며칠 영업했는지. capDay를 주면 "그 달 capDay일까지" 기준으로 센다(진행 중인 달).
+// state: before(오픈 전) · after(폐점 후) · partial(오픈월·폐점월) · full
+function storeActiveDays(s, ym, capDay){
+  const dim = goalsDaysInMonth(ym);
+  const cap = capDay ? Math.min(capDay, dim) : dim;
+  const p = storeProfile(s);
+  if(p.open && ym < p.open.slice(0,7))  return { days:0, dim, cap, state:"before" };
+  if(p.close && ym > p.close.slice(0,7)) return { days:0, dim, cap, state:"after" };
+  let from = 1, to = cap;
+  if(p.open  && p.open.slice(0,7)===ym)  from = Number(p.open.slice(8,10));
+  if(p.close && p.close.slice(0,7)===ym) to   = Math.min(to, Number(p.close.slice(8,10)));
+  const days = Math.max(0, to - from + 1);
+  return { days, dim, cap, state: days<=0 ? "before" : (days<cap ? "partial" : "full") };
+}
+// 그 달 목표(영업일수 비례). 진행 중인 달은 capDay(경과일)까지의 일할 목표가 된다.
+function storeMonthTarget(s, ym, monthTarget, capDay){
+  const a = storeActiveDays(s, ym, capDay);
+  return { target: a.days>0 ? monthTarget*(a.days/a.dim) : 0, ...a };
+}
+// 재고·출고 표의 매장 이름 옆에 붙이는 작은 표시. 오늘 기준으로 이미 폐점한 매장을 알려준다.
+// 과거 출고·재고 기록은 그대로 남긴다(지우면 지난 달 집계가 틀어진다).
+function storeNameTag(s){
+  const p = storeProfile(s);
+  const today = new Date();
+  const t = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  if(p.close && t > p.close) return `<span style="font-size:9px;color:var(--red);border:1px solid rgba(239,68,68,.45);border-radius:99px;padding:0 5px;margin-left:4px;" title="${p.close} 영업 종결">폐점</span>`;
+  if(p.open && t < p.open)  return `<span style="font-size:9px;color:var(--muted2);border:1px solid var(--line-soft);border-radius:99px;padding:0 5px;margin-left:4px;" title="${p.open} 오픈 예정">미오픈</span>`;
+  return "";
+}
+function storeStateBadge(s, ym){
+  const a = storeActiveDays(s, ym);
+  const p = storeProfile(s);
+  if(a.state==="before") return "미오픈";
+  if(a.state==="after")  return "폐점";
+  if(p.close && p.close.slice(0,7)===ym) return `폐점(${p.close.slice(5).replace('-','/')})`;
+  if(p.open  && p.open.slice(0,7)===ym)  return `오픈(${p.open.slice(5).replace('-','/')})`;
+  return null;
+}
+
+/* ================= 2026년 공휴일 (예상매출 계산용) =================
+   음력 공휴일(설날·부처님오신날·추석)은 이 세션에서 음력 변환으로 계산했다:
+     설날 2026-02-17(화) · 부처님오신날 2026-05-24(일) · 추석 2026-09-25(금)
+   대체공휴일은 현행 규정(설날·추석 연휴, 삼일절·어린이날·부처님오신날·광복절·개천절·한글날·성탄절이
+   토·일과 겹칠 때 다음 비공휴일로 이월. 신정·현충일은 대상 아님)을 적용해 붙였다.
+   ⚠ 임시공휴일(예: 정부 지정 휴일)은 사전에 알 수 없으므로 화면의 "추가 휴일·행사일" 칸에서
+     사용자가 직접 넣을 수 있게 했다. 예상매출 카드에 실제 적용된 날짜가 그대로 표시된다. */
+const KR_HOLIDAYS = {
+  "2026-01-01":"신정",
+  "2026-02-16":"설 연휴", "2026-02-17":"설날", "2026-02-18":"설 연휴",
+  "2026-03-01":"삼일절", "2026-03-02":"삼일절 대체공휴일",
+  "2026-05-05":"어린이날",
+  "2026-05-24":"부처님오신날", "2026-05-25":"부처님오신날 대체공휴일",
+  "2026-06-03":"지방선거일", "2026-06-06":"현충일",
+  "2026-08-15":"광복절", "2026-08-17":"광복절 대체공휴일",
+  "2026-09-24":"추석 연휴", "2026-09-25":"추석", "2026-09-26":"추석 연휴", "2026-09-28":"추석 대체공휴일",
+  "2026-10-03":"개천절", "2026-10-05":"개천절 대체공휴일", "2026-10-09":"한글날",
+  "2026-12-25":"성탄절",
+};
+// 사용자가 추가로 넣는 휴일·행사일 {YYYY-MM: "2026-08-28, 2026-08-30"}
+let SPECIAL_DAYS = {};
+function specialDaysOf(ym){
+  return String(SPECIAL_DAYS[ym]||"").split(/[,\s]+/).map(x=>x.trim()).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x));
+}
+function holidayName(dstr){
+  if(KR_HOLIDAYS[dstr]) return KR_HOLIDAYS[dstr];
+  if(specialDaysOf(dstr.slice(0,7)).includes(dstr)) return "지정 휴일·행사일";
+  return null;
+}
 
 // mergeByStoreCat / categoryTotals / categoryTotalsFiltered / monthStoreTotals /
 // statCard / escHtml / num 은 모두 기존 함수를 그대로 재사용한다(새로 만들지 않음).
@@ -4732,6 +4938,43 @@ function goalsElapsedDays(ym){
   const last = dates.sort().slice(-1)[0];
   return Number(last.slice(8,10));
 }
+// 매출 집계를 "대표 매장" 단위로 묶는다. 기흥 패션관은 기흥점과 같은 매장이므로 기흥점에 합산된다.
+// (매출 원본의 매장 표기는 resolveStoreName으로 먼저 정규화한다 — "패션관기흥점" → "기흥 패션관".)
+function goalsGroupMap(month){
+  const t = monthStoreTotals(month);
+  const map = {};
+  Object.keys(t.map).forEach(s=>{ const g = storeSalesGroup(resolveStoreName(s)); map[g] = (map[g]||0) + t.map[s]; });
+  return { map, total:t.total, source:t.source };
+}
+// 대표 매장의 카테고리별 매출(합산 매장 포함)
+function goalsGroupCat(merged, store){
+  const out = {};
+  storeGroupMembers(store).forEach(m=>{
+    const c = categoryTotalsFiltered(merged, m);
+    Object.keys(c).forEach(k=>{ if(!out[k]) out[k]={amount:0, qty:0}; out[k].amount += c[k].amount||0; out[k].qty += c[k].qty||0; });
+  });
+  return out;
+}
+// 대표 매장의 출고 PLT(합산 매장 포함)
+function goalsGroupPlt(store, cat){
+  return storeGroupMembers(store).reduce((a,m)=> a + (STORES.includes(m) ? planQty(m,cat)+actualQty(m,cat) : 0), 0);
+}
+// 전사 카테고리 구성비. 단 신선식품은 **취급 매장만**을 분모로 쓴다 —
+// 미취급 매장(대소·제주서귀포·원주)을 넣으면 전사 평균이 낮아져 취급 매장의 신선 열위가 작게 보인다.
+function goalsCompanyPct(merged){
+  const all = categoryTotals(merged);
+  const total = Object.values(all).reduce((a,v)=>a+v.amount,0);
+  const pct = {}; Object.keys(all).forEach(c=> pct[c] = total>0 ? all[c].amount/total*100 : 0);
+  const freshAmt = {}; let freshTot = 0;
+  Object.keys(merged).forEach(sRaw=>{
+    const g = storeSalesGroup(resolveStoreName(sRaw));
+    if(!storeHandlesFresh(g)) return;
+    Object.keys(merged[sRaw]).forEach(c=>{ const a = merged[sRaw][c].amount||0; freshAmt[c]=(freshAmt[c]||0)+a; freshTot+=a; });
+  });
+  const freshBasis = freshTot>0;
+  if(freshBasis) FRESH_CATS.forEach(c=>{ pct[c] = (freshAmt[c]||0)/freshTot*100; });
+  return { pct, all, total, freshBasis };
+}
 function goalsTier(pct){
   // 달성률 자체로 우선순위를 매기기 위한 4단계 배지. 정확한 "매출 인센티브 수당" 금액표는
   // 목표매출 엑셀의 별도 시트를 참고할 것 — 여기서는 그 금액을 재현하지 않는다(부정확한
@@ -4746,60 +4989,72 @@ function goalsCumulative(store, months, curMonth){
   // 같은 자릿수이고(예: 용인점 6.5억 vs 상반기 월평균 5.5억), 이 회사의 매출 인센티브
   // 구간표도 월 단위 달성률(±%) 구조라서 그렇다. 2026-08-26 세션에서 확인.
   //
-  // 누적 목표 = 월목표 × 경과 개월수(이번 달 제외) + 월목표 × 이번 달 경과일 비율.
-  // 과거 어느 한 달이라도 그 매장 실적이 0으로 나오면(=그 달 업로드 자체가 없었던 것으로
-  // 추정) "결측"으로 보고 누적 비교를 만들지 않는다 — 없는 달을 0으로 채워 억지로
-  // 달성률을 계산하면 실제보다 낮게 나와 오해를 부르기 때문(제주서귀포점처럼 중간 한 달
-  // 데이터가 통째로 빠진 매장에서 실제로 있었던 문제).
-  const target = STORE_MONTHLY_TARGETS[store];
+  // 누적 목표 = Σ(그 달 영업일수 비례 목표). 15차부터 **오픈 전 달과 폐점 후 달은 아예 세지 않는다**
+  // (제주서귀포점 2026-02 오픈 → 1월은 결측이 아니라 영업 전 / 광주점 2026-08-23 폐점 → 8월은 23일치).
+  // 영업한 달인데 실적이 0이면 그건 진짜 "업로드 결측"이므로 예전처럼 누적 비교를 만들지 않는다.
+  const target = groupMonthlyTarget(store);
   if(target == null) return null;
   const pastMonths = months.filter(m=>m!==curMonth);
-  let actualCum = 0, hasGap = false;
+  let actualCum = 0, targetCum = 0, hasGap = false;
+  const skipped = [];
   pastMonths.forEach(m=>{
-    const v = monthStoreTotals(m).map[store] || 0;
+    const a = storeActiveDays(store, m);
+    const v = goalsGroupMap(m).map[store] || 0;
+    if(a.days<=0){ skipped.push(m); actualCum += v; return; }   // 영업 전/후 — 목표에서 제외
     if(v<=0) hasGap = true;
     actualCum += v;
+    targetCum += target*(a.days/a.dim);
   });
-  const curActual = monthStoreTotals(curMonth).map[store] || 0;
+  const curActual = goalsGroupMap(curMonth).map[store] || 0;
   actualCum += curActual;
-  if(hasGap) return { actualCum, targetCum:null, pct:null, gap:true };
-  const elapsedDays = goalsElapsedDays(curMonth), daysInMonth = goalsDaysInMonth(curMonth);
-  const targetCum = target*pastMonths.length + target*(elapsedDays/daysInMonth);
-  return { actualCum, targetCum, pct: targetCum>0 ? actualCum/targetCum*100 : 0, gap:false };
+  if(hasGap) return { actualCum, targetCum:null, pct:null, gap:true, skipped };
+  const elapsedDays = goalsElapsedDays(curMonth);
+  const curA = storeActiveDays(store, curMonth, elapsedDays);
+  targetCum += target*(curA.days/curA.dim);
+  return { actualCum, targetCum, pct: targetCum>0 ? actualCum/targetCum*100 : 0, gap:false, skipped };
+}
+// 대표 매장의 월 목표 = 합산 매장 목표의 합 (기흥점 4.0억 + 기흥 패션관 0.6억 = 4.6억)
+function groupMonthlyTarget(store){
+  const members = storeGroupMembers(store).filter(m=>STORE_MONTHLY_TARGETS[m]!=null);
+  if(!members.length) return null;
+  return members.reduce((a,m)=>a+STORE_MONTHLY_TARGETS[m],0);
 }
 function goalsCategoryDiagnosis(store){
   // 이 매장의 카테고리 구성비 - 전사 평균 구성비 격차로 강점/기회 카테고리를 자동 진단.
-  // (매장별 매출카테고리분석 리포트의 04/06 시트와 동일한 방식.) diffs/chartData도 함께 돌려줘서
-  // 도넛차트·막대·액션 문구 생성에 재사용한다.
+  // 15차 변경: ① 합산 매장(기흥 패션관)을 대표 매장에 포함해서 계산한다.
+  //           ② **신선식품을 취급하지 않는 매장에서는 신선식품을 진단 대상에서 뺀다** —
+  //              냉장·냉동 설비가 없는 매장에 "신선식품 편성 확대"를 권하는 것은 실행 불가능한 조언이다.
+  //           ③ 전사 평균 신선 구성비는 취급 매장만을 분모로 쓴다(goalsCompanyPct).
   const merged = mergeByStoreCat(SALES_HISTORY);
-  const storeCat = categoryTotalsFiltered(merged, store);
-  const companyCat = categoryTotals(merged);
+  const storeCat = goalsGroupCat(merged, store);
+  const comp = goalsCompanyPct(merged);
   const storeTotal = Object.values(storeCat).reduce((a,v)=>a+v.amount,0);
-  const companyTotal = Object.values(companyCat).reduce((a,v)=>a+v.amount,0);
-  if(!storeTotal || !companyTotal) return null;
-  const cats = Array.from(new Set([...Object.keys(storeCat), ...Object.keys(companyCat)]));
+  if(!storeTotal || !comp.total) return null;
+  const noFresh = !storeHandlesFresh(store);
+  const cats = Array.from(new Set([...Object.keys(storeCat), ...Object.keys(comp.all)]))
+                    .filter(c=> !(noFresh && FRESH_CATS.includes(c)));
   const diffs = cats.map(c=>{
     const storePct = (storeCat[c]?.amount||0)/storeTotal*100;
-    const companyPct = (companyCat[c]?.amount||0)/companyTotal*100;
+    const companyPct = comp.pct[c] || 0;
     return { cat:c, storePct, companyPct, diff: storePct-companyPct };
   });
   diffs.sort((a,b)=>b.diff-a.diff);
   const chartData = Object.keys(storeCat)
     .map(c=>({label:c, value:storeCat[c].amount, qty:storeCat[c].qty}))
     .sort((a,b)=>b.value-a.value);
-  return { strength: diffs[0], opportunity: diffs[diffs.length-1], diffs, chartData };
+  return { strength: diffs[0], opportunity: diffs[diffs.length-1], diffs, chartData,
+           noFresh, freshLabel: storeFreshLabel(store), freshBasis: comp.freshBasis };
 }
-// 카테고리별 전사 PLT당 매출효율(엑셀 v2 05시트와 동일 개념) — 매출액(SALES_HISTORY, 카테고리는
-// SALES_CAT_MAP으로 이미 PLT 출고 카테고리와 같은 이름 체계로 매핑되어 있음) ÷ 이번달 출고(출고예정+출고완료)
-// PLT 합계. "매장별 매출" 탭의 "PLT당 매출"(매장 단위)과 같은 방식을 카테고리 단위로 확장한 것 — 판매수량(개)을
-// PLT처럼 잘못 쓰지 않도록, 반드시 storeShipTotal이 쓰는 것과 같은 PLT 소스(planQty+actualQty)로만 계산한다.
 function goalsCategoryEfficiency(){
   const merged = mergeByStoreCat(SALES_HISTORY);
   const catAmt = categoryTotals(merged);
   const rows = CATEGORIES.map(cat=>{
     const amount = (catAmt[cat] && catAmt[cat].amount) || 0;
     const pltTotal = STORES.reduce((a,s)=>a + planQty(s,cat) + actualQty(s,cat), 0);
-    return { cat, amount, pltTotal, perPlt: pltTotal>0 ? amount/pltTotal : null };
+    // 신선식품은 취급 매장 수를 함께 남겨 05시트에서 "취급 매장 기준"임을 밝힌다.
+    const freshOnly = FRESH_CATS.includes(cat);
+    const storeCnt = STORES.filter(s=> !freshOnly || storeHandlesFresh(storeSalesGroup(s))).length;
+    return { cat, amount, pltTotal, perPlt: pltTotal>0 ? amount/pltTotal : null, freshOnly, storeCnt };
   }).filter(r=>r.amount>0 || r.pltTotal>0);
   rows.sort((a,b)=>(b.perPlt||-1)-(a.perPlt||-1));
   return rows;
@@ -4809,6 +5064,8 @@ function goalsEffMap(){ const m={}; goalsCategoryEfficiency().forEach(r=>m[r.cat
 // 데이터가 바뀌면 문구도 매번 새로 생성되어, 사람이 쓴 고정 문구처럼 낡지 않는다.
 function goalsActionText(diag, effMap){
   if(!diag) return "카테고리 데이터가 없어 진단할 수 없습니다.";
+  // 15차: 냉장·냉동 설비가 없는 매장에 "신선식품 편성 확대"는 실행 불가능한 조언이다.
+  // 그런 매장은 신선을 진단에서 이미 뺐고(goalsCategoryDiagnosis), 여기서는 그 사실을 문장에 남긴다.
   const find = c => diag.diffs.find(d=>d.cat===c);
   const sain = find("사입");
   const opp = diag.opportunity;
@@ -4816,6 +5073,11 @@ function goalsActionText(diag, effMap){
   const effNote = effRow && effRow.perPlt ? ` (전사 PLT당 매출 ${Math.round(effRow.perPlt).toLocaleString()}원)` : "";
   if(sain && sain.storePct>=60){
     return `사입(외부소싱) 의존도가 ${sain.storePct.toFixed(0)}%로 매우 높은 아울렛형 매장 — 카테고리 다각화보다 사입 상품 자체의 회전율·구성 개선이 우선입니다.`;
+  }
+  if(diag.noFresh){
+    const alt = diag.diffs.filter(d=>!FRESH_CATS.includes(d.cat)).slice(-1)[0];
+    const altEff = alt && effMap && effMap[alt.cat] && effMap[alt.cat].perPlt ? ` (전사 PLT당 매출 ${Math.round(effMap[alt.cat].perPlt).toLocaleString()}원)` : "";
+    return `${escHtml(diag.freshLabel||"신선식품 미취급 매장")} — 신선식품은 애초에 취급 대상이 아니므로 제외하고 판단했습니다. 남은 레버리지는 <b>${escHtml(alt?alt.cat:"-")}</b>${alt?` (전사 대비 ${Math.abs(alt.diff).toFixed(1)}%p 열위)`:""}${altEff}입니다.`;
   }
   if(opp.cat==="신선식품" && Math.abs(opp.diff)>=15){
     return `신선식품 공백이 가장 큰 레버리지 — 전사 대비 ${Math.abs(opp.diff).toFixed(1)}%p 열위인 신선식품 편성을 확대하면 개선 여지가 가장 큽니다${effNote}.`;
@@ -4828,25 +5090,28 @@ function goalsActionText(diag, effMap){
 // store의 월별 달성률 이력(있는 달만) + 8개월 평균 vs 최근 3개월 평균으로 추세를 판단.
 // 결측 월은 0%로 채우지 않고 그냥 건너뛴다 — goalsCumulative와 같은 "결측은 결측대로" 원칙.
 function goalsMonthlyHistory(store, months, curMonth){
-  const target = STORE_MONTHLY_TARGETS[store];
+  // 월별 달성률 이력. 15차: 오픈 전/폐점 후 달은 아예 점을 만들지 않고, 오픈월·폐점월은
+  // 그 달 영업일수 비례 목표로 나눠 달성률을 왜곡하지 않는다.
+  const target = groupMonthlyTarget(store);
   if(target == null) return null;
-  const elapsedDays = goalsElapsedDays(curMonth), daysInMonth = goalsDaysInMonth(curMonth);
-  const points = [];
+  const elapsedDays = goalsElapsedDays(curMonth);
+  const points = [], inactive = [];
   months.forEach(m=>{
-    const v = monthStoreTotals(m).map[store] || 0;
+    const a = storeActiveDays(store, m, m===curMonth ? elapsedDays : null);
+    if(a.days<=0){ inactive.push({month:m, state:a.state}); return; }
+    const v = goalsGroupMap(m).map[store] || 0;
     if(v<=0) return;
-    const t = (m===curMonth) ? target*(elapsedDays/daysInMonth) : target;
-    points.push({ month:m, pct: t>0 ? v/t*100 : 0 });
+    const t = target*(a.days/a.dim);
+    points.push({ month:m, pct: t>0 ? v/t*100 : 0, partial: a.state==="partial" });
   });
-  if(!points.length) return { points, avg:null, recent3:null };
+  if(!points.length) return { points, inactive, avg:null, recent3:null };
   const avg = points.reduce((a,p)=>a+p.pct,0)/points.length;
   // "최근 3개월"은 데이터가 있는 점 3개가 아니라 달력상 마지막 3개월을 뜻한다. 그 중 결측인 달은
-  // 평균에서 빼고 남은 달로만 계산한다(엑셀 02시트 R열과 같은 방식). 이렇게 해야 중간에 결측이 있는
-  // 매장에서 3개월보다 오래된 달이 '최근'으로 끌려 들어와 추세를 왜곡하지 않는다.
+  // 평균에서 빼고 남은 달로만 계산한다(엑셀 02시트 R열과 같은 방식).
   const recentMonths = months.slice(-3);
   const recentPts = points.filter(p=> recentMonths.indexOf(p.month) >= 0);
   const recent3 = recentPts.length ? recentPts.reduce((a,p)=>a+p.pct,0)/recentPts.length : null;
-  return { points, avg, recent3, recentCount: recentPts.length };
+  return { points, inactive, avg, recent3, recentCount: recentPts.length };
 }
 function goalsTrendPhrase(hist){
   if(!hist || hist.avg==null || hist.recent3==null) return "월별 데이터가 부족해 추세 판단 불가";
@@ -4999,26 +5264,44 @@ function goalsBuildContext(){
   const curMonth = months[months.length-1];
   const elapsedDays = goalsElapsedDays(curMonth), daysInMonth = goalsDaysInMonth(curMonth);
   const mLbl = m => (+m.slice(5)) + "월";
-  const monthMaps = {}; months.forEach(m=> monthMaps[m] = monthStoreTotals(m));
+  // 15차: 매장 단위가 아니라 **대표 매장(합산) 단위**로 집계한다 — 기흥 패션관은 기흥점에 합쳐진다.
+  const monthMaps = {}; months.forEach(m=> monthMaps[m] = goalsGroupMap(m));
   const curTot = monthMaps[curMonth];
   const merged = mergeByStoreCat(SALES_HISTORY);
-  const companyCat = categoryTotals(merged);
-  const companyTotal = Object.values(companyCat).reduce((a,v)=>a+v.amount,0);
+  const comp = goalsCompanyPct(merged);
+  const companyCat = comp.all;
+  const companyTotal = comp.total;
   // 카테고리 열 순서 = 전사 매출 큰 순(엑셀 03/05시트와 동일)
   const cats = Object.keys(companyCat).filter(c=>companyCat[c].amount>0).sort((a,b)=>companyCat[b].amount-companyCat[a].amount);
-  const targetStores = Object.keys(STORE_MONTHLY_TARGETS).filter(s=>STORES.includes(s));
-  const missingMonths = {};
+  // 대상 매장 = 목표가 있고, 매장 목록에 있고, 합산되지 않는 대표 매장이며, **기준월에 영업한** 매장
+  const targetStores = Object.keys(STORE_MONTHLY_TARGETS)
+    .filter(s=>STORES.includes(s))
+    .filter(s=>!storeProfile(s).mergeSalesInto)
+    .filter(s=>storeActiveDays(s, curMonth).days > 0);
+  const closedStores = Object.keys(STORE_MONTHLY_TARGETS)
+    .filter(s=>STORES.includes(s) && !storeProfile(s).mergeSalesInto)
+    .filter(s=>storeActiveDays(s, curMonth).days <= 0)
+    .map(s=>`${s}(${storeStateBadge(s, curMonth)||'-'})`);
+  const missingMonths = {}, inactiveMonths = {};
   const rows = targetStores.map(s=>{
-    const target = STORE_MONTHLY_TARGETS[s];
+    const target = groupMonthlyTarget(s);
     const actual = curTot.map[s] || 0;
-    const proratedTarget = target*(elapsedDays/daysInMonth);
+    // 진행 중인 달의 목표는 "경과일" 그리고 "그 달 실제 영업일"을 함께 반영한다.
+    const ta = storeMonthTarget(s, curMonth, target, elapsedDays);
+    const proratedTarget = ta.target;
     const pct = proratedTarget>0 ? actual/proratedTarget*100 : 0;
     const monthActual = months.map(m=> monthMaps[m].map[s] || 0);
-    const miss = months.filter((m,i)=> m!==curMonth && monthActual[i]<=0).map(mLbl);
+    const monthState = months.map(m=> storeActiveDays(s, m, m===curMonth?elapsedDays:null));
+    const miss = months.filter((m,i)=> m!==curMonth && monthState[i].days>0 && monthActual[i]<=0).map(mLbl);
+    const inact = months.filter((m,i)=> monthState[i].days<=0).map(m=>`${mLbl(m)}(${monthState[months.indexOf(m)].state==="before"?"미오픈":"폐점"})`);
     if(miss.length) missingMonths[s] = miss.join("·");
-    const storeCat = categoryTotalsFiltered(merged, s);
+    if(inact.length) inactiveMonths[s] = inact.join("·");
+    const storeCat = goalsGroupCat(merged, s);
     const storeCatTotal = Object.values(storeCat).reduce((a,v)=>a+v.amount,0);
-    return { store:s, target, actual, proratedTarget, pct, dev: pct/100 - 1, monthActual,
+    return { store:s, label:storeGroupLabel(s), members:storeGroupMembers(s),
+             target, actual, proratedTarget, pct, dev: pct/100 - 1, monthActual, monthState,
+             activeDays: ta.days, monthDays: ta.dim, stateBadge: storeStateBadge(s, curMonth),
+             fresh: storeHandlesFresh(s), freshLabel: storeFreshLabel(s),
              cum: goalsCumulative(s, months, curMonth),
              diag: goalsCategoryDiagnosis(s),
              hist: goalsMonthlyHistory(s, months, curMonth),
@@ -5027,11 +5310,257 @@ function goalsBuildContext(){
   rows.forEach((r,i)=> r.rank = i+1);
   const effRows = goalsCategoryEfficiency();
   const effMap = {}; effRows.forEach(e=> effMap[e.cat]=e);
-  return { months, curMonth, elapsedDays, daysInMonth, mLbl, monthMaps, curTot,
-           merged, companyCat, companyTotal, cats, rows, effRows, effMap, missingMonths };
+  const ctx = { months, curMonth, elapsedDays, daysInMonth, mLbl, monthMaps, curTot,
+                merged, companyCat, companyTotal, companyPct: comp.pct, freshBasis: comp.freshBasis,
+                cats, rows, effRows, effMap, missingMonths, inactiveMonths, closedStores };
+  ctx.forecast = goalsForecast(ctx);
+  return ctx;
+}
+
+/* ================= 이번 달 예상 총매출 (요일·공휴일·행사·물건공급 반영) =================
+   방법 — 추정치를 "숫자 하나"로 던지지 않고, 근거와 불확실성을 함께 보여주는 것이 목적이다.
+   ① 이번 달 일별 실적 시계열을 만든다(매장별 매출 업로드는 날짜별 저장이라 그대로 쓴다).
+   ② 요일 계수: 가진 모든 일별 데이터에서 요일별 평균/전체평균을 낸다. 표본이 부족한 요일은 1.0.
+   ③ 공휴일 계수: 관측된 공휴일의 실적/기대 비율 평균. 표본이 2일 미만이면 1.0(미반영으로 표기).
+   ④ 남은 일자에 (요일계수 × 공휴일계수)를 곱해 더한다. 기준 일매출 수준은 관측일로 역산한다.
+   ⑤ 물건 공급 보정: 이번 달 하루 평균 출고 PLT ÷ 직전 달들 하루 평균 PLT 을 구해,
+      남은 기간에만 절반 가중(0.5)으로 반영한다 — 공급이 매출을 100% 결정하지는 않기 때문.
+   ⑥ 신뢰구간: 관측 일별 잔차(실적/기대 − 1)의 표준편차로 남은 기간 합의 표준편차를 구하고,
+      과거 달을 같은 경과일에서 예측해 본 백테스트 오차(MAPE)와 비교해 **큰 쪽**을 ± 로 쓴다.
+      관측일이 5일 미만이면 신뢰도 "낮음"으로 표시하고 단순 일할 환산으로 대체한다. */
+function goalsDailySeries(ym){
+  // {일(1~31) -> 그 날 매출}. 두 소스 중 **날짜 개수가 많은 쪽**을 쓴다.
+  // ★ 여기서 금액 합계가 큰 쪽을 고르면 안 된다(첫 구현의 버그): 카테고리별 매출 파일은 한 날짜에
+  //   기간 전체 금액이 들어오는 경우가 있어서, 그걸 "하루 매출"로 잡으면 남은 날에 곱해져
+  //   예상액이 수십 배로 튄다(검증에서 4.6억 → 1,627억으로 튀는 것을 확인하고 잡았다).
+  //   일별 시계열의 자격은 "금액 크기"가 아니라 "서로 다른 날짜가 충분히 많은지"다.
+  const bill = {}, real = {};
+  STORE_SALES_HISTORY.filter(h=>h.date.slice(0,7)===ym).forEach(h=>{
+    const v = Object.values(h.byStore||{}).reduce((a,x)=>a+x,0) + num(h.noStore);
+    if(v>0) bill[Number(h.date.slice(8,10))] = (bill[Number(h.date.slice(8,10))]||0) + v;
+  });
+  SALES_HISTORY.filter(h=>h.date.slice(0,7)===ym).forEach(h=>{
+    let v=0; const bsc=h.byStoreCat||{};
+    Object.keys(bsc).forEach(st=>Object.keys(bsc[st]).forEach(c=> v+=bsc[st][c].amount||0));
+    if(v>0) real[Number(h.date.slice(8,10))] = (real[Number(h.date.slice(8,10))]||0) + v;
+  });
+  const nb = Object.keys(bill).length, nr = Object.keys(real).length;
+  const pick = nb >= nr ? {series:bill, source:"청구금액", days:nb} : {series:real, source:"실매출액", days:nr};
+  // 서로 다른 날짜가 8일 미만이면 "일별 시계열"로 볼 수 없다 → 예측에 쓰지 않는다.
+  pick.usable = pick.days >= 8;
+  return pick;
+}
+function goalsWeekdayFactors(excludeMonth){
+  // 요일별 계수. 가진 모든 달의 일별 데이터를 쓰되, 달마다 규모가 달라 "그 달 평균으로 정규화한 뒤" 모은다.
+  const buckets = [[],[],[],[],[],[],[]];
+  goalsAllMonths().forEach(ym=>{
+    if(excludeMonth && ym===excludeMonth) return;   // 백테스트용: 검증 대상 달은 학습에서 뺀다
+    const d0 = goalsDailySeries(ym);
+    if(!d0.usable) return;                          // 그 달 일별 표본이 너무 적으면 건너뜀
+    const series = d0.series;
+    const days = Object.keys(series).map(Number);
+    const plain = days.filter(d=> !holidayName(`${ym}-${String(d).padStart(2,'0')}`));
+    const base = plain.length ? plain.reduce((a,d)=>a+series[d],0)/plain.length : null;
+    if(!base) return;
+    plain.forEach(d=>{
+      const wd = new Date(`${ym}-${String(d).padStart(2,'0')}T00:00:00`).getDay();
+      buckets[wd].push(series[d]/base);
+    });
+  });
+  const f = buckets.map(b=> b.length>=2 ? b.reduce((a,v)=>a+v,0)/b.length : null);
+  const known = f.filter(v=>v!=null);
+  const mean = known.length ? known.reduce((a,v)=>a+v,0)/known.length : 1;
+  const norm = f.map(v=> v==null ? 1 : v/(mean||1));
+  return { factors: norm, samples: buckets.map(b=>b.length), enough: known.length>=5 };
+}
+function goalsHolidayFactor(wf, excludeMonth){
+  const ratios = [];
+  goalsAllMonths().forEach(ym=>{
+    if(excludeMonth && ym===excludeMonth) return;   // 백테스트용
+    const d0 = goalsDailySeries(ym);
+    if(!d0.usable) return;
+    const series = d0.series;
+    const days = Object.keys(series).map(Number);
+    const plain = days.filter(d=> !holidayName(`${ym}-${String(d).padStart(2,'0')}`));
+    if(!plain.length) return;
+    const base = plain.reduce((a,d)=>a+series[d]/(wf.factors[new Date(`${ym}-${String(d).padStart(2,'0')}T00:00:00`).getDay()]||1),0)/plain.length;
+    if(!(base>0)) return;
+    days.filter(d=> holidayName(`${ym}-${String(d).padStart(2,'0')}`)).forEach(d=>{
+      const wd = new Date(`${ym}-${String(d).padStart(2,'0')}T00:00:00`).getDay();
+      ratios.push(series[d]/((wf.factors[wd]||1)*base));
+    });
+  });
+  if(ratios.length < 2) return { factor:1, samples:ratios.length, applied:false };
+  return { factor: ratios.reduce((a,v)=>a+v,0)/ratios.length, samples:ratios.length, applied:true };
+}
+function goalsSupplyRatio(ym){
+  // 하루 평균 출고 PLT: 이번 달 vs 직전 달들 평균. SUPPLY_HISTORY(센터 일별)를 쓴다.
+  const perDay = m => {
+    const rows = SUPPLY_HISTORY.filter(h=>String(h.date).slice(0,7)===m);
+    if(!rows.length) return null;
+    const tot = rows.reduce((a,h)=>a+num(h.total),0);
+    const days = new Set(rows.map(h=>h.date)).size;
+    return days>0 ? tot/days : null;
+  };
+  const cur = perDay(ym);
+  const prevs = goalsAllMonths().filter(m=>m<ym).slice(-3).map(perDay).filter(v=>v!=null);
+  if(cur==null || !prevs.length) return { ratio:1, applied:false, cur, prev:null };
+  const prev = prevs.reduce((a,v)=>a+v,0)/prevs.length;
+  if(!(prev>0)) return { ratio:1, applied:false, cur, prev:null };
+  // 극단값 방지: 0.7~1.3 로 제한하고, 절반만 반영한다.
+  const raw = cur/prev;
+  const clamped = Math.max(0.7, Math.min(1.3, raw));
+  return { ratio: 1 + (clamped-1)*0.5, rawRatio: raw, applied:true, cur, prev };
+}
+// 어떤 달을 "cutDay일까지 관측했다"고 가정해 그 달 총액을 예측한다(백테스트에도 같은 함수를 쓴다).
+function goalsForecastMonthAt(ym, cutDay, wf, hf, supply){
+  const d0 = goalsDailySeries(ym);
+  const series = d0.series, source = d0.source;
+  const dim = goalsDaysInMonth(ym);
+  const dstr = d => `${ym}-${String(d).padStart(2,'0')}`;
+  const w = d => {
+    const wd = new Date(dstr(d)+"T00:00:00").getDay();
+    const hol = holidayName(dstr(d));
+    return (wf.factors[wd]||1) * (hol && hf.applied ? hf.factor : 1);
+  };
+  const obs = Object.keys(series).map(Number).filter(d=>d<=cutDay).sort((a,b)=>a-b);
+  if(!obs.length) return null;
+  const coverage = cutDay>0 ? obs.length/cutDay : 0;   // 경과일 중 실제로 업로드된 비율
+  const actual = obs.reduce((a,d)=>a+series[d],0);
+  const wObs = obs.reduce((a,d)=>a+w(d),0);
+  if(!(wObs>0)) return null;
+  const level = actual/wObs;                       // 가중 1단위당 매출 수준
+  const remaining = [];
+  for(let d=1; d<=dim; d++) if(!obs.includes(d) && d>cutDay) remaining.push(d);
+  const missedEarly = [];                          // cutDay 이전인데 업로드가 없는 날(누락)
+  for(let d=1; d<=cutDay; d++) if(!obs.includes(d)) missedEarly.push(d);
+  const wRem = remaining.reduce((a,d)=>a+w(d),0) + missedEarly.reduce((a,d)=>a+w(d),0);
+  const sup = supply ? supply.ratio : 1;
+  const forecastRest = level*wRem*sup;
+  // 잔차 표준편차 → 남은 기간 합의 표준편차
+  const res = obs.map(d=> series[d]/(level*w(d)) - 1);
+  const sd = res.length>=3 ? Math.sqrt(res.reduce((a,v)=>a+v*v,0)/(res.length-1)) : 0.25;
+  const wRemSq = Math.sqrt(remaining.concat(missedEarly).reduce((a,d)=>a+Math.pow(w(d),2),0));
+  const sigma = level*sd*wRemSq*sup;
+  return { total: actual+forecastRest, actual, forecastRest, level, sigma, sd, coverage, usable:d0.usable,
+           obsDays:obs.length, remainDays:remaining.length, missedEarly, source, dim, w,
+           holidaysRemaining: remaining.filter(d=>holidayName(dstr(d))).map(d=>({date:dstr(d), name:holidayName(dstr(d))})) };
+}
+function goalsForecast(ctx){
+  const ym = ctx.curMonth;
+  const wf = goalsWeekdayFactors();
+  const hf = goalsHolidayFactor(wf);
+  const supply = goalsSupplyRatio(ym);
+  const f = goalsForecastMonthAt(ym, ctx.elapsedDays, wf, hf, supply);
+  if(!f) return null;
+  // 백테스트: 과거 달을 같은 경과일에서 예측해 실제와 비교 → 오차율
+  const back = [];
+  ctx.months.filter(m=>m!==ym).forEach(m=>{
+    const d0 = goalsDailySeries(m);
+    // 검증에 쓰려면 그 달이 거의 다 채워져 있어야 한다(정답을 알아야 하므로).
+    if(d0.days < goalsDaysInMonth(m)-2) return;
+    // ★ 검증 대상 달을 학습에서 빼고(leave-one-out) 계수를 다시 추정한다.
+    //   같은 달로 요일계수를 만든 뒤 그 달을 예측하면 오차가 실제보다 작게 나와(in-sample)
+    //   "±0.1%" 같은 비현실적으로 좁은 구간을 내놓는다 — 검증에서 실제 오차 0.58%가
+    //   ±0.1% 밖으로 벗어나는 것을 확인하고 이렇게 바꿨다.
+    const wfx = goalsWeekdayFactors(m);
+    const hfx = goalsHolidayFactor(wfx, m);
+    const est = goalsForecastMonthAt(m, ctx.elapsedDays, wfx, hfx, null);
+    const truth = Object.values(d0.series).reduce((a,v)=>a+v,0);
+    if(est && truth>0) back.push({ month:m, err:(est.total-truth)/truth });
+  });
+  const abs = back.map(b=>Math.abs(b.err));
+  const mape = abs.length ? abs.reduce((a,v)=>a+v,0)/abs.length : null;
+  // 보수적으로: 평균 절대오차 + 표준편차(≈상위 16% 수준)까지 본다. 관측 표본이 1개면 그 값의 1.5배.
+  const bsd = abs.length>=2 ? Math.sqrt(abs.reduce((a,v)=>a+Math.pow(v-mape,2),0)/(abs.length-1)) : 0;
+  const backBand = abs.length ? (abs.length>=2 ? mape+bsd : mape*1.5) : null;
+  const relModel = f.total>0 ? f.sigma/f.total : null;
+  // 하한(floor): 아무리 잘 맞아도 한 달 뒤 매출을 ±1% 안으로 맞힌다고 말할 근거는 없다.
+  //  · 잔여일이 많을수록, 커버리지가 낮을수록 하한을 키운다.
+  const floor = 0.010 + 0.004*Math.max(0, f.remainDays) + (f.coverage<0.9 ? 0.02 : 0);
+  const rel = Math.max(relModel||0, backBand||0, floor);
+  // 신뢰도 등급: 관측일 수 · 요일계수 표본 · 백테스트 유무로 판단(과장하지 않는다)
+  let grade, gradeWhy;
+  if(!f.usable || f.obsDays < 8){ grade="낮음"; gradeWhy=`이번 달 서로 다른 업로드 날짜가 ${f.obsDays}일뿐 — 요일·공휴일 효과를 신뢰하기 어렵습니다`; }
+  else if(f.coverage < 0.6){ grade="낮음"; gradeWhy=`경과 ${ctx.elapsedDays}일 중 ${f.obsDays}일만 업로드(커버리지 ${(f.coverage*100).toFixed(0)}%) — 빠진 날을 예측치로 채웠습니다`; }
+  else if(!wf.enough){ grade="보통"; gradeWhy="요일 계수 표본이 부족해 요일 효과를 일부만 반영"; }
+  else if(back.length===0){ grade="보통"; gradeWhy="과거 달 일별 데이터가 없어 백테스트 검증을 못 함"; }
+  else if(mape!=null && mape<=0.05){ grade="높음"; gradeWhy=`과거 ${back.length}개월을 학습에서 빼고 같은 경과일에서 예측해 본 평균오차 ${(mape*100).toFixed(1)}%`; }
+  else { grade="보통"; gradeWhy=`과거 ${back.length}개월 검증 평균오차 ${mape!=null?(mape*100).toFixed(1)+'%':'-'} — 편차가 커 구간을 넓게 잡았습니다`; }
+  const targetSum = ctx.rows.reduce((a,r)=> a + r.target*(r.activeDays>0? (storeActiveDays(r.store,ym).days/storeActiveDays(r.store,ym).dim) : 0), 0);
+  return { ...f, wf, hf, supply, back, mape, backBand, floor, relModel, rel, grade, gradeWhy, targetSum,
+           lo: f.total*(1-rel), hi: f.total*(1+rel) };
 }
 
 /* ---------------- 01_요약 · 방법론 ---------------- */
+/* ---------------- 이번 달 예상 총매출 카드 ---------------- */
+function goalsForecastCardHtml(ctx){
+  const f = ctx.forecast;
+  const won = v => Math.round(v).toLocaleString();
+  const eok = v => (v/100000000).toFixed(2)+"억";
+  const ym = ctx.curMonth;
+  const spInput = `<input type="text" id="goalsSpecialDays" placeholder="예: 2026-08-28, 2026-08-30" value="${escHtml(SPECIAL_DAYS[ym]||"")}" style="width:100%;max-width:340px;">`;
+  if(!f){
+    return `<div class="g-fc-card"><div class="g-fc-hd">${ctx.mLbl(ym)} 예상 총매출</div>
+      <div class="g-fc-empty">이번 달 일별 매출이 아직 업로드되지 않아 예측할 수 없습니다. <b>매장별 매출 업로드(일자별)</b>로 이 달 파일을 올려주세요.</div>
+      <div class="g-fc-row"><span class="k">추가 휴일·행사일</span><span class="v">${spInput}</span></div></div>`;
+  }
+  const relPct = (f.rel*100).toFixed(1);
+  const modelPct = f.total>0 ? (f.sigma/f.total*100).toFixed(1) : "-";
+  const gradeCls = f.grade==="높음" ? "ok" : (f.grade==="보통" ? "mid" : "low");
+  const vsTarget = f.targetSum>0 ? (f.total/f.targetSum*100) : null;
+  const WD = ["일","월","화","수","목","금","토"];
+  const wdRow = f.wf.factors.map((v,i)=>{
+    const cls = v>=1.05?"hi":(v<=0.95?"lo":"");
+    return `<div class="g-fc-wd ${cls}"><span class="d">${WD[i]}</span><span class="v">${v.toFixed(2)}</span><span class="n">${f.wf.samples[i]}일</span></div>`;
+  }).join("");
+  const holList = f.holidaysRemaining.length
+    ? f.holidaysRemaining.map(h=>`${h.date.slice(5)} ${escHtml(h.name)}`).join(" · ")
+    : "남은 기간에 공휴일 없음";
+  const evTxt = (EVENTS_COMMON[ym]||"").trim();
+  const backTxt = f.back.length
+    ? f.back.map(b=>`${ctx.mLbl(b.month)} ${(b.err>=0?"+":"")}${(b.err*100).toFixed(1)}%`).join(" · ")
+    : "과거 달 일별 데이터가 없어 검증 불가";
+  const supTxt = f.supply.applied
+    ? `이번 달 하루 평균 출고 ${f.supply.cur.toFixed(1)} PLT vs 직전 평균 ${f.supply.prev.toFixed(1)} PLT (원비율 ${(f.supply.rawRatio*100).toFixed(0)}% → 절반만 반영해 ×${f.supply.ratio.toFixed(3)})`
+    : "출고 일별 데이터가 부족해 공급 보정 미적용 (×1.000)";
+  const holFactorTxt = f.hf.applied
+    ? `공휴일 계수 ×${f.hf.factor.toFixed(2)} (관측 공휴일 ${f.hf.samples}일에서 추정)`
+    : `공휴일 계수 미적용 — 관측된 공휴일이 ${f.hf.samples}일뿐이라 추정 불가(×1.00). 공휴일 매출이 평일과 다르면 오차 요인입니다`;
+  const missTxt = f.missedEarly.length ? ` · 경과일 중 업로드 누락 ${f.missedEarly.length}일(${f.missedEarly.join(",")})은 예측치로 채움` : "";
+  return `<div class="g-fc-card">
+    <div class="g-fc-hd">${ctx.mLbl(ym)} 예상 총매출 <span class="g-fc-grade ${gradeCls}">신뢰도 ${f.grade}</span></div>
+    <div class="g-fc-main">
+      <div class="g-fc-big">
+        <div class="lbl">예상 총매출 (월 마감 기준)</div>
+        <div class="val">${won(f.total)}<span class="w">원</span></div>
+        <div class="ci">± ${relPct}% · 범위 ${eok(f.lo)} ~ ${eok(f.hi)}</div>
+      </div>
+      <div class="g-fc-sub">
+        <div class="row"><span class="k">확정 실적 (${ctx.elapsedDays}일)</span><span class="v">${won(f.actual)}원</span></div>
+        <div class="row"><span class="k">잔여 ${f.remainDays}일 예상</span><span class="v">${won(f.forecastRest)}원</span></div>
+        <div class="row"><span class="k">전사 월 목표</span><span class="v">${won(f.targetSum)}원</span></div>
+        <div class="row"><span class="k">예상 달성률</span><span class="v ${vsTarget!=null&&vsTarget>=100?'pos':'neg'}">${vsTarget!=null?vsTarget.toFixed(1)+"%":"-"}</span></div>
+      </div>
+    </div>
+    <div class="g-fc-wdwrap"><div class="t">요일 계수 (전체 평균=1.00 · 아래 숫자는 표본 일수)</div><div class="g-fc-wdrow">${wdRow}</div></div>
+    <div class="g-fc-rows">
+      <div class="g-fc-row"><span class="k">계산 방식</span><span class="v">관측 ${f.obsDays}일의 (요일계수×공휴일계수) 가중합으로 하루 매출 수준을 역산한 뒤, 남은 ${f.remainDays}일에 같은 계수를 곱해 더했습니다. 금액 소스는 <b>${escHtml(f.source)}</b>${missTxt}</span></div>
+      <div class="g-fc-row"><span class="k">공휴일</span><span class="v">${escHtml(holList)} · ${holFactorTxt}</span></div>
+      <div class="g-fc-row"><span class="k">물건 공급</span><span class="v">${escHtml(supTxt)}</span></div>
+      <div class="g-fc-row"><span class="k">행사</span><span class="v">${evTxt?escHtml(evTxt):"이 달 공통 행사 메모가 비어 있습니다 — '매장별 매출' 탭의 행사 입력칸에 넣으면 여기에 표시됩니다. (행사 효과는 아래 '추가 휴일·행사일'에 날짜를 넣으면 공휴일 계수와 같은 방식으로 반영됩니다)"}</span></div>
+      <div class="g-fc-row"><span class="k">± 근거</span><span class="v">세 값 중 <b>가장 큰 값</b>을 씁니다 — ① 일별 잔차 표준편차 ${(f.sd*100).toFixed(1)}%에서 나온 모델 오차 ±${modelPct}% ② 검증오차 상단 ±${f.backBand!=null?(f.backBand*100).toFixed(1):"-"}% (leave-one-out ${backTxt}${f.mape!=null?` · 평균 ${(f.mape*100).toFixed(1)}%`:""}) ③ 하한 ±${(f.floor*100).toFixed(1)}% (잔여 ${f.remainDays}일·커버리지 ${(f.coverage*100).toFixed(0)}% 반영) → <b>±${relPct}%</b>. ${escHtml(f.gradeWhy)}</span></div>
+      <div class="g-fc-row"><span class="k">추가 휴일·행사일</span><span class="v">${spInput}<span style="display:block;font-size:11px;color:var(--muted2);margin-top:3px;">임시공휴일·대형 행사일을 쉼표로 넣으면 공휴일과 같은 계수로 처리합니다. 2026년 법정공휴일은 이미 반영되어 있습니다.</span></span></div>
+    </div>
+  </div>`;
+}
+function wireGoalsForecast(){
+  const el = document.getElementById("goalsSpecialDays");
+  if(!el) return;
+  el.onchange = ()=>{ SPECIAL_DAYS[goalsBuildContextMonth()] = el.value.trim(); saveState(); renderGoals(); };
+}
+function goalsBuildContextMonth(){ const ms = goalsAllMonths(); return ms.length ? ms[ms.length-1] : ""; }
+
 function goalsRender01(ctx){
   const totalTarget = ctx.rows.reduce((a,r)=>a+r.proratedTarget,0);
   const totalActual = ctx.rows.reduce((a,r)=>a+r.actual,0);
@@ -5064,9 +5593,13 @@ function goalsRender01(ctx){
       ${statCard("위험군 (달성률 65% 미만)", dangerCnt+" / "+ctx.rows.length, [goalsLine("우선 대응 필요")])}
       ${statCard("경고 매장 (편차 -20%↓)", warnCnt+" / "+ctx.rows.length, [goalsLine("사유서 누적위험 구간")])}
     </div>
+    ${goalsForecastCardHtml(ctx)}
     ${donutHtml}
     <div class="g-note-card">
       <h4>데이터 기준</h4>
+      <div class="g-note-row"><span class="k">· 매장 단위</span><span class="v">기흥 패션관은 기흥점과 같은 매장이므로 <b>기흥점에 합산</b>해 하나의 행으로 봅니다(월 목표도 합산). 패션관광주점은 별도 매장으로 유지합니다.</span></div>
+      <div class="g-note-row"><span class="k">· 오픈 / 폐점</span><span class="v">제주서귀포점 <b>2026-02 오픈</b> → 1월은 결측이 아니라 영업 전으로 처리(누적목표에서 제외). 광주점 <b>2026-08-23 영업 종결</b> → 8월 목표는 23/31일치만 인정하고 9월부터 대상 제외.${ctx.closedStores.length?` 현재 기준월 대상 제외: ${escHtml(ctx.closedStores.join(", "))}`:""}</span></div>
+      <div class="g-note-row"><span class="k">· 신선식품 취급</span><span class="v">식품(냉장·냉동·상온) 운영 매장이 매장별로 다릅니다. 신선 미취급 매장(대소점·제주서귀포점·원주점)은 신선식품 진단 대상에서 빼고, <b>전사 신선 평균 구성비는 취급 매장만</b>을 분모로 계산합니다${ctx.freshBasis?"":" (단, 현재 신선 취급 매장 매출이 0이라 전사 평균으로 대체)"}.</span></div>
       <div class="g-note-row"><span class="k">· 목표매출</span><span class="v">코드 상단 <code>STORE_MONTHLY_TARGETS</code>에 고정 입력된 <b>월 목표</b>(${ctx.rows.length}개 매장). 목표가 바뀌면 이 객체만 수정하면 전 시트에 반영됩니다.</span></div>
       <div class="g-note-row"><span class="k">· 실적 / 카테고리</span><span class="v">이 사이트에 업로드된 매출 데이터 — 금액은 청구금액(${escHtml(ctx.curTot.source)}) 기준, 카테고리 구성은 상품별 매출현황의 대분류 기준</span></div>
       <div class="g-note-row"><span class="k">· ${cm} 데이터 범위</span><span class="v">${ctx.curMonth}-01 ~ ${ctx.curMonth}-${String(ctx.elapsedDays).padStart(2,'0')} (${ctx.elapsedDays}일 / ${ctx.daysInMonth}일, 월 마감 전)</span></div>
@@ -5112,9 +5645,13 @@ function goalsRender02(ctx){
     const band = goalsIncentiveBand(r.dev);
     const monthTd = r.monthActual.map((v,i)=>{
       const m = ctx.months[i];
+      const st = r.monthState[i];
+      // 15차: 오픈 전/폐점 후 달은 "결측"이 아니라 영업하지 않은 달이다 — 구분해서 표시한다.
+      if(st.days<=0) return `<td title="${m} ${st.state==="before"?"오픈 전":"폐점 후"}"><span class="num" style="color:var(--muted2);font-size:10px;">${st.state==="before"?"미오픈":"폐점"}</span></td>`;
       if(v<=0 && m!==ctx.curMonth) return `<td title="${m} 데이터 없음"><span class="num" style="color:var(--muted2)">결측</span></td>`;
-      const t = (m===ctx.curMonth) ? r.proratedTarget : r.target;
-      return `<td style="${goalsHeatBg(t>0 ? (v/t)/1.2 : null)}" title="${m} 달성률 ${t>0?(v/t*100).toFixed(1):'-'}%"><span class="num">${Math.round(v).toLocaleString()}</span></td>`;
+      const t = r.target*(st.days/st.dim);   // 오픈월·폐점월·진행중인 달은 영업일수 비례 목표
+      const partial = st.state==="partial" ? ` · 영업 ${st.days}/${st.dim}일 비례 목표` : "";
+      return `<td style="${goalsHeatBg(t>0 ? (v/t)/1.2 : null)}" title="${m} 달성률 ${t>0?(v/t*100).toFixed(1):'-'}%${partial}"><span class="num">${Math.round(v).toLocaleString()}${st.state==="partial"?'<sup style="color:var(--amber)">*</sup>':''}</span></td>`;
     }).join("");
     const cumTd = (r.cum && !r.cum.gap)
       ? `<td><span class="num">${Math.round(r.cum.actualCum).toLocaleString()}</span></td>
@@ -5123,9 +5660,15 @@ function goalsRender02(ctx){
       : `<td><span class="num">${r.cum?Math.round(r.cum.actualCum).toLocaleString():''}</span></td>
          <td colspan="2" style="font-size:10.5px;color:var(--muted2);white-space:nowrap;">결측으로 산출 제외</td>`;
     const recent = (r.hist && r.hist.recent3!=null) ? r.hist.recent3.toFixed(1)+"%" : "-";
-    const note = ctx.missingMonths[r.store] ? `월별 실적 결측(${ctx.missingMonths[r.store]}) — 누적목표/누적격차 산출 제외` : "";
+    const notes = [];
+    if(ctx.inactiveMonths[r.store]) notes.push(`영업 전/폐점 월 제외(${ctx.inactiveMonths[r.store]})`);
+    if(ctx.missingMonths[r.store]) notes.push(`월별 실적 결측(${ctx.missingMonths[r.store]}) — 누적목표/누적격차 산출 제외`);
+    if(r.stateBadge) notes.push(r.stateBadge);
+    if(r.activeDays < Math.min(ctx.elapsedDays, r.monthDays)) notes.push(`${ctx.mLbl(ctx.curMonth)} 영업 ${r.activeDays}일 기준 목표`);
+    if(!r.fresh) notes.push("신선식품 미취급 매장");
+    const note = notes.join(" · ");
     return `<tr>
-      <td title="${escHtml(r.store)}">${escHtml(r.store)}</td>
+      <td title="${escHtml(r.label)}${r.freshLabel?" · "+escHtml(r.freshLabel):""}">${escHtml(r.label)}${r.stateBadge?` <span style="font-size:9.5px;color:var(--amber);">${escHtml(r.stateBadge)}</span>`:""}${!r.fresh?` <span style="font-size:9.5px;color:var(--muted2);" title="냉장·냉동 미취급">신선X</span>`:""}</td>
       <td><span class="num">${r.target.toLocaleString()}</span></td>
       ${monthTd}
       ${cumTd}
@@ -5156,13 +5699,17 @@ function goalsRender02(ctx){
       const tier = goalsTier(r.pct);
       const c = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--info)":tier.cls==="g-tier-warn"?"var(--amber)":"var(--red)";
       return `<div class="g-rank-row"><span class="g-rank-num">${r.rank}</span>
-        <span class="g-rank-name" title="${escHtml(r.store)}">${escHtml(r.store)}</span>
+        <span class="g-rank-name" title="${escHtml(r.label)}">${escHtml(r.label)}</span>
         <div class="mini-bar" style="flex:1;"><div class="mini-bar-fill" style="width:${Math.min(100,r.pct).toFixed(1)}%;background:${c}"></div></div>
         <span class="g-rank-pct">${r.pct.toFixed(1)}%</span></div>`;
     }).join("")}</div>`;
 
+  const fc = ctx.forecast;
+  const fcLine = fc ? `<div class="g-tbl-sub" style="color:var(--amber);">${ctx.mLbl(ctx.curMonth)} 예상 총매출 <b>${Math.round(fc.total).toLocaleString()}원</b> (±${(fc.rel*100).toFixed(1)}% · 신뢰도 ${fc.grade}) — 확정 ${Math.round(fc.actual).toLocaleString()}원 + 잔여 ${fc.remainDays}일 ${Math.round(fc.forecastRest).toLocaleString()}원. 근거는 01 요약 탭 참고</div>` : "";
   return `<div class="g-tbl-title">매장별 월 목표 대비 실적 · 누적 격차 · 인센티브 구간</div>
-    <div class="g-tbl-sub">달성률 낮은 순 정렬 · 월별 칸의 색은 그 달의 목표 달성률(붉을수록 미달) · '결측'은 그 달 매출 원본이 업로드되지 않은 경우로, 0원이 아니라 데이터 없음을 뜻합니다</div>
+    ${fcLine}
+    <div class="g-tbl-sub">달성률 낮은 순 정렬 · 월별 칸의 색은 그 달의 목표 달성률(붉을수록 미달) · <b>'결측'</b>은 그 달 매출 원본이 업로드되지 않은 경우(0원이 아니라 데이터 없음), <b>'미오픈/폐점'</b>은 그 달 영업하지 않은 경우로 목표에서 아예 제외됩니다 · <sup style="color:var(--amber)">*</sup>는 오픈월·폐점월로 영업일수 비례 목표를 적용한 달</div>
+    <div class="g-tbl-sub">기흥점은 기흥 패션관을 합산한 값(월 목표도 합산)입니다 · '신선X'는 냉장·냉동 미취급 매장</div>
     <table class="g-tbl">${head}<tbody>${body}</tbody>${foot}</table>
     ${rankList}`;
 }
@@ -5175,7 +5722,7 @@ function goalsRender03(ctx){
   const companyPct = {}; ctx.cats.forEach(c=> companyPct[c] = ctx.companyTotal>0 ? ctx.companyCat[c].amount/ctx.companyTotal*100 : 0);
 
   // A. 매출액
-  const bodyA = ctx.rows.map(r=>`<tr><td>${escHtml(r.store)}</td>${
+  const bodyA = ctx.rows.map(r=>`<tr><td>${escHtml(r.label)}</td>${
       ctx.cats.map(c=>{ const v=amtOf(r,c); return `<td style="${goalsHeatAmber(v/maxAmt)}"><span class="num">${v?Math.round(v).toLocaleString():''}</span></td>`; }).join("")
     }<td class="total-col"><span class="num">${Math.round(r.storeCatTotal).toLocaleString()}</span></td></tr>`).join("");
   const footA = `<tfoot>
@@ -5184,13 +5731,13 @@ function goalsRender03(ctx){
     </tfoot>`;
 
   // B. 구성비 %
-  const bodyB = ctx.rows.map(r=>`<tr><td>${escHtml(r.store)}</td>${
+  const bodyB = ctx.rows.map(r=>`<tr><td>${escHtml(r.label)}</td>${
       ctx.cats.map(c=>{ const p = r.storeCatTotal>0 ? amtOf(r,c)/r.storeCatTotal*100 : 0;
         return `<td style="${goalsHeatAmber(p/60)}"><span class="num">${p>0?p.toFixed(1)+'%':''}</span></td>`; }).join("")
     }<td class="total-col"><span class="num">100.0%</span></td></tr>`).join("");
 
   // C. 격차 %p (매장 구성비 - 전사 구성비)
-  const bodyC = ctx.rows.map(r=>`<tr><td>${escHtml(r.store)}</td>${
+  const bodyC = ctx.rows.map(r=>`<tr><td>${escHtml(r.label)}</td>${
       ctx.cats.map(c=>{ const p = r.storeCatTotal>0 ? amtOf(r,c)/r.storeCatTotal*100 : 0;
         const d = p - companyPct[c];
         return `<td style="${goalsHeatDiff(d, 30)}"><span class="num">${(d>=0?'+':'')+d.toFixed(1)}</span></td>`; }).join("")
@@ -5217,7 +5764,7 @@ function goalsRender04(ctx){
     Object.keys(r.storeCat).forEach(c=>{ const p = pctOf(c); if(p>top.pct) top = {cat:c, pct:p}; });
     const st = r.diag ? r.diag.strength : null, op = r.diag ? r.diag.opportunity : null;
     return `<tr>
-      <td>${escHtml(r.store)}</td>
+      <td>${escHtml(r.label)}</td>
       <td>${escHtml(top.cat)}</td>
       <td style="${goalsHeatAmber(top.pct/80)}"><span class="num">${top.pct.toFixed(1)}%</span></td>
       <td>${st?escHtml(st.cat):'-'}</td>
@@ -5251,6 +5798,8 @@ function goalsRender05(ctx){
     let note = "";
     if(topAmt && r.cat===topAmt.cat) note = "전사 매출 최대 비중";
     if(topPerPlt && r.cat===topPerPlt.cat) note = "PLT당 매출 최상위 — 공급 확대 시 매출 레버리지 큼";
+    // 신선식품은 전 매장이 취급하는 게 아니다 — 확대 여지를 볼 때 취급 매장 수를 함께 밝힌다.
+    if(r.freshOnly) note = (note?note+" · ":"") + `취급 매장 ${r.storeCnt}개 기준 (냉장·냉동 미취급 매장 제외)`;
     return `<tr>
       <td>${escHtml(r.cat)}</td>
       <td><span class="num">${Math.round(r.amount).toLocaleString()}</span></td>
@@ -5302,6 +5851,11 @@ function goalsEffBarsHtml(effRows){
 
 /* ---------------- 06_매장별실행방안 ---------------- */
 function goalsRender06(ctx){
+  // 15차 레이아웃 재구성: 예전에는 카드 하나에 문장 4개 + 월별 스트립 + 카테고리 격차표(카테고리 20여 개)
+  // + 도넛이 세로로 줄줄이 쌓여 한 매장 카드가 화면 몇 개 높이가 됐고, 매장을 비교하기 어려웠다.
+  //  · 위쪽은 "한눈에 보는 숫자 줄"(달성률 게이지 · 실적/목표 · 편차 · 누적 · 인센티브)
+  //  · 그 아래를 2단(좌: 진단 문장 + 월별 추이 / 우: 카테고리 구성 도넛+상위 막대)으로 나눔
+  //  · 카테고리 전체 격차표는 <details>로 접어 필요할 때만 펼침
   const cm = ctx.mLbl(ctx.curMonth);
   const tiers = [
     {key:"t1", title:`① 최우선 대응군 (${cm} 달성률 65% 미만 — 즉시 개선 필요)`, test:r=>r.pct<65},
@@ -5309,38 +5863,68 @@ function goalsRender06(ctx){
     {key:"t3", title:`③ 목표 근접군 (${cm} 달성률 80~95%)`,                     test:r=>r.pct>=80 && r.pct<95},
     {key:"t4", title:`④ 목표 달성 우수군 (${cm} 달성률 95% 이상)`,               test:r=>r.pct>=95},
   ];
+  const won = v => Math.round(v).toLocaleString();
   return tiers.map(t=>{
     const list = ctx.rows.filter(t.test);
     if(!list.length) return `<div class="g-tier-group"><div class="g-tier-hd ${t.key}">${escHtml(t.title)}<span class="cnt">해당 매장 없음</span></div></div>`;
     const cards = list.map(r=>{
       const tier = goalsTier(r.pct);
       const band = goalsIncentiveBand(r.dev);
+      const gaugeColor = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--info)":tier.cls==="g-tier-warn"?"var(--amber)":"var(--red)";
+      const cumTxt = (r.cum && !r.cum.gap)
+        ? `${won(r.cum.actualCum)} / ${won(r.cum.targetCum)}원 (${r.cum.pct.toFixed(1)}%)`
+        : `결측으로 산출 제외`;
+      const cumDelta = (r.cum && !r.cum.gap)
+        ? `<span style="color:${r.cum.actualCum>=r.cum.targetCum?'var(--green)':'var(--red)'}">${r.cum.actualCum>=r.cum.targetCum?'+':'−'}${won(Math.abs(r.cum.actualCum-r.cum.targetCum))}원</span>`
+        : `<span style="color:var(--muted2)">${escHtml(ctx.missingMonths[r.store]||'-')}</span>`;
+      const kpis = [
+        {k:`${cm} 실적`,      v:`${won(r.actual)}원`},
+        {k:`${cm} 목표(일할)`, v:`${won(r.proratedTarget)}원`},
+        {k:"목표 대비 편차",   v:`<span style="color:${r.dev>=0?'var(--green)':'var(--red)'}">${(r.dev>=0?'+':'')+(r.dev*100).toFixed(1)}%</span>`},
+        {k:"인센티브 구간",   v:escHtml(band.label)},
+        {k:`누적 실적 / 목표 (${ctx.months.length}개월)`, v:cumTxt, wide:true},
+        {k:"누적 격차",       v:cumDelta, wide:true},
+      ].map(x=>`<div class="g-kpi${x.wide?' wide':''}"><span class="k">${x.k}</span><span class="v">${x.v}</span></div>`).join("");
       const catVisual = (r.diag && r.diag.chartData.length)
-        ? `<div class="g-store-cat">
-             <div class="pie-donut-only">${buildDonutSVG(r.diag.chartData, 108)}</div>
-             <div style="flex:1;min-width:180px;">${buildSharePercentBars(r.diag.chartData.slice(0,5), {compact:true})}</div>
-           </div>` : "";
-      const cumLine = (r.cum && !r.cum.gap)
-        ? `누적 실적 ${Math.round(r.cum.actualCum).toLocaleString()}원 / 누적 목표 ${Math.round(r.cum.targetCum).toLocaleString()}원 (${r.cum.pct.toFixed(1)}%)`
-        : `누적 비교: 과거 특정 월 데이터 결측(${ctx.missingMonths[r.store]||'-'})으로 산출 제외`;
-      return `<div class="g-store-card ${tier.cls}">
+        ? `<div class="g-store-catcol">
+             <div class="g-store-catt">카테고리 구성 (실매출액)</div>
+             <div class="pie-donut-only">${buildDonutSVG(r.diag.chartData, 124)}</div>
+             <div class="g-store-catbars">${buildSharePercentBars(r.diag.chartData.slice(0,6), {compact:true})}</div>
+           </div>`
+        : `<div class="g-store-catcol"><div class="g-store-catt">카테고리 매출 데이터 없음</div></div>`;
+      const freshTag = r.freshLabel
+        ? `<span class="g-store-tag ${r.fresh?'':'off'}" title="식품 운영 매장 현황(20260707 기준)">${escHtml(r.freshLabel)}</span>` : "";
+      const stateTag = r.stateBadge ? `<span class="g-store-tag warn">${escHtml(r.stateBadge)}</span>` : "";
+      const memberTag = r.members.length>1 ? `<span class="g-store-tag">${escHtml(r.members.slice(1).join("·"))} 합산</span>` : "";
+      return `<div class="g-store-card v2 ${tier.cls}">
         <div class="g-store-hd">
-          <span class="g-store-name">${escHtml(r.store)} <span class="g-store-rank">${ctx.rows.length}개 중 ${r.rank}위(낮은 순)</span></span>
-          <span class="g-store-badge">${tier.label} · ${r.pct.toFixed(1)}%</span>
+          <span class="g-store-name">${escHtml(r.label)}
+            <span class="g-store-rank">${ctx.rows.length}개 중 ${r.rank}위(낮은 순)</span>
+          </span>
+          <span class="g-store-gauge" title="${cm} 달성률 ${r.pct.toFixed(1)}%">
+            <span class="gg-track"><span class="gg-fill" style="width:${Math.min(100,r.pct).toFixed(1)}%;background:${gaugeColor}"></span></span>
+            <span class="gg-num" style="color:${gaugeColor}">${r.pct.toFixed(1)}%</span>
+          </span>
+          <span class="g-store-badge">${tier.label}</span>
         </div>
-        <div class="g-store-body">
-          <div>${cm} 실적 ${Math.round(r.actual).toLocaleString()}원 / 목표(일할) ${Math.round(r.proratedTarget).toLocaleString()}원 · 편차 ${(r.dev>=0?'+':'')+(r.dev*100).toFixed(1)}% · 인센티브 구간 <b>${escHtml(band.label)}</b></div>
-          <div>${cumLine}</div>
+        <div class="g-store-tags">${stateTag}${memberTag}${freshTag}</div>
+        <div class="g-kpi-grid">${kpis}</div>
+        <div class="g-store-split">
+          <div class="g-store-leftcol">
+            ${goalsNarrative(r, ctx)}
+            ${goalsMonthStripHtml(r.hist, ctx.curMonth)}
+          </div>
+          ${catVisual}
         </div>
-        ${goalsNarrative(r, ctx)}
-        ${goalsMonthStripHtml(r.hist, ctx.curMonth)}
-        ${goalsDiagTableHtml(r.diag)}
-        ${catVisual}
+        <details class="g-store-more">
+          <summary>카테고리 구성비 전체 — 전사 평균 대비 격차 ${r.diag?`(${r.diag.diffs.length}개)`:""}</summary>
+          ${goalsDiagTableHtml(r.diag)}
+        </details>
       </div>`;
     }).join("");
     return `<div class="g-tier-group">
       <div class="g-tier-hd ${t.key}">${escHtml(t.title)}<span class="cnt">${list.length}개 매장</span></div>
-      ${cards}
+      <div class="g-store-list">${cards}</div>
     </div>`;
   }).join("");
 }
@@ -5352,7 +5936,7 @@ function goalsRender07(ctx){
   const hdr = ctx.months.map(m=> m===ctx.curMonth
     ? `<th>${ctx.mLbl(m)}<br>(~${m.slice(5,7)}/${ctx.elapsedDays})</th>`
     : `<th>${ctx.mLbl(m)}</th>`).join("");
-  const body = ctx.rows.map(r=>`<tr><td>${escHtml(r.store)}</td>${
+  const body = ctx.rows.map(r=>`<tr><td>${escHtml(r.label)}</td>${
       ctx.months.map(m=>{ const p = pctMap[r.store][m];
         if(p==null) return `<td title="${m} 데이터 없음"><span class="num" style="color:var(--muted2)">결측</span></td>`;
         return `<td style="${goalsHeatBg((p/100)/1.2)}"><span class="num">${p.toFixed(1)}%</span></td>`; }).join("")
@@ -5443,6 +6027,7 @@ function renderGoals(){
   if(metas["05"]) metas["05"].textContent = `PLT당 매출 = 카테고리 매출 ÷ 출고 PLT (판매수량 아님)`;
   if(metas["06"]) metas["06"].textContent = `${base} · 달성률 4개 그룹 · 매장별 4문장 자동 진단`;
   if(metas["07"]) metas["07"].textContent = `${ctx.months[0]} ~ ${ctx.curMonth} · 결측 월은 0%가 아니라 '결측'으로 표기`;
+  wireGoalsForecast();
   selectGoalsSub(goalsSubTab);
 }
 function storeSalesActiveMap(){
