@@ -30,10 +30,32 @@
     font-family:"Inter",system-ui,"Malgun Gothic","맑은 고딕",sans-serif;
     min-height:100vh; -webkit-font-smoothing:antialiased;
   }
-  /* 15차: 1320px 고정폭이라 와이드 모니터에서 좌우가 크게 남았다 → 화면 폭을 그대로 쓴다.
-     아주 넓은 화면에서 글줄이 지나치게 길어지지 않도록 상한만 아주 크게 둔다. */
-  .wrap{max-width:2560px;width:100%;margin:0 auto;padding:16px clamp(10px,1.2vw,22px) 60px;}
+  /* 16차: 폭을 화면에 무조건 꽉 채우면(15차) 표는 시원한데 읽는 화면이 지나치게 늘어난다.
+     → 폭을 **모드**로 두고, 기본값 '자동'은 지금 보고 있는 화면에 맞춰 알아서 고른다.
+        좁게 1280 / 보통 1600 / 넓게 화면 전체. 선택은 이 브라우저에만 저장된다(공유 상태에 안 들어감). */
+  :root{ --wrapmax:1600px; }
+  html[data-w="narrow"]{ --wrapmax:1280px; }
+  html[data-w="normal"]{ --wrapmax:1600px; }
+  html[data-w="wide"]{   --wrapmax:2560px; }
+  .wrap{max-width:var(--wrapmax);width:100%;margin:0 auto;padding:16px clamp(10px,1.2vw,22px) 60px;}
   @media (min-width:1600px){ .wrap{padding-left:clamp(12px,1vw,26px);padding-right:clamp(12px,1vw,26px);} }
+  /* 넓게 모드에서도 '읽는 블록'은 편한 길이를 넘기지 않게 한다 — 업로드 버튼이 화면 끝까지
+     흩어지거나 경고 문장이 한 줄로 2m가 되는 것을 막는다. 표·그리드만 전체 폭을 쓴다. */
+  .toolbar{max-width:1480px;}
+  .notice-bar{max-width:1480px;}
+  .g-note-card{max-width:1480px;}
+  .g-fc-card{max-width:1780px;}
+  /* ★ .cat-grid 에는 max-width 를 주지 말 것. 이 그리드는 flex 자식 안에 있어서 max-width 가
+     max-content 폭으로 잡히고, 부모 패널이 그 폭까지 늘어나 **가로 스크롤(2161px)** 이 생겼다.
+     auto-fill 그리드는 폭이 늘어도 카드가 커지는 게 아니라 열 개수만 늘어나므로 상한이 필요 없다. */
+  /* 폭 모드 선택기 */
+  .wmode{display:flex;align-items:center;gap:6px;}
+  .wmode>.lab{font-family:"Oswald";font-size:9.5px;letter-spacing:.12em;color:var(--muted2);text-transform:uppercase;}
+  .wmode-seg{display:flex;border:1px solid var(--line);border-radius:99px;overflow:hidden;background:var(--ink);}
+  .wmode-seg button{background:none;border:none;color:var(--muted2);font-size:11px;padding:4px 10px;cursor:pointer;font-family:inherit;white-space:nowrap;}
+  .wmode-seg button+button{border-left:1px solid var(--line);}
+  .wmode-seg button:hover{color:var(--text);}
+  .wmode-seg button.on{background:rgba(245,178,17,.16);color:var(--amber);font-weight:700;}
 
   /* ---------- header ---------- */
   header.top{
@@ -169,7 +191,7 @@
   .p-hd .meta{color:var(--muted);font-size:13px;font-family:"JetBrains Mono";}
   .p-hd .meta b{color:var(--green);}
 
-  .cat-grid{padding:16px 18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:12px;}
+  .cat-grid{padding:16px 18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:12px;min-width:0;}
   .cat{
     display:grid;grid-template-columns:1fr auto;gap:8px 10px;align-items:center;
     background:var(--ink);border:1px solid var(--line-soft);border-radius:10px;padding:12px 14px;
@@ -645,6 +667,15 @@
     <div class="datefield">
       <label for="basedate">기준일 (재고 스냅샷)</label>
       <select id="basedate"></select>
+    </div>
+    <div class="wmode">
+      <span class="lab">화면 폭</span>
+      <div class="wmode-seg" id="wmodeSeg">
+        <button data-w="auto"   title="지금 보고 있는 화면에 맞춰 자동으로 고릅니다 — 넓은 표는 넓게, 읽는 화면은 보통 폭">자동</button>
+        <button data-w="narrow" title="1280px — 한 화면에 집중해서 읽을 때">좁게</button>
+        <button data-w="normal" title="1600px — 대부분의 화면에 알맞은 폭">보통</button>
+        <button data-w="wide"   title="화면 전체 — 열이 많은 표를 한 번에 볼 때">넓게</button>
+      </div>
     </div>
     <div class="count-pill"><span class="dot"></span><span class="n" id="totalCount">0</span><span class="lab">건 출고</span></div>
 
@@ -3692,6 +3723,46 @@ function renderTrend(){
 /* ================= 탭 ================= */
 const tabEntry=document.getElementById("tab-entry"), tabAgg=document.getElementById("tab-agg"), tabSales=document.getElementById("tab-sales"), tabGoals=document.getElementById("tab-goals");
 const viewEntry=document.getElementById("view-entry"), viewAgg=document.getElementById("view-agg"), viewSales=document.getElementById("view-sales"), viewGoals=document.getElementById("view-goals");
+/* ================= 화면 폭 모드 (16차) =================
+   15차에서 폭을 화면에 꽉 채웠더니 "너무 늘어났다"는 지적을 받았다. 화면마다 필요한 폭이 다르다:
+     · 열이 17~30개인 표(재고 집계·목표달성 02·매트릭스 03·월별추이 07)는 넓을수록 좋고,
+     · 카드·문장·업로드 버튼이 있는 화면은 1600px 정도가 읽기 편하다.
+   그래서 폭을 '모드'로 두고 **기본값 '자동'은 지금 보고 있는 화면에 맞춰 알아서 고른다**.
+   선택은 이 브라우저에만 저장한다(localStorage) — Firebase 공유 상태에 넣으면 다른 사람 화면까지 바뀐다. */
+const WMODE_KEY = "plt_layout_v1";
+let wmode = "auto";
+try{ const v = localStorage.getItem(WMODE_KEY); if(["auto","narrow","normal","wide"].includes(v)) wmode = v; }catch(_){}
+let curTab = "entry";
+// 화면별 자동 폭: 넓은 표가 있는 화면만 'wide'
+function autoWidthFor(tab, sub){
+  // 넓게 = 열이 많은 표, 또는 폭이 늘면 '열이 늘어나는' 카드 그리드(카드 자체는 안 늘어남)
+  // 보통 = 문장·업로드 버튼·요약 카드가 주인 화면
+  if(tab === "agg")   return "wide";                      // 재고 17열 + 출고 집계표 + 출처 비교
+  if(tab === "sales") return "wide";                       // 매출 집계표(카테고리 열 많음) + 도넛 그리드
+  if(tab === "goals") return ["02","03","06","07"].includes(sub) ? "wide" : "normal";
+  return "normal";                                         // 출고 입력 — 카드 6~7개면 충분
+}
+function applyWidthMode(){
+  const eff = wmode==="auto" ? autoWidthFor(curTab, goalsSubTab) : wmode;
+  document.documentElement.setAttribute("data-w", eff);
+  const seg = document.getElementById("wmodeSeg");
+  if(seg) seg.querySelectorAll("button").forEach(b=> b.classList.toggle("on", b.dataset.w===wmode));
+  // '자동'일 때 지금 어떤 폭이 적용됐는지 보이게 해서, 화면을 옮길 때마다 폭이 바뀌는 이유를 알 수 있게 한다.
+  const lab = document.querySelector(".wmode>.lab");
+  if(lab) lab.textContent = wmode==="auto" ? `화면 폭 · 자동(${eff==="wide"?"넓게":"보통"})` : "화면 폭";
+}
+function wireWidthMode(){
+  const seg = document.getElementById("wmodeSeg");
+  if(!seg) return;
+  seg.addEventListener("click", e=>{
+    const b = e.target && e.target.closest ? e.target.closest("button[data-w]") : null;
+    if(!b) return;
+    wmode = b.dataset.w;
+    try{ localStorage.setItem(WMODE_KEY, wmode); }catch(_){}
+    applyWidthMode();
+  });
+  applyWidthMode();
+}
 function selectTab(which){
   [["entry",tabEntry,viewEntry],["agg",tabAgg,viewAgg],["sales",tabSales,viewSales],["goals",tabGoals,viewGoals]].forEach(([name,tab,view])=>{
     const on = name===which;
@@ -3701,6 +3772,8 @@ function selectTab(which){
   if(which==="agg"){ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }
   if(which==="sales"){ renderSalesDateSelect(); renderSalesTrend(); renderSalesVsSupply(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); }
   if(which==="goals"){ renderGoals(); }
+  curTab = which;
+  applyWidthMode();     // 화면을 옮기면 '자동' 폭도 그 화면에 맞게 바뀐다
 }
 tabEntry.onclick=()=>selectTab("entry");
 tabAgg.onclick=()=>selectTab("agg");
@@ -5969,6 +6042,7 @@ function selectGoalsSub(key){
     if(b.setAttribute) b.setAttribute("aria-selected", on ? "true" : "false");
   });
   GOALS_SUB_KEYS.forEach(k=>{ const p = document.getElementById("gsub-"+k); if(p) p.hidden = (k!==key); });
+  applyWidthMode();     // 02·03·07(열 많은 표)만 자동으로 넓게
 }
 let _goalsSubWired = false;
 function wireGoalsSubTabs(){
@@ -7003,6 +7077,7 @@ try{
     if(cm.CATEGORY_ORIGIN && typeof cm.CATEGORY_ORIGIN==="object") Object.keys(cm.CATEGORY_ORIGIN).forEach(k=>{ if(!(k in CATEGORY_ORIGIN)) CATEGORY_ORIGIN[k]=cm.CATEGORY_ORIGIN[k]; });
   }
 }catch(_){}
+wireWidthMode();   // 화면 폭 모드 복원(이 브라우저에 저장된 선택)
 renderBasedateOptions(restoredState && restoredState.basedateIdx!=null ? restoredState.basedateIdx : STOCK_HISTORY.length-1);
 renderStoreList();
 renderPanel();
