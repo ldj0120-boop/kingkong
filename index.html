@@ -117,6 +117,8 @@
   button.act.dropzone.loaded.dragover{background:var(--amber-dim);color:var(--amber);}
   button.act.dropzone.loaded.dragover::after{content:"여기에 놓으세요";color:var(--amber);}
   /* ---------- 툴바 그룹(업로드 / 데이터 관리) ---------- */
+  .brand .build{display:inline-block;font-family:"JetBrains Mono";font-size:10px;color:var(--amber);
+    border:1px solid rgba(245,178,17,.45);border-radius:99px;padding:0 7px;margin-left:6px;vertical-align:1px;}
   .toolbar{flex-basis:100%;display:flex;flex-wrap:wrap;gap:14px;margin-top:4px;padding-top:14px;border-top:1px solid var(--line);}
   .tool-group{display:flex;flex-direction:column;gap:9px;background:var(--ink);border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
   .tool-group.uploads{flex:3 1 560px;}
@@ -702,7 +704,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계</span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 21 · 2026-08-28</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1892,6 +1894,13 @@ function applyStateObject(s){
     // ★ 사용자가 직접 고른 카테고리 지정은 어떤 상태 블롭보다 우선한다 — 반드시 마지막에 덮어쓴다.
     // (로컬/IndexedDB/클라우드 어디서 호출돼도 지정이 살아남게 하는 지점. 위 mergeStoredCatMaps 주석 참고)
     mergeStoredCatMaps();
+    // ★ 21차: 미매칭 경고도 같은 함정에 빠져 있었다.
+    //   applyStateObject 는 ① localStorage ② IndexedDB ③ Firebase — 세 곳에서 호출되는데,
+    //   20차에서 넣은 pruneUnmatchedStores()는 **시작할 때 딱 한 번**만 돌았다.
+    //   그래서 ②/③이 나중에 도착하면서 저장돼 있던 낡은 목록을 그대로 되살려,
+    //   "기흥가구패션관이 매칭되지 않았습니다" 경고가 지워도 지워도 다시 살아났다.
+    //   → 상태를 적용한 직후마다 정리한다(10차 카테고리 지정과 완전히 같은 처방).
+    pruneUnmatchedStores();
     STORES.forEach(st=>{ if(!SHIP[st]) SHIP[st]=freshCatMap(); if(!ACTUAL[st]) ACTUAL[st]=freshCatMap(); });
     return { basedateIdx: s.basedateIdx };
   }catch(e){ return null; }
