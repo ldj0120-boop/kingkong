@@ -651,6 +651,25 @@
   .tblbox>table{margin:0;}
   /* 목표 탭 패널은 바깥 스크롤을 없애고 페이지가 자연스럽게 흐르게 한다(스크롤 중첩 방지) */
   .gsub-panel .agg-scroll{max-height:none;overflow:visible;padding:8px 12px 14px;}
+  /* 목표 탭 분석 기간 선택 바 */
+  .gscope{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--ink);border:1px solid var(--line);
+    border-radius:10px;padding:8px 12px;margin:0 0 12px;}
+  .gscope>.lab{font-family:"Oswald";font-size:10px;letter-spacing:.12em;color:var(--amber);text-transform:uppercase;}
+  .gscope .fld{display:flex;align-items:center;gap:5px;}
+  .gscope .fld[hidden]{display:none;}
+  .gscope label{font-size:11px;color:var(--muted2);}
+  .gscope select{max-width:190px;}
+  .gscope .note{font-size:11px;color:var(--muted2);margin-left:auto;text-align:right;}
+  .audit-list{display:flex;flex-direction:column;gap:2px;margin-top:8px;}
+  .audit-row{display:grid;grid-template-columns:18px minmax(200px,1.1fr) minmax(170px,1fr) minmax(220px,1.6fr);
+    gap:10px;align-items:start;font-size:11.6px;border-top:1px dashed var(--line-soft);padding:6px 0;}
+  .audit-row .ic{font-weight:800;text-align:center;}
+  .audit-row .nm{color:var(--text);word-break:keep-all;}
+  .audit-row .nm .kd{display:inline-block;font-size:9.5px;color:var(--muted2);border:1px solid var(--line-soft);
+    border-radius:99px;padding:0 6px;margin-left:6px;vertical-align:1px;}
+  .audit-row .vl{font-family:"JetBrains Mono";color:var(--pale);word-break:break-all;}
+  .audit-row .wy{color:var(--muted);word-break:keep-all;line-height:1.55;}
+  @media (max-width:1100px){ .audit-row{grid-template-columns:18px 1fr;} .audit-row .vl,.audit-row .wy{grid-column:2;} }
   table.g-tbl thead th{min-width:66px;max-width:112px;font-size:10px;}
   table.g-tbl tbody td:first-child, table.g-tbl thead th:first-child{min-width:104px;font-size:11.5px;}
   /* 반투명(rgba)이면 고정된 합계행 아래로 매장 행이 비쳐 숫자가 겹쳐 보인다 → 불투명 색 사용 */
@@ -964,6 +983,17 @@
   <section id="view-goals" role="tabpanel" aria-labelledby="tab-goals" hidden>
     <!-- 엑셀 리포트(매장별_매출카테고리분석_목표달성방안_v2)의 7개 시트를 그대로 사이트에 옮긴 서브탭.
          시트 번호·제목·컬럼 구성을 엑셀과 1:1로 맞춰서, 엑셀을 따로 열지 않아도 같은 내용을 볼 수 있게 한다. -->
+    <div class="gscope" id="goalsScopeBar">
+      <span class="lab">분석 기간</span>
+      <select id="goalsScopeMode" title="'해당 월만'은 그 달 하나, '기간 누적'은 고른 개월을 모두 합쳐서 봅니다">
+        <option value="month">해당 월만</option>
+        <option value="range">기간 누적</option>
+      </select>
+      <span class="fld" id="goalsMonthFld"><label for="goalsMonthSel">기준월</label><select id="goalsMonthSel"></select></span>
+      <span class="fld" id="goalsFromFld" hidden><label for="goalsFromSel">시작월</label><select id="goalsFromSel"></select></span>
+      <span class="fld" id="goalsToFld" hidden><label for="goalsToSel">종료월</label><select id="goalsToSel"></select></span>
+      <span class="note" id="goalsScopeNote"></span>
+    </div>
     <div class="gsub-tabs" id="goalsSubTabs" role="tablist">
       <button class="gsub-tab active" data-gsub="01" role="tab">01 요약 · 방법론</button>
       <button class="gsub-tab" data-gsub="02" role="tab">02 매장별 목표달성 현황</button>
@@ -1046,6 +1076,14 @@
   </section>
 
 
+  <!-- 카테고리 상세(진단) — "이 카테고리 금액이 왜 이렇게 크냐"를 스스로 확인할 수 있게 -->
+  <div id="catDrillModal" class="modal-overlay" hidden>
+    <div class="modal-box" style="max-width:900px;">
+      <h3 id="catDrillTitle">카테고리 상세</h3>
+      <div id="catDrillBody" style="max-height:64vh;overflow:auto;"></div>
+      <div class="modal-actions"><button class="act" id="catDrillClose">닫기</button></div>
+    </div>
+  </div>
   <div id="catMapModal" class="modal-overlay" hidden>
     <div class="modal-box">
       <h3 id="catMapTitle">⚠ 알 수 없는 상품분류 확인</h3>
@@ -1093,8 +1131,19 @@
 <script>
 /* ================= 매장 별칭 (같은 매장을 다른 이름으로 적은 파일 보정) ================= */
 // 매출현황 POS 매장코드 표기 보정: "광주경안점"은 경안점, "광주점(구,샐비지)"은 광주점, "패션관기흥점"은 기흥점과 다른 별도 매장인 "기흥 패션관".
-const STORE_ALIASES = { "서귀포점":"제주서귀포점", "광주경안점":"경안점", "광주점(구,샐비지)":"광주점", "패션관기흥점":"기흥 패션관" };
-function resolveStoreName(name){ const t=String(name).trim(); return STORE_ALIASES[t] || t; }
+const STORE_ALIASES = { "서귀포점":"제주서귀포점", "광주경안점":"경안점", "광주점(구,샐비지)":"광주점", "패션관기흥점":"기흥 패션관",
+  // 본사 출고계획서의 "기흥가구패션관"은 어떤 매장으로도 인식되지 않아 그 목적지가 통째로 집계에서
+  // 빠지고 있었다("집계 확인 필요" 배너에 뜨던 그 1건). 사용자 확인: **출고는 기흥 패션관으로**,
+  // **매출은 기흥점으로** 잡는다 → 여기서 기흥 패션관에 매핑하면, 매출 쪽은 storeSalesGroup 이
+  // 기흥 패션관을 기흥점에 합산하므로 두 요구가 한 번에 충족된다. (2026-08-28 18차)
+  "기흥가구패션관":"기흥 패션관", "기흥가구/패션관":"기흥 패션관", "가구패션관기흥점":"기흥 패션관" };
+const _ALIAS_SQUASH = (()=>{ const m={}; Object.keys(STORE_ALIASES).forEach(k=> m[k.replace(/[\s/]+/g,'')] = STORE_ALIASES[k]); return m; })();
+function resolveStoreName(name){
+  const t = String(name).trim();
+  if(STORE_ALIASES[t]) return STORE_ALIASES[t];
+  const sq = t.replace(/[\s/]+/g,'');       // "기흥가구/패션관" · "기흥 가구패션관" 같은 표기 차이 흡수
+  return _ALIAS_SQUASH[sq] || t;
+}
 const TOTAL_ROW_MARKERS = new Set(["합계","총합계","합 계","총 합계","소계","total","Total","TOTAL","계"]);
 function isTotalMarkerRow(name){ return TOTAL_ROW_MARKERS.has(String(name).trim()); }
 // 출고내역서의 "하차지" 매장명은 "용인점1","광주점2","용인점*2","용인점(2)","용인점2호"처럼 끝에 순번/개수 표기가
@@ -1586,7 +1635,7 @@ function mergeStoredCatMaps(){
 //   center 5 : 파레트 산정 규칙 재정립(매니페스트 블록 상한 제거, 실물 행 절대 우선)
 //   hq     3 : Remarks 폴백 / '점' 생략 헤더 / 시트명 날짜 우선
 //   appliance/fresh 1 : 최초 로직 이후 변경 없음
-const PARSE_LOGIC_VERSIONS = { center: 6, hq: 4, appliance: 2, fresh: 2 };
+const PARSE_LOGIC_VERSIONS = { center: 6, hq: 5, appliance: 2, fresh: 2 };
 const PARSE_LOGIC_VERSION = 5; // (하위호환: 예전 상태에 통째로 저장돼 있던 값 비교용)
 function logicVer(src){ return PARSE_LOGIC_VERSIONS[src] || 1; }
 const PARSE_SRC_LABEL = { center:"출고내역서(센터)", hq:"출고계획서(본사)", appliance:"가전센터 출고내역서", fresh:"신선 출고내역서" };
@@ -1694,7 +1743,7 @@ function buildStateObject(){
       STORES, STOCK, CATEGORIES, CATEGORY_ORIGIN, SHIP, ACTUAL,
       HQ_ACTUAL, APPLIANCE_ACTUAL, FRESH_ACTUAL, CENTER_M, HQ_M, APPLIANCE_M, FRESH_M, LOTTE_M, shipScope, HQ_SUPPLY_HISTORY, APPLIANCE_SUPPLY_HISTORY, unmatchedHQStores, unmatchedApplianceStores,
       selected, SUPPLY_HISTORY, STOCK_HISTORY, unmatchedActualStores,
-      SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodBStart, periodBEnd, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, SPECIAL_DAYS, selectedSalesMonth, selectedMonthlyStore, salesViewMode, EVENTS_COMMON, EVENTS_STORE, PROCESSED_FILES,
+      SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodBStart, periodBEnd, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, SPECIAL_DAYS, goalsScope, selectedSalesMonth, selectedMonthlyStore, salesViewMode, EVENTS_COMMON, EVENTS_STORE, PROCESSED_FILES,
       basedateIdx: (typeof basedateEl!=="undefined" && basedateEl.value!=="") ? +basedateEl.value : STOCK_HISTORY.length-1
   };
 }
@@ -1761,6 +1810,7 @@ function applyStateObject(s){
     if(s.salesViewMode==="daily"||s.salesViewMode==="cumulative") salesViewMode = s.salesViewMode;
     EVENTS_COMMON = (s.EVENTS_COMMON && typeof s.EVENTS_COMMON==="object") ? s.EVENTS_COMMON : {};
     SPECIAL_DAYS = (s.SPECIAL_DAYS && typeof s.SPECIAL_DAYS==="object") ? s.SPECIAL_DAYS : {};
+    if(s.goalsScope && typeof s.goalsScope==="object") goalsScope = Object.assign({mode:"month",month:null,from:null,to:null}, s.goalsScope);
     EVENTS_STORE = (s.EVENTS_STORE && typeof s.EVENTS_STORE==="object") ? s.EVENTS_STORE : {};
     PROCESSED_FILES = (s.PROCESSED_FILES && typeof s.PROCESSED_FILES==="object") ? s.PROCESSED_FILES : {};
     SHIP_CAT_MAP = (s.SHIP_CAT_MAP && typeof s.SHIP_CAT_MAP==="object") ? s.SHIP_CAT_MAP : {};
@@ -2291,10 +2341,76 @@ function renderShipSourceDiff(){
   }).join("");
   const both = rows.filter(r=> r.hq>0 && r.center>0);
   const sumHq = both.reduce((a,r)=>a+r.hq,0), sumCen = both.reduce((a,r)=>a+r.center,0);
-  wrap.innerHTML = `<table class="g-tbl">
+  // ===== 채택값 합계 (18차 추가) =====
+  // 표에는 '어긋나는 칸'만 나오므로 그 합만 보면 실제 집계 총량을 알 수 없다.
+  // ① 이 표(어긋나는 칸)의 합계 ② **모든 매장×카테고리의 채택값 총합**(실제로 집계에 들어가는 값)
+  //   ③ 매장별 소계 ④ 카테고리별 소계 — 넷을 같이 보여준다.
+  const tHq = rows.reduce((a,r)=>a+r.hq,0), tCen = rows.reduce((a,r)=>a+r.center,0), tPick = rows.reduce((a,r)=>a+r.picked,0);
+  let allHq=0, allCen=0, allPick=0, allCells=0;
+  const byStore = {}, byCat = {};
+  STORES.forEach(st=>{
+    CATEGORIES.forEach(cat=>{
+      let hq=0, center=0;
+      months.forEach(m=>{ hq += _mv(HQ_M,m,st,cat); center += _mv(CENTER_M,m,st,cat); });
+      if(hq===0 && center===0) return;
+      const pk = mergePick(hq,center);
+      allHq+=hq; allCen+=center; allPick+=pk; allCells++;
+      if(!byStore[st]) byStore[st]={hq:0,center:0,picked:0,cells:0};
+      byStore[st].hq+=hq; byStore[st].center+=center; byStore[st].picked+=pk; byStore[st].cells++;
+      if(!byCat[cat]) byCat[cat]={hq:0,center:0,picked:0,cells:0};
+      byCat[cat].hq+=hq; byCat[cat].center+=center; byCat[cat].picked+=pk; byCat[cat].cells++;
+    });
+  });
+  const foot = `<tfoot>
+    <tr><td colspan="2">어긋나는 칸 합계 (${rows.length}칸)</td>
+      <td><span class="num">${r1(tHq)}</span></td>
+      <td><span class="num">${r1(tCen)}</span></td>
+      <td><span class="num" style="color:${tCen>tHq?'var(--green)':'var(--red)'}">${(tCen>tHq?'+':'')+r1(tCen-tHq)}</span></td>
+      <td class="total-col"><span class="num">${r1(tPick)}</span></td>
+      <td><span style="font-size:10.5px;color:var(--muted2);">이 표에 보이는 칸만</span></td></tr>
+  </tfoot>`;
+  const subTbl = (title, obj, keyLbl) => {
+    const keys = Object.keys(obj).sort((a,b)=> obj[b].picked - obj[a].picked);
+    if(!keys.length) return "";
+    const b = keys.map(k=>{
+      const o = obj[k], d = o.center - o.hq;
+      return `<tr><td>${escHtml(k)}</td>
+        <td><span class="num">${r1(o.hq)}</span></td>
+        <td><span class="num">${r1(o.center)}</span></td>
+        <td><span class="num" style="color:${d>0?'var(--green)':d<0?'var(--red)':'var(--muted2)'}">${d>0?'+':''}${r1(d)}</span></td>
+        <td class="total-col"><span class="num">${r1(o.picked)}</span></td></tr>`;
+    }).join("");
+    const tot = keys.reduce((a,k)=>({hq:a.hq+obj[k].hq, center:a.center+obj[k].center, picked:a.picked+obj[k].picked}), {hq:0,center:0,picked:0});
+    return `<div class="g-tbl-title">${title}</div>
+      <div class="tblbox" style="max-height:42vh;"><table class="g-tbl">
+        <thead><tr><th>${keyLbl}</th><th>본사</th><th>센터</th><th>차이<br>(센터−본사)</th><th>현재 채택값</th></tr></thead>
+        <tbody>${b}</tbody>
+        <tfoot><tr><td>합계</td><td><span class="num">${r1(tot.hq)}</span></td><td><span class="num">${r1(tot.center)}</span></td>
+          <td><span class="num">${(tot.center>tot.hq?'+':'')+r1(tot.center-tot.hq)}</span></td>
+          <td class="total-col"><span class="num">${r1(tot.picked)}</span></td></tr></tfoot>
+      </table></div>`;
+  };
+  const eok = v => r1(v).toLocaleString();
+  const totalBox = `<div class="stat-row" style="padding:0 0 4px;">
+      ${statCard("현재 채택값 총합 (전체 칸)", eok(allPick)+" PLT", [
+        goalsLine(`본사↔센터 병합 결과 · 값이 있는 칸 ${allCells}개`),
+        goalsLine(`본사 ${eok(allHq)} / 센터 ${eok(allCen)} PLT`),
+        goalsLine(`※ 가전센터(방도리)·신선 출고는 겹치지 않는 별도 품목이라 이 표 밖에서 항상 더해집니다`)])}
+      ${statCard("어긋나는 칸의 채택값", eok(tPick)+" PLT", [
+        goalsLine(`${rows.length}칸 · 본사 ${eok(tHq)} / 센터 ${eok(tCen)}`),
+        goalsLine(`전체 채택값의 ${allPick>0?(tPick/allPick*100).toFixed(1):'0.0'}%`)])}
+      ${statCard("규칙을 바꾸면", SHIP_MERGE_LABEL[shipMergePolicy], [
+        goalsLine(`센터 우선 ${eok(rows.reduce((a,r)=>a+(r.center||r.hq),0) + (allPick-tPick))} · 큰 값 ${eok(rows.reduce((a,r)=>a+Math.max(r.hq,r.center),0) + (allPick-tPick))} · 본사 우선 ${eok(rows.reduce((a,r)=>a+(r.hq||r.center),0) + (allPick-tPick))} PLT`),
+        goalsLine("드롭다운을 바꾸면 위 총합이 즉시 이 값으로 바뀝니다")])}
+    </div>`;
+  wrap.innerHTML = `${totalBox}
+    <div class="g-tbl-title">어긋나는 칸 상세 (차이 큰 순)</div>
+    <div class="tblbox"><table class="g-tbl">
     <thead><tr><th>매장</th><th>카테고리</th><th>본사 출고계획서</th><th>센터 출고내역서</th><th>차이<br>(센터−본사)</th><th>현재 채택값</th><th>판정</th></tr></thead>
-    <tbody>${body}</tbody></table>`;
-  if(meta) meta.textContent = `${shipScope==="all"?"전체 기간":shipScope} · 어긋나는 칸 ${rows.length}개 (양쪽 모두 값이 있는 칸 ${both.length}개: 본사 합계 ${Math.round(sumHq)} vs 센터 합계 ${Math.round(sumCen)} PLT) · 현재 규칙: ${SHIP_MERGE_LABEL[shipMergePolicy]}`;
+    <tbody>${body}</tbody>${foot}</table></div>
+    ${subTbl("매장별 채택값 소계 (전체 칸 기준 · 채택값 큰 순)", byStore, "매장")}
+    ${subTbl("카테고리별 채택값 소계 (전체 칸 기준 · 채택값 큰 순)", byCat, "카테고리")}`;
+  if(meta) meta.textContent = `${shipScope==="all"?"전체 기간":shipScope} · 현재 채택값 총합 ${eok(allPick)} PLT · 어긋나는 칸 ${rows.length}개(양쪽 값 있는 칸 ${both.length}개: 본사 ${Math.round(sumHq)} vs 센터 ${Math.round(sumCen)}) · 현재 규칙: ${SHIP_MERGE_LABEL[shipMergePolicy]}`;
 }
 function renderShipMergeSelect(){
   const sel = document.getElementById("shipMergeSelect");
@@ -2599,6 +2715,18 @@ function renderSalesDateSelect(){
 
 /* ================= 기간별 카테고리별 매출 비교 ================= */
 function fmtDate(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+/* ===== 매출에서만 합치는 카테고리 그룹 (18차) =====
+   사용자 확인: POS 매출에서는 대형가전과 XLB(일반가전)가 구분되지 않는다 → **매출은 '가전'으로 합산**.
+   단, **매장별 재고/공급 현황 표는 지금처럼 XLB·대형가전을 따로** 기록한다.
+   이 그룹핑을 mergeByStoreCat 한 곳에만 넣는 이유: 이 함수는 매출 카테고리 화면에서만 쓰이고
+   재고·출고 표는 SHIP/ACTUAL/STOCK 배열을 따로 쓰기 때문에, 여기만 고치면 요구가 정확히 나뉜다. */
+const SALES_CAT_GROUP = { "대형가전":"가전", "XLB":"가전" };
+function salesCatGroup(c){ return SALES_CAT_GROUP[c] || c; }
+function salesCatMembers(g){
+  const m = Object.keys(SALES_CAT_GROUP).filter(k=>SALES_CAT_GROUP[k]===g);
+  return m.length ? m : [g];
+}
+function isSalesGrouped(c){ return !!SALES_CAT_GROUP[c]; }   // 그룹에 흡수된 원래 카테고리인지
 function mergeByStoreCat(snapshots){
   const merged = {};
   snapshots.forEach(sn=>{
@@ -2606,9 +2734,10 @@ function mergeByStoreCat(snapshots){
       if(!merged[store]) merged[store] = {};
       Object.keys(sn.byStoreCat[store]).forEach(cat=>{
         const v = sn.byStoreCat[store][cat];
-        if(!merged[store][cat]) merged[store][cat] = {qty:0, amount:0};
-        merged[store][cat].qty += v.qty;
-        merged[store][cat].amount += v.amount;
+        const key = salesCatGroup(cat);          // 대형가전·XLB → 가전
+        if(!merged[store][key]) merged[store][key] = {qty:0, amount:0};
+        merged[store][key].qty += v.qty;
+        merged[store][key].amount += v.amount;
       });
     });
   });
@@ -5000,6 +5129,66 @@ function holidayName(dstr){
 
 // mergeByStoreCat / categoryTotals / categoryTotalsFiltered / monthStoreTotals /
 // statCard / escHtml / num 은 모두 기존 함수를 그대로 재사용한다(새로 만들지 않음).
+/* ================= 분석 기간 선택 (18차) =================
+   ★ 이전까지 03·04·05·06 시트는 제목에 "2026-08 누적"이라고 쓰면서 실제로는
+     `mergeByStoreCat(SALES_HISTORY)` — **업로드된 전 기간(8개월) 전부**를 합산하고 있었다.
+     그래서 한 달 숫자로 읽으면 모든 카테고리가 몇 배로 부풀어 보였다(사용자가 "재사용봉투 매출이
+     너무 높다"고 한 것도 이것이 가장 큰 원인). 이제 기간을 **고를 수 있게** 하고, 고른 기간만
+     집계한다. 화면 제목에도 실제 집계 기간이 그대로 찍힌다. */
+let goalsScope = { mode:"month", month:null, from:null, to:null };
+function goalsScopeMonths(){
+  const all = goalsAllMonths();
+  if(!all.length) return [];
+  if(goalsScope.mode === "range"){
+    const f = (goalsScope.from && all.includes(goalsScope.from)) ? goalsScope.from : all[0];
+    const t = (goalsScope.to   && all.includes(goalsScope.to))   ? goalsScope.to   : all[all.length-1];
+    const lo = f<t?f:t, hi = f<t?t:f;
+    return all.filter(m=> m>=lo && m<=hi);
+  }
+  const m = (goalsScope.month && all.includes(goalsScope.month)) ? goalsScope.month : all[all.length-1];
+  return [m];
+}
+function goalsScopeLabel(ms){
+  if(!ms.length) return "-";
+  const L = m => (+m.slice(5))+"월";
+  return ms.length===1 ? `${ms[0]} (${L(ms[0])})` : `${ms[0]} ~ ${ms[ms.length-1]} (${L(ms[0])}~${L(ms[ms.length-1])} ${ms.length}개월 합계)`;
+}
+function renderGoalsScopeBar(){
+  const all = goalsAllMonths();
+  const modeSel = document.getElementById("goalsScopeMode");
+  if(!modeSel) return;
+  const opts = sel => { sel.innerHTML = all.map(m=>`<option value="${m}">${m} (${(+m.slice(5))}월)</option>`).join(""); };
+  const mSel=document.getElementById("goalsMonthSel"), fSel=document.getElementById("goalsFromSel"), tSel=document.getElementById("goalsToSel");
+  [mSel,fSel,tSel].forEach(opts);
+  if(!goalsScope.month || !all.includes(goalsScope.month)) goalsScope.month = all[all.length-1] || null;
+  if(!goalsScope.from  || !all.includes(goalsScope.from))  goalsScope.from  = all[0] || null;
+  if(!goalsScope.to    || !all.includes(goalsScope.to))    goalsScope.to    = all[all.length-1] || null;
+  modeSel.value = goalsScope.mode;
+  if(goalsScope.month) mSel.value = goalsScope.month;
+  if(goalsScope.from)  fSel.value = goalsScope.from;
+  if(goalsScope.to)    tSel.value = goalsScope.to;
+  const isRange = goalsScope.mode==="range";
+  document.getElementById("goalsMonthFld").hidden = isRange;
+  document.getElementById("goalsFromFld").hidden  = !isRange;
+  document.getElementById("goalsToFld").hidden    = !isRange;
+  const ms = goalsScopeMonths();
+  const note = document.getElementById("goalsScopeNote");
+  if(note) note.textContent = all.length
+    ? `매출 데이터가 있는 달: ${all[0]} ~ ${all[all.length-1]} (${all.length}개월) · 지금 집계 중인 기간: ${goalsScopeLabel(ms)}`
+    : "매출 데이터가 아직 없습니다.";
+}
+let _goalsScopeWired = false;
+function wireGoalsScope(){
+  if(_goalsScopeWired) return;
+  const modeSel = document.getElementById("goalsScopeMode");
+  if(!modeSel) return;
+  _goalsScopeWired = true;
+  const on = (id, fn)=>{ const e=document.getElementById(id); if(e) e.onchange = ()=>{ fn(e.value); saveState(); renderGoals(); }; };
+  on("goalsScopeMode", v=>{ goalsScope.mode = (v==="range"?"range":"month"); });
+  on("goalsMonthSel",  v=>{ goalsScope.month = v; });
+  on("goalsFromSel",   v=>{ goalsScope.from = v; if(goalsScope.to && goalsScope.to < v) goalsScope.to = v; });
+  on("goalsToSel",     v=>{ goalsScope.to = v; if(goalsScope.from && goalsScope.from > v) goalsScope.from = v; });
+}
 function goalsAllMonths(){
   const s = new Set();
   STORE_SALES_HISTORY.forEach(h=>s.add(h.date.slice(0,7)));
@@ -5037,7 +5226,9 @@ function goalsGroupCat(merged, store){
 }
 // 대표 매장의 출고 PLT(합산 매장 포함)
 function goalsGroupPlt(store, cat){
-  return storeGroupMembers(store).reduce((a,m)=> a + (STORES.includes(m) ? planQty(m,cat)+actualQty(m,cat) : 0), 0);
+  const cats = salesCatMembers(cat);   // '가전' = XLB + 대형가전
+  return storeGroupMembers(store).reduce((a,m)=>
+    a + (STORES.includes(m) ? cats.reduce((x,c)=>x + planQty(m,c) + actualQty(m,c), 0) : 0), 0);
 }
 // 전사 카테고리 구성비. 단 신선식품은 **취급 매장만**을 분모로 쓴다 —
 // 미취급 매장(대소·제주서귀포·원주)을 넣으면 전사 평균이 낮아져 취급 매장의 신선 열위가 작게 보인다.
@@ -5099,13 +5290,13 @@ function groupMonthlyTarget(store){
   if(!members.length) return null;
   return members.reduce((a,m)=>a+STORE_MONTHLY_TARGETS[m],0);
 }
-function goalsCategoryDiagnosis(store){
+function goalsCategoryDiagnosis(store, scopedSales){
   // 이 매장의 카테고리 구성비 - 전사 평균 구성비 격차로 강점/기회 카테고리를 자동 진단.
   // 15차 변경: ① 합산 매장(기흥 패션관)을 대표 매장에 포함해서 계산한다.
   //           ② **신선식품을 취급하지 않는 매장에서는 신선식품을 진단 대상에서 뺀다** —
   //              냉장·냉동 설비가 없는 매장에 "신선식품 편성 확대"를 권하는 것은 실행 불가능한 조언이다.
   //           ③ 전사 평균 신선 구성비는 취급 매장만을 분모로 쓴다(goalsCompanyPct).
-  const merged = mergeByStoreCat(SALES_HISTORY);
+  const merged = mergeByStoreCat(scopedSales || SALES_HISTORY);
   const storeCat = goalsGroupCat(merged, store);
   const comp = goalsCompanyPct(merged);
   const storeTotal = Object.values(storeCat).reduce((a,v)=>a+v.amount,0);
@@ -5125,16 +5316,25 @@ function goalsCategoryDiagnosis(store){
   return { strength: diffs[0], opportunity: diffs[diffs.length-1], diffs, chartData,
            noFresh, freshLabel: storeFreshLabel(store), freshBasis: comp.freshBasis };
 }
-function goalsCategoryEfficiency(){
-  const merged = mergeByStoreCat(SALES_HISTORY);
+function goalsCategoryEfficiency(scopedSales){
+  const merged = mergeByStoreCat(scopedSales || SALES_HISTORY);
   const catAmt = categoryTotals(merged);
-  const rows = CATEGORIES.map(cat=>{
+  // CATEGORIES(출고 기준 목록)에만 의존하면, 매출 파일에만 나오는 카테고리(재사용봉투·화훼 등)가
+  // 05 표에서 통째로 빠져 확인할 방법이 없었다 → 매출에 실제로 잡힌 카테고리도 합집합으로 넣는다.
+  // '가전'으로 합쳐진 대형가전·XLB 는 매출 표에서 따로 줄을 만들지 않는다(합계가 두 번 잡힌다).
+  const allCats = Array.from(new Set([...CATEGORIES, ...Object.keys(catAmt)])).filter(c=>!isSalesGrouped(c));
+  const rows = allCats.map(cat=>{
     const amount = (catAmt[cat] && catAmt[cat].amount) || 0;
-    const pltTotal = STORES.reduce((a,s)=>a + planQty(s,cat) + actualQty(s,cat), 0);
+    // 그룹 카테고리('가전')의 출고 PLT는 멤버(XLB·대형가전) PLT의 합이다.
+    const members = salesCatMembers(cat);
+    const pltTotal = STORES.reduce((a,s)=> a + members.reduce((x,c)=>x + planQty(s,c) + actualQty(s,c), 0), 0);
     // 신선식품은 취급 매장 수를 함께 남겨 05시트에서 "취급 매장 기준"임을 밝힌다.
     const freshOnly = FRESH_CATS.includes(cat);
     const storeCnt = STORES.filter(s=> !freshOnly || storeHandlesFresh(storeSalesGroup(s))).length;
-    return { cat, amount, pltTotal, perPlt: pltTotal>0 ? amount/pltTotal : null, freshOnly, storeCnt };
+    // 판매수량과 평균 단가 — "이 카테고리 금액이 왜 이렇게 크냐"를 가장 빨리 가려내는 값이다.
+    const qty = (catAmt[cat] && catAmt[cat].qty) || 0;
+    const unit = qty>0 ? amount/qty : null;
+    return { cat, amount, qty, unit, pltTotal, perPlt: pltTotal>0 ? amount/pltTotal : null, freshOnly, storeCnt };
   }).filter(r=>r.amount>0 || r.pltTotal>0);
   rows.sort((a,b)=>(b.perPlt||-1)-(a.perPlt||-1));
   return rows;
@@ -5294,9 +5494,9 @@ function goalsHeatDiff(pp, maxAbs){
 // 위험도/권고는 PLT 규모와 카테고리 성격(신선 여부)으로 판정한다.
 function goalsUnsoldCategories(companyCat){
   const out = [];
-  CATEGORIES.forEach(cat=>{
+  CATEGORIES.filter(c=>!isSalesGrouped(c)).forEach(cat=>{
     const amount = (companyCat[cat] && companyCat[cat].amount) || 0;
-    const plt = STORES.reduce((a,s)=>a + planQty(s,cat) + actualQty(s,cat), 0);
+    const plt = STORES.reduce((a,s)=> a + salesCatMembers(cat).reduce((x,c)=>x + planQty(s,c) + actualQty(s,c), 0), 0);
     if(plt <= 0 || amount > 0) return;
     const fresh = /신선|수박|생수|탄산/.test(cat);
     let risk, advice;
@@ -5341,13 +5541,20 @@ function goalsNarrative(r, ctx){
 function goalsBuildContext(){
   const months = goalsAllMonths();
   if(!months.length) return null;
-  const curMonth = months[months.length-1];
+  // 18차: 사용자가 고른 기간만 집계한다(예전에는 제목만 "이번 달"이고 실제로는 전 기간 합산이었다).
+  const scopeMonths = goalsScopeMonths();
+  const isRange = scopeMonths.length > 1;
+  const curMonth = scopeMonths[scopeMonths.length-1];
+  const isLatest = curMonth === months[months.length-1];
   const elapsedDays = goalsElapsedDays(curMonth), daysInMonth = goalsDaysInMonth(curMonth);
   const mLbl = m => (+m.slice(5)) + "월";
+  const scopeLabel = goalsScopeLabel(scopeMonths);
   // 15차: 매장 단위가 아니라 **대표 매장(합산) 단위**로 집계한다 — 기흥 패션관은 기흥점에 합쳐진다.
   const monthMaps = {}; months.forEach(m=> monthMaps[m] = goalsGroupMap(m));
   const curTot = monthMaps[curMonth];
-  const merged = mergeByStoreCat(SALES_HISTORY);
+  // ★ 카테고리 집계는 **선택 기간의 매출 파일만** 합친다.
+  const scopedSales = SALES_HISTORY.filter(h=> scopeMonths.includes(h.date.slice(0,7)));
+  const merged = mergeByStoreCat(scopedSales);
   const comp = goalsCompanyPct(merged);
   const companyCat = comp.all;
   const companyTotal = comp.total;
@@ -5365,10 +5572,11 @@ function goalsBuildContext(){
   const missingMonths = {}, inactiveMonths = {};
   const rows = targetStores.map(s=>{
     const target = groupMonthlyTarget(s);
-    const actual = curTot.map[s] || 0;
-    // 진행 중인 달의 목표는 "경과일" 그리고 "그 달 실제 영업일"을 함께 반영한다.
+    // 선택 기간의 실적 합계와 목표 합계(그 달 영업일수 비례, 진행 중인 달은 경과일까지)
+    const actual = scopeMonths.reduce((a,m)=> a + (monthMaps[m].map[s]||0), 0);
+    const proratedTarget = scopeMonths.reduce((a,m)=>
+      a + storeMonthTarget(s, m, target, m===curMonth ? elapsedDays : null).target, 0);
     const ta = storeMonthTarget(s, curMonth, target, elapsedDays);
-    const proratedTarget = ta.target;
     const pct = proratedTarget>0 ? actual/proratedTarget*100 : 0;
     const monthActual = months.map(m=> monthMaps[m].map[s] || 0);
     const monthState = months.map(m=> storeActiveDays(s, m, m===curMonth?elapsedDays:null));
@@ -5383,17 +5591,22 @@ function goalsBuildContext(){
              activeDays: ta.days, monthDays: ta.dim, stateBadge: storeStateBadge(s, curMonth),
              fresh: storeHandlesFresh(s), freshLabel: storeFreshLabel(s),
              cum: goalsCumulative(s, months, curMonth),
-             diag: goalsCategoryDiagnosis(s),
+             diag: goalsCategoryDiagnosis(s, scopedSales),
              hist: goalsMonthlyHistory(s, months, curMonth),
              storeCat, storeCatTotal };
   }).sort((a,b)=>a.pct-b.pct);   // 달성률 낮은 순 — 엑셀 02/03/06/07시트와 동일 정렬
   rows.forEach((r,i)=> r.rank = i+1);
-  const effRows = goalsCategoryEfficiency();
+  const effRows = goalsCategoryEfficiency(scopedSales);
   const effMap = {}; effRows.forEach(e=> effMap[e.cat]=e);
-  const ctx = { months, curMonth, elapsedDays, daysInMonth, mLbl, monthMaps, curTot,
+  const ctx = { months, scopeMonths, isRange, isLatest, scopeLabel, curMonth, elapsedDays, daysInMonth,
+                mLbl, monthMaps, curTot, scopedSales,
                 merged, companyCat, companyTotal, companyPct: comp.pct, freshBasis: comp.freshBasis,
                 cats, rows, effRows, effMap, missingMonths, inactiveMonths, closedStores };
-  ctx.forecast = goalsForecast(ctx);
+  // 예상 총매출은 '진행 중인 마지막 달'에만 의미가 있다 — 과거 달이나 기간 누적에서는 만들지 않는다.
+  ctx.forecast = (!isRange && isLatest) ? goalsForecast(ctx) : null;
+  ctx.forecastSkip = (!isRange && isLatest) ? null
+    : (isRange ? "기간 누적 모드에서는 예상 총매출을 내지 않습니다 — 진행 중인 달 하나를 골라주세요."
+               : "이미 끝난 달이라 예상할 것이 없습니다 — 가장 최근 달을 고르면 예상 총매출이 표시됩니다.");
   return ctx;
 }
 
@@ -5582,7 +5795,7 @@ function goalsForecastCardHtml(ctx){
   const spInput = `<input type="text" id="goalsSpecialDays" placeholder="예: 2026-08-28, 2026-08-30" value="${escHtml(SPECIAL_DAYS[ym]||"")}" style="width:100%;max-width:340px;">`;
   if(!f){
     return `<div class="g-fc-card"><div class="g-fc-hd">${ctx.mLbl(ym)} 예상 총매출</div>
-      <div class="g-fc-empty">이번 달 일별 매출이 아직 업로드되지 않아 예측할 수 없습니다. <b>매장별 매출 업로드(일자별)</b>로 이 달 파일을 올려주세요.</div>
+      <div class="g-fc-empty">${ctx.forecastSkip ? escHtml(ctx.forecastSkip) : "이번 달 일별 매출이 아직 업로드되지 않아 예측할 수 없습니다. <b>매장별 매출 업로드(일자별)</b>로 이 달 파일을 올려주세요."}</div>
       <div class="g-fc-row"><span class="k">추가 휴일·행사일</span><span class="v">${spInput}</span></div></div>`;
   }
   const relPct = (f.rel*100).toFixed(1);
@@ -5676,6 +5889,7 @@ function goalsRender01(ctx){
       ${statCard("위험군 (달성률 65% 미만)", dangerCnt+" / "+ctx.rows.length, [goalsLine("우선 대응 필요")])}
       ${statCard("경고 매장 (편차 -20%↓)", warnCnt+" / "+ctx.rows.length, [goalsLine("사유서 누적위험 구간")])}
     </div>
+    ${salesAuditHtml(ctx)}
     ${goalsForecastCardHtml(ctx)}
     ${donutHtml}
     <div class="g-note-card">
@@ -5828,7 +6042,7 @@ function goalsRender03(ctx){
         return `<td style="${goalsHeatDiff(d, 30)}"><span class="num">${(d>=0?'+':'')+d.toFixed(1)}</span></td>`; }).join("")
     }<td class="total-col"></td></tr>`).join("");
 
-  return `<div class="g-tbl-title">A. 매장별 카테고리 매출액 (원, ${ctx.curMonth} 누적 ~${ctx.curMonth.slice(5,7)}/${ctx.elapsedDays})</div>
+  return `<div class="g-tbl-title">A. 매장별 카테고리 매출액 (원) — 집계 기간 ${escHtml(ctx.scopeLabel)}${ctx.isLatest?` · 마지막 달은 ${ctx.curMonth.slice(5,7)}/${ctx.elapsedDays}까지`:""}</div>
     <div class="g-tbl-sub">색이 진할수록 매출액이 큰 칸 · 열 순서는 전사 매출 큰 순 · 행은 ${ctx.mLbl(ctx.curMonth)} 달성률 낮은 순</div>
     <div class="tblbox"><table class="g-tbl"><thead><tr><th>매장</th>${catHdr}<th class="total-col">합계</th></tr></thead><tbody>${bodyA}</tbody>${footA}</table></div>
 
@@ -5871,6 +6085,250 @@ function goalsRender04(ctx){
     </tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
+/* ================= 매출 집계 검증 (감사) — 18차 =================
+   "재사용봉투가 부풀어 보인 것"처럼 집계 값이 실제와 어긋나는 일을 다시 만들지 않기 위해,
+   **화면에서 상시 자기검증**을 돌린다. 서로 독립적인 두 소스와 내부 합계가 맞는지 매번 확인한다.
+     ① 매장별 매출(청구금액)  ② 카테고리별 매출(실매출액)  — 같은 달의 같은 매출을 다르게 적은 두 파일
+   차이가 나면 금액과 비율을 그대로 보여준다(숨기지 않는다). 사람이 판단할 몫과 코드가 틀린 몫을 구분해야 하므로,
+   "코드가 맞으면 반드시 0이어야 하는 항목"은 ✗로, "파일 차이라 사람이 봐야 하는 항목"은 ⚠로 나눈다. */
+function salesAudit(scopeMonths){
+  const checks = [];
+  const won = v => Math.round(v).toLocaleString()+"원";
+  const pct = (a,b) => b>0 ? (a/b*100) : null;
+  const ms = (scopeMonths && scopeMonths.length) ? scopeMonths : goalsAllMonths();
+
+  // --- 소스별 월 합계 ---
+  const billOf = m => STORE_SALES_HISTORY.filter(h=>h.date.slice(0,7)===m)
+        .reduce((a,h)=> a + Object.values(h.byStore||{}).reduce((x,v)=>x+num(v),0) + num(h.noStore), 0);
+  const realOf = m => SALES_HISTORY.filter(h=>h.date.slice(0,7)===m).reduce((a,h)=>{
+        let t=0; const bsc=h.byStoreCat||{};
+        Object.keys(bsc).forEach(s=>Object.keys(bsc[s]).forEach(c=> t += num(bsc[s][c].amount)));
+        return a+t; }, 0);
+  const bill = ms.reduce((a,m)=>a+billOf(m),0);
+  const real = ms.reduce((a,m)=>a+realOf(m),0);
+
+  // ① 두 소스 총액 차이 (파일 차이 — 사람이 판단)
+  if(bill>0 && real>0){
+    const d = Math.abs(bill-real), rel = d/Math.max(bill,real)*100;
+    checks.push({ lv: rel<=1?"ok":(rel<=5?"warn":"bad"), kind:"소스",
+      name:"매장별 매출(청구금액) ↔ 카테고리별 매출(실매출액)",
+      val:`${won(bill)} vs ${won(real)} · 차이 ${won(d)} (${rel.toFixed(2)}%)`,
+      why: rel<=1 ? "두 파일이 사실상 일치합니다."
+        : "같은 기간인데 두 파일 총액이 다릅니다. 청구금액은 할인·반품 처리 시점이 달라 실매출액과 차이가 날 수 있고, 한쪽 파일의 날짜가 덜 올라왔을 수도 있습니다. 아래 '월별 대조'에서 어느 달이 벌어지는지 확인하세요." });
+  } else if(bill>0 || real>0){
+    checks.push({ lv:"warn", kind:"소스", name:"소스 한쪽만 업로드됨",
+      val: bill>0 ? `매장별 매출만 ${won(bill)}` : `카테고리별 매출만 ${won(real)}`,
+      why:"두 소스를 서로 대조할 수 없습니다. 나머지 한 종류도 올리면 자동으로 교차검증됩니다." });
+  }
+
+  // ② 카테고리 합계 = 매장 합계 (같은 파일 안에서 — 코드가 맞으면 반드시 0)
+  const merged = mergeByStoreCat(SALES_HISTORY.filter(h=>ms.includes(h.date.slice(0,7))));
+  let rowSum=0, colSum=0;
+  const catTot = {};
+  Object.keys(merged).forEach(s=>Object.keys(merged[s]).forEach(c=>{
+    const a=num(merged[s][c].amount); rowSum+=a; catTot[c]=(catTot[c]||0)+a; }));
+  colSum = Object.values(catTot).reduce((a,v)=>a+v,0);
+  checks.push({ lv: Math.abs(rowSum-colSum)<1 ? "ok":"bad", kind:"내부",
+    name:"매장별 합계 = 카테고리별 합계 (같은 표의 가로합 vs 세로합)",
+    val: Math.abs(rowSum-colSum)<1 ? `일치 (${won(rowSum)})` : `${won(rowSum)} vs ${won(colSum)} · 차이 ${won(Math.abs(rowSum-colSum))}`,
+    why: Math.abs(rowSum-colSum)<1 ? "합산 로직이 정상입니다." : "코드 버그입니다. 집계 함수를 확인해야 합니다." });
+
+  // ③ 03 시트 총액 = 그 기간 카테고리 원본 총액 (그룹핑이 금액을 바꾸지 않는지)
+  const rawTot = SALES_HISTORY.filter(h=>ms.includes(h.date.slice(0,7))).reduce((a,h)=>{
+    let t=0; const bsc=h.byStoreCat||{};
+    Object.keys(bsc).forEach(s=>Object.keys(bsc[s]).forEach(c=> t+=num(bsc[s][c].amount)));
+    return a+t; },0);
+  checks.push({ lv: Math.abs(rawTot-rowSum)<1 ? "ok":"bad", kind:"내부",
+    name:"카테고리 그룹핑(대형가전+XLB→가전) 전후 총액",
+    val: Math.abs(rawTot-rowSum)<1 ? `일치 (${won(rawTot)})` : `원본 ${won(rawTot)} vs 그룹핑 후 ${won(rowSum)}`,
+    why: Math.abs(rawTot-rowSum)<1 ? "합치기만 하고 금액은 그대로입니다." : "그룹핑에서 금액이 새거나 중복됐습니다 — 코드 버그." });
+
+  // ④ 목표 탭 매장 행 합계 = 그 기간 매장별 실적 총액 (대상 매장 밖으로 빠진 금액)
+  const allStoreTot = ms.reduce((a,m)=>{
+    const t = goalsGroupMap(m).map;
+    return a + Object.keys(t).reduce((x,s)=>x+num(t[s]),0); },0);
+
+  // ⑤ 미매칭 매장 (매장 목록에 없어 집계에서 빠진 금액)
+  const unknown = {};
+  SALES_HISTORY.filter(h=>ms.includes(h.date.slice(0,7))).forEach(h=>{
+    Object.keys(h.byStoreCat||{}).forEach(s=>{
+      const g = storeSalesGroup(resolveStoreName(s));
+      if(STORES.includes(g)) return;
+      let t=0; Object.keys(h.byStoreCat[s]).forEach(c=> t+=num(h.byStoreCat[s][c].amount));
+      unknown[s]=(unknown[s]||0)+t; });
+  });
+  const unkTot = Object.values(unknown).reduce((a,v)=>a+v,0);
+  checks.push({ lv: unkTot<=0 ? "ok" : (pct(unkTot, rowSum)>1 ? "bad":"warn"), kind:"누락",
+    name:"매장 목록에 없어 빠진 매출",
+    val: unkTot<=0 ? "없음" : `${won(unkTot)} (${(pct(unkTot,rowSum)||0).toFixed(2)}%) · ${Object.keys(unknown).slice(0,6).join(", ")}${Object.keys(unknown).length>6?" 외":""}`,
+    why: unkTot<=0 ? "모든 매장명이 매장 목록과 매칭됐습니다."
+      : "이 금액은 어느 화면에도 안 잡힙니다. 매장명 표기가 다르면 STORE_ALIASES 에 별칭을 넣어야 합니다(기흥가구패션관처럼)." });
+
+  // ⑥ 매장 열이 없던 날의 금액(매장 미상) — 비율대로 분배되지만 원인은 파일 쪽
+  const noStore = STORE_SALES_HISTORY.filter(h=>ms.includes(h.date.slice(0,7))).reduce((a,h)=>a+num(h.noStore),0);
+  if(noStore>0) checks.push({ lv: (pct(noStore,bill)||0)>1?"warn":"ok", kind:"누락",
+    name:"매장 열이 비어 있던 날의 금액",
+    val:`${won(noStore)} (${(pct(noStore,bill)||0).toFixed(2)}%)`,
+    why:"그 달 매장 비율대로 나눠 넣었습니다. 비율이 크면 원본 내보내기에서 매장 열이 빠진 것이니 그 파일을 다시 받는 편이 정확합니다." });
+
+  // ⑦ 날짜 중복 / 커버리지
+  ms.forEach(m=>{
+    const dts = SALES_HISTORY.filter(h=>h.date.slice(0,7)===m).map(h=>h.date);
+    const bts = STORE_SALES_HISTORY.filter(h=>h.date.slice(0,7)===m).map(h=>h.date);
+    const dup = arr => arr.filter((d,i)=>arr.indexOf(d)!==i);
+    const d1 = Array.from(new Set(dup(dts))), d2 = Array.from(new Set(dup(bts)));
+    if(d1.length || d2.length) checks.push({ lv:"bad", kind:"중복", name:`${m} 같은 날짜가 두 번 이상 집계됨`,
+      val:[...d1,...d2].join(", "), why:"같은 날짜가 중복 합산되면 그만큼 매출이 부풀려집니다. 해당 날짜 파일을 하나만 남기고 다시 올리세요." });
+  });
+
+  // ⑧ 한 날짜에 그 달 전체 금액이 들어온 것으로 보이는 경우 (재사용봉투를 부풀렸던 그 패턴)
+  ms.forEach(m=>{
+    const rows = SALES_HISTORY.filter(h=>h.date.slice(0,7)===m).map(h=>{
+      let t=0; const b=h.byStoreCat||{};
+      Object.keys(b).forEach(s=>Object.keys(b[s]).forEach(c=> t+=num(b[s][c].amount)));
+      return {date:h.date, t}; });
+    if(rows.length < 3) return;
+    const tot = rows.reduce((a,r)=>a+r.t,0);
+    const big = rows.filter(r=> tot>0 && r.t/tot > 0.6);
+    if(big.length) checks.push({ lv:"warn", kind:"형식",
+      name:`${m} 특정 날짜 하나가 그 달의 60% 넘게 차지`,
+      val: big.map(r=>`${r.date} ${(r.t/tot*100).toFixed(0)}%`).join(", "),
+      why:"그 파일이 '하루치'가 아니라 '기간 전체 합계'일 수 있습니다. 그러면 일별 계산과 예상매출이 크게 틀어집니다." });
+  });
+
+  const bad = checks.filter(c=>c.lv==="bad").length, warn = checks.filter(c=>c.lv==="warn").length;
+  return { checks, bad, warn, bill, real, allStoreTot, rowSum, ms };
+}
+function salesAuditHtml(ctx){
+  const a = salesAudit(ctx.scopeMonths);
+  const ico = { ok:"✓", warn:"⚠", bad:"✗" };
+  const col = { ok:"var(--green)", warn:"var(--amber)", bad:"var(--red)" };
+  const hd = a.bad ? {t:`검증 실패 ${a.bad}건`, c:"var(--red)"}
+           : a.warn ? {t:`확인 필요 ${a.warn}건`, c:"var(--amber)"}
+           : {t:"이상 없음", c:"var(--green)"};
+  const rows = a.checks.map(c=>`<div class="audit-row">
+      <span class="ic" style="color:${col[c.lv]}">${ico[c.lv]}</span>
+      <span class="nm">${escHtml(c.name)}<span class="kd">${escHtml(c.kind)}</span></span>
+      <span class="vl">${escHtml(c.val)}</span>
+      <span class="wy">${escHtml(c.why)}</span>
+    </div>`).join("");
+  // 월별 두 소스 대조
+  const mrows = a.ms.map(m=>{
+    const b = STORE_SALES_HISTORY.filter(h=>h.date.slice(0,7)===m)
+      .reduce((x,h)=> x + Object.values(h.byStore||{}).reduce((y,v)=>y+num(v),0) + num(h.noStore), 0);
+    let r=0; SALES_HISTORY.filter(h=>h.date.slice(0,7)===m).forEach(h=>{
+      const bsc=h.byStoreCat||{}; Object.keys(bsc).forEach(s=>Object.keys(bsc[s]).forEach(c=> r+=num(bsc[s][c].amount))); });
+    const d = r-b, rel = Math.max(b,r)>0 ? Math.abs(d)/Math.max(b,r)*100 : 0;
+    const cl = rel<=1?"var(--green)":rel<=5?"var(--amber)":"var(--red)";
+    return `<tr><td>${m}</td>
+      <td><span class="num">${Math.round(b).toLocaleString()}</span></td>
+      <td><span class="num">${Math.round(r).toLocaleString()}</span></td>
+      <td><span class="num" style="color:${cl}">${d>=0?'+':''}${Math.round(d).toLocaleString()}</span></td>
+      <td><span class="num" style="color:${cl}">${rel.toFixed(2)}%</span></td></tr>`;
+  }).join("");
+  return `<div class="g-fc-card" style="border-color:${hd.c};background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,0));">
+    <div class="g-fc-hd" style="color:${hd.c};">매출 집계 자동 검증 <span class="g-fc-grade" style="color:${hd.c};border-color:${hd.c};">${hd.t}</span>
+      <span style="font-size:11px;color:var(--muted2);font-family:'Inter',sans-serif;">집계 기간 ${escHtml(ctx.scopeLabel)}</span></div>
+    <div class="audit-list">${rows}</div>
+    <details class="g-store-more" style="margin-top:8px;">
+      <summary>월별 두 소스 대조 (매장별 매출 ↔ 카테고리별 매출)</summary>
+      <div class="tblbox" style="max-height:34vh;"><table class="g-tbl">
+        <thead><tr><th>월</th><th>매장별 매출(청구금액)</th><th>카테고리별 매출(실매출액)</th><th>차이</th><th>차이율</th></tr></thead>
+        <tbody>${mrows}</tbody></table></div>
+    </details>
+  </div>`;
+}
+
+/* ---------------- 카테고리 상세(진단) ---------------- */
+// "재사용봉투 매출이 왜 이렇게 크냐" 같은 질문에 스스로 답할 수 있게, 한 카테고리를
+// **월별 · 매장별 · 평균 단가**로 쪼개서 보여준다. 단가(금액÷수량)가 상식 밖이면 그 카테고리에
+// 엉뚱한 상품분류가 섞인 것이고, 특정 달·특정 매장만 튀면 그 파일을 다시 보면 된다.
+function goalsCatDrillHtml(cat, ctx){
+  const won = v => Math.round(v).toLocaleString();
+  const unit = (a,q) => q>0 ? Math.round(a/q).toLocaleString()+"원" : "-";
+  // 월별 (선택 기간이 아니라 **업로드된 전 기간**을 보여준다 — 어느 달이 튀는지 봐야 하므로)
+  const byMonth = {};
+  SALES_HISTORY.forEach(h=>{
+    const m = h.date.slice(0,7);
+    Object.keys(h.byStoreCat||{}).forEach(st=>{
+      const v = h.byStoreCat[st][cat]; if(!v) return;
+      if(!byMonth[m]) byMonth[m] = {amount:0, qty:0, days:new Set()};
+      byMonth[m].amount += v.amount||0; byMonth[m].qty += v.qty||0; byMonth[m].days.add(h.date);
+    });
+  });
+  const months = Object.keys(byMonth).sort();
+  const maxM = Math.max(1, ...months.map(m=>byMonth[m].amount));
+  const monthRows = months.map(m=>`<tr>
+      <td>${m}</td>
+      <td><span class="num">${won(byMonth[m].amount)}</span></td>
+      <td style="${goalsHeatAmber(byMonth[m].amount/maxM)}"><span class="num">${(byMonth[m].amount/maxM*100).toFixed(0)}%</span></td>
+      <td><span class="num">${Math.round(byMonth[m].qty).toLocaleString()}</span></td>
+      <td><span class="num">${unit(byMonth[m].amount, byMonth[m].qty)}</span></td>
+      <td><span class="num">${byMonth[m].days.size}</span></td>
+    </tr>`).join("");
+  // 매장별 (선택 기간 기준)
+  const byStore = {};
+  Object.keys(ctx.merged).forEach(stRaw=>{
+    const v = ctx.merged[stRaw][cat]; if(!v) return;
+    const g = storeSalesGroup(resolveStoreName(stRaw));
+    if(!byStore[g]) byStore[g] = {amount:0, qty:0};
+    byStore[g].amount += v.amount||0; byStore[g].qty += v.qty||0;
+  });
+  const stores = Object.keys(byStore).sort((a,b)=>byStore[b].amount-byStore[a].amount);
+  const totAmt = stores.reduce((a,x)=>a+byStore[x].amount,0);
+  const maxS = Math.max(1, ...stores.map(x=>byStore[x].amount));
+  const storeRows = stores.map(st=>`<tr>
+      <td>${escHtml(st)}</td>
+      <td><span class="num">${won(byStore[st].amount)}</span></td>
+      <td style="${goalsHeatAmber(byStore[st].amount/maxS)}"><span class="num">${totAmt>0?(byStore[st].amount/totAmt*100).toFixed(1):'0.0'}%</span></td>
+      <td><span class="num">${Math.round(byStore[st].qty).toLocaleString()}</span></td>
+      <td><span class="num">${unit(byStore[st].amount, byStore[st].qty)}</span></td>
+    </tr>`).join("");
+  // 이 카테고리로 지정된 상품분류 원문 (사용자가 모달에서 고른 매핑)
+  const mapped = Object.keys(SALES_CAT_MAP).filter(k=>SALES_CAT_MAP[k]===cat);
+  const totQty = stores.reduce((a,x)=>a+byStore[x].qty,0);
+  const avgUnit = totQty>0 ? totAmt/totQty : null;
+  const warn = [];
+  if(avgUnit!=null && avgUnit>=100000) warn.push(`평균 단가가 <b>${won(avgUnit)}원</b>입니다 — 이 카테고리에 다른 상품분류가 섞였을 가능성이 큽니다.`);
+  if(months.length>1){
+    const vals = months.map(m=>byMonth[m].amount);
+    const med = vals.slice().sort((a,b)=>a-b)[Math.floor(vals.length/2)];
+    const spike = months.filter(m=> med>0 && byMonth[m].amount > med*3);
+    if(spike.length) warn.push(`특정 달만 크게 튑니다: <b>${spike.join(", ")}</b> — 그 달 파일이 기간 전체 합계이거나 중복 업로드일 수 있습니다.`);
+  }
+  const dupDays = months.filter(m=> byMonth[m].days.size > goalsDaysInMonth(m));
+  if(dupDays.length) warn.push(`업로드 날짜 수가 그 달 일수보다 많습니다: <b>${dupDays.join(", ")}</b> — 같은 날짜를 중복 집계했을 수 있습니다.`);
+  const warnHtml = warn.length
+    ? `<div class="g-note-card" style="border-color:var(--red);"><h4 style="color:var(--red);">확인이 필요한 신호</h4>${warn.map(w=>`<div class="g-note-row"><span class="k">·</span><span class="v">${w}</span></div>`).join("")}</div>`
+    : `<div class="g-note-card"><h4>자동 점검 결과</h4><div class="g-note-row"><span class="k">·</span><span class="v">단가·월별 분포·중복 업로드에서 눈에 띄는 이상 신호는 없습니다.</span></div></div>`;
+  return `
+    <p style="font-size:12.5px;color:var(--muted);margin:0 0 10px;">
+      선택 기간(<b>${escHtml(ctx.scopeLabel)}</b>) 합계 <b>${won(totAmt)}원</b> · 수량 ${Math.round(totQty).toLocaleString()} · 평균 단가 <b>${avgUnit!=null?won(avgUnit)+"원":"-"}</b>
+    </p>
+    ${warnHtml}
+    <div class="g-tbl-title">월별 (업로드된 전 기간)</div>
+    <div class="g-tbl-sub">한 달만 유독 크면 그 달 파일을 다시 보세요. '업로드 날짜 수'가 그 달 일수보다 많으면 중복입니다.</div>
+    <div class="tblbox" style="max-height:34vh;"><table class="g-tbl"><thead><tr><th>월</th><th>매출액(원)</th><th>최대월 대비</th><th>수량</th><th>평균 단가</th><th>업로드 날짜 수</th></tr></thead><tbody>${monthRows||'<tr><td colspan="6">데이터 없음</td></tr>'}</tbody></table></div>
+    <div class="g-tbl-title">매장별 (선택 기간)</div>
+    <div class="tblbox" style="max-height:34vh;"><table class="g-tbl"><thead><tr><th>매장</th><th>매출액(원)</th><th>비중</th><th>수량</th><th>평균 단가</th></tr></thead><tbody>${storeRows||'<tr><td colspan="5">데이터 없음</td></tr>'}</tbody></table></div>
+    <div class="g-tbl-title">이 카테고리로 지정된 상품분류 (${mapped.length}건)</div>
+    <div class="g-tbl-sub">엉뚱한 상품분류가 이 카테고리로 지정돼 있으면 여기서 바로 보입니다. 고치려면 상단 <b>카테고리 지정 보기/수정</b>에서 바꾸세요.</div>
+    <div style="font-size:11.5px;color:var(--muted);line-height:1.9;word-break:keep-all;">${mapped.length?mapped.map(k=>`<span style="display:inline-block;border:1px solid var(--line-soft);border-radius:99px;padding:1px 9px;margin:0 4px 4px 0;">${escHtml(k)}</span>`).join(""):"사용자가 직접 지정한 항목 없음 — 매출 파일의 상품분류(대분류)가 그대로 카테고리로 쓰였습니다."}</div>`;
+}
+let _catDrillWired = false;
+function wireCatDrill(ctx){
+  const close = document.getElementById("catDrillClose");
+  if(close) close.onclick = ()=>{ document.getElementById("catDrillModal").hidden = true; };
+  document.querySelectorAll("button.catdrill").forEach(b=>{
+    b.onclick = ()=>{
+      const cat = b.dataset.cat;
+      document.getElementById("catDrillTitle").textContent = `카테고리 상세 · ${cat}`;
+      document.getElementById("catDrillBody").innerHTML = goalsCatDrillHtml(cat, ctx);
+      document.getElementById("catDrillModal").hidden = false;
+    };
+  });
+}
+
 /* ---------------- 05_전사카테고리벤치마크 ---------------- */
 function goalsRender05(ctx){
   const cm = ctx.mLbl(ctx.curMonth);
@@ -5885,19 +6343,24 @@ function goalsRender05(ctx){
     if(topPerPlt && r.cat===topPerPlt.cat) note = "PLT당 매출 최상위 — 공급 확대 시 매출 레버리지 큼";
     // 신선식품은 전 매장이 취급하는 게 아니다 — 확대 여지를 볼 때 취급 매장 수를 함께 밝힌다.
     if(r.freshOnly) note = (note?note+" · ":"") + `취급 매장 ${r.storeCnt}개 기준 (냉장·냉동 미취급 매장 제외)`;
+    // 평균 단가가 터무니없이 크면 그 카테고리에 엉뚱한 상품분류가 섞였을 가능성이 크다.
+    const odd = r.unit!=null && r.unit >= 100000;
     return `<tr>
       <td>${escHtml(r.cat)}</td>
       <td><span class="num">${Math.round(r.amount).toLocaleString()}</span></td>
       <td style="${goalsHeatAmber(share/40)}"><span class="num">${share.toFixed(2)}%</span></td>
+      <td><span class="num">${r.qty>0?Math.round(r.qty).toLocaleString():'-'}</span></td>
+      <td><span class="num" style="${odd?'color:var(--red);font-weight:800;':''}" title="${odd?'단가가 10만원 이상입니다 — 이 카테고리에 다른 상품분류가 섞였는지 확인하세요':''}">${r.unit!=null?Math.round(r.unit).toLocaleString():'-'}</span></td>
       <td><span class="num">${r.pltTotal>0?r.pltTotal.toLocaleString():'-'}</span></td>
       <td class="total-col" style="${r.perPlt?goalsHeatAmber(r.perPlt/maxPerPlt):''}"><span class="num">${r.perPlt?Math.round(r.perPlt).toLocaleString():'-'}</span></td>
+      <td><button class="act catdrill" data-cat="${escHtml(r.cat)}" style="font-size:10.5px;padding:3px 9px;">상세</button></td>
       <td class="g-txt" style="color:var(--amber);font-size:11px;">${escHtml(note)}</td>
     </tr>`;
   }).join("");
 
   const unsold = goalsUnsoldCategories(ctx.companyCat);
   const unsoldTbl = unsold.length
-    ? `<div class="g-tbl-title">출고는 있었으나 ${cm} 매출이 0원인 카테고리 (재고 적체 · 판매 부진 경고)</div>
+    ? `<div class="g-tbl-title">출고는 있었으나 매출이 0원인 카테고리 — 집계 기간 ${escHtml(ctx.scopeLabel)} (재고 적체 · 판매 부진 경고)</div>
        <div class="g-tbl-sub">PLT는 나갔는데 매출이 전혀 안 잡힌 카테고리입니다. 실제로 안 팔린 것인지, 매출 등록이 누락된 것인지부터 구분해야 합니다.</div>
 <div class="tblbox">       <table class="g-tbl"><thead><tr><th>카테고리</th><th>이번달 출고(PLT)</th><th>매출액(원)</th><th>위험도</th><th>권고 조치</th></tr></thead><tbody>
        ${unsold.map(u=>{
@@ -5910,9 +6373,10 @@ function goalsRender05(ctx){
        }).join("")}</tbody></table></div>`
     : `<div class="g-tbl-title">출고는 있었으나 매출이 0원인 카테고리</div><p class="g-note-p">현재 해당하는 카테고리가 없습니다.</p>`;
 
-  return `<div class="g-tbl-title">카테고리별 전사 매출 · PLT당 매출효율 (${ctx.curMonth} 누적 ~${ctx.curMonth.slice(5,7)}/${ctx.elapsedDays})</div>
+  return `<div class="g-tbl-title">카테고리별 전사 매출 · PLT당 매출효율 — 집계 기간 ${escHtml(ctx.scopeLabel)}</div>
+    <div class="g-tbl-sub" style="color:var(--amber);">POS 매출에서는 대형가전과 XLB(일반가전)가 구분되지 않아 <b>'가전'으로 합산</b>해 표시합니다(PLT는 두 카테고리 합). 매장별 재고/공급 현황 표에서는 지금처럼 따로 봅니다.<br>금액이 이상해 보이는 카테고리는 <b>상세</b>를 눌러 월별·매장별·평균 단가로 쪼개서 원인을 확인하세요.</div>
     <div class="g-tbl-sub">PLT당 매출 = 카테고리 매출액 ÷ 그 카테고리 출고 PLT 수. 이 값이 높을수록 파레트 한 장이 만들어내는 매출이 크다는 뜻이라, 공급을 늘렸을 때 매출 레버리지가 큰 카테고리입니다. (판매수량이 아니라 반드시 출고 PLT 기준)</div>
-    <div class="tblbox"><table class="g-tbl"><thead><tr><th>카테고리</th><th>${cm} 매출액(원)</th><th>비중(%)</th><th>이번달 출고(PLT)</th><th>PLT당 매출(원)</th><th>비고</th></tr></thead><tbody>${body}</tbody></table></div>
+    <div class="tblbox"><table class="g-tbl"><thead><tr><th>카테고리</th><th>매출액(원)</th><th>비중(%)</th><th>판매수량</th><th>평균 단가<br><span style="font-weight:400;color:var(--muted2);font-size:9px;">(금액÷수량)</span></th><th>이번달 출고(PLT)</th><th>PLT당 매출(원)</th><th>확인</th><th>비고</th></tr></thead><tbody>${body}</tbody></table></div>
     ${goalsEffBarsHtml(ctx.effRows)}
     ${unsoldTbl}`;
 }
@@ -6092,6 +6556,8 @@ function renderGoals(){
   };
   if(!panels["01"] || !panels["06"]) return;
   wireGoalsSubTabs();
+  wireGoalsScope();
+  renderGoalsScopeBar();
   const ctx = goalsBuildContext();
   if(!ctx){
     GOALS_SUB_KEYS.forEach(k=>{ if(panels[k]) panels[k].innerHTML = ""; });
@@ -6099,7 +6565,10 @@ function renderGoals(){
     GOALS_SUB_KEYS.slice(1).forEach(k=>{ if(metas[k]) metas[k].textContent = ""; });
     return;
   }
-  const base = `기준월 ${ctx.curMonth} (${ctx.elapsedDays}/${ctx.daysInMonth}일 경과) · 데이터 소스 ${ctx.curTot.source} · 목표는 코드(STORE_MONTHLY_TARGETS)의 월 목표 기준(연간 아님)`;
+  const period = ctx.isRange
+    ? `집계 기간 ${ctx.scopeLabel} · 마지막 달 ${ctx.curMonth}은 ${ctx.elapsedDays}/${ctx.daysInMonth}일까지`
+    : `기준월 ${ctx.curMonth} (${ctx.elapsedDays}/${ctx.daysInMonth}일 경과)`;
+  const base = `${period} · 데이터 소스 ${ctx.curTot.source} · 목표는 코드(STORE_MONTHLY_TARGETS)의 월 목표 기준(연간 아님)`;
   panels["01"].innerHTML = goalsRender01(ctx);
   panels["02"].innerHTML = goalsRender02(ctx);
   panels["03"].innerHTML = goalsRender03(ctx);
@@ -6109,12 +6578,13 @@ function renderGoals(){
   panels["07"].innerHTML = goalsRender07(ctx);
   if(metas["01"]) metas["01"].textContent = base;
   if(metas["02"]) metas["02"].textContent = `${base} · 달성률 낮은 순(1위=최하위)`;
-  if(metas["03"]) metas["03"].textContent = `${ctx.curMonth} 누적 실매출액 기준 · 카테고리 ${ctx.cats.length}종 전체`;
-  if(metas["04"]) metas["04"].textContent = `강점/기회는 전사 평균 구성비 대비 격차가 가장 큰/작은 카테고리`;
-  if(metas["05"]) metas["05"].textContent = `PLT당 매출 = 카테고리 매출 ÷ 출고 PLT (판매수량 아님)`;
+  if(metas["03"]) metas["03"].textContent = `집계 기간 ${ctx.scopeLabel} · 실매출액 기준 · 카테고리 ${ctx.cats.length}종 전체`;
+  if(metas["04"]) metas["04"].textContent = `집계 기간 ${ctx.scopeLabel} · 강점/기회는 전사 평균 구성비 대비 격차가 가장 큰/작은 카테고리`;
+  if(metas["05"]) metas["05"].textContent = `집계 기간 ${ctx.scopeLabel} · PLT당 매출 = 카테고리 매출 ÷ 출고 PLT (판매수량 아님)`;
   if(metas["06"]) metas["06"].textContent = `${base} · 달성률 4개 그룹 · 매장별 4문장 자동 진단`;
   if(metas["07"]) metas["07"].textContent = `${ctx.months[0]} ~ ${ctx.curMonth} · 결측 월은 0%가 아니라 '결측'으로 표기`;
   wireGoalsForecast();
+  wireCatDrill(ctx);
   selectGoalsSub(goalsSubTab);
 }
 function storeSalesActiveMap(){
