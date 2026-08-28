@@ -30,12 +30,13 @@
     font-family:"Inter",system-ui,"Malgun Gothic","맑은 고딕",sans-serif;
     min-height:100vh; -webkit-font-smoothing:antialiased;
   }
-  /* 16차: 폭을 화면에 무조건 꽉 채우면(15차) 표는 시원한데 읽는 화면이 지나치게 늘어난다.
-     → 폭을 **모드**로 두고, 기본값 '자동'은 지금 보고 있는 화면에 맞춰 알아서 고른다.
-        좁게 1280 / 보통 1600 / 넓게 화면 전체. 선택은 이 브라우저에만 저장된다(공유 상태에 안 들어감). */
+  /* 17차: 16차의 '자동'(화면마다 폭이 달라짐)은 탭을 옮길 때마다 레이아웃이 들썩여서 오히려
+     산만했다 → **전 화면 동일한 폭 하나**를 쓴다. 사용자가 좁게/보통/넓게 중에 고르면 그 폭이
+     모든 탭에 똑같이 적용된다. 기본값은 보통(1600) — 표는 카드 안에서 가로 스크롤되므로 안전하다.
+     선택은 이 브라우저에만 저장된다(Firebase 공유 상태에 안 들어감). */
   :root{ --wrapmax:1600px; }
-  html[data-w="narrow"]{ --wrapmax:1280px; }
-  html[data-w="normal"]{ --wrapmax:1600px; }
+  html[data-w="narrow"]{ --wrapmax:1360px; }
+  html[data-w="normal"]{ --wrapmax:1680px; }
   html[data-w="wide"]{   --wrapmax:2560px; }
   .wrap{max-width:var(--wrapmax);width:100%;margin:0 auto;padding:16px clamp(10px,1.2vw,22px) 60px;}
   @media (min-width:1600px){ .wrap{padding-left:clamp(12px,1vw,26px);padding-right:clamp(12px,1vw,26px);} }
@@ -462,12 +463,20 @@
   td.memo{max-width:240px;text-align:left;color:var(--muted);font-size:11.5px;line-height:1.4;}
   td.memo .memo-clip{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
     white-space:normal;max-height:2.9em;cursor:help;}
+  /* ★ 합계행 겹침 수정 (17차)
+     원인 두 가지가 겹쳐 있었다:
+       ① 합계행이 화면 아래에 고정(sticky)되는데 배경이 **반투명**이라 아래 깔린 매장 행이 비쳐서
+          숫자가 두 겹으로 보였다. → 불투명 색으로 바꾼다.
+       ② 합계행이 두 줄인 표(03 카테고리 매트릭스: '전사 합계' + '전사 비중 %')에서 **두 줄 모두
+          bottom:0 에 붙어** 서로 위에 겹쳐 그려졌다. → 마지막 줄만 고정하고 윗줄은 같이 스크롤. */
   tfoot td{
-    position:sticky;bottom:0;background:var(--raise);font-family:"JetBrains Mono";font-weight:700;
+    position:sticky;bottom:0;z-index:2;background:var(--raise);font-family:"JetBrains Mono";font-weight:700;
     border-top:1px solid var(--amber);color:var(--text);
   }
-  tfoot td:first-child{position:sticky;left:0;z-index:2;background:var(--raise);font-family:"Oswald";
+  tfoot td:first-child{position:sticky;left:0;z-index:3;background:var(--raise);font-family:"Oswald";
     color:var(--amber);letter-spacing:.05em;}
+  tfoot tr:not(:last-child) td{position:static;}          /* 합계행이 여러 줄일 때 겹치지 않게 */
+  tfoot tr:not(:last-child) td:first-child{position:sticky;left:0;z-index:2;}
   .legend{display:flex;gap:16px;flex-wrap:wrap;padding:12px 16px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);}
   .legend .sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:6px;}
 
@@ -633,9 +642,22 @@
   .g-store-more>summary::-webkit-details-marker{display:none;}
   .g-store-more>summary::before{content:"▸ ";}
   .g-store-more[open]>summary::before{content:"▾ ";}
+  /* ★ 표마다 자기만의 스크롤 박스 (17차)
+     예전에는 한 카드 안의 표 3개(03 시트)가 같은 스크롤 영역을 공유해서, 앞 표의 고정 머리글이
+     뒤 표 위에 떠 있고 합계행이 다른 표를 덮었다. 표마다 박스를 나누면 sticky 가 자기 표 안에만
+     머물러 절대 다른 표를 침범하지 않는다. 모든 탭에 같은 규칙을 쓴다. */
+  .tblbox{overflow:auto;max-height:68vh;border:1px solid var(--line-soft);border-radius:10px;
+    background:var(--panel);margin:0 0 6px;scrollbar-color:var(--amber-dim,#8a6d2a) var(--panel2);scrollbar-width:thin;}
+  .tblbox>table{margin:0;}
+  /* 목표 탭 패널은 바깥 스크롤을 없애고 페이지가 자연스럽게 흐르게 한다(스크롤 중첩 방지) */
+  .gsub-panel .agg-scroll{max-height:none;overflow:visible;padding:8px 12px 14px;}
   table.g-tbl thead th{min-width:66px;max-width:112px;font-size:10px;}
   table.g-tbl tbody td:first-child, table.g-tbl thead th:first-child{min-width:104px;font-size:11.5px;}
-  table.g-tbl tfoot td{font-family:"JetBrains Mono";font-weight:700;background:rgba(245,178,17,.07);border-top:1px solid var(--line);}
+  /* 반투명(rgba)이면 고정된 합계행 아래로 매장 행이 비쳐 숫자가 겹쳐 보인다 → 불투명 색 사용 */
+  table.g-tbl tfoot td{font-family:"JetBrains Mono";font-weight:700;background:#242a2c;border-top:1px solid var(--amber);}
+  table.g-tbl tfoot td:first-child{background:#242a2c;}
+  /* 월 목표매출 열은 '그 달 전체 금액' — 일할 목표와 헷갈리지 않게 살짝 구분한다 */
+  td.tgt-col, th.tgt-col{background:rgba(245,178,17,.05);border-left:1px solid rgba(245,178,17,.25);border-right:1px solid rgba(245,178,17,.25);}
   td.g-txt{text-align:left;white-space:normal;word-break:keep-all;line-height:1.6;min-width:220px;max-width:760px;}
   td.g-band{white-space:nowrap;font-size:10.5px;}
   .g-tier-group{margin:22px 0 10px;}
@@ -671,9 +693,8 @@
     <div class="wmode">
       <span class="lab">화면 폭</span>
       <div class="wmode-seg" id="wmodeSeg">
-        <button data-w="auto"   title="지금 보고 있는 화면에 맞춰 자동으로 고릅니다 — 넓은 표는 넓게, 읽는 화면은 보통 폭">자동</button>
-        <button data-w="narrow" title="1280px — 한 화면에 집중해서 읽을 때">좁게</button>
-        <button data-w="normal" title="1600px — 대부분의 화면에 알맞은 폭">보통</button>
+        <button data-w="narrow" title="1360px — 한 화면에 집중해서 읽을 때">좁게</button>
+        <button data-w="normal" title="1680px — 기본값. 모든 탭에 똑같이 적용됩니다">보통</button>
         <button data-w="wide"   title="화면 전체 — 열이 많은 표를 한 번에 볼 때">넓게</button>
       </div>
     </div>
@@ -3723,33 +3744,21 @@ function renderTrend(){
 /* ================= 탭 ================= */
 const tabEntry=document.getElementById("tab-entry"), tabAgg=document.getElementById("tab-agg"), tabSales=document.getElementById("tab-sales"), tabGoals=document.getElementById("tab-goals");
 const viewEntry=document.getElementById("view-entry"), viewAgg=document.getElementById("view-agg"), viewSales=document.getElementById("view-sales"), viewGoals=document.getElementById("view-goals");
-/* ================= 화면 폭 모드 (16차) =================
-   15차에서 폭을 화면에 꽉 채웠더니 "너무 늘어났다"는 지적을 받았다. 화면마다 필요한 폭이 다르다:
-     · 열이 17~30개인 표(재고 집계·목표달성 02·매트릭스 03·월별추이 07)는 넓을수록 좋고,
-     · 카드·문장·업로드 버튼이 있는 화면은 1600px 정도가 읽기 편하다.
-   그래서 폭을 '모드'로 두고 **기본값 '자동'은 지금 보고 있는 화면에 맞춰 알아서 고른다**.
-   선택은 이 브라우저에만 저장한다(localStorage) — Firebase 공유 상태에 넣으면 다른 사람 화면까지 바뀐다. */
+/* ================= 화면 폭 (17차) =================
+   16차에서는 탭마다 폭을 자동으로 바꿨는데(넓은 표는 넓게, 읽는 화면은 보통), 탭을 옮길 때마다
+   화면이 들썩여서 오히려 산만하다는 지적을 받았다. → **전 화면 동일한 폭 하나**만 쓴다.
+   고른 폭은 이 브라우저에만 저장한다(localStorage) — 공유 상태에 넣으면 다른 사람 화면까지 바뀐다. */
 const WMODE_KEY = "plt_layout_v1";
-let wmode = "auto";
-try{ const v = localStorage.getItem(WMODE_KEY); if(["auto","narrow","normal","wide"].includes(v)) wmode = v; }catch(_){}
-let curTab = "entry";
-// 화면별 자동 폭: 넓은 표가 있는 화면만 'wide'
-function autoWidthFor(tab, sub){
-  // 넓게 = 열이 많은 표, 또는 폭이 늘면 '열이 늘어나는' 카드 그리드(카드 자체는 안 늘어남)
-  // 보통 = 문장·업로드 버튼·요약 카드가 주인 화면
-  if(tab === "agg")   return "wide";                      // 재고 17열 + 출고 집계표 + 출처 비교
-  if(tab === "sales") return "wide";                       // 매출 집계표(카테고리 열 많음) + 도넛 그리드
-  if(tab === "goals") return ["02","03","06","07"].includes(sub) ? "wide" : "normal";
-  return "normal";                                         // 출고 입력 — 카드 6~7개면 충분
-}
+let wmode = "normal";
+try{
+  const v = localStorage.getItem(WMODE_KEY);
+  // 16차의 "auto" 가 저장돼 있으면 기본값(보통)으로 조용히 옮긴다.
+  if(["narrow","normal","wide"].includes(v)) wmode = v;
+}catch(_){}
 function applyWidthMode(){
-  const eff = wmode==="auto" ? autoWidthFor(curTab, goalsSubTab) : wmode;
-  document.documentElement.setAttribute("data-w", eff);
+  document.documentElement.setAttribute("data-w", wmode);
   const seg = document.getElementById("wmodeSeg");
   if(seg) seg.querySelectorAll("button").forEach(b=> b.classList.toggle("on", b.dataset.w===wmode));
-  // '자동'일 때 지금 어떤 폭이 적용됐는지 보이게 해서, 화면을 옮길 때마다 폭이 바뀌는 이유를 알 수 있게 한다.
-  const lab = document.querySelector(".wmode>.lab");
-  if(lab) lab.textContent = wmode==="auto" ? `화면 폭 · 자동(${eff==="wide"?"넓게":"보통"})` : "화면 폭";
 }
 function wireWidthMode(){
   const seg = document.getElementById("wmodeSeg");
@@ -3772,8 +3781,6 @@ function selectTab(which){
   if(which==="agg"){ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }
   if(which==="sales"){ renderSalesDateSelect(); renderSalesTrend(); renderSalesVsSupply(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); }
   if(which==="goals"){ renderGoals(); }
-  curTab = which;
-  applyWidthMode();     // 화면을 옮기면 '자동' 폭도 그 화면에 맞게 바뀐다
 }
 tabEntry.onclick=()=>selectTab("entry");
 tabAgg.onclick=()=>selectTab("agg");
@@ -5661,6 +5668,9 @@ function goalsRender01(ctx){
       ${statCard(`전사 달성률 · ${ctx.curMonth} (${ctx.elapsedDays}/${ctx.daysInMonth}일 경과)`, totalPct.toFixed(1)+"%", [
         goalsLine("목표(일할 환산) "+Math.round(totalTarget).toLocaleString()+"원"),
         goalsLine("실적 "+Math.round(totalActual).toLocaleString()+"원")])}
+      ${statCard("전사 월 목표매출", (ctx.rows.reduce((a,r)=>a+r.target,0)/100000000).toFixed(2)+"억", [
+        goalsLine(ctx.rows.reduce((a,r)=>a+r.target,0).toLocaleString()+"원 · 대상 "+ctx.rows.length+"개 매장 합계"),
+        goalsLine("경과일 기준 일할 환산 "+Math.round(totalTarget).toLocaleString()+"원")])}
       ${statCard("대상 매장 수", String(ctx.rows.length), [goalsLine("코드에 월 목표가 등록된 매장")])}
       ${statCard("목표 달성 매장", achievedCnt+" / "+ctx.rows.length, [goalsLine("달성률 100% 이상")])}
       ${statCard("위험군 (달성률 65% 미만)", dangerCnt+" / "+ctx.rows.length, [goalsLine("우선 대응 필요")])}
@@ -5710,9 +5720,9 @@ function goalsRender02(ctx){
     ? `<th>${ctx.mLbl(m)}<br>(~${m.slice(5,7)}/${ctx.elapsedDays})</th>`
     : `<th>${ctx.mLbl(m)}</th>`).join("");
   const head = `<thead><tr>
-      <th>매장</th><th>월 목표매출</th>${monthHdr}
+      <th>매장</th><th class="tgt-col">월 목표매출<br><span style="font-weight:400;color:var(--muted2);font-size:9px;">(그 달 전체)</span></th>${monthHdr}
       <th>누적실적</th><th>누적목표<br>(환산)</th><th>누적격차</th>
-      <th>${cm} 목표<br>(${ctx.elapsedDays}일 환산)</th><th>${cm} 달성률</th><th>편차<br>(목표 대비)</th>
+      <th>${cm} 목표<br><span style="font-weight:400;color:var(--muted2);font-size:9px;">(${ctx.elapsedDays}일 일할 환산)</span></th><th>${cm} 달성률</th><th>편차<br>(목표 대비)</th>
       <th>인센티브 구간</th><th>최근 3개월<br>평균 달성률</th><th>비고</th></tr></thead>`;
   const body = ctx.rows.map(r=>{
     const band = goalsIncentiveBand(r.dev);
@@ -5742,7 +5752,7 @@ function goalsRender02(ctx){
     const note = notes.join(" · ");
     return `<tr>
       <td title="${escHtml(r.label)}${r.freshLabel?" · "+escHtml(r.freshLabel):""}">${escHtml(r.label)}${r.stateBadge?` <span style="font-size:9.5px;color:var(--amber);">${escHtml(r.stateBadge)}</span>`:""}${!r.fresh?` <span style="font-size:9.5px;color:var(--muted2);" title="냉장·냉동 미취급">신선X</span>`:""}</td>
-      <td><span class="num">${r.target.toLocaleString()}</span></td>
+      <td class="tgt-col"><span class="num" style="color:var(--amber)">${r.target.toLocaleString()}</span></td>
       ${monthTd}
       ${cumTd}
       <td><span class="num">${Math.round(r.proratedTarget).toLocaleString()}</span></td>
@@ -5760,7 +5770,7 @@ function goalsRender02(ctx){
     return `<td><span class="num">${Math.round(sum).toLocaleString()}</span></td>`;
   }).join("");
   const foot = `<tfoot><tr><td>전사 합계</td>
-      <td><span class="num">${ctx.rows.reduce((a,r)=>a+r.target,0).toLocaleString()}</span></td>
+      <td class="tgt-col"><span class="num" style="color:var(--amber)">${ctx.rows.reduce((a,r)=>a+r.target,0).toLocaleString()}</span></td>
       ${monthFoot}<td></td><td></td><td></td>
       <td><span class="num">${Math.round(totTarget).toLocaleString()}</span></td>
       <td class="total-col"><span class="num">${totTarget>0?(totActual/totTarget*100).toFixed(1):'0.0'}%</span></td>
@@ -5783,7 +5793,7 @@ function goalsRender02(ctx){
     ${fcLine}
     <div class="g-tbl-sub">달성률 낮은 순 정렬 · 월별 칸의 색은 그 달의 목표 달성률(붉을수록 미달) · <b>'결측'</b>은 그 달 매출 원본이 업로드되지 않은 경우(0원이 아니라 데이터 없음), <b>'미오픈/폐점'</b>은 그 달 영업하지 않은 경우로 목표에서 아예 제외됩니다 · <sup style="color:var(--amber)">*</sup>는 오픈월·폐점월로 영업일수 비례 목표를 적용한 달</div>
     <div class="g-tbl-sub">기흥점은 기흥 패션관을 합산한 값(월 목표도 합산)입니다 · '신선X'는 냉장·냉동 미취급 매장</div>
-    <table class="g-tbl">${head}<tbody>${body}</tbody>${foot}</table>
+    <div class="tblbox"><table class="g-tbl">${head}<tbody>${body}</tbody>${foot}</table></div>
     ${rankList}`;
 }
 
@@ -5798,9 +5808,11 @@ function goalsRender03(ctx){
   const bodyA = ctx.rows.map(r=>`<tr><td>${escHtml(r.label)}</td>${
       ctx.cats.map(c=>{ const v=amtOf(r,c); return `<td style="${goalsHeatAmber(v/maxAmt)}"><span class="num">${v?Math.round(v).toLocaleString():''}</span></td>`; }).join("")
     }<td class="total-col"><span class="num">${Math.round(r.storeCatTotal).toLocaleString()}</span></td></tr>`).join("");
+  // 합계행이 두 줄이면 **마지막 줄만** 화면 아래에 고정된다(겹침 방지). 그래서 더 중요한
+  // '전사 합계'를 마지막에 두어 스크롤 중에도 항상 보이게 한다.
   const footA = `<tfoot>
-      <tr><td>전사 합계</td>${ctx.cats.map(c=>`<td><span class="num">${Math.round(ctx.companyCat[c].amount).toLocaleString()}</span></td>`).join("")}<td class="total-col"><span class="num">${Math.round(ctx.companyTotal).toLocaleString()}</span></td></tr>
       <tr><td>전사 비중 %</td>${ctx.cats.map(c=>`<td><span class="num">${companyPct[c].toFixed(1)}%</span></td>`).join("")}<td class="total-col"><span class="num">100.0%</span></td></tr>
+      <tr><td>전사 합계</td>${ctx.cats.map(c=>`<td><span class="num">${Math.round(ctx.companyCat[c].amount).toLocaleString()}</span></td>`).join("")}<td class="total-col"><span class="num">${Math.round(ctx.companyTotal).toLocaleString()}</span></td></tr>
     </tfoot>`;
 
   // B. 구성비 %
@@ -5818,15 +5830,15 @@ function goalsRender03(ctx){
 
   return `<div class="g-tbl-title">A. 매장별 카테고리 매출액 (원, ${ctx.curMonth} 누적 ~${ctx.curMonth.slice(5,7)}/${ctx.elapsedDays})</div>
     <div class="g-tbl-sub">색이 진할수록 매출액이 큰 칸 · 열 순서는 전사 매출 큰 순 · 행은 ${ctx.mLbl(ctx.curMonth)} 달성률 낮은 순</div>
-    <table class="g-tbl"><thead><tr><th>매장</th>${catHdr}<th class="total-col">합계</th></tr></thead><tbody>${bodyA}</tbody>${footA}</table>
+    <div class="tblbox"><table class="g-tbl"><thead><tr><th>매장</th>${catHdr}<th class="total-col">합계</th></tr></thead><tbody>${bodyA}</tbody>${footA}</table></div>
 
     <div class="g-tbl-title">B. 매장별 카테고리 구성비 (%)</div>
     <div class="g-tbl-sub">각 매장 매출을 100%로 봤을 때의 카테고리 비중 — 색이 진할수록 그 매장이 기대고 있는 카테고리</div>
-    <table class="g-tbl"><thead><tr><th>매장</th>${catHdr}<th class="total-col">합계</th></tr></thead><tbody>${bodyB}</tbody></table>
+    <div class="tblbox"><table class="g-tbl"><thead><tr><th>매장</th>${catHdr}<th class="total-col">합계</th></tr></thead><tbody>${bodyB}</tbody></table></div>
 
     <div class="g-tbl-title">C. 카테고리 격차 (매장 구성비 − 전사 구성비, %p)</div>
     <div class="g-tbl-sub"><span style="color:var(--green)">초록 = 전사보다 강한 카테고리</span> · <span style="color:var(--red)">빨강 = 전사보다 열위(= 끌어올릴 여지가 있는 카테고리)</span></div>
-    <table class="g-tbl"><thead><tr><th>매장</th>${catHdr}<th class="total-col"></th></tr></thead><tbody>${bodyC}</tbody></table>`;
+    <div class="tblbox"><table class="g-tbl"><thead><tr><th>매장</th>${catHdr}<th class="total-col"></th></tr></thead><tbody>${bodyC}</tbody></table></div>`;
 }
 
 /* ---------------- 04_카테고리진단 ---------------- */
@@ -5851,12 +5863,12 @@ function goalsRender04(ctx){
   }).join("");
   return `<div class="g-tbl-title">매장별 카테고리 구조 진단</div>
     <div class="g-tbl-sub">강점 / 기회는 '매장 구성비 − 전사 평균 구성비'가 가장 큰 / 가장 작은 카테고리를 자동으로 뽑은 것입니다 (03-C 표의 양 끝값)</div>
-    <table class="g-tbl"><thead><tr>
+<div class="tblbox">    <table class="g-tbl"><thead><tr>
       <th>매장</th><th>1위 카테고리</th><th>1위 비중</th>
       <th>강점 카테고리<br>(전사평균 대비)</th><th>강점 격차<br>(%p)</th>
       <th>기회 카테고리<br>(전사평균 대비 열위)</th><th>기회 격차<br>(%p)</th>
       <th>사입 비중</th><th>신선식품 비중</th><th>진단 메모</th>
-    </tr></thead><tbody>${body}</tbody></table>`;
+    </tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
 /* ---------------- 05_전사카테고리벤치마크 ---------------- */
@@ -5887,7 +5899,7 @@ function goalsRender05(ctx){
   const unsoldTbl = unsold.length
     ? `<div class="g-tbl-title">출고는 있었으나 ${cm} 매출이 0원인 카테고리 (재고 적체 · 판매 부진 경고)</div>
        <div class="g-tbl-sub">PLT는 나갔는데 매출이 전혀 안 잡힌 카테고리입니다. 실제로 안 팔린 것인지, 매출 등록이 누락된 것인지부터 구분해야 합니다.</div>
-       <table class="g-tbl"><thead><tr><th>카테고리</th><th>이번달 출고(PLT)</th><th>매출액(원)</th><th>위험도</th><th>권고 조치</th></tr></thead><tbody>
+<div class="tblbox">       <table class="g-tbl"><thead><tr><th>카테고리</th><th>이번달 출고(PLT)</th><th>매출액(원)</th><th>위험도</th><th>권고 조치</th></tr></thead><tbody>
        ${unsold.map(u=>{
           const cls = u.risk==="매우높음"?"g-tier-bad":u.risk==="높음"?"g-tier-bad":u.risk==="중간"?"g-tier-warn":"g-tier-good";
           return `<tr><td>${escHtml(u.cat)}</td>
@@ -5895,12 +5907,12 @@ function goalsRender05(ctx){
             <td><span class="num">0</span></td>
             <td><span class="g-store-badge ${cls}" style="font-size:10px;padding:2px 8px;">${u.risk}</span></td>
             <td class="g-txt">${escHtml(u.advice)}</td></tr>`;
-       }).join("")}</tbody></table>`
+       }).join("")}</tbody></table></div>`
     : `<div class="g-tbl-title">출고는 있었으나 매출이 0원인 카테고리</div><p class="g-note-p">현재 해당하는 카테고리가 없습니다.</p>`;
 
   return `<div class="g-tbl-title">카테고리별 전사 매출 · PLT당 매출효율 (${ctx.curMonth} 누적 ~${ctx.curMonth.slice(5,7)}/${ctx.elapsedDays})</div>
     <div class="g-tbl-sub">PLT당 매출 = 카테고리 매출액 ÷ 그 카테고리 출고 PLT 수. 이 값이 높을수록 파레트 한 장이 만들어내는 매출이 크다는 뜻이라, 공급을 늘렸을 때 매출 레버리지가 큰 카테고리입니다. (판매수량이 아니라 반드시 출고 PLT 기준)</div>
-    <table class="g-tbl"><thead><tr><th>카테고리</th><th>${cm} 매출액(원)</th><th>비중(%)</th><th>이번달 출고(PLT)</th><th>PLT당 매출(원)</th><th>비고</th></tr></thead><tbody>${body}</tbody></table>
+    <div class="tblbox"><table class="g-tbl"><thead><tr><th>카테고리</th><th>${cm} 매출액(원)</th><th>비중(%)</th><th>이번달 출고(PLT)</th><th>PLT당 매출(원)</th><th>비고</th></tr></thead><tbody>${body}</tbody></table></div>
     ${goalsEffBarsHtml(ctx.effRows)}
     ${unsoldTbl}`;
 }
@@ -5951,8 +5963,10 @@ function goalsRender06(ctx){
         ? `<span style="color:${r.cum.actualCum>=r.cum.targetCum?'var(--green)':'var(--red)'}">${r.cum.actualCum>=r.cum.targetCum?'+':'−'}${won(Math.abs(r.cum.actualCum-r.cum.targetCum))}원</span>`
         : `<span style="color:var(--muted2)">${escHtml(ctx.missingMonths[r.store]||'-')}</span>`;
       const kpis = [
+        // 월 목표(그 달 전체 금액)와 일할 목표(경과일까지 잘라낸 금액)는 다른 숫자다 — 나란히 보여준다.
+        {k:"월 목표매출",     v:`<b style="color:var(--amber)">${won(r.target)}원</b>`},
         {k:`${cm} 실적`,      v:`${won(r.actual)}원`},
-        {k:`${cm} 목표(일할)`, v:`${won(r.proratedTarget)}원`},
+        {k:`${cm} 목표(일할·${r.activeDays}/${r.monthDays}일)`, v:`${won(r.proratedTarget)}원`},
         {k:"목표 대비 편차",   v:`<span style="color:${r.dev>=0?'var(--green)':'var(--red)'}">${(r.dev>=0?'+':'')+(r.dev*100).toFixed(1)}%</span>`},
         {k:"인센티브 구간",   v:escHtml(band.label)},
         {k:`누적 실적 / 목표 (${ctx.months.length}개월)`, v:cumTxt, wide:true},
@@ -5972,7 +5986,7 @@ function goalsRender06(ctx){
       return `<div class="g-store-card v2 ${tier.cls}">
         <div class="g-store-hd">
           <span class="g-store-name">${escHtml(r.label)}
-            <span class="g-store-rank">${ctx.rows.length}개 중 ${r.rank}위(낮은 순)</span>
+            <span class="g-store-rank">월 목표 ${(r.target/100000000).toFixed(2)}억 · ${ctx.rows.length}개 중 ${r.rank}위(낮은 순)</span>
           </span>
           <span class="g-store-gauge" title="${cm} 달성률 ${r.pct.toFixed(1)}%">
             <span class="gg-track"><span class="gg-fill" style="width:${Math.min(100,r.pct).toFixed(1)}%;background:${gaugeColor}"></span></span>
@@ -6023,10 +6037,10 @@ function goalsRender07(ctx){
   }).join("");
   return `<div class="g-tbl-title">매장별 월 목표 달성률 추이 (${ctx.months[0]} ~ ${ctx.curMonth}, ${ctx.mLbl(ctx.curMonth)}은 ${ctx.elapsedDays}일 환산 목표 대비)</div>
     <div class="g-tbl-sub">일별/주별 데이터는 이 사이트가 월 단위로만 집계·저장하고 있어 제공 불가 — 월 단위로 대신 제공합니다. '결측'은 그 달 매출 원본이 업로드되지 않은 경우로, 0%가 아니라 데이터 없음을 뜻합니다.</div>
-    <table class="g-tbl"><thead><tr><th>매장</th>${hdr}<th class="total-col">전체<br>평균</th><th class="total-col">최근 3개월<br>평균</th></tr></thead>
+<div class="tblbox">    <table class="g-tbl"><thead><tr><th>매장</th>${hdr}<th class="total-col">전체<br>평균</th><th class="total-col">최근 3개월<br>평균</th></tr></thead>
       <tbody>${body}</tbody>
       <tfoot><tr><td>전사 평균</td>${avgFoot}<td class="total-col"></td><td class="total-col"></td></tr></tfoot>
-    </table>`;
+    </table></div>`;
 }
 
 /* ---------------- 서브탭 전환 ---------------- */
@@ -6042,7 +6056,6 @@ function selectGoalsSub(key){
     if(b.setAttribute) b.setAttribute("aria-selected", on ? "true" : "false");
   });
   GOALS_SUB_KEYS.forEach(k=>{ const p = document.getElementById("gsub-"+k); if(p) p.hidden = (k!==key); });
-  applyWidthMode();     // 02·03·07(열 많은 표)만 자동으로 넓게
 }
 let _goalsSubWired = false;
 function wireGoalsSubTabs(){
