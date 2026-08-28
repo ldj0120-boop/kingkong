@@ -1698,6 +1698,18 @@ function rawFileSave(src, file, buf){
 }
 // 낡은 종류를 저장된 원본으로 다시 파싱한다. 확인 모달은 띄우지 않는다
 // (카테고리 지정은 이미 저장돼 있고, 새 문구가 있으면 원문 그대로 남아 눈에 띈다).
+// 미매칭 목록에 남아 있는 이름 중, **지금 규칙으로는 매장으로 인식되는 것**을 걸러낸다.
+// 별칭(STORE_ALIASES)을 추가하면 다음 재계산 때 목록이 갱신되지만, 이미 재계산이 끝난 뒤라면
+// 버전이 최신이라 재계산이 다시 돌지 않아 **경고만 유령처럼 남는다**(기흥가구패션관이 그랬다).
+// 시작할 때 한 번 훑어서, 이제 인식되는 이름은 경고에서 지운다. 숫자는 건드리지 않는다.
+function pruneUnmatchedStores(){
+  const gone = n => STORES.includes(resolveShipmentStoreName(n));
+  const before = unmatchedActualStores.length + unmatchedHQStores.length + unmatchedApplianceStores.length;
+  unmatchedActualStores    = unmatchedActualStores.filter(n=>!gone(n));
+  unmatchedHQStores        = unmatchedHQStores.filter(n=>!gone(n));
+  unmatchedApplianceStores = unmatchedApplianceStores.filter(n=>!gone(n));
+  return before - (unmatchedActualStores.length + unmatchedHQStores.length + unmatchedApplianceStores.length);
+}
 async function reparseStaleSources(){
   const stale = staleParseSources();
   if(!stale.length || typeof XLSX==="undefined") return [];
@@ -1708,10 +1720,24 @@ async function reparseStaleSources(){
     const mine = files.filter(f=>f.src===src).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
     if(!mine.length) continue;
     try{
+      // ★ 20차 수정: 예전에는 여기서 **월별 맵과 일별 이력만** 다시 만들고
+      //   ① 매장×카테고리 누계(ACTUAL / HQ_ACTUAL / APPLIANCE_ACTUAL)와
+      //   ② 미매칭 매장 목록(unmatched*Stores)을 갱신하지 않았다.
+      //   그래서 자동 재계산으로 숫자는 고쳐졌는데도 **"기흥가구패션관이 매칭되지 않았습니다" 경고가
+      //   그대로 남아** 사용자가 아직 안 고쳐진 줄 알았다. 업로드 핸들러가 하는 일을 똑같이 한다.
+      const acc = {};                 // store -> {cat: qty}  (파일 여러 개를 누적)
+      const unmatched = new Set();
       if(src==="center"){ CENTER_M = {}; SUPPLY_HISTORY = []; }
       else if(src==="hq"){ HQ_M = {}; HQ_SUPPLY_HISTORY = []; }
       else if(src==="appliance"){ APPLIANCE_M = {}; APPLIANCE_SUPPLY_HISTORY = []; }
       else continue;
+      const soak = r=>{
+        Object.keys(r.byStoreCat||{}).forEach(st=>{
+          if(!acc[st]) acc[st] = {};
+          Object.keys(r.byStoreCat[st]).forEach(c=> acc[st][c] = (acc[st][c]||0) + r.byStoreCat[st][c]);
+        });
+        (r.unmatched||[]).forEach(u=>unmatched.add(u));
+      };
       for(const f of mine){
         const buf = await rawFileRead(f);   // 필요한 파일만 그때 읽는다(전체를 메모리에 올리지 않는다)
         if(!buf) continue;
@@ -1720,16 +1746,27 @@ async function reparseStaleSources(){
           const r = parseShipmentWorkbook(wb);
           mergeMonthMap(CENTER_M, r.byMonth);
           SUPPLY_HISTORY = mergeSupplyDays(SUPPLY_HISTORY, r.days);
+          soak(r);
         } else if(src==="hq"){
           const r = await parseHQPlanWorkbook(wb);
           mergeMonthMap(HQ_M, r.byMonth);
           HQ_SUPPLY_HISTORY = mergeSupplyDays(HQ_SUPPLY_HISTORY, r.days);
+          soak(r);
         } else if(src==="appliance"){
           const r = parseApplianceWorkbook(wb);
           mergeMonthMap(APPLIANCE_M, r.byMonth);
           APPLIANCE_SUPPLY_HISTORY = mergeSupplyDays(APPLIANCE_SUPPLY_HISTORY, r.days);
+          soak(r);
         }
       }
+      // 누계 맵과 미매칭 목록을 새 파싱 결과로 완전히 교체한다.
+      const target = src==="center" ? "ACTUAL" : src==="hq" ? "HQ_ACTUAL" : "APPLIANCE_ACTUAL";
+      const fresh = {}; STORES.forEach(st=> fresh[st] = freshCatMap());
+      Object.keys(acc).forEach(st=>{ if(!fresh[st]) return;
+        Object.keys(acc[st]).forEach(c=>{ ensureCategory(c, "출고내역서(하차지 블록)"); fresh[st][c] = acc[st][c]; }); });
+      if(src==="center"){ ACTUAL = fresh; unmatchedActualStores = Array.from(unmatched); }
+      else if(src==="hq"){ HQ_ACTUAL = fresh; unmatchedHQStores = Array.from(unmatched); }
+      else { APPLIANCE_ACTUAL = fresh; unmatchedApplianceStores = Array.from(unmatched); }
       markParsed(src);
       done.push(src);
     }catch(e){ /* 이 종류만 실패 — 나머지는 계속하고, 실패분은 배너로 안내된다 */ }
@@ -5216,10 +5253,16 @@ function goalsGroupMap(month){
   return { map, total:t.total, source:t.source };
 }
 // 대표 매장의 카테고리별 매출(합산 매장 포함)
+// ★ 20차 수정: 예전에는 `storeGroupMembers(store)`의 **이름과 정확히 같은 키**만 더했다.
+//   그런데 매출 원본에는 "패션관기흥점" 같은 별칭 표기가 그대로 남아 있을 수 있고, 그러면
+//   그 금액이 카테고리 표(03·04·06)에서만 조용히 빠졌다(매장 총액을 내는 goalsGroupMap 은
+//   resolveStoreName 을 거치므로 값이 맞아, **총액과 카테고리 합이 어긋나는** 상태가 됐다).
+//   → 맵의 키를 하나씩 정규화해서 이 대표 매장으로 묶이는 것을 전부 더한다.
 function goalsGroupCat(merged, store){
   const out = {};
-  storeGroupMembers(store).forEach(m=>{
-    const c = categoryTotalsFiltered(merged, m);
+  Object.keys(merged || {}).forEach(raw=>{
+    if(storeSalesGroup(resolveStoreName(raw)) !== store) return;
+    const c = merged[raw] || {};
     Object.keys(c).forEach(k=>{ if(!out[k]) out[k]={amount:0, qty:0}; out[k].amount += c[k].amount||0; out[k].qty += c[k].qty||0; });
   });
   return out;
@@ -6142,6 +6185,17 @@ function salesAudit(scopeMonths){
     name:"카테고리 그룹핑(대형가전+XLB→가전) 전후 총액",
     val: Math.abs(rawTot-rowSum)<1 ? `일치 (${won(rawTot)})` : `원본 ${won(rawTot)} vs 그룹핑 후 ${won(rowSum)}`,
     why: Math.abs(rawTot-rowSum)<1 ? "합치기만 하고 금액은 그대로입니다." : "그룹핑에서 금액이 새거나 중복됐습니다 — 코드 버그." });
+
+  // ③-2 매장 그룹핑(별칭·합산 매장) 전후 총액 — 이름 표기 차이로 금액이 새지 않는지
+  //     실제로 여기서 "패션관기흥점" 표기의 금액이 카테고리 표에서만 빠지는 버그를 잡았다.
+  const reps = Array.from(new Set(Object.keys(merged).map(x=>storeSalesGroup(resolveStoreName(x)))));
+  let groupedTot = 0;
+  reps.forEach(r0=>{ const c = goalsGroupCat(merged, r0); groupedTot += Object.values(c).reduce((a,v)=>a+num(v.amount),0); });
+  checks.push({ lv: Math.abs(groupedTot-rowSum)<1 ? "ok":"bad", kind:"내부",
+    name:"매장 그룹핑(별칭·합산 매장) 전후 총액",
+    val: Math.abs(groupedTot-rowSum)<1 ? `일치 (${won(rowSum)})` : `원본 ${won(rowSum)} vs 그룹핑 후 ${won(groupedTot)} · 차이 ${won(Math.abs(rowSum-groupedTot))}`,
+    why: Math.abs(groupedTot-rowSum)<1 ? "매장명 표기가 달라도 금액이 새지 않습니다."
+      : "매장명 별칭(패션관기흥점 등)이 대표 매장으로 안 묶여 카테고리 표에서만 금액이 빠집니다 — 코드 버그." });
 
   // ④ 목표 탭 매장 행 합계 = 그 기간 매장별 실적 총액 (대상 매장 밖으로 빠진 금액)
   const allStoreTot = ms.reduce((a,m)=>{
@@ -7560,6 +7614,8 @@ try{
     if(cm.CATEGORY_ORIGIN && typeof cm.CATEGORY_ORIGIN==="object") Object.keys(cm.CATEGORY_ORIGIN).forEach(k=>{ if(!(k in CATEGORY_ORIGIN)) CATEGORY_ORIGIN[k]=cm.CATEGORY_ORIGIN[k]; });
   }
 }catch(_){}
+// 별칭이 새로 추가돼 이제는 인식되는 이름이 경고 목록에 남아 있으면 지운다(숫자는 안 건드림).
+try{ if(pruneUnmatchedStores() > 0) saveState(); }catch(_){}
 wireWidthMode();   // 화면 폭 모드 복원(이 브라우저에 저장된 선택)
 renderBasedateOptions(restoredState && restoredState.basedateIdx!=null ? restoredState.basedateIdx : STOCK_HISTORY.length-1);
 renderStoreList();
