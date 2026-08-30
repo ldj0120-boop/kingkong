@@ -2393,7 +2393,7 @@ function renderShipSourceDiff(){
   //   ③ 매장별 소계 ④ 카테고리별 소계 — 넷을 같이 보여준다.
   const tHq = rows.reduce((a,r)=>a+r.hq,0), tCen = rows.reduce((a,r)=>a+r.center,0), tPick = rows.reduce((a,r)=>a+r.picked,0);
   let allHq=0, allCen=0, allPick=0, allCells=0;
-  const byStore = {}, byCat = {};
+  const byStore = {}, byCat = {}, byStoreCat = {};
   STORES.forEach(st=>{
     CATEGORIES.forEach(cat=>{
       let hq=0, center=0;
@@ -2405,6 +2405,9 @@ function renderShipSourceDiff(){
       byStore[st].hq+=hq; byStore[st].center+=center; byStore[st].picked+=pk; byStore[st].cells++;
       if(!byCat[cat]) byCat[cat]={hq:0,center:0,picked:0,cells:0};
       byCat[cat].hq+=hq; byCat[cat].center+=center; byCat[cat].picked+=pk; byCat[cat].cells++;
+      // 판정값(채택값)의 매장×카테고리 매트릭스 — 아래 도넛 그리드(도식화)에서 그대로 사용한다.
+      if(!byStoreCat[st]) byStoreCat[st] = {};
+      byStoreCat[st][cat] = pk;
     });
   });
   const foot = `<tfoot>
@@ -2455,8 +2458,27 @@ function renderShipSourceDiff(){
     <thead><tr><th>매장</th><th>카테고리</th><th>본사 출고계획서</th><th>센터 출고내역서</th><th>차이<br>(센터−본사)</th><th>현재 채택값</th><th>판정</th></tr></thead>
     <tbody>${body}</tbody>${foot}</table></div>
     ${subTbl("매장별 채택값 소계 (전체 칸 기준 · 채택값 큰 순)", byStore, "매장")}
-    ${subTbl("카테고리별 채택값 소계 (전체 칸 기준 · 채택값 큰 순)", byCat, "카테고리")}`;
+    ${subTbl("카테고리별 채택값 소계 (전체 칸 기준 · 채택값 큰 순)", byCat, "카테고리")}
+    ${shipStoreCatChartHtml(byStoreCat, byStore)}`;
   if(meta) meta.textContent = `${shipScope==="all"?"전체 기간":shipScope} · 현재 채택값 총합 ${eok(allPick)} PLT · 어긋나는 칸 ${rows.length}개(양쪽 값 있는 칸 ${both.length}개: 본사 ${Math.round(sumHq)} vs 센터 ${Math.round(sumCen)}) · 현재 규칙: ${SHIP_MERGE_LABEL[shipMergePolicy]}`;
+}
+// 판정값(채택값)을 매장별 "카테고리 구성" 도넛 그리드로 보여준다 — "매장별 매출 카테고리" 섹션과 같은 방식이라
+// 어느 매장이 어떤 카테고리 위주로 채택값을 받았는지 표(subTbl)보다 한눈에 비교된다. 값이 있는 매장만, 채택값 큰 순.
+function shipStoreCatChartHtml(byStoreCat, byStore){
+  const r1 = v => Math.round(v*10)/10;
+  const stores = Object.keys(byStoreCat).filter(s=> byStore[s] && byStore[s].picked > 0.05);
+  if(!stores.length) return "";
+  stores.sort((a,b)=> byStore[b].picked - byStore[a].picked);
+  const cells = stores.map(s=>{
+    const cats = byStoreCat[s];
+    const data = Object.keys(cats).map(c=>({label:c, value:cats[c]})).filter(d=>d.value>0.05).sort((a,b)=>b.value-a.value);
+    return `<div class="pie-grid-cell">
+      <div class="pgc-hd"><span class="pgc-name">${escHtml(s)}</span><span class="pgc-total">${r1(byStore[s].picked).toLocaleString()} PLT</span></div>
+      ${buildCategoryPieChart(data, {size:158, unit:' PLT', valueFmt:v=>r1(v).toLocaleString(), centerLabel:'PLT · TOTAL'})}
+    </div>`;
+  }).join("");
+  return `<div class="g-tbl-title">매장별 채택값 카테고리 구성 (판정값 기준 · 채택값 큰 순)</div>
+    <div class="pie-grid donuts">${cells}</div>`;
 }
 function renderShipMergeSelect(){
   const sel = document.getElementById("shipMergeSelect");
@@ -3394,9 +3416,12 @@ function buildSharePercentBars(data, opts){
   }).join("");
   return `<div class="share-list${opts.compact?' compact':''}">${rows}</div>`;
 }
+// opts.unit(기본 '원')/opts.valueFmt/opts.centerLabel로 통화 외의 수량(예: PLT)도 그릴 수 있게 일반화했다.
 function buildCategoryPieChart(data, opts){
   opts = opts || {};
   if(!data.length) return `<p class="trend-empty">${opts.emptyText || '표시할 데이터가 없습니다.'}</p>`;
+  const unit = opts.unit != null ? opts.unit : '원';
+  const fmt = opts.valueFmt || (v=>Math.round(v).toLocaleString());
   const total = data.reduce((a,d)=>a+d.value,0) || 1;
   const size = opts.size || 180;
   const cx=90, cy=90, rOuter=82, rInner = opts.thin ? 58 : 46;
@@ -3410,17 +3435,17 @@ function buildCategoryPieChart(data, opts){
   });
   const svgInner = slices.length===1
     ? `<circle cx="${cx}" cy="${cy}" r="${(rOuter+rInner)/2}" fill="none" stroke="${slices[0].color}" stroke-width="${rOuter-rInner}"/>`
-    : slices.map(s=>`<path d="${s.path}" fill="${s.color}"><title>${escHtml(s.label)}: ${Math.round(s.value).toLocaleString()}원 (${s.pct.toFixed(1)}%)</title></path>`).join('');
+    : slices.map(s=>`<path d="${s.path}" fill="${s.color}"><title>${escHtml(s.label)}: ${fmt(s.value)}${unit} (${s.pct.toFixed(1)}%)</title></path>`).join('');
   const svg = `<svg viewBox="0 0 180 180" width="${size}" height="${size}">${svgInner}
     <circle cx="${cx}" cy="${cy}" r="${rInner-1}" fill="var(--panel)"/>
-    <text x="${cx}" y="${cy-3}" text-anchor="middle" font-family="JetBrains Mono" font-size="14" font-weight="700" fill="var(--text)">${Math.round(total).toLocaleString()}</text>
-    <text x="${cx}" y="${cy+14}" text-anchor="middle" font-family="Oswald" font-size="9" fill="var(--muted2)" letter-spacing="0.05em">TOTAL</text>
+    <text x="${cx}" y="${cy-3}" text-anchor="middle" font-family="JetBrains Mono" font-size="14" font-weight="700" fill="var(--text)">${fmt(total)}</text>
+    <text x="${cx}" y="${cy+14}" text-anchor="middle" font-family="Oswald" font-size="9" fill="var(--muted2)" letter-spacing="0.05em">${opts.centerLabel || (unit ? unit+' · TOTAL' : 'TOTAL')}</text>
   </svg>`;
   const legend = `<div class="pie-legend">${slices.map(s=>`
     <div class="pie-legend-row">
       <span class="pie-sw" style="background:${s.color};"></span>
       <span class="pie-lbl" title="${escHtml(s.label)}">${escHtml(s.label)}</span>
-      <span class="pie-val">${Math.round(s.value).toLocaleString()}원<span class="pie-sub">${s.pct.toFixed(1)}% · 판매수량 ${Math.round(s.qty||0).toLocaleString()}</span>${s.deltaHtml?`<span class="pie-sub cat-delta-row">${s.deltaHtml}</span>`:''}</span>
+      <span class="pie-val">${fmt(s.value)}${unit}<span class="pie-sub">${s.pct.toFixed(1)}%${s.qty!=null?` · 판매수량 ${Math.round(s.qty||0).toLocaleString()}`:''}</span>${s.deltaHtml?`<span class="pie-sub cat-delta-row">${s.deltaHtml}</span>`:''}</span>
     </div>`).join('')}</div>`;
   return `<div class="pie-chart-wrap">${svg}${legend}</div>`;
 }
