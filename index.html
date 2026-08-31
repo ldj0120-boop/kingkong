@@ -427,11 +427,14 @@
   .agg-card .p-hd{padding:14px 18px;}
   .agg-card .p-hd .store-name{font-size:16.5px;}
   /* 2026-08-31: 카드마다 내부 스크롤(72vh)이 따로 있어서 페이지 스크롤 안에 스크롤이 중첩되는 게
-     너무 불편하다는 피드백 — 안쪽 스크롤을 없애고 표가 그냥 페이지 흐름대로 쭉 늘어나게 한다.
-     (overflow-x만 auto, overflow-y는 visible로 나누면 스펙상 두 값이 서로 영향을 줘 결국 세로도
-     auto가 되어버려 스크롤이 다시 생긴다 — 그래서 통째로 visible 하나로 둔다. 아주 넓은 표는
-     화면 폭을 넘기지만, 안쪽 스크롤이 중첩되는 것보다 이쪽이 낫다는 요청.) */
-  .agg-scroll{overflow:visible;max-height:none;scrollbar-color:var(--amber-dim,#8a6d2a) var(--panel2);scrollbar-width:thin;}
+     너무 불편하다는 피드백 — 세로 스크롤/높이 제한은 없애서 표가 페이지 흐름대로 쭉 늘어나게 한다.
+     ★ 주의: 처음엔 overflow:visible로 통째로 풀었더니, 부모 .agg-card가 overflow:hidden이라
+     화면보다 넓은 표(카테고리 열이 많은 표)의 오른쪽 칸들이 스크롤도 안 되고 그냥 잘려서 안 보이는
+     사고가 났다("하우저" 열 오른쪽이 통째로 빈 칸으로 보이던 문제). max-height가 이미 none이라
+     overflow-y는 auto로 둬도 실제로 스크롤바가 생기지 않으므로(내용 높이만큼 박스가 그냥 늘어남),
+     overflow-x만 auto로 켜서 "가로로만" 필요할 때 스크롤되게 한다 — 세로 스크롤 중첩 없이, 잘려서
+     안 보이는 데이터도 없앤다. */
+  .agg-scroll{overflow-x:auto;overflow-y:visible;max-height:none;scrollbar-color:var(--amber-dim,#8a6d2a) var(--panel2);scrollbar-width:thin;}
   .agg-scroll::-webkit-scrollbar{width:11px;height:11px;}
   .agg-scroll::-webkit-scrollbar-track{background:var(--panel2);}
   .agg-scroll::-webkit-scrollbar-thumb{background:#5a4a22;border-radius:6px;border:2px solid var(--panel2);}
@@ -653,12 +656,13 @@
      예전에는 한 카드 안의 표 3개(03 시트)가 같은 스크롤 영역을 공유해서, 앞 표의 고정 머리글이
      뒤 표 위에 떠 있고 합계행이 다른 표를 덮었다. 표마다 박스를 나누면 sticky 가 자기 표 안에만
      머물러 절대 다른 표를 침범하지 않는다. 모든 탭에 같은 규칙을 쓴다. */
-  /* 2026-08-31: 위 .agg-scroll과 같은 이유로 안쪽 스크롤(68vh)을 없앤다. */
-  .tblbox{overflow:visible;max-height:none;border:1px solid var(--line-soft);border-radius:10px;
+  /* 2026-08-31: 위 .agg-scroll과 같은 이유로 세로 스크롤(68vh)만 없앤다 — 가로는 auto로 남겨서
+     넓은 표가 부모의 overflow:hidden에 잘려 안 보이는 일이 없게 한다. */
+  .tblbox{overflow-x:auto;overflow-y:visible;max-height:none;border:1px solid var(--line-soft);border-radius:10px;
     background:var(--panel);margin:0 0 6px;scrollbar-color:var(--amber-dim,#8a6d2a) var(--panel2);scrollbar-width:thin;}
   .tblbox>table{margin:0;}
   /* 목표 탭 패널은 바깥 스크롤을 없애고 페이지가 자연스럽게 흐르게 한다(스크롤 중첩 방지) */
-  .gsub-panel .agg-scroll{max-height:none;overflow:visible;padding:8px 12px 14px;}
+  .gsub-panel .agg-scroll{max-height:none;overflow-x:auto;overflow-y:visible;padding:8px 12px 14px;}
   /* 목표 탭 분석 기간 선택 바 */
   .gscope{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--ink);border:1px solid var(--line);
     border-radius:10px;padding:8px 12px;margin:0 0 12px;}
@@ -710,7 +714,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 28 · 2026-08-31</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 29 · 2026-08-31</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
