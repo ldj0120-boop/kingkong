@@ -2405,9 +2405,9 @@ function renderShipSourceDiff(){
       byStore[st].hq+=hq; byStore[st].center+=center; byStore[st].picked+=pk; byStore[st].cells++;
       if(!byCat[cat]) byCat[cat]={hq:0,center:0,picked:0,cells:0};
       byCat[cat].hq+=hq; byCat[cat].center+=center; byCat[cat].picked+=pk; byCat[cat].cells++;
-      // 판정값(채택값)의 매장×카테고리 매트릭스 — 아래 도넛 그리드(도식화)에서 그대로 사용한다.
+      // 판정값(채택값)의 매장×카테고리 매트릭스 — 아래 히트맵 표(도식화)에서 그대로 사용한다.
       if(!byStoreCat[st]) byStoreCat[st] = {};
-      byStoreCat[st][cat] = pk;
+      byStoreCat[st][cat] = { hq, center, picked: pk };
     });
   });
   const foot = `<tfoot>
@@ -2462,23 +2462,45 @@ function renderShipSourceDiff(){
     ${shipStoreCatChartHtml(byStoreCat, byStore)}`;
   if(meta) meta.textContent = `${shipScope==="all"?"전체 기간":shipScope} · 현재 채택값 총합 ${eok(allPick)} PLT · 어긋나는 칸 ${rows.length}개(양쪽 값 있는 칸 ${both.length}개: 본사 ${Math.round(sumHq)} vs 센터 ${Math.round(sumCen)}) · 현재 규칙: ${SHIP_MERGE_LABEL[shipMergePolicy]}`;
 }
-// 판정값(채택값)을 매장별 "카테고리 구성" 도넛 그리드로 보여준다 — "매장별 매출 카테고리" 섹션과 같은 방식이라
-// 어느 매장이 어떤 카테고리 위주로 채택값을 받았는지 표(subTbl)보다 한눈에 비교된다. 값이 있는 매장만, 채택값 큰 순.
+// 판정값(채택값)을 "매장별 이번달 출고 현황(카테고리별)" 표(renderShipAgg)와 같은 형식의
+// 매장×카테고리 히트맵 표로 보여준다 — 행별 미니바·합계열·합계행·칸 배경 진하기까지 동일한 형식이라
+// 사이트 안의 다른 표들과 바로 비교해 볼 수 있다. 값이 있는 매장·카테고리만, 채택값 큰 순.
 function shipStoreCatChartHtml(byStoreCat, byStore){
   const r1 = v => Math.round(v*10)/10;
   const stores = Object.keys(byStoreCat).filter(s=> byStore[s] && byStore[s].picked > 0.05);
   if(!stores.length) return "";
-  stores.sort((a,b)=> byStore[b].picked - byStore[a].picked);
-  const cells = stores.map(s=>{
-    const cats = byStoreCat[s];
-    const data = Object.keys(cats).map(c=>({label:c, value:cats[c]})).filter(d=>d.value>0.05).sort((a,b)=>b.value-a.value);
-    return `<div class="pie-grid-cell">
-      <div class="pgc-hd"><span class="pgc-name">${escHtml(s)}</span><span class="pgc-total">${r1(byStore[s].picked).toLocaleString()} PLT</span></div>
-      ${buildCategoryPieChart(data, {size:158, unit:' PLT', valueFmt:v=>r1(v).toLocaleString(), centerLabel:'PLT · TOTAL'})}
-    </div>`;
-  }).join("");
-  return `<div class="g-tbl-title">매장별 채택값 카테고리 구성 (판정값 기준 · 채택값 큰 순)</div>
-    <div class="pie-grid donuts">${cells}</div>`;
+  const cats = CATEGORIES.filter(c=> stores.some(s=> byStoreCat[s][c] && byStoreCat[s][c].picked > 0.05));
+  if(!cats.length) return "";
+  const rows = stores.map(s=>({s, rowSum: byStore[s].picked})).sort((a,b)=>b.rowSum-a.rowSum);
+  const maxRowSum = Math.max(1, ...rows.map(r=>r.rowSum));
+  const colMax = cats.map(cat=>Math.max(1, ...stores.map(s=>(byStoreCat[s][cat]&&byStoreCat[s][cat].picked)||0)));
+  const cellTitle = (s,cat)=>{
+    const o = byStoreCat[s][cat]; if(!o) return "";
+    return `본사 ${r1(o.hq)} · 센터 ${r1(o.center)} → 채택 ${r1(o.picked)} (${SHIP_MERGE_LABEL[shipMergePolicy]})`;
+  };
+  let head = "<thead><tr><th>매장</th>" + cats.map(c=>`<th>${escHtml(c)}</th>`).join("") + `<th class="total-col">합계</th></tr></thead>`;
+  let body = "<tbody>";
+  rows.forEach(({s,rowSum})=>{
+    const barPct = Math.round(rowSum/maxRowSum*100);
+    body += `<tr><td><div class="store-cell-name">${escHtml(s)}${storeNameTag(s)}</div><div class="mini-bar"><div class="mini-bar-fill amber" style="width:${barPct}%"></div></div></td>`;
+    cats.forEach((cat,ci)=>{
+      const v = (byStoreCat[s][cat] && byStoreCat[s][cat].picked) || 0;
+      const style = v>0.05 ? ` style="background:rgba(245,178,17,${(0.12+0.55*(v/colMax[ci])).toFixed(2)})"` : '';
+      const attr = v>0.05 ? ` title="${escHtml(cellTitle(s,cat))}"` : '';
+      body += `<td${style}${attr}><span class="num">${v>0.05?r1(v).toLocaleString():''}</span></td>`;
+    });
+    body += `<td class="total-col"><span class="num">${r1(rowSum).toLocaleString()}</span></td></tr>`;
+  });
+  body += "</tbody>";
+  let foot = "<tfoot><tr><td>합계</td>", grand=0;
+  cats.forEach(cat=>{
+    let sum=0; stores.forEach(s=>sum+=(byStoreCat[s][cat]&&byStoreCat[s][cat].picked)||0);
+    grand += sum;
+    foot += `<td>${sum>0.05?r1(sum).toLocaleString():''}</td>`;
+  });
+  foot += `<td class="total-col">${r1(grand).toLocaleString()}</td></tr></tfoot>`;
+  return `<div class="g-tbl-title">매장별 판정값(채택값) 카테고리별 공급 PLT (채택값 큰 순)</div>
+    <div class="agg-scroll"><table>${head}${body}${foot}</table></div>`;
 }
 function renderShipMergeSelect(){
   const sel = document.getElementById("shipMergeSelect");
@@ -3416,12 +3438,9 @@ function buildSharePercentBars(data, opts){
   }).join("");
   return `<div class="share-list${opts.compact?' compact':''}">${rows}</div>`;
 }
-// opts.unit(기본 '원')/opts.valueFmt/opts.centerLabel로 통화 외의 수량(예: PLT)도 그릴 수 있게 일반화했다.
 function buildCategoryPieChart(data, opts){
   opts = opts || {};
   if(!data.length) return `<p class="trend-empty">${opts.emptyText || '표시할 데이터가 없습니다.'}</p>`;
-  const unit = opts.unit != null ? opts.unit : '원';
-  const fmt = opts.valueFmt || (v=>Math.round(v).toLocaleString());
   const total = data.reduce((a,d)=>a+d.value,0) || 1;
   const size = opts.size || 180;
   const cx=90, cy=90, rOuter=82, rInner = opts.thin ? 58 : 46;
@@ -3435,17 +3454,17 @@ function buildCategoryPieChart(data, opts){
   });
   const svgInner = slices.length===1
     ? `<circle cx="${cx}" cy="${cy}" r="${(rOuter+rInner)/2}" fill="none" stroke="${slices[0].color}" stroke-width="${rOuter-rInner}"/>`
-    : slices.map(s=>`<path d="${s.path}" fill="${s.color}"><title>${escHtml(s.label)}: ${fmt(s.value)}${unit} (${s.pct.toFixed(1)}%)</title></path>`).join('');
+    : slices.map(s=>`<path d="${s.path}" fill="${s.color}"><title>${escHtml(s.label)}: ${Math.round(s.value).toLocaleString()}원 (${s.pct.toFixed(1)}%)</title></path>`).join('');
   const svg = `<svg viewBox="0 0 180 180" width="${size}" height="${size}">${svgInner}
     <circle cx="${cx}" cy="${cy}" r="${rInner-1}" fill="var(--panel)"/>
-    <text x="${cx}" y="${cy-3}" text-anchor="middle" font-family="JetBrains Mono" font-size="14" font-weight="700" fill="var(--text)">${fmt(total)}</text>
-    <text x="${cx}" y="${cy+14}" text-anchor="middle" font-family="Oswald" font-size="9" fill="var(--muted2)" letter-spacing="0.05em">${opts.centerLabel || (unit ? unit+' · TOTAL' : 'TOTAL')}</text>
+    <text x="${cx}" y="${cy-3}" text-anchor="middle" font-family="JetBrains Mono" font-size="14" font-weight="700" fill="var(--text)">${Math.round(total).toLocaleString()}</text>
+    <text x="${cx}" y="${cy+14}" text-anchor="middle" font-family="Oswald" font-size="9" fill="var(--muted2)" letter-spacing="0.05em">TOTAL</text>
   </svg>`;
   const legend = `<div class="pie-legend">${slices.map(s=>`
     <div class="pie-legend-row">
       <span class="pie-sw" style="background:${s.color};"></span>
       <span class="pie-lbl" title="${escHtml(s.label)}">${escHtml(s.label)}</span>
-      <span class="pie-val">${fmt(s.value)}${unit}<span class="pie-sub">${s.pct.toFixed(1)}%${s.qty!=null?` · 판매수량 ${Math.round(s.qty||0).toLocaleString()}`:''}</span>${s.deltaHtml?`<span class="pie-sub cat-delta-row">${s.deltaHtml}</span>`:''}</span>
+      <span class="pie-val">${Math.round(s.value).toLocaleString()}원<span class="pie-sub">${s.pct.toFixed(1)}% · 판매수량 ${Math.round(s.qty||0).toLocaleString()}</span>${s.deltaHtml?`<span class="pie-sub cat-delta-row">${s.deltaHtml}</span>`:''}</span>
     </div>`).join('')}</div>`;
   return `<div class="pie-chart-wrap">${svg}${legend}</div>`;
 }
@@ -6060,20 +6079,36 @@ function goalsRender02(ctx){
     const sum = ctx.rows.reduce((a,r)=> a + (ctx.monthMaps[m].map[r.store]||0), 0);
     return `<td><span class="num">${Math.round(sum).toLocaleString()}</span></td>`;
   }).join("");
+  // 누적실적/누적목표/누적격차 합계 — '누적실적'은 결측 매장도 실적은 있으므로 전 매장을 더하고,
+  // '누적목표'·'누적격차'는 결측 매장이 "산출 제외"된 것과 똑같이 그 매장을 빼고 더한다(행별 표기와 일치시킴).
+  const cumActualTot = ctx.rows.reduce((a,r)=> a + (r.cum ? r.cum.actualCum : 0), 0);
+  const cumRowsOk = ctx.rows.filter(r=> r.cum && !r.cum.gap);
+  const cumGapStores = ctx.rows.filter(r=> !r.cum || r.cum.gap).map(r=>r.label);
+  const cumTargetTot = cumRowsOk.reduce((a,r)=>a+r.cum.targetCum,0);
+  const cumGapTot = cumRowsOk.reduce((a,r)=>a+(r.cum.actualCum-r.cum.targetCum),0);
+  const cumNote = cumGapStores.length ? ` title="결측으로 누적목표·누적격차 산출 제외: ${escHtml(cumGapStores.join(', '))}"` : '';
+  // 편차(목표 대비) 합계 — 각 매장 편차와 같은 정의(달성률/100 − 1)를 전사 합계 달성률에 그대로 적용한 가중평균값.
+  const devAgg = totTarget>0 ? (totActual/totTarget - 1) : null;
   const foot = `<tfoot><tr><td>전사 합계</td>
       <td class="tgt-col"><span class="num" style="color:var(--amber)">${ctx.rows.reduce((a,r)=>a+r.target,0).toLocaleString()}</span></td>
-      ${monthFoot}<td></td><td></td><td></td>
+      ${monthFoot}
+      <td><span class="num">${Math.round(cumActualTot).toLocaleString()}</span></td>
+      <td${cumNote}><span class="num">${Math.round(cumTargetTot).toLocaleString()}</span></td>
+      <td${cumNote}><span class="num" style="color:${cumGapTot>=0?'var(--green)':'var(--red)'}">${(cumGapTot>=0?'+':'-')+Math.abs(Math.round(cumGapTot)).toLocaleString()}</span></td>
       <td><span class="num">${Math.round(totTarget).toLocaleString()}</span></td>
       <td class="total-col"><span class="num">${totTarget>0?(totActual/totTarget*100).toFixed(1):'0.0'}%</span></td>
-      <td></td><td></td><td></td><td></td></tr></tfoot>`;
+      <td><span class="num" style="color:${devAgg==null?'var(--muted2)':devAgg>=0?'var(--green)':'var(--red)'}">${devAgg==null?'-':(devAgg>=0?'+':'')+(devAgg*100).toFixed(1)+'%'}</span></td>
+      <td></td><td></td><td></td></tr></tfoot>`;
 
   // 달성률 랭킹(엑셀 02시트 가로막대 차트에 대응)
   const rankList = `<div class="g-tbl-title">${cm} 달성률 랭킹 (낮은 순 = 대응 우선순위)</div>
     <div class="g-rank-list">${ctx.rows.map(r=>{
       const tier = goalsTier(r.pct);
       const c = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--info)":tier.cls==="g-tier-warn"?"var(--amber)":"var(--red)";
-      return `<div class="g-rank-row"><span class="g-rank-num">${r.rank}</span>
-        <span class="g-rank-name" title="${escHtml(r.label)}">${escHtml(r.label)}</span>
+      // 마우스를 올리면 이 막대(달성률)의 근거인 목표매출(일할 환산)·현재 매출액을 그대로 보여준다.
+      const rowTitle = `${r.label} · ${cm} 목표매출 ${Math.round(r.proratedTarget).toLocaleString()}원 · 현재 매출 ${Math.round(r.actual).toLocaleString()}원 · 달성률 ${r.pct.toFixed(1)}%`;
+      return `<div class="g-rank-row" title="${escHtml(rowTitle)}"><span class="g-rank-num">${r.rank}</span>
+        <span class="g-rank-name">${escHtml(r.label)}</span>
         <div class="mini-bar" style="flex:1;"><div class="mini-bar-fill" style="width:${Math.min(100,r.pct).toFixed(1)}%;background:${c}"></div></div>
         <span class="g-rank-pct">${r.pct.toFixed(1)}%</span></div>`;
     }).join("")}</div>`;
