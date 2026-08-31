@@ -426,7 +426,12 @@
   .agg-card:last-child{margin-bottom:0;}
   .agg-card .p-hd{padding:14px 18px;}
   .agg-card .p-hd .store-name{font-size:16.5px;}
-  .agg-scroll{overflow:auto;max-height:72vh;scrollbar-color:var(--amber-dim,#8a6d2a) var(--panel2);scrollbar-width:thin;}
+  /* 2026-08-31: 카드마다 내부 스크롤(72vh)이 따로 있어서 페이지 스크롤 안에 스크롤이 중첩되는 게
+     너무 불편하다는 피드백 — 안쪽 스크롤을 없애고 표가 그냥 페이지 흐름대로 쭉 늘어나게 한다.
+     (overflow-x만 auto, overflow-y는 visible로 나누면 스펙상 두 값이 서로 영향을 줘 결국 세로도
+     auto가 되어버려 스크롤이 다시 생긴다 — 그래서 통째로 visible 하나로 둔다. 아주 넓은 표는
+     화면 폭을 넘기지만, 안쪽 스크롤이 중첩되는 것보다 이쪽이 낫다는 요청.) */
+  .agg-scroll{overflow:visible;max-height:none;scrollbar-color:var(--amber-dim,#8a6d2a) var(--panel2);scrollbar-width:thin;}
   .agg-scroll::-webkit-scrollbar{width:11px;height:11px;}
   .agg-scroll::-webkit-scrollbar-track{background:var(--panel2);}
   .agg-scroll::-webkit-scrollbar-thumb{background:#5a4a22;border-radius:6px;border:2px solid var(--panel2);}
@@ -648,7 +653,8 @@
      예전에는 한 카드 안의 표 3개(03 시트)가 같은 스크롤 영역을 공유해서, 앞 표의 고정 머리글이
      뒤 표 위에 떠 있고 합계행이 다른 표를 덮었다. 표마다 박스를 나누면 sticky 가 자기 표 안에만
      머물러 절대 다른 표를 침범하지 않는다. 모든 탭에 같은 규칙을 쓴다. */
-  .tblbox{overflow:auto;max-height:68vh;border:1px solid var(--line-soft);border-radius:10px;
+  /* 2026-08-31: 위 .agg-scroll과 같은 이유로 안쪽 스크롤(68vh)을 없앤다. */
+  .tblbox{overflow:visible;max-height:none;border:1px solid var(--line-soft);border-radius:10px;
     background:var(--panel);margin:0 0 6px;scrollbar-color:var(--amber-dim,#8a6d2a) var(--panel2);scrollbar-width:thin;}
   .tblbox>table{margin:0;}
   /* 목표 탭 패널은 바깥 스크롤을 없애고 페이지가 자연스럽게 흐르게 한다(스크롤 중첩 방지) */
@@ -704,7 +710,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 27 · 2026-08-31</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 28 · 2026-08-31</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -2469,7 +2475,7 @@ function renderShipSourceDiff(){
     }).join("");
     const tot = keys.reduce((a,k)=>({hq:a.hq+obj[k].hq, center:a.center+obj[k].center, picked:a.picked+obj[k].picked}), {hq:0,center:0,picked:0});
     return `<div class="g-tbl-title">${title}</div>
-      <div class="tblbox" style="max-height:42vh;"><table class="g-tbl">
+      <div class="tblbox"><table class="g-tbl">
         <thead><tr><th>${keyLbl}</th><th>본사</th><th>센터</th><th>차이<br>(센터−본사)</th><th>현재 채택값</th></tr></thead>
         <tbody>${b}</tbody>
         <tfoot><tr><td>합계</td><td><span class="num">${r1(tot.hq)}</span></td><td><span class="num">${r1(tot.center)}</span></td>
@@ -6420,7 +6426,7 @@ function salesAuditHtml(ctx){
     <div class="audit-list">${rows}</div>
     <details class="g-store-more" style="margin-top:8px;">
       <summary>월별 두 소스 대조 (매장별 매출 ↔ 카테고리별 매출)</summary>
-      <div class="tblbox" style="max-height:34vh;"><table class="g-tbl">
+      <div class="tblbox"><table class="g-tbl">
         <thead><tr><th>월</th><th>매장별 매출(청구금액)</th><th>카테고리별 매출(실매출액)</th><th>차이</th><th>차이율</th></tr></thead>
         <tbody>${mrows}</tbody></table></div>
     </details>
@@ -6496,9 +6502,9 @@ function goalsCatDrillHtml(cat, ctx){
     ${warnHtml}
     <div class="g-tbl-title">월별 (업로드된 전 기간)</div>
     <div class="g-tbl-sub">한 달만 유독 크면 그 달 파일을 다시 보세요. '업로드 날짜 수'가 그 달 일수보다 많으면 중복입니다.</div>
-    <div class="tblbox" style="max-height:34vh;"><table class="g-tbl"><thead><tr><th>월</th><th>매출액(원)</th><th>최대월 대비</th><th>수량</th><th>평균 단가</th><th>업로드 날짜 수</th></tr></thead><tbody>${monthRows||'<tr><td colspan="6">데이터 없음</td></tr>'}</tbody></table></div>
+    <div class="tblbox"><table class="g-tbl"><thead><tr><th>월</th><th>매출액(원)</th><th>최대월 대비</th><th>수량</th><th>평균 단가</th><th>업로드 날짜 수</th></tr></thead><tbody>${monthRows||'<tr><td colspan="6">데이터 없음</td></tr>'}</tbody></table></div>
     <div class="g-tbl-title">매장별 (선택 기간)</div>
-    <div class="tblbox" style="max-height:34vh;"><table class="g-tbl"><thead><tr><th>매장</th><th>매출액(원)</th><th>비중</th><th>수량</th><th>평균 단가</th></tr></thead><tbody>${storeRows||'<tr><td colspan="5">데이터 없음</td></tr>'}</tbody></table></div>
+    <div class="tblbox"><table class="g-tbl"><thead><tr><th>매장</th><th>매출액(원)</th><th>비중</th><th>수량</th><th>평균 단가</th></tr></thead><tbody>${storeRows||'<tr><td colspan="5">데이터 없음</td></tr>'}</tbody></table></div>
     <div class="g-tbl-title">이 카테고리로 지정된 상품분류 (${mapped.length}건)</div>
     <div class="g-tbl-sub">엉뚱한 상품분류가 이 카테고리로 지정돼 있으면 여기서 바로 보입니다. 고치려면 상단 <b>카테고리 지정 보기/수정</b>에서 바꾸세요.</div>
     <div style="font-size:11.5px;color:var(--muted);line-height:1.9;word-break:keep-all;">${mapped.length?mapped.map(k=>`<span style="display:inline-block;border:1px solid var(--line-soft);border-radius:99px;padding:1px 9px;margin:0 4px 4px 0;">${escHtml(k)}</span>`).join(""):"사용자가 직접 지정한 항목 없음 — 매출 파일의 상품분류(대분류)가 그대로 카테고리로 쓰였습니다."}</div>`;
