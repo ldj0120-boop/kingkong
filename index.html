@@ -704,7 +704,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 22 · 2026-08-31</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 23 · 2026-08-31</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -2459,34 +2459,37 @@ function renderShipSourceDiff(){
     <tbody>${body}</tbody>${foot}</table></div>
     ${subTbl("매장별 채택값 소계 (전체 칸 기준 · 채택값 큰 순)", byStore, "매장")}
     ${subTbl("카테고리별 채택값 소계 (전체 칸 기준 · 채택값 큰 순)", byCat, "카테고리")}
-    ${shipStoreCatChartHtml(byStoreCat, byStore)}`;
+    ${shipStoreCatChartHtml()}`;
   if(meta) meta.textContent = `${shipScope==="all"?"전체 기간":shipScope} · 현재 채택값 총합 ${eok(allPick)} PLT · 어긋나는 칸 ${rows.length}개(양쪽 값 있는 칸 ${both.length}개: 본사 ${Math.round(sumHq)} vs 센터 ${Math.round(sumCen)}) · 현재 규칙: ${SHIP_MERGE_LABEL[shipMergePolicy]}`;
 }
-// 판정값(채택값)을 "매장별 이번달 출고 현황(카테고리별)" 표(renderShipAgg)와 같은 형식의
-// 매장×카테고리 히트맵 표로 보여준다 — 행별 미니바·합계열·합계행·칸 배경 진하기까지 동일한 형식이라
-// 사이트 안의 다른 표들과 바로 비교해 볼 수 있다. 값이 있는 매장·카테고리만, 채택값 큰 순.
-function shipStoreCatChartHtml(byStoreCat, byStore){
+// 매장별 "최종" 출고완료 값(actualQty = 본사↔센터 판정값 + 가전센터(방도리) + 신선(신선식품·수박) + 롯데제타,
+// storeActualTotal과 완전히 같은 정의)을 "매장별 이번달 출고 현황(카테고리별)" 표(renderShipAgg)와 같은
+// 형식의 매장×카테고리 히트맵 표로 보여준다. 판정값만 넣었던 이전 버전은 본사·센터가 겹치는 카테고리만
+// 잡혀서(예: 수박·신선식품 등 겹치지 않는 별도 품목이 통째로 빠짐) 위쪽 "이번달 출고 현황" 합계와 크게
+// 어긋나 보였다 — actualQty를 그대로 쓰면 겹치지 않는 품목까지 전부 포함되어 두 합계가 같은 정의를 갖는다
+// (다만 아직 안 나간 "출고예정"은 "최종"이 아니므로 제외 — 그건 storeShipTotal = planQty+actualQty 쪽 몫).
+function shipStoreCatChartHtml(){
   const r1 = v => Math.round(v*10)/10;
-  const stores = Object.keys(byStoreCat).filter(s=> byStore[s] && byStore[s].picked > 0.05);
+  const stores = STORES.filter(s=> storeActualTotal(s) > 0.05);
   if(!stores.length) return "";
-  const cats = CATEGORIES.filter(c=> stores.some(s=> byStoreCat[s][c] && byStoreCat[s][c].picked > 0.05));
+  const cats = CATEGORIES.filter(c=> stores.some(s=> actualQty(s,c) > 0.05));
   if(!cats.length) return "";
-  const rows = stores.map(s=>({s, rowSum: byStore[s].picked})).sort((a,b)=>b.rowSum-a.rowSum);
+  const rows = stores.map(s=>({s, rowSum: storeActualTotal(s)})).sort((a,b)=>b.rowSum-a.rowSum);
   const maxRowSum = Math.max(1, ...rows.map(r=>r.rowSum));
-  const colMax = cats.map(cat=>Math.max(1, ...stores.map(s=>(byStoreCat[s][cat]&&byStoreCat[s][cat].picked)||0)));
-  const cellTitle = (s,cat)=>{
-    const o = byStoreCat[s][cat]; if(!o) return "";
-    return `본사 ${r1(o.hq)} · 센터 ${r1(o.center)} → 채택 ${r1(o.picked)} (${SHIP_MERGE_LABEL[shipMergePolicy]})`;
-  };
-  let head = "<thead><tr><th>매장</th>" + cats.map(c=>`<th>${escHtml(c)}</th>`).join("") + `<th class="total-col">합계</th></tr></thead>`;
+  const colMax = cats.map(cat=>Math.max(1, ...stores.map(s=>actualQty(s,cat))));
+  let head = "<thead><tr><th>매장</th>" + cats.map(c=>{
+    const t = originTitle(c, CATEGORY_ORIGIN[c]);
+    const attr = t!==c ? ` title="${escHtml(t)}"` : '';
+    return `<th${attr}>${escHtml(c)}</th>`;
+  }).join("") + `<th class="total-col">합계</th></tr></thead>`;
   let body = "<tbody>";
   rows.forEach(({s,rowSum})=>{
     const barPct = Math.round(rowSum/maxRowSum*100);
     body += `<tr><td><div class="store-cell-name">${escHtml(s)}${storeNameTag(s)}</div><div class="mini-bar"><div class="mini-bar-fill amber" style="width:${barPct}%"></div></div></td>`;
     cats.forEach((cat,ci)=>{
-      const v = (byStoreCat[s][cat] && byStoreCat[s][cat].picked) || 0;
+      const v = actualQty(s,cat);
       const style = v>0.05 ? ` style="background:rgba(245,178,17,${(0.12+0.55*(v/colMax[ci])).toFixed(2)})"` : '';
-      const attr = v>0.05 ? ` title="${escHtml(cellTitle(s,cat))}"` : '';
+      const attr = v>0.05 ? ` title="${escHtml(shipCellTitle(s,cat))}"` : '';
       body += `<td${style}${attr}><span class="num">${v>0.05?r1(v).toLocaleString():''}</span></td>`;
     });
     body += `<td class="total-col"><span class="num">${r1(rowSum).toLocaleString()}</span></td></tr>`;
@@ -2494,12 +2497,12 @@ function shipStoreCatChartHtml(byStoreCat, byStore){
   body += "</tbody>";
   let foot = "<tfoot><tr><td>합계</td>", grand=0;
   cats.forEach(cat=>{
-    let sum=0; stores.forEach(s=>sum+=(byStoreCat[s][cat]&&byStoreCat[s][cat].picked)||0);
+    let sum=0; stores.forEach(s=>sum+=actualQty(s,cat));
     grand += sum;
     foot += `<td>${sum>0.05?r1(sum).toLocaleString():''}</td>`;
   });
   foot += `<td class="total-col">${r1(grand).toLocaleString()}</td></tr></tfoot>`;
-  return `<div class="g-tbl-title">매장별 판정값(채택값) 카테고리별 공급 PLT (채택값 큰 순)</div>
+  return `<div class="g-tbl-title">매장별 최종 출고완료 카테고리별 공급 PLT (본사↔센터 판정값 + 가전·신선·롯데제타 포함 · 출고완료 큰 순)</div>
     <div class="agg-scroll"><table>${head}${body}${foot}</table></div>`;
 }
 function renderShipMergeSelect(){
