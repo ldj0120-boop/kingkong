@@ -704,7 +704,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 23 · 2026-08-31</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 24 · 2026-08-31</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1634,10 +1634,13 @@ function mergeStoredCatMaps(){
 // ★ 파일 종류별 로직 버전 (2026-08-26) — 전역 하나로 두면 안 된다.
 // 센터 파서만 고쳤는데도 본사·가전·신선까지 "다시 올려라"고 떠서 사용자가 매번 4종을 재업로드해야 했다.
 // 파서를 고친 종류의 숫자만 올릴 것. (그 종류만 낡은 것으로 표시된다)
-//   center 5 : 파레트 산정 규칙 재정립(매니페스트 블록 상한 제거, 실물 행 절대 우선)
-//   hq     3 : Remarks 폴백 / '점' 생략 헤더 / 시트명 날짜 우선
-//   appliance/fresh 1 : 최초 로직 이후 변경 없음
-const PARSE_LOGIC_VERSIONS = { center: 6, hq: 5, appliance: 2, fresh: 2 };
+//   center 6    : 파레트 산정 규칙 재정립(매니페스트 블록 상한 제거, 실물 행 절대 우선)
+//   hq     6    : Cate 병합 셀 이어붙이기(2026-08-31) — 병합으로 빈칸이 된 Cate 행이 실물 행(No./Remarks 등에
+//                 값 있음)이면 바로 위 Cate를 이어받게 함. 예전엔 그런 행을 통째로 버려서 대형가전처럼
+//                 여러 행이 한 Cate로 병합된 항목이 실제보다 적게 집계됐다(인천점*2 대형가전 3PLT 중 누락 신고).
+//   appliance 3 : 위와 동일한 Cate 병합 셀 이어붙이기 적용(2026-08-31)
+//   fresh 1     : 최초 로직 이후 변경 없음
+const PARSE_LOGIC_VERSIONS = { center: 6, hq: 6, appliance: 3, fresh: 2 };
 const PARSE_LOGIC_VERSION = 5; // (하위호환: 예전 상태에 통째로 저장돼 있던 값 비교용)
 function logicVer(src){ return PARSE_LOGIC_VERSIONS[src] || 1; }
 const PARSE_SRC_LABEL = { center:"출고내역서(센터)", hq:"출고계획서(본사)", appliance:"가전센터 출고내역서", fresh:"신선 출고내역서" };
@@ -4595,10 +4598,20 @@ function parseApplianceWorkbook(wb){
       const matched = storeNames.filter(s=>STORES.includes(s));
       storeNames.filter(s=>!STORES.includes(s)).forEach(s=>unmatched.add(s));
       const catCounts = {};
+      // ★ HQ 출고계획서와 같은 병합 셀 보정: Cate 칸이 여러 행에 병합돼 있으면 아래 행은 빈 칸으로
+      //   읽혀 그 행이 통째로 누락된다. 다른 칸(예: PLT NO. 등)에 값이 있는 실물 행이면 바로 위 Cate를
+      //   이어받는다(완전히 빈 여백 행은 이어받지 않음). (2026-08-31 수정)
+      let lastCat = null;
       for(let dr=r+2; dr<aoa.length; dr++){
         const drow = aoa[dr] || [];
         if(drow[0] === "출고지 :") break; // 다음 블록 시작
-        const cateRaw = drow[2];
+        let cateRaw = drow[2];
+        if(cateRaw!=null && String(cateRaw).trim()!==""){
+          lastCat = cateRaw;
+        } else if(lastCat){
+          const hasRowEvidence = drow.some((cell,idx)=> idx!==2 && cell!=null && String(cell).trim()!=="");
+          if(hasRowEvidence) cateRaw = lastCat;
+        }
         if(!cateRaw) continue;
         const cat = ensureCategory(extractCategoryFromRaw(cateRaw), "가전센터(방도리) 출고내역서");
         catCounts[cat] = (catCounts[cat]||0) + 1;
@@ -4776,10 +4789,24 @@ async function parseHQPlanWorkbook(wb, onProgress){
       });
       if(cateCol<0) continue; // 헤더를 못 찾으면 이 블록은 건너뜀(다음 "출고지"에서 재시도)
       const headerStoreNames = resolveShipmentStoreNames(row[markerCol+1]);
+      // ★ 엑셀 병합 셀 보정: Cate 칸이 여러 행에 걸쳐 병합되어 있으면(예: 대형가전 3행이 한 셀로 병합)
+      //   SheetJS는 병합 범위의 맨 위 행에만 값을 채우고 나머지 행은 빈 칸으로 읽는다.
+      //   예전에는 "Cate가 빈 칸이면 그 행을 통째로 버림"이라, 병합된 아래쪽 실물 행들이 집계에서
+      //   빠져 대형가전 등에서 실제보다 적게 카운트되는 문제가 있었다(2026-08-31 신고: 인천점*2 블록
+      //   대형가전 3PLT 중 일부 누락). 센터 출고내역서(하차지 블록)의 lastCat 이어붙이기 규칙과 동일하게,
+      //   Cate가 빈 칸인 행도 "그 행에 다른 칸(No./PLT NO./Remarks 등)이 채워진 실물 행"이면 바로 위의
+      //   Cate를 이어받는다. 완전히 빈 행(블록 사이 여백)은 이어받지 않는다.
+      let lastCat = null;
       for(let dr=r+2; dr<aoa.length; dr++){
         const drow = aoa[dr] || [];
         if(findMarkerCol(drow) >= 0) break; // 다음 블록 시작
-        const cateRaw = drow[cateCol];
+        let cateRaw = drow[cateCol];
+        if(cateRaw!=null && String(cateRaw).trim()!==""){
+          lastCat = cateRaw;
+        } else if(lastCat){
+          const hasRowEvidence = drow.some((cell,idx)=> idx!==cateCol && cell!=null && String(cell).trim()!=="");
+          if(hasRowEvidence) cateRaw = lastCat;
+        }
         if(!cateRaw) continue;
         const cat = ensureCategory(extractCategoryFromRaw(cateRaw), "본사 출고계획서(HQ)");
         // 우선 그 행에 적힌 실제 목적지(Remarks)를 쓰고, 없으면 블록 헤더의 매장(들)에 고르게 나눠 배분한다.
