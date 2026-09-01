@@ -722,7 +722,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 33 · 2026-09-01</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 34 · 2026-09-01</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -2579,7 +2579,7 @@ function renderShipSourceDiff(){
       ${statCard("현재 채택값 총합 (전체 칸)", eok(allPick)+" PLT", [
         goalsLine(`본사↔센터 병합 결과 · 값이 있는 칸 ${allCells}개`),
         goalsLine(`본사 ${eok(allHq)} / 센터 ${eok(allCen)} PLT`),
-        goalsLine(`※ 가전센터(방도리)·신선 출고는 겹치지 않는 별도 품목이라 이 표 밖에서 항상 더해집니다`)])}
+        goalsLine(`※ 센터 직출(창고 미경유)·가전센터(방도리)·신선 출고는 본사 파일에 아예 없거나 겹치지 않는 별도 물량이라 이 표 밖에서 항상 더해집니다`)])}
       ${statCard("어긋나는 칸의 채택값", eok(tPick)+" PLT", [
         goalsLine(`${rows.length}칸 · 본사 ${eok(tHq)} / 센터 ${eok(tCen)}`),
         goalsLine(`전체 채택값의 ${allPick>0?(tPick/allPick*100).toFixed(1):'0.0'}%`)])}
@@ -2597,7 +2597,7 @@ function renderShipSourceDiff(){
     ${shipStoreCatChartHtml()}`;
   if(meta) meta.textContent = `${shipScope==="all"?"전체 기간":shipScope} · 현재 채택값 총합 ${eok(allPick)} PLT · 어긋나는 칸 ${rows.length}개(양쪽 값 있는 칸 ${both.length}개: 본사 ${Math.round(sumHq)} vs 센터 ${Math.round(sumCen)}) · 현재 규칙: ${SHIP_MERGE_LABEL[shipMergePolicy]}`;
 }
-// 매장별 "최종" 출고완료 값(actualQty = 본사↔센터 판정값 + 가전센터(방도리) + 신선(신선식품·수박) + 롯데제타,
+// 매장별 "최종" 출고완료 값(actualQty = 본사↔센터 판정값 + 센터 직출(창고 미경유) + 가전센터(방도리) + 신선(신선식품·수박) + 롯데제타,
 // storeActualTotal과 완전히 같은 정의)을 "매장별 이번달 출고 현황(카테고리별)" 표(renderShipAgg)와 같은
 // 형식의 매장×카테고리 히트맵 표로 보여준다. 판정값만 넣었던 이전 버전은 본사·센터가 겹치는 카테고리만
 // 잡혀서(예: 수박·신선식품 등 겹치지 않는 별도 품목이 통째로 빠짐) 위쪽 "이번달 출고 현황" 합계와 크게
