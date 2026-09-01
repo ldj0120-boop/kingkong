@@ -280,6 +280,9 @@
   .delta.flat,.delta.na{color:var(--muted2);font-weight:500;}
   .chart-wrap{background:var(--ink);border:1px solid var(--line-soft);border-radius:10px;padding:10px;}
   .chart-wrap svg{display:block;width:100%;height:160px;}
+  .chart-legend{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:6px;font-size:11px;color:var(--muted2);}
+  .chart-legend span{display:inline-flex;align-items:center;gap:5px;}
+  .chart-legend i{display:inline-block;width:9px;height:9px;border-radius:50%;}
   .trend-empty{color:var(--muted);font-size:13px;line-height:1.7;}
 
   /* ---------- 카테고리별 매출 막대 리스트 ---------- */
@@ -719,7 +722,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 30 · 2026-08-31</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 33 · 2026-09-01</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -848,8 +851,8 @@
       <div style="padding:12px 18px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <label for="shipMergeSelect" style="font-family:'Oswald';font-size:11px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;">두 파일이 다를 때</label>
         <select id="shipMergeSelect" style="max-width:280px;">
-          <option value="center">센터 출고내역서 우선</option>
-          <option value="max">큰 값 채택 (기본)</option>
+          <option value="center">센터 출고내역서 우선 (기본)</option>
+          <option value="max">큰 값 채택</option>
           <option value="hq">본사 출고계획서 우선</option>
         </select>
         <span class="meta" style="font-size:11px;">바꾸면 즉시 반영됩니다 — 파일 재업로드는 필요 없습니다(병합은 화면 그릴 때 계산).</span>
@@ -1412,6 +1415,34 @@ function sheetAoA(wb, sheetName){
   if(!a){ a = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, raw:true, defval:null}); m.set(sheetName, a); }
   return a;
 }
+// ★ 2026-09-01: 병합 셀 판정을 "이 행에 뭐라도 있으면 이어받는다"는 추측이 아니라, 엑셀이 실제로
+//   기록한 병합 범위(ws['!merges'])로 정확히 판단한다. 본사 출고계획서는 "No 1~10" 같은 빈 템플릿
+//   슬롯을 미리 인쇄해두는데, 그 No 칸에 숫자가 있다는 것만으로 "실물 행"이라 오판하면 실제로는
+//   비어 있는 슬롯(그 줄의 카테고리를 이어받으면 안 됨)까지 앞 카테고리로 잘못 채워져 대형가전 등이
+//   실제보다 몇 배로 부풀려진다(2026-09-01 신고: 인천점 대형가전 7월 — 센터 실제 10PLT인데 화면 48PLT).
+//   반대로 진짜 세로 병합 범위 안에 있는 빈 칸은 그 병합의 맨 위 행 값을 그대로 이어받아야 누락되지
+//   않는다. 워크북·시트별로 병합 목록을 한 번만 읽어 캐시한다.
+const _mergeCache = new WeakMap();
+function sheetMerges(wb, sheetName){
+  let m = _mergeCache.get(wb);
+  if(!m){ m = new Map(); _mergeCache.set(wb, m); }
+  let arr = m.get(sheetName);
+  if(!arr){
+    const ws = wb.Sheets[sheetName];
+    arr = (ws && ws['!merges']) || [];
+    m.set(sheetName, arr);
+  }
+  return arr;
+}
+// col 열의 세로 병합 범위 중 dr행이 속한 것이 있으면 그 병합의 맨 위(앵커) 행 번호를, 없으면 null을 반환.
+function verticalMergeAnchorRow(wb, sheetName, col, dr){
+  const merges = sheetMerges(wb, sheetName);
+  for(let i=0;i<merges.length;i++){
+    const m = merges[i];
+    if(m.s.c===col && m.e.c===col && m.e.r>m.s.r && dr>=m.s.r && dr<=m.e.r) return m.s.r;
+  }
+  return null;
+}
 function extractCategoryFromRaw(raw){
   const t = String(raw||"").replace(/[\n\r]+/g,' ').trim();
   if(!t) return "미분류";
@@ -1496,14 +1527,24 @@ let unmatchedActualStores = []; // 실적 파일에는 있지만 매장 목록�
 // → actualQty()에서 이 세 값을 그때그때 합쳐서 돌려준다(ACTUAL은 "센터" 값 그대로 유지, 스키마 하위호환).
 let HQ_ACTUAL = {};            // store -> {카테고리: 수량} (본사 "출고계획서" 기준, 이번달 전체를 올릴 때마다 통째로 교체)
 let APPLIANCE_ACTUAL = {};     // store -> {카테고리: 수량} (가전센터/방도리 출고내역서 기준, 통째로 교체)
+// ★ 2026-09-01: 센터 출고내역서의 "하차지 :" 블록에는 출고 경로(2번째 칼럼)가 "이천센터출고"/
+//   "방도리센터출고"/"도척센터출고"처럼 창고를 거치는 것과, "직 출"(창고를 안 거치고 매장으로 바로
+//   나가는 직송)이 섞여 있다. 본사 출고계획서는 "출고지 :" 블록을 전부 창고(이천센터/방도리센터 등)
+//   단위로만 적어서 "직출" 개념 자체가 없다 — 즉 직출 물량은 본사 파일에 원천적으로 없다(사용자 확인:
+//   "다른센터에서 매장으로 직출고하는건 본사출고내역서에는 없고 센터출고내역서에만 있다"). 이걸 CENTER_M에
+//   섞어 넣고 mergePick(HQ,CENTER)으로 "겹치는 값 중 하나를 고르면", 직출 물량이 통째로 묻히거나
+//   (hq 정책) 반대로 정말 겹치는 창고 물량까지 최댓값 정책에 끌려 부풀려진다. 그래서 직출은 처음부터
+//   별도 맵(CENTER_DIRECT_M)에 담아 가전센터(방도리)처럼 "겹치지 않는 별도 물량이라 항상 더한다".
+let CENTER_DIRECT_ACTUAL = {}; // store -> {카테고리: 수량} (센터 출고내역서 중 "직출" 블록만, 통째로 교체)
 let HQ_SUPPLY_HISTORY = [];    // [{date, total, byCategory}] 본사 출고계획서 날짜별 시트에서 뽑은 일별 공급 총량
 let APPLIANCE_SUPPLY_HISTORY = []; // 가전센터(방도리) 날짜별 공급 총량
 // 신선 출고내역서(취합본): 신선식품·수박 카테고리를 매장별로 합산해 출고완료에 항상 더한다(별도 품목).
 let FRESH_ACTUAL = {};         // store -> {신선식품|수박: 수량}
 // 월별 출고 누적: 폴더에 여러 달 출고 파일을 넣어도 각 달이 보존된다(같은 달 재업로드 시 그 달만 교체).
-let CENTER_M = {};    // month -> store -> {cat: qty}  (센터 출고내역서)
+let CENTER_M = {};    // month -> store -> {cat: qty}  (센터 출고내역서 중 "창고 경유"만 — 직출 제외, HQ와 병합대상)
 let HQ_M = {};        // month -> store -> {cat: qty}  (본사 출고계획서)
 let APPLIANCE_M = {}; // month -> store -> {cat: qty}  (가전센터)
+let CENTER_DIRECT_M = {}; // month -> store -> {cat: qty}  (센터 출고내역서 중 "직출"만 — 본사 파일엔 없어 항상 더함)
 let FRESH_M = {};     // month -> store -> {신선식품|수박: qty}
 let LOTTE_M = {};     // month -> store -> {롯데제타: qty} (김해점 독점 공급)
 let PROCESSED_FILES = {};  // 폴더 불러오기: 이미 처리한 파일 지문(경로|크기|수정시각) → 재불러오기 시 건너뜀
@@ -1514,7 +1555,7 @@ function mergeMonthMap(target, incoming){ // incoming의 각 달로 target의 �
 }
 function shipMonths(){
   const s = new Set();
-  [CENTER_M, HQ_M, APPLIANCE_M, FRESH_M, LOTTE_M].forEach(mm=> Object.keys(mm||{}).forEach(m=>s.add(m)));
+  [CENTER_M, HQ_M, APPLIANCE_M, CENTER_DIRECT_M, FRESH_M, LOTTE_M].forEach(mm=> Object.keys(mm||{}).forEach(m=>s.add(m)));
   return Array.from(s).sort();
 }
 let unmatchedHQStores = [];
@@ -1552,16 +1593,25 @@ const planQty = (s,c) => num(SHIP[s] && SHIP[s][c]);
 //   (양주점 대형가구 9(본사 3) · 충주점 대형가전 1(본사 10) · 기흥점 대형가전 1(본사 8) · 경안점 XLB 10(본사 10)).
 //   그런데 2026-08-31, 인천점*2 대형가전 건(본사 21 vs 센터 4 — 센터 쪽이 "서비스솔루션" 오분류였던 것까지
 //   고친 뒤에도 여전히 본사가 큼)을 계기로 재확인한 결과, 지금은 상황이 바뀌어 충주점·기흥점 대형가전도
-//   **본사(큰 값)가 맞다**고 확인됨 → 기본값을 "max"(큰 값 채택)로 변경.
-// 가전센터(방도리)는 센터·본사와 겹치지 않는 별도 품목이라 항상 더한다.
+//   **본사(큰 값)가 맞다**고 확인됨 → 기본값을 "max"(큰 값 채택)로 변경했었다.
+// ★ 2026-09-01 재검토: 인천점 대형가전 7월 건(센터 실제 10PLT인데 화면 48PLT)을 실제 파일로 대조하니,
+//   본사 출고계획서의 "대형가전" 수치는 실제 출고가 아니라 계획/배정 수량이었다(엑셀에 "No 1~10" 중
+//   1·4·7행에만 실제로 물량이 적히고 나머지는 3행씩 세로 병합해 미리 서식만 잡아둔 템플릿 — 병합 자체는
+//   진짜라 부풀린 게 아니라 계획서 원문이 원래 그렇게 커서 실제보다 컸다). 같은 매장·카테고리에서
+//   본사 33 vs 센터(창고 경유분) 4로 8배 넘게 벌어졌고, 정답은 센터 쪽(4) + 직출(6) = 10이었다.
+//   → "출고계획서"는 계획, "출고내역서"는 실제 기록이라는 원래 성격에 맞게 기본값을 다시
+//   "center"(센터 우선, 없으면 본사로 보완)로 되돌린다. 이전에 본사가 맞다고 확인했던 충주점·기흥점
+//   대형가전 등은 그 사이 CATE_RULES가 여러 번 고쳐져 지금 센터 값이 달라졌을 수 있어 재확인이 필요하다.
+// 가전센터(방도리)와 센터의 "직출"(창고를 안 거치는 직송 — 본사 파일엔 아예 없는 경로, 아래
+// CENTER_DIRECT_M 참고)은 본사·센터와 겹치지 않는 별도 물량이라 항상 더한다.
 // 이 함수 하나만 바꾸면 이 값을 쓰는 모든 화면(매장별 이번달 출고 현황, 공급 대비 매출, 엑셀 내보내기 등)에 자동 반영된다.
-let shipMergePolicy = "max"; // "max" | "center" | "hq" — 기본값은 큰 값 채택(2026-08-31부터, 위 근거 참고)
-// ★ 기본값이 "center"→"max"로 바뀌었는데, shipMergePolicy는 매번 저장된 상태에 그대로 박제되어 있어서
-//   이미 저장된 브라우저는 새로고침해도 옛 기본값("center")이 계속 복원된다(사용자가 드롭다운을
-//   한 번도 안 만졌어도 저장 시점의 변수값이 "선택값"처럼 저장돼버리기 때문). 그래서 기본값이 바뀔
-//   때마다 버전을 올려서, 그 버전보다 낮은 저장 상태는 새 기본값으로 한 번 넘어가게 한다.
-//   (그 뒤로 사용자가 드롭다운을 직접 바꾸면 그 선택은 정상적으로 유지된다.)
-const SHIP_MERGE_DEFAULT_VERSION = 2; // 1=center 기본이던 시절, 2=2026-08-31 큰 값 채택으로 전환
+let shipMergePolicy = "center"; // "max" | "center" | "hq" — 기본값은 센터 우선(2026-09-01부터, 위 근거 참고)
+// ★ 기본값이 바뀔 때마다(4→max, 이번에 다시 center) shipMergePolicy는 저장된 상태에 그대로 박제되어
+//   버리는데, 예전엔 이 버전 번호를 저장만 하고 실제로 비교해 넘기는 코드가 없었다(그래서 8/31에
+//   "max"로 바꿨어도 이미 저장된 브라우저는 계속 옛 값이 복원되고 있었을 것). applyStateObject에서
+//   실제로 이 값을 비교해, 저장된 버전이 지금보다 낮으면 그때만 새 기본값으로 한 번 넘긴다(그 뒤 사용자가
+//   드롭다운을 직접 바꾸면 그 선택은 정상적으로 유지된다).
+const SHIP_MERGE_DEFAULT_VERSION = 3; // 1=center 기본, 2=2026-08-31 큰 값 채택, 3=2026-09-01 center로 복귀
 const SHIP_MERGE_LABEL = { max:"큰 값 채택", center:"센터 출고내역서 우선", hq:"본사 출고계획서 우선" };
 function mergePick(hq, center){
   if(shipMergePolicy==="center") return center>0 ? center : hq;
@@ -1573,10 +1623,10 @@ const actualQty = (s,c) => {
   const months = shipMonths();
   let base = 0;
   if(months.length){
-    if(shipScope==="all"){ months.forEach(m=> base += mergePick(_mv(HQ_M,m,s,c), _mv(CENTER_M,m,s,c)) + _mv(APPLIANCE_M,m,s,c)); }
-    else { base = mergePick(_mv(HQ_M,shipScope,s,c), _mv(CENTER_M,shipScope,s,c)) + _mv(APPLIANCE_M,shipScope,s,c); }
+    if(shipScope==="all"){ months.forEach(m=> base += mergePick(_mv(HQ_M,m,s,c), _mv(CENTER_M,m,s,c)) + _mv(APPLIANCE_M,m,s,c) + _mv(CENTER_DIRECT_M,m,s,c)); }
+    else { base = mergePick(_mv(HQ_M,shipScope,s,c), _mv(CENTER_M,shipScope,s,c)) + _mv(APPLIANCE_M,shipScope,s,c) + _mv(CENTER_DIRECT_M,shipScope,s,c); }
   } else {
-    base = mergePick(num(HQ_ACTUAL[s] && HQ_ACTUAL[s][c]), num(ACTUAL[s] && ACTUAL[s][c])) + num(APPLIANCE_ACTUAL[s] && APPLIANCE_ACTUAL[s][c]);
+    base = mergePick(num(HQ_ACTUAL[s] && HQ_ACTUAL[s][c]), num(ACTUAL[s] && ACTUAL[s][c])) + num(APPLIANCE_ACTUAL[s] && APPLIANCE_ACTUAL[s][c]) + num(CENTER_DIRECT_ACTUAL[s] && CENTER_DIRECT_ACTUAL[s][c]);
   }
   // 신선(신선식품·수박): FRESH_M에 있으면 scope대로, 없으면 FRESH_ACTUAL(레거시)로 보정해 항상 잡히게 한다.
   let fresh = 0;
@@ -1601,10 +1651,11 @@ const actualQty = (s,c) => {
 function actualQtyBreakdown(s,c){
   const months = shipMonths();
   const scope = m => shipScope==="all" || shipScope===m;
-  let hq=0, center=0, appliance=0, fresh=0, lotte=0;
+  let hq=0, center=0, appliance=0, direct=0, fresh=0, lotte=0;
   if(months.length){
     months.forEach(m=>{ if(!scope(m)) return;
       hq += _mv(HQ_M,m,s,c); center += _mv(CENTER_M,m,s,c); appliance += _mv(APPLIANCE_M,m,s,c);
+      direct += _mv(CENTER_DIRECT_M,m,s,c);
       lotte += _mv(LOTTE_M,m,s,c);
     });
     const inM = months.some(m=> FRESH_M[m] && FRESH_M[m][s] && FRESH_M[m][s][c]!=null);
@@ -1614,13 +1665,14 @@ function actualQtyBreakdown(s,c){
     hq = num(HQ_ACTUAL[s] && HQ_ACTUAL[s][c]);
     center = num(ACTUAL[s] && ACTUAL[s][c]);
     appliance = num(APPLIANCE_ACTUAL[s] && APPLIANCE_ACTUAL[s][c]);
+    direct = num(CENTER_DIRECT_ACTUAL[s] && CENTER_DIRECT_ACTUAL[s][c]);
     fresh = num(FRESH_ACTUAL[s] && FRESH_ACTUAL[s][c]);
   }
   const picked = mergePick(hq, center);
   const winner = hq===0 && center===0 ? "없음"
     : (picked===center && picked!==hq) ? "센터"
     : (picked===hq && picked!==center) ? "본사" : "본사=센터";
-  return { hq, center, appliance, fresh, lotte, picked, winner, total: actualQty(s,c) };
+  return { hq, center, appliance, direct, fresh, lotte, picked, winner, total: actualQty(s,c) };
 }
 // 칸 툴팁 문구: "출고예정 N · 출고완료 M (본사 x / 센터 y …)"
 function shipCellTitle(s,c){
@@ -1629,6 +1681,7 @@ function shipCellTitle(s,c){
   const parts = [];
   parts.push(`본사 출고계획서 ${r(b.hq)}`);
   parts.push(`센터 출고내역서 ${r(b.center)}`);
+  if(b.direct) parts.push(`센터 직출 ${r(b.direct)}`);
   if(b.appliance) parts.push(`가전센터 ${r(b.appliance)}`);
   if(b.fresh) parts.push(`신선 ${r(b.fresh)}`);
   if(b.lotte) parts.push(`롯데제타 ${r(b.lotte)}`);
@@ -1680,17 +1733,21 @@ function mergeStoredCatMaps(){
 // ★ 파일 종류별 로직 버전 (2026-08-26) — 전역 하나로 두면 안 된다.
 // 센터 파서만 고쳤는데도 본사·가전·신선까지 "다시 올려라"고 떠서 사용자가 매번 4종을 재업로드해야 했다.
 // 파서를 고친 종류의 숫자만 올릴 것. (그 종류만 낡은 것으로 표시된다)
-//   center 9    : 파레트 산정 규칙 재정립(매니페스트 블록 상한 제거, 실물 행 절대 우선) +
-//                 "서비스솔루션 A/B/C/D/F"(알파벳 한 글자, 공백/밑줄 구분 모두) 표기를 대형가전으로
-//                 재분류 + 본사·센터 CATE 원문 전량 대조로 찾은 표기 차이(검수용 대형가전/검수의뢰가전/
-//                 매트리스/분배FC파손/지정FC파손/비품 등) 정리(2026-08-31, CATE_RULES 참고) +
-//                 보쉬·워시테라피는 대형가전이 아니라 사입 건으로 재수정(사용자 확인, 2026-08-31)
-//   hq     6    : Cate 병합 셀 이어붙이기(2026-08-31) — 병합으로 빈칸이 된 Cate 행이 실물 행(No./Remarks 등에
-//                 값 있음)이면 바로 위 Cate를 이어받게 함. 예전엔 그런 행을 통째로 버려서 대형가전처럼
-//                 여러 행이 한 Cate로 병합된 항목이 실제보다 적게 집계됐다(인천점*2 대형가전 3PLT 중 누락 신고).
-//   appliance 5 : 위 hq/center와 같은 CATE_RULES 표기 차이 정리를 공유(2026-08-31)
+//   center 10   : "하차지 :" 블록의 출고 경로(2번째 칸)가 "직 출"(창고를 안 거치는 직송)인 블록을
+//                 더 이상 본사와 병합대상인 byStoreCat/byMonth에 섞지 않고, 별도 그릇
+//                 (byStoreCatDirect/byMonthDirect → CENTER_DIRECT_M/CENTER_DIRECT_ACTUAL)에 담는다.
+//                 본사 출고계획서는 전부 창고 단위로만 적혀 있어 "직출" 개념이 원천적으로 없다(사용자
+//                 확인, 2026-09-01) — 섞여 있으면 mergePick이 직출 물량까지 "겹치는 값 중 하나"로
+//                 취급해 누락되거나 부풀려진다. (이전 9: 파레트 산정 규칙 재정립 + CATE 표기 차이 정리)
+//   hq     7    : Cate 병합 셀 판정을 "그 행에 뭐라도 있으면 이어받는다"는 추측에서 ws['!merges']로
+//                 실제 세로 병합 범위를 확인하는 방식으로 정밀화(2026-09-01). 본사 출고계획서가
+//                 "No 1~10" 같은 빈 템플릿 슬롯을 미리 인쇄해두는 경우가 많은데, 그 No 칸에 숫자가
+//                 있다는 것만으로 실물 행이라 오판해 미사용 슬롯까지 앞 카테고리를 이어받아 실제보다
+//                 몇 배로 부풀려졌다(신고: 인천점 대형가전 7월 — 센터 실제 10PLT인데 화면 48PLT).
+//                 진짜 엑셀 병합 범위 안의 빈 칸만 이어받게 고쳤다. (v6의 병합 이어붙이기 자체는 유지)
+//   appliance 6 : 위 hq와 같은 병합 판정 정밀화를 공유(2026-09-01)
 //   fresh 1     : 최초 로직 이후 변경 없음
-const PARSE_LOGIC_VERSIONS = { center: 9, hq: 6, appliance: 5, fresh: 2 };
+const PARSE_LOGIC_VERSIONS = { center: 10, hq: 7, appliance: 6, fresh: 2 };
 const PARSE_LOGIC_VERSION = 5; // (하위호환: 예전 상태에 통째로 저장돼 있던 값 비교용)
 function logicVer(src){ return PARSE_LOGIC_VERSIONS[src] || 1; }
 const PARSE_SRC_LABEL = { center:"출고내역서(센터)", hq:"출고계획서(본사)", appliance:"가전센터 출고내역서", fresh:"신선 출고내역서" };
@@ -1781,15 +1838,17 @@ async function reparseStaleSources(){
       //   그래서 자동 재계산으로 숫자는 고쳐졌는데도 **"기흥가구패션관이 매칭되지 않았습니다" 경고가
       //   그대로 남아** 사용자가 아직 안 고쳐진 줄 알았다. 업로드 핸들러가 하는 일을 똑같이 한다.
       const acc = {};                 // store -> {cat: qty}  (파일 여러 개를 누적)
+      const accDirect = {};           // store -> {cat: qty}  (센터의 "직출" 블록만, src==="center"일 때만 사용)
       const unmatched = new Set();
-      if(src==="center"){ CENTER_M = {}; SUPPLY_HISTORY = []; }
+      if(src==="center"){ CENTER_M = {}; CENTER_DIRECT_M = {}; SUPPLY_HISTORY = []; }
       else if(src==="hq"){ HQ_M = {}; HQ_SUPPLY_HISTORY = []; }
       else if(src==="appliance"){ APPLIANCE_M = {}; APPLIANCE_SUPPLY_HISTORY = []; }
       else continue;
-      const soak = r=>{
-        Object.keys(r.byStoreCat||{}).forEach(st=>{
-          if(!acc[st]) acc[st] = {};
-          Object.keys(r.byStoreCat[st]).forEach(c=> acc[st][c] = (acc[st][c]||0) + r.byStoreCat[st][c]);
+      const soak = (r, into)=>{
+        const from = into===accDirect ? (r.byStoreCatDirect||{}) : (r.byStoreCat||{});
+        Object.keys(from).forEach(st=>{
+          if(!into[st]) into[st] = {};
+          Object.keys(from[st]).forEach(c=> into[st][c] = (into[st][c]||0) + from[st][c]);
         });
         (r.unmatched||[]).forEach(u=>unmatched.add(u));
       };
@@ -1800,26 +1859,33 @@ async function reparseStaleSources(){
         if(src==="center"){
           const r = parseShipmentWorkbook(wb);
           mergeMonthMap(CENTER_M, r.byMonth);
+          mergeMonthMap(CENTER_DIRECT_M, r.byMonthDirect);
           SUPPLY_HISTORY = mergeSupplyDays(SUPPLY_HISTORY, r.days);
-          soak(r);
+          soak(r, acc);
+          soak(r, accDirect);
         } else if(src==="hq"){
           const r = await parseHQPlanWorkbook(wb);
           mergeMonthMap(HQ_M, r.byMonth);
           HQ_SUPPLY_HISTORY = mergeSupplyDays(HQ_SUPPLY_HISTORY, r.days);
-          soak(r);
+          soak(r, acc);
         } else if(src==="appliance"){
           const r = parseApplianceWorkbook(wb);
           mergeMonthMap(APPLIANCE_M, r.byMonth);
           APPLIANCE_SUPPLY_HISTORY = mergeSupplyDays(APPLIANCE_SUPPLY_HISTORY, r.days);
-          soak(r);
+          soak(r, acc);
         }
       }
       // 누계 맵과 미매칭 목록을 새 파싱 결과로 완전히 교체한다.
-      const target = src==="center" ? "ACTUAL" : src==="hq" ? "HQ_ACTUAL" : "APPLIANCE_ACTUAL";
       const fresh = {}; STORES.forEach(st=> fresh[st] = freshCatMap());
       Object.keys(acc).forEach(st=>{ if(!fresh[st]) return;
         Object.keys(acc[st]).forEach(c=>{ ensureCategory(c, "출고내역서(하차지 블록)"); fresh[st][c] = acc[st][c]; }); });
-      if(src==="center"){ ACTUAL = fresh; unmatchedActualStores = Array.from(unmatched); }
+      if(src==="center"){
+        ACTUAL = fresh; unmatchedActualStores = Array.from(unmatched);
+        const freshDirect = {}; STORES.forEach(st=> freshDirect[st] = freshCatMap());
+        Object.keys(accDirect).forEach(st=>{ if(!freshDirect[st]) return;
+          Object.keys(accDirect[st]).forEach(c=>{ ensureCategory(c, "출고내역서(하차지 블록·직출)"); freshDirect[st][c] = accDirect[st][c]; }); });
+        CENTER_DIRECT_ACTUAL = freshDirect;
+      }
       else if(src==="hq"){ HQ_ACTUAL = fresh; unmatchedHQStores = Array.from(unmatched); }
       else { APPLIANCE_ACTUAL = fresh; unmatchedApplianceStores = Array.from(unmatched); }
       markParsed(src);
@@ -1833,7 +1899,7 @@ function buildStateObject(){
   return {
       PARSE_LOGIC_VERSION, _parseVerBySrc, shipMergePolicy, _shipMergeDefaultVer: SHIP_MERGE_DEFAULT_VERSION,
       STORES, STOCK, CATEGORIES, CATEGORY_ORIGIN, SHIP, ACTUAL,
-      HQ_ACTUAL, APPLIANCE_ACTUAL, FRESH_ACTUAL, CENTER_M, HQ_M, APPLIANCE_M, FRESH_M, LOTTE_M, shipScope, HQ_SUPPLY_HISTORY, APPLIANCE_SUPPLY_HISTORY, unmatchedHQStores, unmatchedApplianceStores,
+      HQ_ACTUAL, APPLIANCE_ACTUAL, CENTER_DIRECT_ACTUAL, FRESH_ACTUAL, CENTER_M, HQ_M, APPLIANCE_M, CENTER_DIRECT_M, FRESH_M, LOTTE_M, shipScope, HQ_SUPPLY_HISTORY, APPLIANCE_SUPPLY_HISTORY, unmatchedHQStores, unmatchedApplianceStores,
       selected, SUPPLY_HISTORY, STOCK_HISTORY, unmatchedActualStores,
       SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodBStart, periodBEnd, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, SPECIAL_DAYS, goalsScope, selectedSalesMonth, selectedMonthlyStore, salesViewMode, EVENTS_COMMON, EVENTS_STORE, PROCESSED_FILES,
       basedateIdx: (typeof basedateEl!=="undefined" && basedateEl.value!=="") ? +basedateEl.value : STOCK_HISTORY.length-1
@@ -1908,6 +1974,7 @@ function applyStateObject(s){
     SHIP_CAT_MAP = (s.SHIP_CAT_MAP && typeof s.SHIP_CAT_MAP==="object") ? s.SHIP_CAT_MAP : {};
     HQ_ACTUAL = (s.HQ_ACTUAL && typeof s.HQ_ACTUAL==="object") ? s.HQ_ACTUAL : {};
     APPLIANCE_ACTUAL = (s.APPLIANCE_ACTUAL && typeof s.APPLIANCE_ACTUAL==="object") ? s.APPLIANCE_ACTUAL : {};
+    CENTER_DIRECT_ACTUAL = (s.CENTER_DIRECT_ACTUAL && typeof s.CENTER_DIRECT_ACTUAL==="object") ? s.CENTER_DIRECT_ACTUAL : {};
     FRESH_ACTUAL = (s.FRESH_ACTUAL && typeof s.FRESH_ACTUAL==="object") ? s.FRESH_ACTUAL : {};
     // 저장된 수치가 어느 버전의 파싱 로직으로 만들어졌는지 복원(없으면 0 = 버전 개념 이전의 옛 데이터).
     // 파일별 기록이 없는 옛 상태는 전체 버전값으로 일괄 채운다.
@@ -1917,10 +1984,25 @@ function applyStateObject(s){
       const v = (typeof s.PARSE_LOGIC_VERSION === "number") ? s.PARSE_LOGIC_VERSION : 0;
       _parseVerBySrc = { center:v, hq:v, appliance:v, fresh:v };
     }
-    if(typeof s.shipMergePolicy === "string" && SHIP_MERGE_LABEL[s.shipMergePolicy]) shipMergePolicy = s.shipMergePolicy;
+    // ★ 2026-09-01: 예전엔 _shipMergeDefaultVer를 저장만 하고 실제로 비교하는 코드가 없어서, 기본값이
+    //   바뀌어도(8/31 center→max) 이미 저장된 브라우저는 계속 옛 값을 복원하고 있었다(버전 번호를
+    //   올려도 아무 효과가 없던 미완성 상태). 저장된 버전이 지금 기본값 버전보다 낮을 때만, 그리고
+    //   그 저장된 값이 "그 낮은 버전 시절의 기본값과 같을 때만"(=사용자가 직접 고른 값이 아닐 때만)
+    //   새 기본값으로 넘긴다. 사용자가 드롭다운을 직접 만졌다면 그 선택을 절대 덮어쓰지 않는다.
+    {
+      const savedVer = (typeof s._shipMergeDefaultVer === "number") ? s._shipMergeDefaultVer : 1;
+      const defaultAtVer = { 1:"center", 2:"max", 3:"center" };
+      const savedPolicy = (typeof s.shipMergePolicy === "string" && SHIP_MERGE_LABEL[s.shipMergePolicy]) ? s.shipMergePolicy : null;
+      if(savedPolicy && (savedVer >= SHIP_MERGE_DEFAULT_VERSION || savedPolicy !== defaultAtVer[savedVer])){
+        shipMergePolicy = savedPolicy; // 사용자가 직접 고른 값(또는 이미 최신 버전) — 그대로 유지
+      } else {
+        shipMergePolicy = defaultAtVer[SHIP_MERGE_DEFAULT_VERSION] || "center"; // 옛 기본값 그대로였던 저장 상태 — 새 기본값으로 이관
+      }
+    }
     CENTER_M = (s.CENTER_M && typeof s.CENTER_M==="object") ? s.CENTER_M : {};
     HQ_M = (s.HQ_M && typeof s.HQ_M==="object") ? s.HQ_M : {};
     APPLIANCE_M = (s.APPLIANCE_M && typeof s.APPLIANCE_M==="object") ? s.APPLIANCE_M : {};
+    CENTER_DIRECT_M = (s.CENTER_DIRECT_M && typeof s.CENTER_DIRECT_M==="object") ? s.CENTER_DIRECT_M : {};
     FRESH_M = (s.FRESH_M && typeof s.FRESH_M==="object") ? s.FRESH_M : {};
     LOTTE_M = (s.LOTTE_M && typeof s.LOTTE_M==="object") ? s.LOTTE_M : {};
     shipScope = s.shipScope || "all";
@@ -3996,12 +4078,14 @@ function renderTrend(){
     const slot = (W-padL*2)/n;
     const barW = Math.max(3, slot*0.7);
     let bars = "";
+    const points = []; // 곡선그래프용: 각 막대 상단 좌표 + 값
     dated.forEach((h,i)=>{
       const t = Math.round(h.total);        // PLT 정수 표시
       const x = padL + i*slot + (slot-barW)/2;
       const bh = (t/maxV) * (H-padB-10);
       const y = H-padB-bh;
       const lbl = h.date ? h.date.slice(5).replace('-','/') : h.label;
+      points.push({x: x+barW/2, y, t, lbl});
       bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="2" fill="var(--amber)" opacity="0.88"><title>${lbl}: ${t}</title></rect>`;
       if(t>0){
         bars += `<text x="${(x+barW/2).toFixed(1)}" y="${(y-4).toFixed(1)}" font-size="9" fill="var(--muted2)" text-anchor="middle" font-family="JetBrains Mono">${t}</text>`;
@@ -4011,7 +4095,31 @@ function renderTrend(){
         bars += `<text x="${(x+barW/2).toFixed(1)}" y="${H-6}" font-size="9.5" fill="var(--muted2)" text-anchor="middle" font-family="JetBrains Mono">${lbl}</text>`;
       }
     });
-    chartHtml = `<div class="chart-wrap"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars}</svg></div>`;
+    // 증가감 곡선그래프(Catmull-Rom 스플라인): 막대·일자별 숫자 표시는 그대로 두고,
+    // 전일 대비 상승 구간은 초록, 하락 구간은 빨강, 동일 구간은 회색 곡선으로 이어 그려
+    // 하루하루의 증가/감소 흐름을 한눈에 보이도록 얹는다.
+    let curve = "";
+    if(n>=2){
+      for(let i=0;i<n-1;i++){
+        const p0 = points[Math.max(0,i-1)], p1 = points[i], p2 = points[i+1], p3 = points[Math.min(n-1,i+2)];
+        const cp1x = p1.x + (p2.x-p0.x)/6, cp1y = p1.y + (p2.y-p0.y)/6;
+        const cp2x = p2.x - (p3.x-p1.x)/6, cp2y = p2.y - (p3.y-p1.y)/6;
+        const dir = p2.t>p1.t ? "up" : (p2.t<p1.t ? "down" : "flat");
+        const color = dir==="up" ? "var(--green)" : (dir==="down" ? "var(--red)" : "var(--muted2)");
+        curve += `<path d="M${p1.x.toFixed(1)},${p1.y.toFixed(1)} C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" opacity="0.95"/>`;
+      }
+    }
+    let dots = "";
+    points.forEach((p,i)=>{
+      const prev = i>0 ? points[i-1].t : null;
+      const delta = prev==null ? null : p.t-prev;
+      const dir = delta==null ? "flat" : (delta>0?"up":(delta<0?"down":"flat"));
+      const dotColor = dir==="up" ? "var(--green)" : (dir==="down" ? "var(--red)" : "var(--muted2)");
+      const deltaTxt = delta==null ? "" : (delta>0?` · 전일대비 ▲${delta}`:(delta<0?` · 전일대비 ▼${Math.abs(delta)}`:" · 전일대비 변동없음"));
+      dots += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.4" fill="${dotColor}" stroke="var(--ink)" stroke-width="1"><title>${p.lbl}: ${p.t}${deltaTxt}</title></circle>`;
+    });
+    chartHtml = `<div class="chart-wrap"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars}${curve}${dots}</svg></div>`
+      + `<div class="chart-legend"><span><i style="background:var(--green)"></i>전일 대비 증가</span><span><i style="background:var(--red)"></i>전일 대비 감소</span><span><i style="background:var(--muted2)"></i>변동 없음</span></div>`;
   }
   wrap.innerHTML = `<div class="stat-row">${cards}</div>` + chartHtml;
 }
@@ -4273,9 +4381,11 @@ function parseManifestPalletsInfo(dcell){
 }
 function parseManifestPallets(dcell){ return parseManifestPalletsInfo(dcell).total; }
 function parseShipmentWorkbook(wb){
-  const byStoreCat = {};      // store -> {cat: qty} (전체 합계)
-  const byMonth = {};         // month -> store -> {cat: qty}
-  const dayTotals = {};       // date -> {total, byCategory}
+  const byStoreCat = {};      // store -> {cat: qty} (전체 합계) — "창고 경유" 블록만(직출 제외, 본사와 병합대상)
+  const byMonth = {};         // month -> store -> {cat: qty}                — 위와 같음
+  const byStoreCatDirect = {}; // store -> {cat: qty} — "직출"(하차지 2번째 칸이 "직출") 블록만
+  const byMonthDirect = {};    // month -> store -> {cat: qty}               — 위와 같음
+  const dayTotals = {};       // date -> {total, byCategory}  (창고 경유 + 직출 모두 합쳐 실제 출고 총량)
   const unmatched = new Set();
   const sheets = findShipmentDaySheets(wb);
   sheets.forEach(sheetName=>{
@@ -4285,6 +4395,13 @@ function parseShipmentWorkbook(wb){
     for(let r=0; r<aoa.length; r++){
       const row = aoa[r] || [];
       if(row[0] !== "하차지 :") continue;
+      // ★ 2026-09-01: "하차지 :" 블록의 2번째 칸(row[2])은 출고 경로다 — "이천센터출고"/"방도리센터출고"/
+      //   "도척센터출고"처럼 창고를 거치는 것과 "직 출"(창고 없이 매장으로 바로 나가는 직송)이 섞여
+      //   있다. 본사 출고계획서는 전부 창고 단위로만 적어서 "직출" 개념이 아예 없다(사용자 확인) —
+      //   즉 직출 물량은 본사·센터 어느 쪽이 맞는지 비교할 대상 자체가 없다. 창고 경유분만 본사와
+      //   병합대상(byStoreCat/byMonth)에 담고, 직출은 가전센터처럼 항상 더하는 별도 그릇
+      //   (byStoreCatDirect/byMonthDirect)에 담는다.
+      const isDirect = /직\s*출/.test(String(row[2]||""));
       const storeNames = resolveShipmentStoreNames(row[1]);
       const matched = storeNames.filter(s=>STORES.includes(s));
       storeNames.filter(s=>!STORES.includes(s)).forEach(s=>unmatched.add(s));
@@ -4382,20 +4499,23 @@ function parseShipmentWorkbook(wb){
         catQty[only] = blockPallets;
       }
       if(matched.length){
+        const targetStoreCat = isDirect ? byStoreCatDirect : byStoreCat;
+        const targetMonth = isDirect ? byMonthDirect : byMonth;
         Object.keys(catQty).forEach(cat=>{
           const per = catQty[cat] / matched.length;
           matched.forEach(store=>{
-            if(!byStoreCat[store]) byStoreCat[store] = {};
-            byStoreCat[store][cat] = (byStoreCat[store][cat]||0) + per;
+            if(!targetStoreCat[store]) targetStoreCat[store] = {};
+            targetStoreCat[store][cat] = (targetStoreCat[store][cat]||0) + per;
             if(month){
-              if(!byMonth[month]) byMonth[month] = {};
-              if(!byMonth[month][store]) byMonth[month][store] = {};
-              byMonth[month][store][cat] = (byMonth[month][store][cat]||0) + per;
+              if(!targetMonth[month]) targetMonth[month] = {};
+              if(!targetMonth[month][store]) targetMonth[month][store] = {};
+              targetMonth[month][store][cat] = (targetMonth[month][store][cat]||0) + per;
             }
           });
         });
       }
       if(date){
+        // 일별 공급 총량(추이 그래프 등)은 경로와 무관하게 실제 출고 전체를 보여줘야 하므로 그대로 합산.
         if(!dayTotals[date]) dayTotals[date] = {total:0, byCategory:{}};
         Object.keys(catQty).forEach(cat=>{
           dayTotals[date].total += catQty[cat];
@@ -4405,7 +4525,7 @@ function parseShipmentWorkbook(wb){
     }
   });
   const days = Object.keys(dayTotals).sort().map(date=>({date, total:dayTotals[date].total, byCategory:dayTotals[date].byCategory}));
-  return { byStoreCat, byMonth, days, unmatched: Array.from(unmatched), sheetCount: sheets.length };
+  return { byStoreCat, byMonth, byStoreCatDirect, byMonthDirect, days, unmatched: Array.from(unmatched), sheetCount: sheets.length };
 }
 
 /* ================= 신선 출고내역서 업로드 (취합본) =================
@@ -4588,6 +4708,7 @@ function handleActualFile(file){
       const beforeCats = CATEGORIES.length;
       const result = parseShipmentWorkbook(wb);
       mergeMonthMap(CENTER_M, result.byMonth);
+      mergeMonthMap(CENTER_DIRECT_M, result.byMonthDirect);
       markParsed("center"); // 새 로직으로 다시 계산됨 → 이 파일에 대한 경고 해제
       rawFileSave("center", file, ev.target.result); // 원본 보관 → 다음에 로직이 바뀌면 자동 재계산
 
@@ -4595,6 +4716,13 @@ function handleActualFile(file){
       Object.keys(result.byStoreCat).forEach(store=>{
         Object.keys(result.byStoreCat[store]).forEach(cat=>{
           ACTUAL[store][cat] = (ACTUAL[store][cat]||0) + result.byStoreCat[store][cat];
+        });
+      });
+      // "직출"(창고를 안 거치는 직송) — 본사 파일엔 없는 경로라 항상 더하는 별도 그릇에 누적.
+      STORES.forEach(s=>CENTER_DIRECT_ACTUAL[s]=freshCatMap());
+      Object.keys(result.byStoreCatDirect||{}).forEach(store=>{
+        Object.keys(result.byStoreCatDirect[store]).forEach(cat=>{
+          CENTER_DIRECT_ACTUAL[store][cat] = (CENTER_DIRECT_ACTUAL[store][cat]||0) + result.byStoreCatDirect[store][cat];
         });
       });
       SUPPLY_HISTORY = mergeSupplyDays(SUPPLY_HISTORY, result.days);
@@ -4648,19 +4776,21 @@ function parseApplianceWorkbook(wb){
       const matched = storeNames.filter(s=>STORES.includes(s));
       storeNames.filter(s=>!STORES.includes(s)).forEach(s=>unmatched.add(s));
       const catCounts = {};
-      // ★ HQ 출고계획서와 같은 병합 셀 보정: Cate 칸이 여러 행에 병합돼 있으면 아래 행은 빈 칸으로
-      //   읽혀 그 행이 통째로 누락된다. 다른 칸(예: PLT NO. 등)에 값이 있는 실물 행이면 바로 위 Cate를
-      //   이어받는다(완전히 빈 여백 행은 이어받지 않음). (2026-08-31 수정)
-      let lastCat = null;
+      // ★ HQ 출고계획서와 같은 병합 셀 보정(2026-09-01 정밀화): Cate 칸이 여러 행에 병합돼 있으면
+      //   아래 행은 빈 칸으로 읽혀 그 행이 통째로 누락된다. 예전에는 "다른 칸(No. 등)에 뭐라도 있으면
+      //   이어받는다"는 추측으로 판단했는데, 미사용 템플릿 슬롯(No 칸만 미리 채워진 빈 줄)까지
+      //   실물 행으로 오인해 과대집계되는 문제가 있었다(HQ 쪽과 동일 원인). ws['!merges']로 그 칸이
+      //   진짜 세로 병합 범위 안에 있을 때만 병합 맨 위 행의 값을 이어받는다.
       for(let dr=r+2; dr<aoa.length; dr++){
         const drow = aoa[dr] || [];
         if(drow[0] === "출고지 :") break; // 다음 블록 시작
         let cateRaw = drow[2];
-        if(cateRaw!=null && String(cateRaw).trim()!==""){
-          lastCat = cateRaw;
-        } else if(lastCat){
-          const hasRowEvidence = drow.some((cell,idx)=> idx!==2 && cell!=null && String(cell).trim()!=="");
-          if(hasRowEvidence) cateRaw = lastCat;
+        if(cateRaw==null || String(cateRaw).trim()===""){
+          const anchorRow = verticalMergeAnchorRow(wb, sheetName, 2, dr);
+          if(anchorRow!=null && anchorRow!==dr){
+            const anchorVal = (aoa[anchorRow]||[])[2];
+            if(anchorVal!=null && String(anchorVal).trim()!=="") cateRaw = anchorVal;
+          }
         }
         if(!cateRaw) continue;
         const cat = ensureCategory(extractCategoryFromRaw(cateRaw), "가전센터(방도리) 출고내역서");
@@ -4839,23 +4969,25 @@ async function parseHQPlanWorkbook(wb, onProgress){
       });
       if(cateCol<0) continue; // 헤더를 못 찾으면 이 블록은 건너뜀(다음 "출고지"에서 재시도)
       const headerStoreNames = resolveShipmentStoreNames(row[markerCol+1]);
-      // ★ 엑셀 병합 셀 보정: Cate 칸이 여러 행에 걸쳐 병합되어 있으면(예: 대형가전 3행이 한 셀로 병합)
-      //   SheetJS는 병합 범위의 맨 위 행에만 값을 채우고 나머지 행은 빈 칸으로 읽는다.
-      //   예전에는 "Cate가 빈 칸이면 그 행을 통째로 버림"이라, 병합된 아래쪽 실물 행들이 집계에서
-      //   빠져 대형가전 등에서 실제보다 적게 카운트되는 문제가 있었다(2026-08-31 신고: 인천점*2 블록
-      //   대형가전 3PLT 중 일부 누락). 센터 출고내역서(하차지 블록)의 lastCat 이어붙이기 규칙과 동일하게,
-      //   Cate가 빈 칸인 행도 "그 행에 다른 칸(No./PLT NO./Remarks 등)이 채워진 실물 행"이면 바로 위의
-      //   Cate를 이어받는다. 완전히 빈 행(블록 사이 여백)은 이어받지 않는다.
-      let lastCat = null;
+      // ★ 엑셀 병합 셀 보정(2026-09-01 정밀화): Cate 칸이 여러 행에 걸쳐 병합되어 있으면(예: 대형가전
+      //   3행이 한 셀로 병합) SheetJS는 병합 범위의 맨 위 행에만 값을 채우고 나머지 행은 빈 칸으로
+      //   읽는다. 예전에는 "그 행의 다른 칸(No./Remarks 등)에 뭐라도 있으면 이어받는다"는 추측으로
+      //   판단했는데, 본사 출고계획서는 "No 1~10" 같은 빈 템플릿 슬롯을 미리 인쇄해두는 경우가 많아
+      //   (예: 방도리센터 블록이 No 1~10을 다 채워두고 실제로는 1·4·7행에만 Cate가 적힌 경우) No 칸에
+      //   숫자가 있다는 것만으로 "실물 행"이라 오판, 실제로는 미사용인 슬롯까지 앞 카테고리를 이어받아
+      //   실제보다 몇 배로 부풀려졌다(2026-09-01 신고: 인천점 대형가전 7월 — 센터 실제 10PLT인데 화면
+      //   48PLT). → ws['!merges']로 그 칸이 "진짜 세로 병합 범위" 안에 있을 때만 병합 맨 위 행의 값을
+      //   이어받는다. 병합이 아닌 빈 칸(미사용 템플릿 슬롯)은 더 이상 이어받지 않고 건너뛴다.
       for(let dr=r+2; dr<aoa.length; dr++){
         const drow = aoa[dr] || [];
         if(findMarkerCol(drow) >= 0) break; // 다음 블록 시작
         let cateRaw = drow[cateCol];
-        if(cateRaw!=null && String(cateRaw).trim()!==""){
-          lastCat = cateRaw;
-        } else if(lastCat){
-          const hasRowEvidence = drow.some((cell,idx)=> idx!==cateCol && cell!=null && String(cell).trim()!=="");
-          if(hasRowEvidence) cateRaw = lastCat;
+        if(cateRaw==null || String(cateRaw).trim()===""){
+          const anchorRow = verticalMergeAnchorRow(wb, sheetName, cateCol, dr);
+          if(anchorRow!=null && anchorRow!==dr){
+            const anchorVal = (aoa[anchorRow]||[])[cateCol];
+            if(anchorVal!=null && String(anchorVal).trim()!=="") cateRaw = anchorVal;
+          }
         }
         if(!cateRaw) continue;
         const cat = ensureCategory(extractCategoryFromRaw(cateRaw), "본사 출고계획서(HQ)");
@@ -7485,10 +7617,10 @@ importFolderInput.onchange = (e)=>{ handleFolderBatch(e.target.files); importFol
 document.getElementById("resetBtn").onclick=()=>{
   if(grandTotal()===0 && SUPPLY_HISTORY.length===0) return;
   if(confirm("직접 입력한 출고예정과 업로드된 출고완료 데이터를 모두 0으로 되돌릴까요?")){
-    STORES.forEach(s=>{ CATEGORIES.forEach(c=>{ SHIP[s][c]=0; ACTUAL[s][c]=0; if(HQ_ACTUAL[s]) HQ_ACTUAL[s][c]=0; if(APPLIANCE_ACTUAL[s]) APPLIANCE_ACTUAL[s][c]=0; }); });
+    STORES.forEach(s=>{ CATEGORIES.forEach(c=>{ SHIP[s][c]=0; ACTUAL[s][c]=0; if(HQ_ACTUAL[s]) HQ_ACTUAL[s][c]=0; if(APPLIANCE_ACTUAL[s]) APPLIANCE_ACTUAL[s][c]=0; if(CENTER_DIRECT_ACTUAL[s]) CENTER_DIRECT_ACTUAL[s][c]=0; }); });
     SUPPLY_HISTORY = []; HQ_SUPPLY_HISTORY = []; APPLIANCE_SUPPLY_HISTORY = [];
     unmatchedActualStores = []; unmatchedHQStores = []; unmatchedApplianceStores = [];
-    FRESH_ACTUAL = {}; CENTER_M = {}; HQ_M = {}; APPLIANCE_M = {}; FRESH_M = {}; LOTTE_M = {}; shipScope = "all";
+    FRESH_ACTUAL = {}; CENTER_M = {}; HQ_M = {}; APPLIANCE_M = {}; CENTER_DIRECT_M = {}; FRESH_M = {}; LOTTE_M = {}; shipScope = "all";
     PROCESSED_FILES = {};
     afterChange();
   }
@@ -7531,10 +7663,10 @@ document.getElementById("resetStockBtn").onclick=()=>{
 document.getElementById("resetAllBtn").onclick=()=>{
   if(!confirm("모든 데이터를 초기화합니다.\n\n· 출고예정 / 출고완료(센터·본사·가전센터)\n· 매장 재고\n· 매장별 매출(청구금액) / 카테고리별 매출\n\n위 데이터를 전부 비웁니다. (카테고리 지정 매핑은 유지)\n계속할까요?")) return;
   // 출고
-  STORES.forEach(s=>{ CATEGORIES.forEach(c=>{ SHIP[s][c]=0; ACTUAL[s][c]=0; if(HQ_ACTUAL[s]) HQ_ACTUAL[s][c]=0; if(APPLIANCE_ACTUAL[s]) APPLIANCE_ACTUAL[s][c]=0; }); });
+  STORES.forEach(s=>{ CATEGORIES.forEach(c=>{ SHIP[s][c]=0; ACTUAL[s][c]=0; if(HQ_ACTUAL[s]) HQ_ACTUAL[s][c]=0; if(APPLIANCE_ACTUAL[s]) APPLIANCE_ACTUAL[s][c]=0; if(CENTER_DIRECT_ACTUAL[s]) CENTER_DIRECT_ACTUAL[s][c]=0; }); });
   SUPPLY_HISTORY = []; HQ_SUPPLY_HISTORY = []; APPLIANCE_SUPPLY_HISTORY = [];
   unmatchedActualStores = []; unmatchedHQStores = []; unmatchedApplianceStores = [];
-  FRESH_ACTUAL = {}; CENTER_M = {}; HQ_M = {}; APPLIANCE_M = {}; FRESH_M = {}; LOTTE_M = {}; shipScope = "all";
+  FRESH_ACTUAL = {}; CENTER_M = {}; HQ_M = {}; APPLIANCE_M = {}; CENTER_DIRECT_M = {}; FRESH_M = {}; LOTTE_M = {}; shipScope = "all";
   // 재고
   STORES.forEach(s=>{ STOCK[s] = new Array(STOCK_COLS+1).fill(null); });
   STOCK_HISTORY = [{ label:"재고 없음 (초기화됨)", date:"", total:0, stores:STORES.slice(), stock:JSON.parse(JSON.stringify(STOCK)) }];
