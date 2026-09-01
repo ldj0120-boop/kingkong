@@ -273,9 +273,9 @@
   .delta .ref{color:var(--muted2);font-weight:500;margin-left:4px;}
   .delta.up{color:var(--green);}
   .delta.down{color:var(--red);}
-  /* 기간 비교 카드에서는 사용자 요청대로 증가=파랑 / 감소=빨강으로 쓴다. */
-  .delta.pcmp.up{color:var(--info);}
-  .delta.pcmp.down{color:var(--red);}
+  /* 기간 비교 카드에서는 사용자 요청대로(2026-09-01) 증권시장 관행에 맞춰 증가=빨강 / 감소=파랑으로 쓴다. */
+  .delta.pcmp.up{color:var(--red);}
+  .delta.pcmp.down{color:var(--info);}
   .delta.pcmp.flat{color:var(--muted2);}
   .delta.flat,.delta.na{color:var(--muted2);font-weight:500;}
   .chart-wrap{background:var(--ink);border:1px solid var(--line-soft);border-radius:10px;padding:10px;}
@@ -722,7 +722,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 34 · 2026-09-01</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 35 · 2026-09-01</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -3052,7 +3052,7 @@ function renderPeriodCompare(){
     // ★ 15차 수정: 예전에는 "나중 날짜를 현재, 이전 날짜를 기준"으로 날짜 순서에 따라 자동으로
     //   뒤집었다. 그래서 A에 오늘, B에 한 달 전을 넣으면 부호가 반대로 읽혔다.
     //   이제 **A 날짜가 항상 기준(내 날짜), B 날짜가 비교 대상**이고 증감 = (A − B) / B 다.
-    //   → A가 B보다 많으면 ＋(파랑), 적으면 －(빨강). 날짜 순서와 무관하다.
+    //   → A가 B보다 많으면 ＋(빨강), 적으면 －(파랑)(2026-09-01: 증권시장 관행에 맞춰 색 반전). 날짜 순서와 무관하다.
     const dA = periodA, dB = periodBStart || periodB;
     const aSnap = SALES_HISTORY.find(h=>h.date===dA);
     const bSnap = SALES_HISTORY.find(h=>h.date===dB);
@@ -3068,7 +3068,8 @@ function renderPeriodCompare(){
   const storeLabel = (!periodStore || periodStore==="__all__") ? "전체 매장 합계" : periodStore;
   if(!cats.length){ body.innerHTML = `<p class="trend-empty">${escHtml(storeLabel)} 기준으로 선택한 구간에 매출 데이터가 없습니다.</p>`; return; }
   const maxV = Math.max(1, ...cats.map(c=>Math.max(curTotals[c]?curTotals[c].amount:0, cmpTotals[c]?cmpTotals[c].amount:0)));
-  // 기준(A=cmp, 파랑)과 비교(B=cur, 주황) 막대를 같은 스케일로 나란히 그려 색만 보고도 어느 날짜의 매출인지 바로 구분되게 한다.
+  // 기준(A=cur, 주황)과 비교(B=cmp, 파랑) 막대를 같은 스케일로 나란히 그려 색만 보고도 어느 날짜의 매출인지 바로 구분되게 한다.
+  // (2026-09-01: 사용자 요청대로 A 막대가 위, B 막대가 아래에 오도록 순서를 바꿨다.)
   const rows = cats.map(c=>{
     const cur = curTotals[c] ? curTotals[c].amount : 0;
     const cmp = cmpTotals[c] ? cmpTotals[c].amount : 0;
@@ -3086,8 +3087,8 @@ function renderPeriodCompare(){
       <div class="cat-bar-row">
         <div class="cat-bar-label" title="${escHtml(c)}">${escHtml(c)}</div>
         <div class="cat-bar-dual">
-          <div class="cat-bar-track" title="비교 B(${escHtml(cmpLabel)}) ${Math.round(cmp).toLocaleString()}원"><div class="cat-bar-fill base" style="width:${basePct}%"></div></div>
           <div class="cat-bar-track" title="기준 A(${escHtml(curLabel)}) ${Math.round(cur).toLocaleString()}원"><div class="cat-bar-fill compare" style="width:${curPct}%"></div></div>
+          <div class="cat-bar-track" title="비교 B(${escHtml(cmpLabel)}) ${Math.round(cmp).toLocaleString()}원"><div class="cat-bar-fill base" style="width:${basePct}%"></div></div>
         </div>
         <div class="cat-bar-value">
           <span class="compare-v">${Math.round(cur).toLocaleString()}원</span>
@@ -3126,7 +3127,7 @@ function renderPeriodCompare(){
   const legend = `<div class="period-legend">
       <span><span class="sw" style="background:var(--amber);"></span><b style="color:var(--amber);">기준 A</b> = ${escHtml(curLabel)}</span>
       <span><span class="sw" style="background:var(--info);"></span><b style="color:var(--info);">비교 B</b> = ${escHtml(cmpLabel)}</span>
-      <span style="color:var(--muted2);">· 증감% = <b>(A − B) ÷ B</b> — <b style="color:var(--info);">A가 더 많으면 ＋(파랑)</b>, <b style="color:var(--red);">A가 더 적으면 －(빨강)</b>. 날짜 순서와 무관하게 항상 A가 기준입니다. 금액은 실매출액 기준.</span>
+      <span style="color:var(--muted2);">· 증감% = <b>(A − B) ÷ B</b>(비교 B를 기준으로 본 기준 A의 증가율) — <b style="color:var(--red);">A가 더 많으면 ＋(빨강)</b>, <b style="color:var(--info);">A가 더 적으면 －(파랑)</b>. 날짜 순서와 무관하게 항상 A가 기준입니다. 금액은 실매출액 기준.</span>
     </div>`;
   body.innerHTML = `<p style="font-size:12.5px;color:var(--muted);margin:0 0 8px;"><b style="color:var(--text);">${escHtml(storeLabel)}</b> · 기간 총합(실매출액)</p>${totalBox}${legend}${warnHtml}<div class="cat-bar-list">${rows}</div>`;
 }
@@ -4076,28 +4077,26 @@ function renderTrend(){
     const W=900,H=160,padL=4,padB=20;
     const n = dated.length;
     const slot = (W-padL*2)/n;
-    const barW = Math.max(3, slot*0.7);
-    let bars = "";
-    const points = []; // 곡선그래프용: 각 막대 상단 좌표 + 값
+    let labels = "";
+    const points = []; // 곡선그래프용: 일자별 좌표 + 값 (2026-09-01: 막대 제거하고 선 그래프 전용으로 변경)
     dated.forEach((h,i)=>{
       const t = Math.round(h.total);        // PLT 정수 표시
-      const x = padL + i*slot + (slot-barW)/2;
-      const bh = (t/maxV) * (H-padB-10);
+      const x = padL + i*slot + slot/2;
+      const bh = (t/maxV) * (H-padB-14);
       const y = H-padB-bh;
       const lbl = h.date ? h.date.slice(5).replace('-','/') : h.label;
-      points.push({x: x+barW/2, y, t, lbl});
-      bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="2" fill="var(--amber)" opacity="0.88"><title>${lbl}: ${t}</title></rect>`;
+      points.push({x, y, t, lbl});
       if(t>0){
-        bars += `<text x="${(x+barW/2).toFixed(1)}" y="${(y-4).toFixed(1)}" font-size="9" fill="var(--muted2)" text-anchor="middle" font-family="JetBrains Mono">${t}</text>`;
+        labels += `<text x="${x.toFixed(1)}" y="${(y-6).toFixed(1)}" font-size="9" fill="var(--muted2)" text-anchor="middle" font-family="JetBrains Mono">${t}</text>`;
       }
       const showLabel = n<=16 || i%Math.ceil(n/16)===0 || i===n-1;
       if(showLabel){
-        bars += `<text x="${(x+barW/2).toFixed(1)}" y="${H-6}" font-size="9.5" fill="var(--muted2)" text-anchor="middle" font-family="JetBrains Mono">${lbl}</text>`;
+        labels += `<text x="${x.toFixed(1)}" y="${H-6}" font-size="9.5" fill="var(--muted2)" text-anchor="middle" font-family="JetBrains Mono">${lbl}</text>`;
       }
     });
-    // 증가감 곡선그래프(Catmull-Rom 스플라인): 막대·일자별 숫자 표시는 그대로 두고,
-    // 전일 대비 상승 구간은 초록, 하락 구간은 빨강, 동일 구간은 회색 곡선으로 이어 그려
-    // 하루하루의 증가/감소 흐름을 한눈에 보이도록 얹는다.
+    // 증가감 곡선그래프(Catmull-Rom 스플라인): 막대그래프 대신 일자별 값을 점으로 찍고 선으로 이어,
+    // 전일 대비 상승 구간은 초록, 하락 구간은 빨강, 동일 구간은 회색 곡선으로 하루하루의
+    // 증가/감소 흐름을 한눈에 보이도록 그린다. (2026-09-01: 막대형 → 선(곡선)그래프 전용으로 교체)
     let curve = "";
     if(n>=2){
       for(let i=0;i<n-1;i++){
@@ -4106,7 +4105,7 @@ function renderTrend(){
         const cp2x = p2.x - (p3.x-p1.x)/6, cp2y = p2.y - (p3.y-p1.y)/6;
         const dir = p2.t>p1.t ? "up" : (p2.t<p1.t ? "down" : "flat");
         const color = dir==="up" ? "var(--green)" : (dir==="down" ? "var(--red)" : "var(--muted2)");
-        curve += `<path d="M${p1.x.toFixed(1)},${p1.y.toFixed(1)} C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" opacity="0.95"/>`;
+        curve += `<path d="M${p1.x.toFixed(1)},${p1.y.toFixed(1)} C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round" opacity="0.95"/>`;
       }
     }
     let dots = "";
@@ -4116,9 +4115,9 @@ function renderTrend(){
       const dir = delta==null ? "flat" : (delta>0?"up":(delta<0?"down":"flat"));
       const dotColor = dir==="up" ? "var(--green)" : (dir==="down" ? "var(--red)" : "var(--muted2)");
       const deltaTxt = delta==null ? "" : (delta>0?` · 전일대비 ▲${delta}`:(delta<0?` · 전일대비 ▼${Math.abs(delta)}`:" · 전일대비 변동없음"));
-      dots += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.4" fill="${dotColor}" stroke="var(--ink)" stroke-width="1"><title>${p.lbl}: ${p.t}${deltaTxt}</title></circle>`;
+      dots += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="${dotColor}" stroke="var(--ink)" stroke-width="1.2"><title>${p.lbl}: ${p.t}${deltaTxt}</title></circle>`;
     });
-    chartHtml = `<div class="chart-wrap"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars}${curve}${dots}</svg></div>`
+    chartHtml = `<div class="chart-wrap"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${curve}${dots}${labels}</svg></div>`
       + `<div class="chart-legend"><span><i style="background:var(--green)"></i>전일 대비 증가</span><span><i style="background:var(--red)"></i>전일 대비 감소</span><span><i style="background:var(--muted2)"></i>변동 없음</span></div>`;
   }
   wrap.innerHTML = `<div class="stat-row">${cards}</div>` + chartHtml;
