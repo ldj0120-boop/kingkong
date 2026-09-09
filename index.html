@@ -745,7 +745,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 37 · 2026-09-02</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 38 · 2026-09-09</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1768,9 +1768,14 @@ function mergeStoredCatMaps(){
 //                 있다는 것만으로 실물 행이라 오판해 미사용 슬롯까지 앞 카테고리를 이어받아 실제보다
 //                 몇 배로 부풀려졌다(신고: 인천점 대형가전 7월 — 센터 실제 10PLT인데 화면 48PLT).
 //                 진짜 엑셀 병합 범위 안의 빈 칸만 이어받게 고쳤다. (v6의 병합 이어붙이기 자체는 유지)
+//   hq     8    : v7까지도 "병합 안의 모든 행을 각각 1PLT로 센다"는 잘못된 가정이 남아있었다(신고:
+//                 인천점 대형가전 9월 — 실제 2건인데 화면 4). Cate가 2행으로 병합된 건 같은 출고 1건이
+//                 표에서 두 줄을 차지하는 것뿐(사용자 확인) — 병합의 맨 위(anchor) 행만 1PLT로 세고,
+//                 이어받는 행은 더 이상 세지 않는다.
 //   appliance 6 : 위 hq와 같은 병합 판정 정밀화를 공유(2026-09-01)
+//   appliance 7 : hq v8과 같은 이유로 병합 anchor 행만 1PLT로 세도록 동일하게 수정(2026-09-09)
 //   fresh 1     : 최초 로직 이후 변경 없음
-const PARSE_LOGIC_VERSIONS = { center: 10, hq: 7, appliance: 6, fresh: 2 };
+const PARSE_LOGIC_VERSIONS = { center: 10, hq: 8, appliance: 7, fresh: 2 };
 const PARSE_LOGIC_VERSION = 5; // (하위호환: 예전 상태에 통째로 저장돼 있던 값 비교용)
 function logicVer(src){ return PARSE_LOGIC_VERSIONS[src] || 1; }
 const PARSE_SRC_LABEL = { center:"출고내역서(센터)", hq:"출고계획서(본사)", appliance:"가전센터 출고내역서", fresh:"신선 출고내역서" };
@@ -4872,18 +4877,23 @@ function parseApplianceWorkbook(wb){
       //   이어받는다"는 추측으로 판단했는데, 미사용 템플릿 슬롯(No 칸만 미리 채워진 빈 줄)까지
       //   실물 행으로 오인해 과대집계되는 문제가 있었다(HQ 쪽과 동일 원인). ws['!merges']로 그 칸이
       //   진짜 세로 병합 범위 안에 있을 때만 병합 맨 위 행의 값을 이어받는다.
+      // ★ 2026-09-09 추가 수정(HQ와 동일 원인·동일 수정): 병합 안의 모든 행을 각각 1PLT로 세면 안 된다 —
+      //   병합은 같은 건이 두 줄 높이를 차지하는 것뿐이라, 병합 맨 위(anchor) 행만 1PLT로 세고
+      //   이어받는 행은 세지 않는다.
       for(let dr=r+2; dr<aoa.length; dr++){
         const drow = aoa[dr] || [];
         if(drow[0] === "출고지 :") break; // 다음 블록 시작
         let cateRaw = drow[2];
+        let isMergeContinuation = false;
         if(cateRaw==null || String(cateRaw).trim()===""){
           const anchorRow = verticalMergeAnchorRow(wb, sheetName, 2, dr);
           if(anchorRow!=null && anchorRow!==dr){
             const anchorVal = (aoa[anchorRow]||[])[2];
-            if(anchorVal!=null && String(anchorVal).trim()!=="") cateRaw = anchorVal;
+            if(anchorVal!=null && String(anchorVal).trim()!==""){ cateRaw = anchorVal; isMergeContinuation = true; }
           }
         }
         if(!cateRaw) continue;
+        if(isMergeContinuation) continue; // 병합 셀의 이어지는 행 — 같은 건의 연속 표시일 뿐, 별도로 세지 않는다
         const cat = ensureCategory(extractCategoryFromRaw(cateRaw), "가전센터(방도리) 출고내역서");
         catCounts[cat] = (catCounts[cat]||0) + 1;
       }
@@ -5069,18 +5079,26 @@ async function parseHQPlanWorkbook(wb, onProgress){
       //   실제보다 몇 배로 부풀려졌다(2026-09-01 신고: 인천점 대형가전 7월 — 센터 실제 10PLT인데 화면
       //   48PLT). → ws['!merges']로 그 칸이 "진짜 세로 병합 범위" 안에 있을 때만 병합 맨 위 행의 값을
       //   이어받는다. 병합이 아닌 빈 칸(미사용 템플릿 슬롯)은 더 이상 이어받지 않고 건너뛴다.
+      // ★ 2026-09-09 추가 수정: 위 보정을 넣고도 여전히 부풀려지는 경우가 있었다(신고: 인천점 대형가전
+      //   9월 — 실제 2건인데 화면 4). 원인은 "진짜 병합이면 병합 안의 모든 행을 각각 1PLT로 센다"는
+      //   가정 자체가 틀렸던 것 — Cate가 2행으로 병합된 건 같은 출고 1건이 표에서 두 줄 높이를 차지하는
+      //   것일 뿐(사용자 확인), 병합 폭만큼 PLT가 늘어나는 게 아니다. → 병합의 "이어받는(맨 위 행이
+      //   아닌)" 행은 앞 행과 같은 건의 연속일 뿐이므로 더 이상 별도로 세지 않는다. 병합의 맨 위 행
+      //   (anchor, 실제로 Cate 글자가 적힌 행)만 1PLT로 센다.
       for(let dr=r+2; dr<aoa.length; dr++){
         const drow = aoa[dr] || [];
         if(findMarkerCol(drow) >= 0) break; // 다음 블록 시작
         let cateRaw = drow[cateCol];
+        let isMergeContinuation = false;
         if(cateRaw==null || String(cateRaw).trim()===""){
           const anchorRow = verticalMergeAnchorRow(wb, sheetName, cateCol, dr);
           if(anchorRow!=null && anchorRow!==dr){
             const anchorVal = (aoa[anchorRow]||[])[cateCol];
-            if(anchorVal!=null && String(anchorVal).trim()!=="") cateRaw = anchorVal;
+            if(anchorVal!=null && String(anchorVal).trim()!==""){ cateRaw = anchorVal; isMergeContinuation = true; }
           }
         }
         if(!cateRaw) continue;
+        if(isMergeContinuation) continue; // 병합 셀의 이어지는 행 — 같은 건의 연속 표시일 뿐, 별도로 세지 않는다
         const cat = ensureCategory(extractCategoryFromRaw(cateRaw), "본사 출고계획서(HQ)");
         // 우선 그 행에 적힌 실제 목적지(Remarks)를 쓰고, 없으면 블록 헤더의 매장(들)에 고르게 나눠 배분한다.
         // ★ Remarks 칸에는 목적지 매장이 적히기도 하고 수량·품목 메모("5ctn", "조립가구", "금주중 출고",
