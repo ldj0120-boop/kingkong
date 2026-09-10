@@ -611,6 +611,30 @@
   .g-tbl-title{font-family:"Oswald";font-size:12px;letter-spacing:.05em;color:var(--pale);text-transform:uppercase;margin:18px 0 8px;}
   .g-tbl-title:first-child{margin-top:4px;}
   .g-tbl-sub{font-size:11px;color:var(--muted2);margin:-4px 0 8px;line-height:1.6;}
+  /* 08 매장 진단 */
+  .g-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:4px 0 16px;}
+  .g-kpi{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;}
+  .g-kpi .v{font-family:"Oswald";font-size:24px;letter-spacing:-.01em;color:var(--pale);}
+  .g-kpi .v.neg{color:var(--red);} .g-kpi .v.pos{color:var(--green);}
+  .g-kpi .l{font-size:10.5px;color:var(--muted2);margin-top:3px;line-height:1.5;}
+  .g-chip{display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:999px;
+          padding:1px 8px;font-size:10.5px;color:var(--muted2);margin:0 3px 3px 0;white-space:nowrap;}
+  .g-chip.warn{color:var(--amber);border-color:var(--amber-dim);}
+  .g-chip.good{color:var(--green);border-color:var(--green);}
+  .g-tbl .num.neg{color:var(--red);} .g-tbl .num.pos{color:var(--green);}
+  .g-quad{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin:14px 0 4px;}
+  .g-qbox{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;}
+  .g-qbox h4{margin:0 0 4px;font-size:12.5px;color:var(--pale);}
+  .g-qbox p{margin:0 0 6px;font-size:10.5px;color:var(--muted2);line-height:1.55;}
+  .g-qbox .s{font-size:11.5px;color:var(--pale);line-height:1.6;}
+  .g-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:10px;margin-top:10px;}
+  .g-card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:13px 15px;}
+  .g-card-hd{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;}
+  .g-card-hd .nm{font-family:"Oswald";font-size:14px;color:var(--pale);letter-spacing:.02em;}
+  .g-card-chips{margin-bottom:8px;}
+  ul.g-card-acts{margin:0;padding-left:16px;font-size:11.5px;line-height:1.7;color:var(--muted);}
+  ul.g-card-acts li{margin-bottom:5px;}
+  ul.g-card-acts b{color:var(--pale);}
   table.g-tbl td, table.g-tbl th{font-size:11.5px;padding:6px 8px;}
   table.g-tbl tbody td{height:34px;font-size:11.5px;}
   table.g-tbl tbody td .num{font-size:11.5px;}
@@ -745,7 +769,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 38 · 2026-09-09</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 39 · 2026-09-10</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1045,6 +1069,7 @@
       <button class="gsub-tab" data-gsub="05" role="tab">05 전사 카테고리 벤치마크</button>
       <button class="gsub-tab" data-gsub="06" role="tab">06 매장별 실행방안</button>
       <button class="gsub-tab" data-gsub="07" role="tab">07 매장별 월별 추이</button>
+      <button class="gsub-tab" data-gsub="08" role="tab">08 매장 진단 (공급×매출)</button>
     </div>
 
     <div class="gsub-panel" id="gsub-01">
@@ -1114,6 +1139,16 @@
           <span class="meta" id="goals07Meta"></span>
         </div>
         <div class="agg-scroll" id="goals07Wrap"></div>
+      </div>
+    </div>
+
+    <div class="gsub-panel" id="gsub-08" hidden>
+      <div class="agg-card">
+        <div class="p-hd">
+          <span class="store-name">08 매장 진단 (공급×매출)</span>
+          <span class="meta" id="goals08Meta"></span>
+        </div>
+        <div class="agg-scroll" id="goals08Wrap"></div>
       </div>
     </div>
   </section>
@@ -6951,9 +6986,316 @@ function goalsRender07(ctx){
     </table></div>`;
 }
 
+
+/* ================= 08 매장 진단 (공급 × 매출 교차) =========================
+   목적 — 02~07 시트는 "매출이 목표 대비 얼마인가"만 본다. 그런데 매출이 빠지는 진짜 이유는
+   대개 그 앞단(무엇이 얼마나 매장에 들어갔는가)에 있다. 이 시트는 매일 올라오는
+   매출·출고·재고 세 소스를 한 화면에서 교차시켜, 매장마다 "공급이 문제인지 / 판매가 문제인지 /
+   창고가 막힌 것인지"를 자동으로 갈라준다. 고정 문구는 하나도 없고 전부 그날 데이터에서 다시 만든다.
+
+   판정 기준 (모두 상대값 — 매장 수나 규모가 바뀌어도 그대로 작동한다)
+   · 유효PLT   = 그 달 출고 PLT − 매출이 0원인 카테고리의 PLT
+   · 매출/유효PLT = 그 달 매출 ÷ 유효PLT  → "받은 물건을 얼마나 돈으로 바꿨는가"
+   · 전사 중앙값과 비교해 ①공급기아(효율 높은데 물량 적음) ②전환실패(물량 받고 효율 낮음)
+     ③창고봉쇄(야적·정체재고) ④배정오류(무매출 PLT 비중 과다) 로 분류한다.
+   무매출 카테고리는 코드에 적어두지 않고 **그 기간 매출이 0인데 출고는 있는 카테고리**로 매번 다시 찾는다
+   (XLG·FC파손 등은 지금 그렇다는 것이지, 내일 매출이 잡히면 자동으로 빠진다). */
+const _diagCache = { key:"", val:null };
+function diagCacheKey(ctx){
+  return [SALES_HISTORY.length, STORE_SALES_HISTORY.length, Object.keys(CENTER_M).length,
+          Object.keys(HQ_M).length, ctx.scopeMonths.join(","), shipMergePolicy].join("|");
+}
+// 한 매장·한 카테고리의 그 달 출고 PLT (본사↔센터 판정 + 가전센터 + 센터직출 + 신선 + 롯데제타)
+function diagQty(s, c, m){
+  return mergePick(_mv(HQ_M,m,s,c), _mv(CENTER_M,m,s,c))
+       + _mv(APPLIANCE_M,m,s,c) + _mv(CENTER_DIRECT_M,m,s,c)
+       + _mv(FRESH_M,m,s,c) + _mv(LOTTE_M,m,s,c);
+}
+// 그 달 출고에 등장하는 모든 카테고리 이름
+function diagMonthCatNames(m){
+  const out = new Set();
+  [HQ_M, CENTER_M, APPLIANCE_M, CENTER_DIRECT_M, FRESH_M, LOTTE_M].forEach(src=>{
+    const a = src[m]; if(!a) return;
+    Object.keys(a).forEach(s=> Object.keys(a[s]||{}).forEach(c=> out.add(c)));
+  });
+  return Array.from(out);
+}
+// 매장(그룹) 단위 그 달 카테고리별 PLT
+function diagStoreMonth(members, m){
+  const cats = diagMonthCatNames(m), out = {};
+  members.forEach(s=> cats.forEach(c=>{ const v = diagQty(s,c,m); if(v>0) out[c] = (out[c]||0) + v; }));
+  return out;
+}
+// 전사 그 달 카테고리별 PLT
+function diagCompanyMonth(m){
+  const cats = diagMonthCatNames(m), out = {};
+  STORES.forEach(s=> cats.forEach(c=>{ const v = diagQty(s,c,m); if(v>0) out[c] = (out[c]||0) + v; }));
+  return out;
+}
+// 월별 전사 카테고리 매출 {cat:{month:amount}}
+function diagCatMonthly(months){
+  const out = {};
+  months.forEach(m=>{
+    const snaps = SALES_HISTORY.filter(h=>h.date.slice(0,7)===m);
+    if(!snaps.length) return;
+    const tot = categoryTotals(mergeByStoreCat(snaps));
+    Object.keys(tot).forEach(c=>{
+      if(isSalesGrouped(c)) return;
+      (out[c] = out[c] || {})[m] = tot[c].amount || 0;
+    });
+  });
+  return out;
+}
+function diagMedian(arr){
+  const a = arr.filter(v=>v!=null && isFinite(v)).slice().sort((x,y)=>x-y);
+  if(!a.length) return null;
+  const h = Math.floor(a.length/2);
+  return a.length%2 ? a[h] : (a[h-1]+a[h])/2;
+}
+// 그 달 매출에 잡히는 일수(진행 중인 달이면 경과일, 끝난 달이면 그 달 일수)
+function diagDays(m, ctx){ return m===ctx.curMonth ? ctx.elapsedDays : goalsDaysInMonth(m); }
+
+function diagBuild(ctx){
+  const key = diagCacheKey(ctx);
+  if(_diagCache.key===key && _diagCache.val) return _diagCache.val;
+  const months = ctx.months;
+  const cur = ctx.curMonth;
+  const prev = months.length>1 ? months[months.indexOf(cur)-1] : null;
+  // ① 무매출 카테고리 = 이 기간 출고는 있는데 매출이 0인 카테고리
+  const noRev = new Set(ctx.effRows.filter(r=> (r.amount||0)<=0 && (r.pltTotal||0)>0).map(r=>r.cat));
+  // ② 전사 카테고리 월별 일평균
+  const catMonthly = diagCatMonthly(months);
+  const half = Math.max(1, Math.floor(months.length/2));
+  const early = months.slice(0, half), late = months.slice(half);
+  const catTrend = Object.keys(catMonthly).map(c=>{
+    const daily = {}; months.forEach(m=>{ const v=catMonthly[c][m]; if(v!=null) daily[m] = v/diagDays(m,ctx); });
+    const av = ms => { const xs = ms.map(m=>daily[m]).filter(v=>v!=null); return xs.length ? xs.reduce((a,v)=>a+v,0)/xs.length : null; };
+    const a = av(early), b = av(late);
+    return { cat:c, daily, a, b, diff: (a!=null&&b!=null) ? b-a : null, pct: (a>0&&b!=null) ? (b/a-1)*100 : null };
+  }).filter(r=>r.a!=null||r.b!=null);
+  catTrend.sort((x,y)=> (x.diff==null?1:y.diff==null?-1:x.diff-y.diff));
+  const totA = catTrend.reduce((a,r)=>a+(r.a||0),0), totB = catTrend.reduce((a,r)=>a+(r.b||0),0);
+  // ③ 전사 공급 (최근 달 / 직전 달)
+  const supCur = diagCompanyMonth(cur), supPrev = prev ? diagCompanyMonth(prev) : {};
+  const supCurTot = Object.values(supCur).reduce((a,v)=>a+v,0);
+  const supCurNo  = Object.keys(supCur).filter(c=>noRev.has(c)).reduce((a,c)=>a+supCur[c],0);
+  // ④ 매장별
+  const stores = ctx.rows.map(r=>{
+    const plt = diagStoreMonth(r.members, cur);
+    const pltPrev = prev ? diagStoreMonth(r.members, prev) : {};
+    const t = Object.values(plt).reduce((a,v)=>a+v,0);
+    const tPrev = Object.values(pltPrev).reduce((a,v)=>a+v,0);
+    const nr = Object.keys(plt).filter(c=>noRev.has(c)).reduce((a,c)=>a+plt[c],0);
+    const eff = t - nr;
+    const rev = ctx.monthMaps[cur].map[r.store] || 0;
+    // 월별 일평균 매출 → 전/후반 추세
+    const daily = {};
+    months.forEach(m=>{
+      const a = storeActiveDays(r.store, m, m===cur?ctx.elapsedDays:null);
+      const v = ctx.monthMaps[m].map[r.store] || 0;
+      if(a.days>0 && v>0) daily[m] = v/a.days;
+    });
+    const av = ms => { const xs = ms.map(m=>daily[m]).filter(v=>v!=null); return xs.length ? xs.reduce((a,v)=>a+v,0)/xs.length : null; };
+    const dA = av(early), dB = av(late);
+    // 재고 (그룹 멤버 합) + 현장 메모
+    const stock = {}, memos = [];
+    r.members.forEach(s=>{
+      const arr = STOCK[s]; if(!arr) return;
+      AGG_HDR.forEach((h,i)=>{ const v = num(arr[i]); if(v>0) stock[h] = (stock[h]||0) + v; });
+      const mm = arr[STOCK_COLS]; if(mm && String(mm).trim()) memos.push(String(mm).trim());
+    });
+    const yard = num(stock["창고외 야적 PLT"]||0);
+    // "창고 보관가능 PLT"는 보고되지 않으면 빈칸(null)이다. 빈칸을 0으로 읽으면 재고표를 안 낸
+    // 매장까지 전부 "창고 여력 0 = 봉쇄"로 잡혀 버린다 → 값이 실제로 적힌 경우에만 0을 0으로 본다.
+    let roomReported = false;
+    r.members.forEach(s=>{ const arr=STOCK[s]; if(arr && arr[AGG_HDR.indexOf("창고 보관가능 PLT")]!=null) roomReported = true; });
+    const room = roomReported ? num(stock["창고 보관가능 PLT"]||0) : null;
+    const stockTot = Object.keys(stock).filter(h=>h!=="창고외 야적 PLT" && h!=="창고 보관가능 PLT")
+                       .reduce((a,h)=>a+stock[h],0);
+    const stuck = Object.keys(stock).filter(h=>h!=="창고외 야적 PLT" && h!=="창고 보관가능 PLT")
+                    .map(h=>({cat:h, v:stock[h]})).sort((x,y)=>y.v-x.v).slice(0,3).filter(x=>x.v>=10);
+    return { r, plt, t, tPrev, nr, eff, rev, perPlt: eff>0 ? rev/eff : null,
+             nrPct: t>0 ? nr/t*100 : null, dA, dB,
+             trend: (dA>0 && dB!=null) ? (dB/dA-1)*100 : null,
+             stock, stockTot, yard, room, stuck, memo: memos.join(" / ") };
+  });
+  const medPerPlt = diagMedian(stores.map(s=>s.perPlt));
+  const medPlt = diagMedian(stores.filter(s=>s.t>0).map(s=>s.t));
+  stores.forEach(s=>{
+    const tags = [];
+    if(s.perPlt!=null && medPerPlt && s.t>0){
+      if(s.perPlt >= medPerPlt*1.25 && s.t <= medPlt) tags.push("공급기아");
+      if(s.perPlt <= medPerPlt*0.75 && s.t >= medPlt) tags.push("전환실패");
+    }
+    if(s.yard>=15 || s.room===0 || (s.stuck[0] && s.stuck[0].v>=25)) tags.push("창고봉쇄");
+    if(s.nrPct!=null && s.nrPct>=50) tags.push("배정오류");
+    if(s.trend!=null && s.trend<=-10) tags.push("하락경보");
+    s.tags = tags;
+  });
+  const val = { months, cur, prev, noRev, catTrend, totA, totB, early, late,
+                supCur, supPrev, supCurTot, supCurNo, stores, medPerPlt, medPlt };
+  _diagCache.key = key; _diagCache.val = val;
+  return val;
+}
+
+// 매장 카드의 처방 문장 — 태그와 수치에서 매번 새로 만든다.
+function diagActions(d, ctx, D){
+  const out = [];
+  const won = v => Math.round(v).toLocaleString();
+  const eok = v => (v/1e8).toFixed(2)+"억";
+  if(d.nrPct!=null && d.nrPct>=40){
+    const bad = Object.keys(d.plt).filter(c=>D.noRev.has(c)).sort((a,b)=>d.plt[b]-d.plt[a])
+                  .slice(0,3).map(c=>`${c} ${d.plt[c]}`).join(" · ");
+    out.push(`<b>배차 정리</b> — ${ctx.mLbl(D.cur)} 출고 ${d.t}PLT 중 ${d.nr}PLT(${d.nrPct.toFixed(0)}%)가 매출 0 카테고리(${escHtml(bad)}). 이 물량을 별도 처리라인으로 빼면 실효 공급이 ${(d.t/Math.max(1,d.eff)).toFixed(1)}배가 됩니다.`);
+  }
+  if(d.yard>=15 || d.room===0){
+    const st = d.stuck.length ? d.stuck.map(x=>`${x.cat} ${x.v}PLT`).join(", ") : "정체 품목 확인 필요";
+    out.push(`<b>창고 확보 선행</b> — ${d.yard>=15?`야적 ${d.yard}PLT`:"창고 여력 0"}. 정체 상위(${escHtml(st)})를 먼저 소진하지 않으면 고회전 상품이 물리적으로 못 들어갑니다.`);
+  }
+  if(d.tags.indexOf("공급기아")>=0){
+    out.push(`<b>배정 우선순위 상향</b> — 유효PLT당 매출 ${won(d.perPlt)}원으로 전사 중앙값(${won(D.medPerPlt||0)}원)의 ${(D.medPerPlt?d.perPlt/D.medPerPlt:1).toFixed(1)}배인데 물량은 ${d.t}PLT입니다. 주는 만큼 매출로 바뀌는 매장입니다.`);
+  }
+  if(d.tags.indexOf("전환실패")>=0){
+    out.push(`<b>물량 증배 보류 · 원인 규명</b> — ${d.t}PLT를 받고도 유효PLT당 매출이 ${won(d.perPlt)}원(중앙값의 ${(D.medPerPlt?d.perPlt/D.medPerPlt*100:0).toFixed(0)}%)입니다. 진열·가격·배송 리드타임을 먼저 점검하고, 확인 전까지는 물량을 늘리지 않는 편이 낫습니다.`);
+  }
+  if(d.trend!=null && d.trend<=-10){
+    const da = d.dA!=null ? (d.dA/1e6).toFixed(1) : "-", db = d.dB!=null ? (d.dB/1e6).toFixed(1) : "-";
+    out.push(`<b>하락 원인 실사</b> — 일평균 매출이 ${D.early[0]} 이후 대비 ${d.trend.toFixed(1)}% 하락(${da}→${db}백만/일). 단순 계절성인지 상권·인력 변화인지 현장 확인이 필요합니다.`);
+  }
+  // 카테고리 레버 — 전사 평균 구성비까지 올렸을 때의 이론 증분
+  const diag = d.r.diag;
+  if(diag && diag.diffs && diag.diffs.length){
+    const cand = diag.diffs.filter(x=>x.diff < -1.5).sort((a,b)=>a.diff-b.diff).slice(0,2);
+    cand.forEach(x=>{
+      const up = (-x.diff)/100 * (d.r.storeCatTotal||0);
+      const e = ctx.effMap[x.cat];
+      const note = e && e.perPlt ? ` · 전사 PLT당 ${won(e.perPlt)}원` : "";
+      if(up>0) out.push(`<b>${escHtml(x.cat)} 보충</b> — 구성비 ${(x.storePct||0).toFixed(1)}%로 전사(${(x.companyPct||0).toFixed(1)}%) 대비 ${Math.abs(x.diff).toFixed(1)}%p 열위. 평균까지만 올려도 ${ctx.mLbl(D.cur)} 기준 +${won(up)}원${note}.`);
+    });
+  }
+  if(diag && diag.noFresh){
+    out.push(`<b>신선 제외 설계</b> — ${escHtml(diag.freshLabel||"신선 미취급")} 매장이라 신선식품 확대는 실행 대상이 아닙니다. 목표와 상품군을 신선 제외 기준으로 재설계해야 합니다.`);
+  }
+  if(d.memo) out.push(`<b>현장 요청 반영</b> — 재고표에 적힌 현장 의견을 배차에 반영: “${escHtml(d.memo)}”`);
+  if(!out.length) out.push("특이 신호 없음 — 현재 배정·재고 수준을 유지하면서 달성률 추이만 관찰하면 됩니다.");
+  return out;
+}
+
+function goalsRender08(ctx){
+  try{ return goalsRender08Body(ctx); }
+  catch(e){ return `<div class="g-tbl-sub" style="color:var(--red)">08 진단을 만드는 중 오류가 났습니다: ${escHtml(String(e&&e.message||e))}<br>다른 탭은 정상 동작합니다 — 이 메시지를 그대로 알려주시면 고치겠습니다.</div>`; }
+}
+function goalsRender08Body(ctx){
+  const D = diagBuild(ctx);
+  const won = v => Math.round(v).toLocaleString();
+  const eok = v => (v/1e8).toFixed(2);
+  const cur = D.cur;
+  // ── KPI
+  const gapSum = ctx.rows.reduce((a,r)=> a + (r.actual - r.proratedTarget), 0);
+  const hit = ctx.rows.filter(r=>r.pct>=100).length;
+  const compTrend = (D.totA>0 && D.totB>0) ? (D.totB/D.totA-1)*100 : null;
+  const kpi = `
+    <div class="g-kpis">
+      <div class="g-kpi"><div class="v ${compTrend!=null&&compTrend<0?'neg':'pos'}">${compTrend!=null?compTrend.toFixed(1)+"%":"-"}</div>
+        <div class="l">전사 일평균 매출 · ${D.early[0]}~${D.early[D.early.length-1]} → ${D.late[0]}~${D.late[D.late.length-1]}</div></div>
+      <div class="g-kpi"><div class="v ${gapSum<0?'neg':'pos'}">${eok(gapSum)}억</div>
+        <div class="l">${ctx.scopeLabel} 목표 대비 격차 합계</div></div>
+      <div class="g-kpi"><div class="v ${D.supCurTot&&D.supCurNo/D.supCurTot>=0.3?'neg':''}">${D.supCurTot?Math.round(D.supCurNo/D.supCurTot*100)+"%":"-"}</div>
+        <div class="l">${ctx.mLbl(cur)} 출고 ${D.supCurTot}PLT 중 매출 0 카테고리 비중</div></div>
+      <div class="g-kpi"><div class="v ${hit?'pos':'neg'}">${hit}곳</div>
+        <div class="l">${ctx.mLbl(cur)} 목표 100% 달성 매장 / 전체 ${ctx.rows.length}곳</div></div>
+    </div>`;
+  // ── 카테고리 추이
+  const catHdr = D.months.map(m=>`<th>${ctx.mLbl(m)}</th>`).join("");
+  const catBody = D.catTrend.map(r=>`<tr><td>${escHtml(r.cat)}</td>${
+      D.months.map(m=>`<td><span class="num">${r.daily[m]!=null?(r.daily[m]/1e6).toFixed(1):"-"}</span></td>`).join("")
+    }<td class="total-col"><span class="num ${r.pct!=null&&r.pct<0?'neg':'pos'}">${r.pct!=null?r.pct.toFixed(1)+"%":"-"}</span></td>
+      <td class="total-col"><span class="num">${r.diff!=null?(r.diff/1e6).toFixed(1):"-"}</span></td>
+      <td class="total-col"><span class="num">${(r.diff!=null && (D.totB-D.totA)!==0)?(r.diff/(D.totB-D.totA)*100).toFixed(0)+"%":"-"}</span></td></tr>`).join("");
+  const catTbl = `
+    <div class="g-tbl-title">전사 카테고리 일평균 매출 추이 (백만원/일)</div>
+    <div class="g-tbl-sub">달마다 일수가 달라 총액으로 비교하면 왜곡된다 → 그 달 경과일수로 나눈 <b>일평균</b>으로 비교합니다. 마지막 열은 전사 감소분에서 그 카테고리가 차지하는 몫입니다(감소분이 클수록 우선 대응 대상).</div>
+    <div class="tblbox"><table class="g-tbl">
+      <thead><tr><th>카테고리</th>${catHdr}<th class="total-col">전·후반<br>증감</th><th class="total-col">차이<br>(백만/일)</th><th class="total-col">감소분<br>기여</th></tr></thead>
+      <tbody>${catBody}</tbody></table></div>`;
+  // ── 공급 변화
+  const supCats = Array.from(new Set([...Object.keys(D.supCur), ...Object.keys(D.supPrev)]))
+      .sort((a,b)=>(D.supCur[b]||0)-(D.supPrev[b]||0)-((D.supCur[a]||0)-(D.supPrev[a]||0)));
+  const supBody = supCats.map(c=>{
+    const a = D.supPrev[c]||0, b = D.supCur[c]||0;
+    return `<tr><td>${escHtml(c)}${D.noRev.has(c)?' <span class="g-chip warn">매출 0</span>':''}</td>
+      <td><span class="num">${a}</span></td><td><span class="num">${b}</span></td>
+      <td class="total-col"><span class="num ${b-a<0?'neg':(b-a>0?'pos':'')}">${b-a>0?"+":""}${b-a}</span></td></tr>`;
+  }).join("");
+  const supTbl = D.prev ? `
+    <div class="g-tbl-title">출고 카테고리 구성 변화 — ${ctx.mLbl(D.prev)} → ${ctx.mLbl(cur)} (PLT)</div>
+    <div class="g-tbl-sub">매출이 붙지 않는 카테고리(그 기간 매출 0원인데 출고는 있는 것)에는 <b>매출 0</b> 표시를 붙였습니다. 이 물량도 창고·지게차·배차 슬롯을 똑같이 소모합니다.</div>
+    <div class="tblbox"><table class="g-tbl">
+      <thead><tr><th>카테고리</th><th>${ctx.mLbl(D.prev)}</th><th>${ctx.mLbl(cur)}</th><th class="total-col">증감</th></tr></thead>
+      <tbody>${supBody}</tbody></table></div>` : "";
+  // ── 매장 표
+  const rowsHtml = D.stores.map(d=>{
+    const r = d.r;
+    return `<tr>
+      <td>${escHtml(r.label)}</td>
+      <td style="${goalsHeatBg((r.pct/100)/1.2)}"><span class="num">${r.pct.toFixed(1)}%</span></td>
+      <td><span class="num ${d.trend!=null&&d.trend<0?'neg':'pos'}">${d.trend!=null?(d.trend>0?"+":"")+d.trend.toFixed(1)+"%":"-"}</span></td>
+      <td><span class="num">${d.t||"-"}</span></td>
+      <td><span class="num ${d.nrPct!=null&&d.nrPct>=50?'neg':''}">${d.nrPct!=null?d.nrPct.toFixed(0)+"%":"-"}</span></td>
+      <td><span class="num">${d.perPlt!=null?(d.perPlt/1e6).toFixed(1):"-"}</span></td>
+      <td><span class="num">${d.stockTot||"-"}</span></td>
+      <td><span class="num ${d.yard>=15?'neg':''}">${d.yard||"-"}</span></td>
+      <td>${r.fresh?escHtml(r.freshLabel||"취급"):'<span class="g-chip">미취급</span>'}</td>
+      <td>${d.tags.length?d.tags.map(t=>`<span class="g-chip ${t==="공급기아"?"good":"warn"}">${t}</span>`).join(""):'<span class="g-chip">정상</span>'}</td>
+    </tr>`;
+  }).join("");
+  const storeTbl = `
+    <div class="g-tbl-title">매장별 공급 × 매출 교차표 (${ctx.mLbl(cur)} 기준, 달성률 낮은 순)</div>
+    <div class="g-tbl-sub"><b>매출/PLT</b> = 그 달 매출 ÷ (출고 PLT − 매출 0 카테고리 PLT). 받은 물건을 얼마나 돈으로 바꿨는지를 봅니다. 전사 중앙값 ${D.medPerPlt?won(D.medPerPlt)+"원":"-"} · 물량 중앙값 ${D.medPlt||"-"}PLT.</div>
+    <div class="tblbox"><table class="g-tbl">
+      <thead><tr><th>매장</th><th>달성률</th><th>추세</th><th>${ctx.mLbl(cur)} PLT</th><th>무매출%</th><th>매출/PLT<br>(백만)</th><th>재고PLT</th><th>야적</th><th>신선</th><th>판정</th></tr></thead>
+      <tbody>${rowsHtml}</tbody></table></div>`;
+  // ── 유형 요약
+  const byTag = t => D.stores.filter(s=>s.tags.indexOf(t)>=0)
+      .sort((a,b)=>(a.r.pct)-(b.r.pct)).map(s=>escHtml(s.r.label)).join(" · ") || "해당 없음";
+  const quad = `
+    <div class="g-quad">
+      <div class="g-qbox"><h4>① 공급기아 — 주면 판다</h4><p>효율은 높은데 물량이 적은 매장. 배정 확대가 곧바로 매출로 바뀝니다.</p><div class="s">${byTag("공급기아")}</div></div>
+      <div class="g-qbox"><h4>② 전환실패 — 더 줘도 안 팔린다</h4><p>물량은 갔는데 효율이 낮은 매장. 물량 증배 전에 원인 규명이 먼저입니다.</p><div class="s">${byTag("전환실패")}</div></div>
+      <div class="g-qbox"><h4>③ 창고봉쇄 — 비워야 들어간다</h4><p>야적·정체 재고가 신규 입고를 물리적으로 막고 있는 매장.</p><div class="s">${byTag("창고봉쇄")}</div></div>
+      <div class="g-qbox"><h4>④ 배정오류 — 애초에 잘못 실렸다</h4><p>받은 물량의 절반 이상이 매출 0 카테고리. 배차 룰 자체를 고쳐야 합니다.</p><div class="s">${byTag("배정오류")}</div></div>
+    </div>`;
+  // ── 매장 카드 (월 목표 격차 큰 순)
+  const cards = D.stores.slice().sort((a,b)=>
+      (a.r.actual-a.r.proratedTarget) - (b.r.actual-b.r.proratedTarget)
+    ).map(d=>{
+    const r = d.r;
+    const gap = r.actual - r.proratedTarget;
+    const chips = [
+      `달성 ${r.pct.toFixed(0)}%`,
+      d.trend!=null ? `추세 ${(d.trend>0?"+":"")+d.trend.toFixed(0)}%` : null,
+      `격차 ${eok(gap)}억`,
+      d.t ? `${ctx.mLbl(cur)} ${d.t}PLT` : null,
+      d.nrPct!=null ? `무매출 ${d.nrPct.toFixed(0)}%` : null,
+      d.stockTot ? `재고 ${d.stockTot}PLT` : null,
+      d.yard ? `야적 ${d.yard}` : null,
+    ].filter(Boolean).map(t=>`<span class="g-chip">${escHtml(t)}</span>`).join("");
+    const tagline = d.tags.length ? d.tags.map(t=>`<span class="g-chip ${t==="공급기아"?"good":"warn"}">${t}</span>`).join("") : "";
+    return `<article class="g-card">
+      <div class="g-card-hd"><span class="nm">${escHtml(r.label)}</span>${tagline}</div>
+      <div class="g-card-chips">${chips}</div>
+      <ul class="g-card-acts">${diagActions(d, ctx, D).map(a=>`<li>${a}</li>`).join("")}</ul>
+    </article>`;
+  }).join("");
+  return kpi + catTbl + supTbl + storeTbl + quad +
+    `<div class="g-tbl-title" style="margin-top:22px">매장별 진단과 실행안 (목표 격차 큰 순)</div>
+     <div class="g-tbl-sub">아래 문장은 모두 오늘 올라온 매출·출고·재고에서 자동 생성됩니다 — 파일을 새로 올리면 문구도 함께 바뀝니다.</div>
+     <div class="g-cards">${cards}</div>`;
+}
+
 /* ---------------- 서브탭 전환 ---------------- */
 let goalsSubTab = "01";
-const GOALS_SUB_KEYS = ["01","02","03","04","05","06","07"];
+const GOALS_SUB_KEYS = ["01","02","03","04","05","06","07","08"];
 function selectGoalsSub(key){
   if(GOALS_SUB_KEYS.indexOf(key) < 0) return;
   goalsSubTab = key;
@@ -6988,6 +7330,7 @@ function renderGoals(){
     "05": document.getElementById("goals05Wrap"),
     "06": document.getElementById("goalsStoreWrap"),
     "07": document.getElementById("goals07Wrap"),
+    "08": document.getElementById("goals08Wrap"),
   };
   const metas = {
     "01": document.getElementById("goalsSummaryMeta"),
@@ -6997,6 +7340,7 @@ function renderGoals(){
     "05": document.getElementById("goals05Meta"),
     "06": document.getElementById("goalsStoreMeta"),
     "07": document.getElementById("goals07Meta"),
+    "08": document.getElementById("goals08Meta"),
   };
   if(!panels["01"] || !panels["06"]) return;
   wireGoalsSubTabs();
@@ -7020,6 +7364,7 @@ function renderGoals(){
   panels["05"].innerHTML = goalsRender05(ctx);
   panels["06"].innerHTML = goalsRender06(ctx);
   panels["07"].innerHTML = goalsRender07(ctx);
+  panels["08"].innerHTML = goalsRender08(ctx);
   if(metas["01"]) metas["01"].textContent = base;
   if(metas["02"]) metas["02"].textContent = `${base} · 달성률 낮은 순(1위=최하위)`;
   if(metas["03"]) metas["03"].textContent = `집계 기간 ${ctx.scopeLabel} · 실매출액 기준 · 카테고리 ${ctx.cats.length}종 전체`;
@@ -7027,6 +7372,7 @@ function renderGoals(){
   if(metas["05"]) metas["05"].textContent = `집계 기간 ${ctx.scopeLabel} · PLT당 매출 = 카테고리 매출 ÷ 출고 PLT (판매수량 아님)`;
   if(metas["06"]) metas["06"].textContent = `${base} · 달성률 4개 그룹 · 매장별 4문장 자동 진단`;
   if(metas["07"]) metas["07"].textContent = `${ctx.months[0]} ~ ${ctx.curMonth} · 결측 월은 0%가 아니라 '결측'으로 표기`;
+  if(metas["08"]) metas["08"].textContent = `${base} · 매출·출고·재고 3소스 교차 · 판정과 문구는 매 업로드마다 자동 재생성`;
   wireGoalsForecast();
   wireCatDrill(ctx);
   selectGoalsSub(goalsSubTab);
