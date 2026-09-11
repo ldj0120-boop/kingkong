@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
 <style>
   :root{
     --ink:#0E151E; --panel:#17222E; --panel2:#1D2A38; --raise:#213141;
@@ -769,7 +770,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 39 · 2026-09-10</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 42 · 2026-09-11</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1214,7 +1215,9 @@ const STORE_ALIASES = { "서귀포점":"제주서귀포점", "광주경안점":"
   // 빠지고 있었다("집계 확인 필요" 배너에 뜨던 그 1건). 사용자 확인: **출고는 기흥 패션관으로**,
   // **매출은 기흥점으로** 잡는다 → 여기서 기흥 패션관에 매핑하면, 매출 쪽은 storeSalesGroup 이
   // 기흥 패션관을 기흥점에 합산하므로 두 요구가 한 번에 충족된다. (2026-08-28 18차)
-  "기흥가구패션관":"기흥 패션관", "기흥가구/패션관":"기흥 패션관", "가구패션관기흥점":"기흥 패션관" };
+  "기흥가구패션관":"기흥 패션관", "기흥가구/패션관":"기흥 패션관", "가구패션관기흥점":"기흥 패션관",
+  // seunghyun(매장 PLT 현황) 실시간 연동에서 쓰는 표기 보정: "시그니처OO점"은 표기만 다를 뿐 같은 매장. (2026-09-11)
+  "시그니처용인점":"용인점", "시그니처이천점":"이천점", "시그니처인천점":"인천점" };
 const _ALIAS_SQUASH = (()=>{ const m={}; Object.keys(STORE_ALIASES).forEach(k=> m[k.replace(/[\s/]+/g,'')] = STORE_ALIASES[k]); return m; })();
 function resolveStoreName(name){
   const t = String(name).trim();
@@ -1526,19 +1529,23 @@ function sheetDateFromName(name){
 /* ================= 집계표(재고) 헤더 ================= */
 // 재고표의 열은 업로드하는 "주차별 점별 PLT현황" 파일의 마지막 시트 열 순서를 그대로 반영한다.
 // 파일에 새 열이 생기거나 순서가 바뀌어도 아래 헤더명을 기준으로 매칭하므로 위치가 어긋나지 않는다.
-const AGG_HDR = ["XLA-111","XLB","XLC","XLE","XLG","임박식품","생산재고(혼합)","생산재고(가전)","대형가구","대형가전","홈쇼핑","데드우드(XTLO)","사입PLT","기타","FC파손","창고 보관가능 PLT","창고외 야적 PLT"];
-const STOCK_COLS = AGG_HDR.length; // 값 칸 개수(17). 각 매장 STOCK 배열은 값 17칸 + 비고(memo) 1칸 = 18칸이며 memo는 STOCK[STOCK_COLS].
+const AGG_HDR = ["XLA-111","XLB","XLC","XLE","XLG","임박식품","생산재고(혼합)","생산재고(가전)","대형가구","대형가전","홈쇼핑","데드우드(XTLO)","사입PLT","기타","FC파손","창고 보관가능 PLT","창고외 야적 PLT","생수/탄산수"];
+const STOCK_COLS = AGG_HDR.length; // 값 칸 개수(18, build 41에서 "생수/탄산수" 추가). 각 매장 STOCK 배열은 값 칸 + 비고(memo) 1칸이며 memo는 STOCK[STOCK_COLS].
+// build 41: "생수/탄산수"는 기존 17개 뒤에 맨 끝에 추가했다 — 기존 헤더들의 인덱스를 하나도 건드리지 않기 위함
+// (중간에 끼워 넣으면 이 파일 위쪽의 하드코딩된 STOCK 시드 배열들이 한 칸씩 밀려 다른 카테고리로 오염된다).
 // 파일 헤더 셀 -> 위 AGG_HDR 슬롯 매칭 규칙 (왼쪽 표를 먼저 잡도록 첫 일치 우선)
 const STOCK_HDR_MATCH = [
   ["XLA-111", /^XLA/i], ["XLB", /^XLB/i], ["XLC", /^XLC/i], ["XLE", /^XLE/i], ["XLG", /^XLG/i],
   ["임박식품", /임박/], ["생산재고(혼합)", /생산.*혼합|혼합.*생산/], ["생산재고(가전)", /생산.*가전|가전.*생산/],
   ["대형가구", /대형가구/], ["대형가전", /대형가전/], ["홈쇼핑", /홈쇼핑/], ["데드우드(XTLO)", /데드우드|XTLO/i],
-  ["사입PLT", /사입/], ["기타", /^기타/], ["FC파손", /파손/], ["창고 보관가능 PLT", /보관가능/], ["창고외 야적 PLT", /야적/]
+  ["사입PLT", /사입/], ["기타", /^기타/], ["FC파손", /파손/], ["창고 보관가능 PLT", /보관가능/], ["창고외 야적 PLT", /야적/],
+  ["생수/탄산수", /생수|탄산수|^XLS/i]
 ];
 
 /* ============ 데이터 (첨부 "주차별 점별 PLT현황" 마지막 시트에서 추출 / 이후 재업로드로 대체) ============ */
 // 각 배열 = 값 17칸(AGG_HDR 순서) + 비고(memo) 1칸. 파일에 없는 뒤 5곳은 빈 값으로 유지.
-let STORES = ["광주점","경안점","남양주점","기흥점","김포점","대소점","수원점","아산점","안중점","양주점","원주점","이천점","인천점","천안점","청주점","충주점","평택점","김해점","용인점","기흥 패션관","패션관광주점","제주서귀포점","서비스솔루션","이천센터","제주점","방도리센터","의정부가맹점","파주가맹점","파주가맹점2"];
+let STORES = ["광주점","경안점","남양주점","기흥점","김포점","대소점","수원점","아산점","안중점","양주점","원주점","이천점","인천점","천안점","청주점","충주점","평택점","김해점","용인점","기흥 패션관","패션관광주점","제주서귀포점","서비스솔루션","이천센터","제주점","방도리센터","의정부가맹점","파주가맹점","파주가맹점2","신광주점","신광주점패션관"];
+// "신광주점"·"신광주점패션관": 2026-08-23 폐점된 기존 "광주점"과는 무관한 완전히 새로운 별도 매장(사용자 확인, build 41).
 // 파일에 없는 뒤쪽 매장들은 수동 유지 매장. "패션관광주점"은 광주점 바로 옆이지만 별도 운영되는 독립 매장이라 광주점과 합쳐지지 않고 매출·출고 모두 별도 집계된다(기흥점/기흥 패션관과 같은 구조).
 // "의정부가맹점"·"파주가맹점"·"파주가맹점2"는 킹콩백화점 직영이 아닌 가맹점이라 매출(매출현황)에는 잡히지 않지만, 출고내역서의 출고 수량은 매장 목록에 없어 누락되지 않도록 계속 카운트한다.
 let STOCK = {
@@ -3322,7 +3329,11 @@ function renderCatSupplySales(){
     body += `<tr><td>${escHtml(r.cat)}</td><td><span class="num">${r.supply||''}</span></td><td class="total-col"><span class="num">${r.sales?Math.round(r.sales).toLocaleString():''}</span></td><td><span class="num">${perPlt!==null?perPlt.toLocaleString():''}</span></td></tr>`;
   });
   body += "</tbody>";
-  tbl.innerHTML = head + body;
+  const supplyGrand = rows.reduce((a,r)=>a+r.supply,0);
+  const salesGrand = rows.reduce((a,r)=>a+r.sales,0);
+  const foot = `<tfoot><tr><td>합계</td><td><span class="num">${supplyGrand||''}</span></td><td class="total-col"><span class="num">${salesGrand?Math.round(salesGrand).toLocaleString():''}</span></td>` +
+    `<td><span class="num">${supplyGrand>0?Math.round(salesGrand/supplyGrand).toLocaleString():''}</span></td></tr></tfoot>`;
+  tbl.innerHTML = head + body + foot;
 }
 
 /* ================= 규칙 기반 자동 분석 코멘트 ================= */
@@ -7204,7 +7215,8 @@ function goalsRender08Body(ctx){
         <div class="l">${ctx.mLbl(cur)} 출고 ${D.supCurTot}PLT 중 매출 0 카테고리 비중</div></div>
       <div class="g-kpi"><div class="v ${hit?'pos':'neg'}">${hit}곳</div>
         <div class="l">${ctx.mLbl(cur)} 목표 100% 달성 매장 / 전체 ${ctx.rows.length}곳</div></div>
-    </div>`;
+    </div>
+    <div style="margin-top:6px">${pltLiveBadgeHtml()}</div>`;
   // ── 카테고리 추이
   const catHdr = D.months.map(m=>`<th>${ctx.mLbl(m)}</th>`).join("");
   const catBody = D.catTrend.map(r=>`<tr><td>${escHtml(r.cat)}</td>${
@@ -8454,7 +8466,182 @@ function cloudInit(){
     const el=document.getElementById(id); if(el){ const g=el.closest(".tool-group"); (g||el).classList.add("admin-only"); }
   });
 })();
+
+/* ================= 실시간 연동 (승현님 "매장 PLT 현황" — Supabase Realtime) =================
+   범위: seunghyun.vercel.app의 6개 메뉴 중 "매장 PLT 현황"(재고/입고/해체/이월)만 연동한다.
+   나머지 5개 메뉴(입출고금액 · 비식품 사입관리 · 리퀴데이션 분배관리 · 매장운영 · LOT 재고현황)는 대상이 아니다.
+   두 사이트 모두 같은 회사(킹콩백화점) 내부 시스템이고 담당자(승현님)도 같은 팀이라는 전제로,
+   kingkong의 로그인 없는 공개 화면에 이 데이터를 실시간 노출하기로 사용자가 확정했다 (2026-09-11).
+   재고 계산식 = 이월(store_plt_carryover, 그 달) + 입고 누계(store_plt_daily.inbound)
+              − 해체 누계(store_plt_daily.dismantled) — seunghyun 화면 캡션과 동일한 공식.
+   handleStockFile()의 엑셀 업로드 로직과는 별도 경로다: STOCK 객체 중 seunghyun에서 온 매장·항목만
+   부분 갱신하고, STORES 재정렬·STOCK_HISTORY·SHIP 초기화는 절대 건드리지 않는다
+   (SHIP은 "이 화면에서 직접 입력한, 아직 안 나간 물량"이라 여기서 지우면 사용자가 입력 중인 값이 날아간다). */
+const PLT_SUPABASE_URL = "https://zqkbjafpsojbepcbrijb.supabase.co";
+const PLT_SUPABASE_ANON_KEY = "sb_publishable_Q1WV1NMEA4UH4t13Dnop8Q_fFc6nQd9"; // 공개 anon key — 접근 제어는 Supabase RLS가 담당(공개돼도 안전한 설계)
+// seunghyun의 구성(component) 이름 -> kingkong AGG_HDR 항목명. XLS는 사용자 확인대로 "생수/탄산수"에 합산.
+const PLT_COMPONENT_TO_AGG = {
+  "XLA":"XLA-111", "XLB":"XLB", "XLC":"XLC", "XLE":"XLE", "XLG":"XLG",
+  "XLS":"생수/탄산수", "대형가구":"대형가구", "대형가전":"대형가전",
+  "데드우드":"데드우드(XTLO)", "기타":"기타"
+};
+let pltLiveClient = null, pltLiveChannel = null, pltLiveTimer = null, _pltLiveSyncing = false;
+let pltLiveStatus = { state:"idle", at:null, error:null, storeCount:0 }; // idle | loading | ok | empty | error
+
+function pltMonthKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+
+// KPI 영역에 박아 넣는 상태 배지 — goalsRender08Body()가 렌더될 때마다 그 시점의 pltLiveStatus를 그대로 문자열로 찍는다
+// (DOM을 따로 찾아 patch하지 않고 매번 새로 그리므로, 08 탭이 열려있지 않을 때 갱신돼도 다음에 열면 최신 상태가 보인다).
+function pltLiveBadgeHtml(){
+  const s = pltLiveStatus;
+  const timeStr = s.at ? s.at.toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"}) : "";
+  const map = {
+    idle:    { cls:"", text:"PLT 실시간 연동 대기중" },
+    loading: { cls:"", text:"PLT 실시간 연동 · 불러오는 중…" },
+    ok:      { cls:"good", text:`PLT 실시간 연동 · ${s.storeCount}개 매장 · ${timeStr} 갱신` },
+    empty:   { cls:"warn", text:"PLT 실시간 연동 · 수신된 매장 데이터 없음 (권한 확인 필요)" },
+    error:   { cls:"warn", text:`PLT 실시간 연동 오류 · ${escHtml(String(s.error||""))}` },
+  };
+  const m = map[s.state] || map.idle;
+  return `<span id="pltLiveBadge" class="g-chip ${m.cls}" title="출처: seunghyun.vercel.app 매장 PLT 현황(Supabase Realtime) — 재고/입고/해체/이월만 자동 반영됩니다.">${m.text}</span>`;
+}
+
+async function pltLiveFetchAll(){
+  const sb = pltLiveClient;
+  const curMonth = pltMonthKey(new Date());
+  const monthStart = `${curMonth}-01`;
+  // date 컬럼은 이번 달 이후만 서버에서 걸러 받아온다. month 컬럼(store_plt_carryover)은 실제 표기 포맷을
+  // 이 환경에서 직접 확인할 수 없었으므로 전체를 받아 클라이언트에서 앞 7글자(YYYY-MM)로 안전하게 비교한다.
+  const [statusRes, carryRes, dailyRes] = await Promise.all([
+    sb.from("store_plt_status").select("store,date,warehouse_capacity,outdoor_stock,note,updated_at").gte("date", monthStart),
+    sb.from("store_plt_carryover").select("store,month,component,qty"),
+    sb.from("store_plt_daily").select("store,date,component,inbound,dismantled").gte("date", monthStart),
+  ]);
+  if(statusRes.error) throw statusRes.error;
+  if(carryRes.error) throw carryRes.error;
+  if(dailyRes.error) throw dailyRes.error;
+
+  // ① 매장별 최신(그 달 내 최종 입력일) 창고 현황
+  const latestStatus = {};
+  (statusRes.data||[]).forEach(r=>{
+    if(String(r.date||"").slice(0,7) !== curMonth) return;
+    const s = r.store;
+    if(!latestStatus[s] || String(r.date) > String(latestStatus[s].date)) latestStatus[s] = r;
+  });
+  // ② 이월(그 달)
+  const carryover = {}; // store -> component -> qty
+  (carryRes.data||[]).forEach(r=>{
+    if(String(r.month||"").slice(0,7) !== curMonth) return;
+    const s = r.store; if(!carryover[s]) carryover[s] = {};
+    carryover[s][r.component] = (carryover[s][r.component]||0) + Number(r.qty||0);
+  });
+  // ③ 입고/해체 누계(그 달)
+  const daily = {}; // store -> component -> {in, out}
+  (dailyRes.data||[]).forEach(r=>{
+    if(String(r.date||"").slice(0,7) !== curMonth) return;
+    const s = r.store; if(!daily[s]) daily[s] = {};
+    if(!daily[s][r.component]) daily[s][r.component] = {in:0, out:0};
+    daily[s][r.component].in += Number(r.inbound||0);
+    daily[s][r.component].out += Number(r.dismantled||0);
+  });
+  // ④ 재고 = 이월 + 입고 − 해체, kingkong 매장명으로 정규화해 병합(시그니처용인점 등은 STORE_ALIASES가 흡수)
+  const rawStores = new Set([...Object.keys(carryover), ...Object.keys(daily), ...Object.keys(latestStatus)]);
+  const result = {}; // kingkong 매장명 -> { agg:{AGG_HDR항목->값}, capacity, outdoor, note }
+  rawStores.forEach(rawStore=>{
+    const store = resolveStoreName(rawStore);
+    if(!result[store]) result[store] = { agg:{}, capacity:null, outdoor:null, note:null };
+    const comps = new Set([...Object.keys(carryover[rawStore]||{}), ...Object.keys(daily[rawStore]||{})]);
+    comps.forEach(comp=>{
+      const aggKey = PLT_COMPONENT_TO_AGG[comp];
+      if(!aggKey) return; // 매핑 안 된(범위 밖) 구성은 무시
+      const c = (carryover[rawStore]||{})[comp] || 0;
+      const d = (daily[rawStore]||{})[comp] || {in:0, out:0};
+      result[store].agg[aggKey] = (result[store].agg[aggKey]||0) + (c + d.in - d.out);
+    });
+    const st = latestStatus[rawStore];
+    if(st){
+      if(st.warehouse_capacity!=null) result[store].capacity = Number(st.warehouse_capacity);
+      if(st.outdoor_stock!=null) result[store].outdoor = Number(st.outdoor_stock);
+      if(st.note!=null && String(st.note).trim()) result[store].note = String(st.note).trim();
+    }
+  });
+  return result;
+}
+
+// STOCK 전체를 갈아엎지 않고 seunghyun에서 온 매장·항목만 부분 갱신한다. 반환값: 갱신된 매장 수.
+function pltLiveApplyResult(result){
+  let touched = 0;
+  Object.keys(result).forEach(store=>{
+    if(STORES.indexOf(store) < 0) STORES.push(store); // 신규 매장이면 뒤에 추가만(기존 순서·다른 매장은 그대로)
+    if(!STOCK[store]) STOCK[store] = new Array(STOCK_COLS+1).fill(null);
+    const { agg, capacity, outdoor, note } = result[store];
+    Object.keys(agg).forEach(aggKey=>{
+      const idx = AGG_HDR.indexOf(aggKey);
+      if(idx>=0) STOCK[store][idx] = agg[aggKey];
+    });
+    if(capacity!=null) STOCK[store][AGG_HDR.indexOf("창고 보관가능 PLT")] = capacity;
+    if(outdoor!=null) STOCK[store][AGG_HDR.indexOf("창고외 야적 PLT")] = outdoor;
+    if(note!=null) STOCK[store][STOCK_COLS] = `[승현PLT] ${note}`;
+    touched++;
+  });
+  STORES.forEach(s=>{ if(!SHIP[s]) SHIP[s]=freshCatMap(); if(!ACTUAL[s]) ACTUAL[s]=freshCatMap(); });
+  return touched;
+}
+
+function pltLiveRefreshUI(){
+  // diagBuild()의 캐시 키에는 STOCK이 포함돼 있지 않다 — 재고만 바뀐 경우 캐시를 직접 비워야 08 탭이 갱신된다.
+  _diagCache.key = ""; _diagCache.val = null;
+  try{ document.getElementById("totalCount").textContent = grandTotal(); }catch(_){}
+  try{ refreshSlotStates(); }catch(_){}
+  try{ renderStoreList(); }catch(_){}
+  try{ renderPanel(); }catch(_){}
+  try{ if(!document.getElementById("view-agg").hidden) renderStockAgg(); }catch(_){}
+  try{ if(!document.getElementById("view-goals").hidden) renderGoals(); }catch(_){}
+  try{ renderDataQuality(); }catch(_){}
+  try{ saveState(); }catch(_){}
+}
+
+async function pltLiveSync(){
+  if(!pltLiveClient) return;
+  if(_pltLiveSyncing) return; // 겹쳐 들어오는 realtime 이벤트를 직렬화
+  _pltLiveSyncing = true;
+  pltLiveStatus = Object.assign({}, pltLiveStatus, { state:"loading" });
+  try{
+    const result = await pltLiveFetchAll();
+    const n = pltLiveApplyResult(result);
+    pltLiveStatus = { state: n>0 ? "ok" : "empty", at:new Date(), error:null, storeCount:n };
+  }catch(err){
+    pltLiveStatus = { state:"error", at:new Date(), error:(err&&err.message)||String(err), storeCount:pltLiveStatus.storeCount||0 };
+  }
+  _pltLiveSyncing = false;
+  pltLiveRefreshUI();
+}
+
+function pltDebouncedSync(){
+  clearTimeout(pltLiveTimer);
+  pltLiveTimer = setTimeout(pltLiveSync, 1200); // 행 단위 realtime 이벤트가 몰려 들어와도 재계산은 한 번으로 묶는다
+}
+
+function pltLiveInit(){
+  try{
+    if(typeof window.supabase==="undefined" || !window.supabase.createClient){
+      pltLiveStatus = { state:"error", at:new Date(), error:"supabase-js 로드 실패(인터넷 연결 확인)", storeCount:0 };
+      return;
+    }
+    pltLiveClient = window.supabase.createClient(PLT_SUPABASE_URL, PLT_SUPABASE_ANON_KEY);
+    pltLiveSync(); // 최초 1회 즉시 로드
+    pltLiveChannel = pltLiveClient.channel("kingkong-plt-live")
+      .on("postgres_changes", { event:"*", schema:"public", table:"store_plt_daily" }, pltDebouncedSync)
+      .on("postgres_changes", { event:"*", schema:"public", table:"store_plt_carryover" }, pltDebouncedSync)
+      .on("postgres_changes", { event:"*", schema:"public", table:"store_plt_status" }, pltDebouncedSync)
+      .subscribe();
+  }catch(e){
+    pltLiveStatus = { state:"error", at:new Date(), error:(e&&e.message)||String(e), storeCount:0 };
+  }
+}
+
 cloudInit();
+pltLiveInit();
 </script>
 </body>
 </html>
