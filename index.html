@@ -639,19 +639,6 @@
   table.g-tbl td, table.g-tbl th{font-size:11.5px;padding:6px 8px;}
   table.g-tbl tbody td{height:34px;font-size:11.5px;}
   table.g-tbl tbody td .num{font-size:11.5px;}
-  /* 09 매장 회의 관리 */
-  .meet-card{display:flex;flex-direction:column;gap:8px;}
-  ul.meet-notes{margin:0;padding-left:0;list-style:none;font-size:11.5px;line-height:1.6;color:var(--muted);max-height:160px;overflow-y:auto;}
-  ul.meet-notes li{padding:5px 0;border-bottom:1px solid var(--line-soft);}
-  ul.meet-notes li:last-child{border-bottom:0;}
-  .meet-note-date{font-family:"JetBrains Mono";font-size:10.5px;color:var(--amber);margin-right:6px;}
-  .meet-add{display:flex;flex-direction:column;gap:6px;margin-top:2px;}
-  .meet-input{width:100%;box-sizing:border-box;background:var(--ink);border:1px solid var(--line);border-radius:7px;
-    color:var(--text);font-family:inherit;font-size:12px;padding:8px 10px;resize:vertical;}
-  .meet-input:focus{outline:none;border-color:var(--amber-dim);}
-  .meet-save-btn{align-self:flex-end;font-family:"Oswald";font-size:11px;letter-spacing:.04em;text-transform:uppercase;
-    border:1px solid var(--amber);background:transparent;color:var(--amber);padding:6px 12px;border-radius:7px;cursor:pointer;}
-  .meet-save-btn:hover{background:var(--amber);color:var(--amber-ink);}
   /* ===== 15차: 이번 달 예상 총매출 카드 ===== */
   .g-fc-card{background:linear-gradient(180deg,rgba(245,178,17,.07),rgba(0,0,0,0));border:1px solid var(--amber);border-radius:12px;padding:14px 16px;margin:0 0 16px;}
   .g-fc-hd{font-family:"Oswald";font-size:15px;letter-spacing:.03em;color:var(--amber);display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
@@ -783,7 +770,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 43 · 2026-09-11</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 44 · 2026-09-15</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1084,7 +1071,7 @@
       <button class="gsub-tab" data-gsub="06" role="tab">06 매장별 실행방안</button>
       <button class="gsub-tab" data-gsub="07" role="tab">07 매장별 월별 추이</button>
       <button class="gsub-tab" data-gsub="08" role="tab">08 매장 진단 (공급×매출)</button>
-      <button class="gsub-tab" data-gsub="09" role="tab">09 매장 회의 관리</button>
+      <button class="gsub-tab" data-gsub="09" role="tab">09 관리매장 매출요약</button>
     </div>
 
     <div class="gsub-panel" id="gsub-01">
@@ -1170,7 +1157,7 @@
     <div class="gsub-panel" id="gsub-09" hidden>
       <div class="agg-card">
         <div class="p-hd">
-          <span class="store-name">09 매장 회의 관리</span>
+          <span class="store-name">09 관리매장 매출요약</span>
           <span class="meta" id="goals09Meta"></span>
         </div>
         <div class="agg-scroll" id="goals09Wrap"></div>
@@ -1638,7 +1625,6 @@ let FRESH_M = {};     // month -> store -> {신선식품|수박: qty}
 let LOTTE_M = {};     // month -> store -> {롯데제타: qty} (김해점 독점 공급)
 let PROCESSED_FILES = {};  // 폴더 불러오기: 이미 처리한 파일 지문(경로|크기|수정시각) → 재불러오기 시 건너뜀
 let shipScope = "all"; // "all"=모든 달 합계 | "YYYY-MM"=그 달만
-let MEETING_NOTES = {}; // 매장 회의 관리(09탭): 매장명 -> [{date:"YYYY-MM-DD HH:MM", text}] 누적 기록(build 43)
 function mergeMonthMap(target, incoming){ // incoming의 각 달로 target의 그 달을 교체(누적)
   if(!incoming) return;
   Object.keys(incoming).forEach(m=>{ target[m] = incoming[m]; });
@@ -1997,7 +1983,6 @@ function buildStateObject(){
       HQ_ACTUAL, APPLIANCE_ACTUAL, CENTER_DIRECT_ACTUAL, FRESH_ACTUAL, CENTER_M, HQ_M, APPLIANCE_M, CENTER_DIRECT_M, FRESH_M, LOTTE_M, shipScope, HQ_SUPPLY_HISTORY, APPLIANCE_SUPPLY_HISTORY, unmatchedHQStores, unmatchedApplianceStores,
       selected, SUPPLY_HISTORY, STOCK_HISTORY, unmatchedActualStores,
       SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodBStart, periodBEnd, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, SPECIAL_DAYS, goalsScope, selectedSalesMonth, selectedMonthlyStore, salesViewMode, EVENTS_COMMON, EVENTS_STORE, PROCESSED_FILES,
-      MEETING_NOTES,
       basedateIdx: (typeof basedateEl!=="undefined" && basedateEl.value!=="") ? +basedateEl.value : STOCK_HISTORY.length-1
   };
 }
@@ -2067,7 +2052,6 @@ function applyStateObject(s){
     if(s.goalsScope && typeof s.goalsScope==="object") goalsScope = Object.assign({mode:"month",month:null,from:null,to:null}, s.goalsScope);
     EVENTS_STORE = (s.EVENTS_STORE && typeof s.EVENTS_STORE==="object") ? s.EVENTS_STORE : {};
     PROCESSED_FILES = (s.PROCESSED_FILES && typeof s.PROCESSED_FILES==="object") ? s.PROCESSED_FILES : {};
-    MEETING_NOTES = (s.MEETING_NOTES && typeof s.MEETING_NOTES==="object") ? s.MEETING_NOTES : {};
     SHIP_CAT_MAP = (s.SHIP_CAT_MAP && typeof s.SHIP_CAT_MAP==="object") ? s.SHIP_CAT_MAP : {};
     HQ_ACTUAL = (s.HQ_ACTUAL && typeof s.HQ_ACTUAL==="object") ? s.HQ_ACTUAL : {};
     APPLIANCE_ACTUAL = (s.APPLIANCE_ACTUAL && typeof s.APPLIANCE_ACTUAL==="object") ? s.APPLIANCE_ACTUAL : {};
@@ -7332,128 +7316,98 @@ function goalsRender08Body(ctx){
      <div class="g-cards">${cards}</div>`;
 }
 
-/* ================= 09 매장 회의 관리 =================
-   매주 월·목 2회, 회차당 5개 매장(전사 21곳 → 4개 조로 나누면 5·5·5·6). 조 순서는 08 진단(달성률/격차/추세를
-   각각 순위로 매겨 평균낸 값 + 태그 심각도)로 가장 시급한 매장부터 앞 조에 배치했다(2026-09-11, 그 시점의
-   실데이터 기준). 사용자 확정: ①조 구성은 이후 계속 고정(요일마다 같은 매장을 만나도록) ②21번째 매장 때문에
-   생기는 여분은 마지막(가장 덜 시급한) 조에 그대로 얹어 6곳으로 진행 ③개선사항 기록은 이 사이트 안에 둔다. */
-const MEETING_GROUPS = [
-  ["아산점","천안점","안중점","김해점","기흥점"],
-  ["용인점","제주서귀포점","패션관광주점","경안점","제주점"],
-  ["충주점","원주점","이천점","남양주점","양주점"],
-  ["인천점","대소점","청주점","평택점","김포점","수원점"],
-];
-const MEETING_ANCHOR_MONDAY = new Date(2026,0,5); // 2026-01-05(월) — 조1~조4 2주 순환의 고정 기준점. 이후 절대 바꾸지 않는다(바꾸면 이미 안내된 일정이 밀린다).
-function meetingStartOfDay(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
-function meetingDateStr(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-function meetingWeekdayLabel(dstr){ const d=new Date(dstr+"T00:00:00"); return ["일","월","화","수","목","금","토"][d.getDay()]; }
-// 그 날짜가 월·목이면 조 인덱스(0~3)를, 아니면 null을 돌려준다. 2주(14일)를 한 바퀴로 조1→조2→조3→조4가 순환.
-function meetingSlotForDate(d){
-  const day = d.getDay();
-  if(day!==1 && day!==4) return null;
-  const diffDays = Math.round((meetingStartOfDay(d) - MEETING_ANCHOR_MONDAY)/86400000);
-  const weekIndex = Math.floor(diffDays/7);
-  const evenWeek = ((weekIndex%2)+2)%2===0;
-  return day===1 ? (evenWeek?0:2) : (evenWeek?1:3);
-}
-function meetingUpcomingSchedule(fromDate, count){
-  const out = []; let d = meetingStartOfDay(fromDate);
-  let guard = 0;
-  while(out.length<count && guard<400){
-    const slot = meetingSlotForDate(d);
-    if(slot!=null) out.push({ date: meetingDateStr(d), group: slot });
-    d = new Date(d.getFullYear(), d.getMonth(), d.getDate()+1);
-    guard++;
-  }
-  return out;
-}
-// 조에 적힌 매장명은 진단표의 r.label과 정확히 같지 않을 수 있다(예: "기흥점"은 그룹 매장이라
-// 실제 라벨이 "기흥점 (기흥 패션관 포함)") — 앞부분 일치까지 허용해 찾는다.
-function meetingFindRow(D, name){
-  return D.stores.find(d=> d.r.label===name || d.r.label.indexOf(name)===0);
-}
+/* ================= 09 관리매장 매출요약 =================
+   09탭은 원래 "매장 회의 관리"(회차별 순회 스케줄 + 개선사항 기록, build 43)였다. 2026-09-15 사용자가
+   "회의를 더 이상 하지 않는다"며 이 탭 삭제를 요청, 대신 본인이 앞으로 직접 관리할 6개 매장
+   (기흥·이천·제주서귀포·충주·평택·대소)의 매출을 한 화면 요약본으로 보고 싶다고 해서 교체했다.
+   06(매장별 실행방안)의 매장 카드(달성률 게이지·KPI·서술형 진단·월별 추이·카테고리 도넛)를 그대로
+   재사용하되 전체 매장이 아니라 이 6곳만 골라 보여준다 — 이미 검증된 렌더링을 그대로 쓰므로 새 버그
+   위험이 없다. 매장 목록은 코드에 고정(MANAGED_STORES) — 나중에 관리 매장이 바뀌면 이 배열만 고치면 된다. */
+const MANAGED_STORES = ["기흥점","이천점","제주서귀포점","충주점","평택점","대소점"];
 function goalsRender09(ctx){
   try{ return goalsRender09Body(ctx); }
-  catch(e){ return `<div class="g-tbl-sub" style="color:var(--red)">09 회의 관리를 만드는 중 오류가 났습니다: ${escHtml(String(e&&e.message||e))}<br>다른 탭은 정상 동작합니다 — 이 메시지를 그대로 알려주시면 고치겠습니다.</div>`; }
+  catch(e){ return `<div class="g-tbl-sub" style="color:var(--red)">09 관리매장 요약을 만드는 중 오류가 났습니다: ${escHtml(String(e&&e.message||e))}<br>다른 탭은 정상 동작합니다 — 이 메시지를 그대로 알려주시면 고치겠습니다.</div>`; }
 }
 function goalsRender09Body(ctx){
-  const D = diagBuild(ctx);
-  const today = new Date();
-  const todaySlot = meetingSlotForDate(meetingStartOfDay(today));
-  const schedule = meetingUpcomingSchedule(today, 8); // 다음 8회 ≈ 4주
-  const groupLabel = i => `${i+1}조`;
-
-  const scheduleRows = schedule.map((s,idx)=>{
-    const names = MEETING_GROUPS[s.group].join(" · ");
-    return `<tr>
-      <td>${s.date} (${meetingWeekdayLabel(s.date)})${idx===0?' <span class="g-chip good">다음 회의</span>':''}</td>
-      <td>${groupLabel(s.group)}</td>
-      <td>${escHtml(names)}</td>
-    </tr>`;
-  }).join("");
-  const scheduleTbl = `
-    <div class="g-tbl-title">회의 일정 (앞으로 ${schedule.length}회 · 약 4주)</div>
-    <div class="g-tbl-sub">매주 월·목 2회, 조1→조2→조3→조4 순으로 2주에 한 바퀴 순환합니다. 조 구성(매장 순서)은
-      아래 각 조 카드 참고 — 처음 시급도 분석으로 정한 구성을 계속 고정합니다(사용자 확정, 2026-09-11).
-      진단 수치(달성률·격차·추세·재고 등)는 매출·출고·재고 파일을 새로 올릴 때마다 최신값으로 다시 계산됩니다.</div>
-    <div class="tblbox"><table class="g-tbl">
-      <thead><tr><th>날짜</th><th>조</th><th>매장(추천 회의 순서)</th></tr></thead>
-      <tbody>${scheduleRows}</tbody></table></div>`;
-
-  const groupsHtml = MEETING_GROUPS.map((names, gi)=>{
-    const cardsHtml = names.map((name, order)=>{
-      const d = meetingFindRow(D, name);
-      const notes = (MEETING_NOTES[name]||[]).slice().sort((a,b)=> (a.date<b.date?1:-1));
-      const noteLog = notes.length
-        ? `<ul class="meet-notes">${notes.map(n=>`<li><span class="meet-note-date">${escHtml(n.date)}</span><span style="white-space:pre-wrap">${escHtml(n.text)}</span></li>`).join("")}</ul>`
-        : `<div class="g-tbl-sub" style="margin:2px 0 0">아직 기록된 개선사항이 없습니다.</div>`;
-      const diagBits = d ? `
-          <div class="g-card-chips">
-            <span class="g-chip">달성 ${d.r.pct.toFixed(0)}%</span>
-            <span class="g-chip">격차 ${((d.r.actual-d.r.proratedTarget)/1e8).toFixed(2)}억</span>
-            ${d.trend!=null?`<span class="g-chip ${d.trend<0?'warn':'good'}">추세 ${(d.trend>0?"+":"")+d.trend.toFixed(0)}%</span>`:""}
-            ${d.stockTot?`<span class="g-chip">재고 ${d.stockTot}PLT</span>`:""}
-            ${d.yard?`<span class="g-chip ${d.yard>=15?'warn':''}">야적 ${d.yard}</span>`:""}
-            ${d.tags.map(t=>`<span class="g-chip ${t==="공급기아"?"good":"warn"}">${escHtml(t)}</span>`).join("")}
-          </div>` : `<div class="g-tbl-sub" style="margin:2px 0 8px">이번 집계 기간 진단 데이터를 찾지 못했습니다(매장명 표기 확인 필요 — 이번달 출고 0건인 매장일 수 있습니다).</div>`;
-      return `<article class="g-card meet-card">
-        <div class="g-card-hd"><span class="nm">${order+1}순위 · ${escHtml(name)}</span></div>
-        ${diagBits}
-        ${noteLog}
-        <div class="meet-add">
-          <textarea class="meet-input" data-store="${escHtml(name)}" placeholder="이번 회의에서 나온 개선사항을 적어주세요" rows="2"></textarea>
-          <button type="button" class="meet-save-btn" data-store="${escHtml(name)}">기록 추가</button>
+  const won = v => Math.round(v).toLocaleString();
+  const cm = ctx.mLbl(ctx.curMonth);
+  const list = MANAGED_STORES.map(s=> ctx.rows.find(r=>r.store===s)).filter(Boolean)
+                 .sort((a,b)=>a.pct-b.pct); // 달성률 낮은 순 — 다른 탭과 동일한 정렬(대응 우선순위)
+  const missing = MANAGED_STORES.filter(s=> !ctx.rows.find(r=>r.store===s));
+  if(!list.length){
+    return `<div class="g-tbl-sub">관리 매장(${escHtml(MANAGED_STORES.join(" · "))})의 매출 데이터를 찾지 못했습니다 — 매출 파일이 업로드됐는지, 이번 달 영업 중인지 확인해 주세요.</div>`;
+  }
+  const sumTarget = list.reduce((a,r)=>a+r.proratedTarget,0);
+  const sumActual = list.reduce((a,r)=>a+r.actual,0);
+  const avgPct = sumTarget>0 ? sumActual/sumTarget*100 : 0;
+  const hitCnt = list.filter(r=>r.pct>=100).length;
+  const kpi = `
+    <div class="g-kpis">
+      <div class="g-kpi"><div class="v">${list.length}곳</div><div class="l">관리 매장 수${missing.length?` (미확인 ${missing.length}곳)`:""}</div></div>
+      <div class="g-kpi"><div class="v ${avgPct>=100?'pos':'neg'}">${avgPct.toFixed(1)}%</div><div class="l">${cm} 관리 매장 합산 달성률</div></div>
+      <div class="g-kpi"><div class="v">${won(sumActual)}원</div><div class="l">${cm} 합산 실적 (일할 목표 ${won(sumTarget)}원)</div></div>
+      <div class="g-kpi"><div class="v ${hitCnt?'pos':'neg'}">${hitCnt}곳</div><div class="l">목표 100% 달성 매장 / ${list.length}곳</div></div>
+    </div>`;
+  const missNote = missing.length
+    ? `<div class="g-tbl-sub" style="color:var(--amber)">데이터를 찾지 못한 매장: ${escHtml(missing.join(', '))} — 매장명 표기나 이번 달 영업 여부를 확인해 주세요.</div>`
+    : "";
+  const cards = list.map(r=>{
+    const tier = goalsTier(r.pct);
+    const band = goalsIncentiveBand(r.dev);
+    const gaugeColor = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--info)":tier.cls==="g-tier-warn"?"var(--amber)":"var(--red)";
+    const cumTxt = (r.cum && !r.cum.gap)
+      ? `${won(r.cum.actualCum)} / ${won(r.cum.targetCum)}원 (${r.cum.pct.toFixed(1)}%)`
+      : `결측으로 산출 제외`;
+    const cumDelta = (r.cum && !r.cum.gap)
+      ? `<span style="color:${r.cum.actualCum>=r.cum.targetCum?'var(--green)':'var(--red)'}">${r.cum.actualCum>=r.cum.targetCum?'+':'−'}${won(Math.abs(r.cum.actualCum-r.cum.targetCum))}원</span>`
+      : `<span style="color:var(--muted2)">${escHtml(ctx.missingMonths[r.store]||'-')}</span>`;
+    const kpis = [
+      {k:"월 목표매출",     v:`<b style="color:var(--amber)">${won(r.target)}원</b>`},
+      {k:`${cm} 실적`,      v:`${won(r.actual)}원`},
+      {k:`${cm} 목표(일할·${r.activeDays}/${r.monthDays}일)`, v:`${won(r.proratedTarget)}원`},
+      {k:"목표 대비 편차",   v:`<span style="color:${r.dev>=0?'var(--green)':'var(--red)'}">${(r.dev>=0?'+':'')+(r.dev*100).toFixed(1)}%</span>`},
+      {k:"인센티브 구간",   v:escHtml(band.label)},
+      {k:`누적 실적 / 목표 (${ctx.months.length}개월)`, v:cumTxt, wide:true},
+      {k:"누적 격차",       v:cumDelta, wide:true},
+    ].map(x=>`<div class="g-kpi${x.wide?' wide':''}"><span class="k">${x.k}</span><span class="v">${x.v}</span></div>`).join("");
+    const catVisual = (r.diag && r.diag.chartData.length)
+      ? `<div class="g-store-catcol">
+           <div class="g-store-catt">카테고리 구성 (실매출액)</div>
+           <div class="pie-donut-only">${buildDonutSVG(r.diag.chartData, 124)}</div>
+           <div class="g-store-catbars">${buildSharePercentBars(r.diag.chartData.slice(0,6), {compact:true})}</div>
+         </div>`
+      : `<div class="g-store-catcol"><div class="g-store-catt">카테고리 매출 데이터 없음</div></div>`;
+    const freshTag = r.freshLabel
+      ? `<span class="g-store-tag ${r.fresh?'':'off'}" title="식품 운영 매장 현황(20260707 기준)">${escHtml(r.freshLabel)}</span>` : "";
+    const stateTag = r.stateBadge ? `<span class="g-store-tag warn">${escHtml(r.stateBadge)}</span>` : "";
+    const memberTag = r.members.length>1 ? `<span class="g-store-tag">${escHtml(r.members.slice(1).join("·"))} 합산</span>` : "";
+    return `<div class="g-store-card v2 ${tier.cls}">
+      <div class="g-store-hd">
+        <span class="g-store-name">${escHtml(r.label)}
+          <span class="g-store-rank">월 목표 ${(r.target/100000000).toFixed(2)}억 · 전사 ${ctx.rows.length}개 매장 중 ${r.rank}위(낮은 순)</span>
+        </span>
+        <span class="g-store-gauge" title="${cm} 달성률 ${r.pct.toFixed(1)}%">
+          <span class="gg-track"><span class="gg-fill" style="width:${Math.min(100,r.pct).toFixed(1)}%;background:${gaugeColor}"></span></span>
+          <span class="gg-num" style="color:${gaugeColor}">${r.pct.toFixed(1)}%</span>
+        </span>
+        <span class="g-store-badge">${tier.label}</span>
+      </div>
+      <div class="g-store-tags">${stateTag}${memberTag}${freshTag}</div>
+      <div class="g-kpi-grid">${kpis}</div>
+      <div class="g-store-split">
+        <div class="g-store-leftcol">
+          ${goalsNarrative(r, ctx)}
+          ${goalsMonthStripHtml(r.hist, ctx.curMonth)}
         </div>
-      </article>`;
-    }).join("");
-    return `<div class="g-tbl-title" style="margin-top:22px">${groupLabel(gi)} (${names.length}곳 · 회의 순서대로)${todaySlot===gi?' <span class="g-chip good">오늘 회의 조</span>':''}</div>
-      <div class="g-cards">${cardsHtml}</div>`;
+        ${catVisual}
+      </div>
+      <details class="g-store-more">
+        <summary>카테고리 구성비 전체 — 전사 평균 대비 격차 ${r.diag?`(${r.diag.diffs.length}개)`:""}</summary>
+        ${goalsDiagTableHtml(r.diag)}
+      </details>
+    </div>`;
   }).join("");
-
-  return scheduleTbl + groupsHtml;
-}
-let _meetingNotesWired = false;
-function wireMeetingNotes(){
-  if(_meetingNotesWired) return;
-  const wrap = document.getElementById("gsub-09");
-  if(!wrap || !wrap.addEventListener) return;
-  _meetingNotesWired = true;
-  // 08 서브탭 전환과 동일한 이벤트 위임 패턴: 패널 내용은 매번 innerHTML로 새로 그려지지만
-  // 바깥 #gsub-09는 고정 DOM이라 한 번만 걸어두면 새로 생긴 버튼에도 그대로 적용된다.
-  wrap.addEventListener("click", e=>{
-    const btn = e.target && e.target.closest ? e.target.closest(".meet-save-btn") : null;
-    if(!btn) return;
-    const store = btn.dataset.store;
-    if(!store) return;
-    const ta = wrap.querySelector(`.meet-input[data-store="${(window.CSS && CSS.escape) ? CSS.escape(store) : store}"]`);
-    const text = ta ? String(ta.value||"").trim() : "";
-    if(!text) return;
-    const now = new Date();
-    const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-    if(!MEETING_NOTES[store]) MEETING_NOTES[store] = [];
-    MEETING_NOTES[store].push({ date: dateStr, text });
-    afterChange(); // 나머지 화면과 동일한 경로로 즉시 저장(localStorage·IndexedDB·관리자면 클라우드까지) + 재렌더
-  });
+  return kpi + missNote + `<div class="g-store-list" style="margin-top:14px">${cards}</div>`;
 }
 
 /* ---------------- 서브탭 전환 ---------------- */
@@ -7510,7 +7464,6 @@ function renderGoals(){
   if(!panels["01"] || !panels["06"]) return;
   wireGoalsSubTabs();
   wireGoalsScope();
-  wireMeetingNotes();
   renderGoalsScopeBar();
   const ctx = goalsBuildContext();
   if(!ctx){
@@ -7540,7 +7493,7 @@ function renderGoals(){
   if(metas["06"]) metas["06"].textContent = `${base} · 달성률 4개 그룹 · 매장별 4문장 자동 진단`;
   if(metas["07"]) metas["07"].textContent = `${ctx.months[0]} ~ ${ctx.curMonth} · 결측 월은 0%가 아니라 '결측'으로 표기`;
   if(metas["08"]) metas["08"].textContent = `${base} · 매출·출고·재고 3소스 교차 · 판정과 문구는 매 업로드마다 자동 재생성`;
-  if(metas["09"]) metas["09"].textContent = `${base} · 매주 월·목 2회, 회차당 5곳(마지막 조만 6곳) · 조 구성은 2026-09-11 진단 기준 고정`;
+  if(metas["09"]) metas["09"].textContent = `${base} · 관리 매장 ${MANAGED_STORES.length}곳(기흥·이천·제주서귀포·충주·평택·대소) · 달성률 낮은 순`;
   wireGoalsForecast();
   wireCatDrill(ctx);
   selectGoalsSub(goalsSubTab);
