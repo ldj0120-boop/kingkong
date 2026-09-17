@@ -770,7 +770,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 45 · 2026-09-17</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 46 · 2026-09-17</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -7378,6 +7378,53 @@ function goalsStoreRecentDelta(store){
     month: month ? goalsStoreDateTotal(store, month.date) : null,
   };
 }
+// 2026-09-17 추가 요청: "달력 나오고 일별 매출도 나오게 해줘" — 06/매출 상세 탭의 buildStoreMonthlyTable과
+// 같은 모양(요일별 7열 달력, 칸 안에 그날 매출을 "만원" 단위로 표시)을 09탭 카드 안에 그대로 넣는다.
+// buildStoreMonthlyTable을 그대로 재사용하지 않은 이유: 그 함수는 원본 매장명(storeDayBill)만 더해서
+// 기흥 패션관처럼 대표 매장에 합산되는 매장의 몫이 빠진다. 여기서는 goalsStoreDateTotal(이미 이 파일
+// 위쪽에서 storeSalesGroup(resolveStoreName())으로 정규화해 합산 매장까지 더하는 함수)을 대신 쓴다.
+// 또한 selectDetailDay로 이동하는 클릭 기능은 "매출" 탭 전용 상태를 바꾸는 것이라 09탭에서는 빼고
+// (달력 칸이 클릭 가능해 보이지 않도록 cursor:default를 직접 지정), 순수 표시용으로만 쓴다.
+function goalsStoreCalendarHtml(store, ym){
+  if(!ym) return `<p class="trend-empty">월 데이터가 없어 달력을 표시할 수 없습니다.</p>`;
+  const p = ym.split("-"); const y=+p[0], mo=+p[1];
+  if(!y||!mo) return "";
+  const daysInMonth = new Date(y, mo, 0).getDate();
+  const startDow = new Date(y, mo-1, 1).getDay();
+  const wd = ["일","월","화","수","목","금","토"];
+  const fmtAmt = v => {
+    if(v==null) return "-";
+    if(v===0) return "0원";
+    const man = v/10000;
+    return (Math.abs(man)>=10 ? Math.round(man).toLocaleString() : man.toFixed(1)) + "만";
+  };
+  let head = wd.map((w,i)=>`<div class="sd-cal-h ${i===0?'sun':(i===6?'sat':(i===5?'fri':''))}">${w}</div>`).join("");
+  let cells = "";
+  for(let i=0;i<startDow;i++) cells += `<div class="sd-cal-day empty"></div>`;
+  let monthTotal = 0, daysWithData = 0;
+  for(let d=1; d<=daysInMonth; d++){
+    const dstr = `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = new Date(y,mo-1,d).getDay();
+    const holName = holidayName(dstr);
+    const amt = goalsStoreDateTotal(store, dstr);
+    if(amt!=null){ monthTotal += amt; daysWithData++; }
+    const cls = ["sd-cal-day",
+      (holName||dow===0) ? "hol" : (dow===6?"sat":(dow===5?"fri":"")),
+      amt!=null ? "has" : "nodata",
+    ].filter(Boolean).join(" ");
+    const titleTxt = [holName, amt!=null?Math.round(amt).toLocaleString()+"원":"업로드된 매출 없음"].filter(Boolean).join(" · ");
+    cells += `<div class="${cls}" style="cursor:default" title="${escHtml(titleTxt)}">
+      <div class="sd-d">${d}<span class="sd-w">${wd[dow]}</span></div>
+      ${holName?`<div class="sd-hol">${escHtml(holName)}</div>`:""}
+      <div class="sd-amt">${fmtAmt(amt)}</div>
+    </div>`;
+  }
+  const avgTxt = daysWithData ? `일평균 ${Math.round(monthTotal/daysWithData).toLocaleString()}원 · 월 합계 ${Math.round(monthTotal).toLocaleString()}원 (업로드된 ${daysWithData}일 기준)` : "이 달에 업로드된 날짜가 없습니다";
+  return `<div class="sd-cal-wrap">
+    <div class="agg-scroll"><div class="sd-cal-grid" style="min-width:480px;">${head}${cells}</div></div>
+    <div style="font-size:11px;color:var(--muted2);margin-top:8px;">${escHtml(avgTxt)} · <span style="color:#e8b93f;">금</span>·<span style="color:#5aa9ff;">토</span>·<span style="color:#ff6b6b;">일</span>요일 색으로 구분 · <span style="color:#ff6b6b;">빨강</span> = 공휴일·대체휴무일 · 금액 단위 만원(정확한 값은 칸에 마우스 올리면 표시)</div>
+  </div>`;
+}
 // 06탭의 goalsNarrative()를 그대로 쓰면 1번 문장에 "누적갭"(r.cum) 문구가 섞여 나온다 — 09탭은
 // 누적 표현을 전부 빼기로 했으므로, 1번 문장만 달성률·순위로 바꾼 09 전용 버전을 따로 둔다.
 // (goalsNarrative 자체는 06탭이 그대로 쓰고 있어 건드리지 않는다.)
@@ -7470,6 +7517,10 @@ function goalsRender09Body(ctx){
         </div>
         ${catVisual}
       </div>
+      <details class="g-store-more" open>
+        <summary>${cm} 일별 매출 달력</summary>
+        ${goalsStoreCalendarHtml(r.store, ctx.curMonth)}
+      </details>
       <details class="g-store-more">
         <summary>카테고리 구성비 전체 — 전사 평균 대비 격차 ${r.diag?`(${r.diag.diffs.length}개)`:""}</summary>
         ${goalsDiagTableHtml(r.diag)}
