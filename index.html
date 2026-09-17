@@ -770,7 +770,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 44 · 2026-09-15</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 45 · 2026-09-17</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -7324,6 +7324,73 @@ function goalsRender08Body(ctx){
    재사용하되 전체 매장이 아니라 이 6곳만 골라 보여준다 — 이미 검증된 렌더링을 그대로 쓰므로 새 버그
    위험이 없다. 매장 목록은 코드에 고정(MANAGED_STORES) — 나중에 관리 매장이 바뀌면 이 배열만 고치면 된다. */
 const MANAGED_STORES = ["기흥점","이천점","제주서귀포점","충주점","평택점","대소점"];
+// ── 09 전용: 매장별 전일/전주/전월 대비(일자 단위) ──────────────────────────
+// 2026-09-17 사용자 요청: 09탭 카드의 매출 숫자는 "누적 실적/목표·누적 격차" 같은 어려운 표현을
+// 다 빼고 목표매출·현재매출·도달율 3가지만 간단히 보여주고, 대신 그날그날 흐름(전일·전주·전월 대비
+// 증감)을 붙여달라고 했다. 데이터 소스는 매출 탭의 스냅샷 비교 유틸(전일/전주/전월/작년 대비에 쓰는
+// findSnapshotNear·deltaLineMoney 등, 2885줄 부근)과 동일한 방식이되, 매장은 개별 매장명이 아니라
+// storeSalesGroup(resolveStoreName())으로 정규화한 대표 매장(합산 매장 포함) 기준으로 합산한다 —
+// goalsGroupMap이 월 단위로 하는 일을 여기서는 "하루" 단위로 한다.
+function goalsAllSalesDates(){
+  return Array.from(new Set([...STORE_SALES_HISTORY.map(h=>h.date), ...SALES_HISTORY.map(h=>h.date)])).sort();
+}
+function goalsStoreDateTotal(store, date){
+  const billSnap = STORE_SALES_HISTORY.find(h=>h.date===date);
+  let bill = 0, hasBill = false;
+  if(billSnap){
+    Object.keys(billSnap.byStore||{}).forEach(raw=>{
+      if(storeSalesGroup(resolveStoreName(raw))===store){ bill += billSnap.byStore[raw]; hasBill = true; }
+    });
+  }
+  let real = 0, hasReal = false;
+  const realSnap = SALES_HISTORY.find(h=>h.date===date);
+  if(realSnap){
+    Object.keys(realSnap.byStoreCat||{}).forEach(raw=>{
+      if(storeSalesGroup(resolveStoreName(raw))!==store) return;
+      Object.values(realSnap.byStoreCat[raw]).forEach(v=>{ real += v.amount||0; hasReal = true; });
+    });
+  }
+  // 청구금액(매장별 매출 업로드)이 있으면 그것을 우선한다 — monthStoreTotals와 동일한 우선순위.
+  if(hasBill && bill>0) return bill;
+  if(hasReal && real>0) return real;
+  if(hasBill) return bill;    // 0이라도 그날 업로드가 있었으면(휴무 등) 0으로 인정
+  if(hasReal) return real;
+  return null;                // 그 날짜 자체를 아예 찾지 못함
+}
+// 가장 최근 업로드 날짜를 기준으로, 전일(±1일)·전주(±2일)·전월 같은날(±5일) 값을 찾는다.
+// 정확히 그 날짜 데이터가 없으면 findSnapshotNear의 허용오차 안에서 가장 가까운 날짜로 대체한다
+// (매출 탭의 salesComparisonSnapshots와 같은 허용오차 규칙).
+function goalsStoreRecentDelta(store){
+  const dates = goalsAllSalesDates();
+  if(!dates.length) return null;
+  const latestDate = dates[dates.length-1];
+  const cur = goalsStoreDateTotal(store, latestDate);
+  if(cur==null) return null;
+  const latestD = parseYMD(latestDate);
+  const prior = dates.filter(d=>d<latestDate).map(d=>({date:d}));
+  const yest  = findSnapshotNear(prior, addDays(latestD,-1), 1);
+  const week  = findSnapshotNear(prior, addDays(latestD,-7), 2);
+  const month = findSnapshotNear(prior, oneMonthBefore(latestD), 5);
+  return {
+    date: latestDate, cur,
+    yest:  yest  ? goalsStoreDateTotal(store, yest.date)  : null,
+    week:  week  ? goalsStoreDateTotal(store, week.date)  : null,
+    month: month ? goalsStoreDateTotal(store, month.date) : null,
+  };
+}
+// 06탭의 goalsNarrative()를 그대로 쓰면 1번 문장에 "누적갭"(r.cum) 문구가 섞여 나온다 — 09탭은
+// 누적 표현을 전부 빼기로 했으므로, 1번 문장만 달성률·순위로 바꾼 09 전용 버전을 따로 둔다.
+// (goalsNarrative 자체는 06탭이 그대로 쓰고 있어 건드리지 않는다.)
+function goalsNarrative09(r, ctx){
+  const pp = n => (n>=0?"+":"")+n.toFixed(1)+"%p";
+  const s1 = `${ctx.mLbl(ctx.curMonth)} 달성률 <b>${r.pct.toFixed(1)}%</b>로 ${ctx.rows.length}개 매장 중 낮은 순 <b>${r.rank}위</b>(1위가 최하위).`;
+  const s2 = r.diag
+    ? `카테고리 구성은 전사 평균 대비 <b>${escHtml(r.diag.strength.cat)}</b>${goalsJosaIGa(r.diag.strength.cat)} ${pp(r.diag.strength.diff)}로 강점, <b>${escHtml(r.diag.opportunity.cat)}</b>${goalsJosaIGa(r.diag.opportunity.cat)} ${pp(r.diag.opportunity.diff)}로 기회(열위) 영역으로 진단됨.`
+    : `카테고리 매출 데이터가 없어 구성 진단 불가.`;
+  const s3 = `추세: ${goalsTrendPhrase(r.hist)}.`;
+  const s4 = goalsActionText(r.diag, ctx.effMap);
+  return `<div class="g-narr"><span class="sn">① ${s1}</span><span class="sn">② ${s2}</span><span class="sn">③ ${s3}</span><span class="sn">④ ${s4}</span></div>`;
+}
 function goalsRender09(ctx){
   try{ return goalsRender09Body(ctx); }
   catch(e){ return `<div class="g-tbl-sub" style="color:var(--red)">09 관리매장 요약을 만드는 중 오류가 났습니다: ${escHtml(String(e&&e.message||e))}<br>다른 탭은 정상 동작합니다 — 이 메시지를 그대로 알려주시면 고치겠습니다.</div>`; }
@@ -7353,23 +7420,24 @@ function goalsRender09Body(ctx){
     : "";
   const cards = list.map(r=>{
     const tier = goalsTier(r.pct);
-    const band = goalsIncentiveBand(r.dev);
     const gaugeColor = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--info)":tier.cls==="g-tier-warn"?"var(--amber)":"var(--red)";
-    const cumTxt = (r.cum && !r.cum.gap)
-      ? `${won(r.cum.actualCum)} / ${won(r.cum.targetCum)}원 (${r.cum.pct.toFixed(1)}%)`
-      : `결측으로 산출 제외`;
-    const cumDelta = (r.cum && !r.cum.gap)
-      ? `<span style="color:${r.cum.actualCum>=r.cum.targetCum?'var(--green)':'var(--red)'}">${r.cum.actualCum>=r.cum.targetCum?'+':'−'}${won(Math.abs(r.cum.actualCum-r.cum.targetCum))}원</span>`
-      : `<span style="color:var(--muted2)">${escHtml(ctx.missingMonths[r.store]||'-')}</span>`;
+    // 사용자 요청(2026-09-17): 누적 실적/목표·누적 격차·인센티브 구간 등은 다 빼고
+    // 목표매출·현재매출·도달율 3가지만 간단히 보여준다.
     const kpis = [
-      {k:"월 목표매출",     v:`<b style="color:var(--amber)">${won(r.target)}원</b>`},
-      {k:`${cm} 실적`,      v:`${won(r.actual)}원`},
-      {k:`${cm} 목표(일할·${r.activeDays}/${r.monthDays}일)`, v:`${won(r.proratedTarget)}원`},
-      {k:"목표 대비 편차",   v:`<span style="color:${r.dev>=0?'var(--green)':'var(--red)'}">${(r.dev>=0?'+':'')+(r.dev*100).toFixed(1)}%</span>`},
-      {k:"인센티브 구간",   v:escHtml(band.label)},
-      {k:`누적 실적 / 목표 (${ctx.months.length}개월)`, v:cumTxt, wide:true},
-      {k:"누적 격차",       v:cumDelta, wide:true},
+      {k:"목표매출",            v:`<b style="color:var(--amber)">${won(r.target)}원</b>`},
+      {k:`${cm} 현재매출`,      v:`${won(r.actual)}원`},
+      {k:"목표매출 대비 도달율", v:`<span style="color:${gaugeColor}">${r.pct.toFixed(1)}%</span>`, wide:true},
     ].map(x=>`<div class="g-kpi${x.wide?' wide':''}"><span class="k">${x.k}</span><span class="v">${x.v}</span></div>`).join("");
+    // 전일/전주/전월 대비 — 매일 매출이 어떻게 움직이는지 심플하게 보여준다.
+    const delta = goalsStoreRecentDelta(r.store);
+    const deltaHtml = delta
+      ? `<div class="g-store-catt" style="margin-top:10px;">최근 매출 흐름 (${escHtml(delta.date)} 기준 · 일별)</div>
+         <div style="margin-top:2px;">
+           ${deltaLineMoney("전일 대비", delta.cur, delta.yest)}
+           ${deltaLineMoney("전주 대비", delta.cur, delta.week)}
+           ${deltaLineMoney("전월 대비", delta.cur, delta.month)}
+         </div>`
+      : `<div class="g-tbl-sub" style="margin-top:10px;">일자별 매출 데이터가 부족해 전일·전주·전월 대비를 계산할 수 없습니다 — 매장별 매출(일자별) 파일을 여러 날짜 올리면 표시됩니다.</div>`;
     const catVisual = (r.diag && r.diag.chartData.length)
       ? `<div class="g-store-catcol">
            <div class="g-store-catt">카테고리 구성 (실매출액)</div>
@@ -7396,7 +7464,8 @@ function goalsRender09Body(ctx){
       <div class="g-kpi-grid">${kpis}</div>
       <div class="g-store-split">
         <div class="g-store-leftcol">
-          ${goalsNarrative(r, ctx)}
+          ${goalsNarrative09(r, ctx)}
+          ${deltaHtml}
           ${goalsMonthStripHtml(r.hist, ctx.curMonth)}
         </div>
         ${catVisual}
