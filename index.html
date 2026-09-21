@@ -172,6 +172,8 @@
   .store-btn:hover{background:var(--panel2);}
   .store-btn[aria-current="true"]{background:var(--raise);border-color:var(--amber);color:var(--text);}
   .store-btn .nm{flex:1;}
+  /* "전체"(전 매장 합산) 버튼 — 개별 매장과 구분되도록 이름을 앰버색으로 강조 (build 45, 2026-09-21) */
+  .store-btn.all-btn .nm{color:var(--amber);font-weight:700;}
   .badge{
     font-family:"JetBrains Mono";font-weight:700;font-size:12px;font-variant-numeric:tabular-nums;
     min-width:24px;text-align:center;padding:3px 7px;border-radius:999px;
@@ -770,7 +772,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 44 · 2026-09-15</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 45 · 2026-09-21</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -2883,7 +2885,27 @@ function renderSalesAgg(){
 }
 
 /* ================= 매출 스냅샷 공용 유틸 (전일/전주/전월/작년 대비, 기준일 선택 반영) ================= */
+// "매장별 매출 상세"에서 개별 매장이 아니라 전 매장 합산을 보고 싶을 때 고르는 가상의 매장 키.
+// STORES 목록에는 존재하지 않는 문자열이라 실제 매장명과 충돌하지 않는다(build 45, 2026-09-21 추가).
+const ALL_STORES_KEY = "전체";
+// byStoreCat({매장:{카테고리:{amount,qty}}}) 구조에서 특정 매장의 카테고리 맵을 꺼내되,
+// store가 ALL_STORES_KEY("전체")이면 등록된 모든 매장의 같은 카테고리를 합산해 돌려준다.
+// storeDayBill·renderSalesDetail·buildStoreDeepInsights 등 "매장별 매출 상세"의 모든 계산이
+// 이 함수 하나로 "개별 매장"과 "전체 합산"을 같은 코드 경로로 처리하게 한다.
+function storeCatsAny(byStoreCat, store){
+  if(store !== ALL_STORES_KEY) return (byStoreCat && byStoreCat[store]) || {};
+  const out = {};
+  Object.values(byStoreCat||{}).forEach(cats=>{
+    Object.keys(cats||{}).forEach(c=>{
+      if(!out[c]) out[c] = {amount:0, qty:0};
+      out[c].amount += (cats[c].amount||0);
+      out[c].qty += (cats[c].qty||0);
+    });
+  });
+  return out;
+}
 function salesStoreTotal(byStoreCat, store){
+  if(store === ALL_STORES_KEY) return salesGrandTotal(byStoreCat);
   const cats = (byStoreCat && byStoreCat[store]) || {};
   return Object.values(cats).reduce((a,v)=>a+v.amount, 0);
 }
@@ -3417,21 +3439,25 @@ function renderSalesInsights(){
 function storeDailySeries(store){
   return SALES_HISTORY.map(h=>salesStoreTotal(h.byStoreCat, store)).filter(v=>v>0);
 }
-function buildStoreDeepInsights(store, snaps){
-  const findings = [];
-  // 월 누적 보기일 땐 "전월 동기간(같은 일수)"과 비교해야 공평하다.
-  // (예: 8월 18일까지 누적 vs 7월 1~18일 누적 — 7월 한 달 총액과 비교하면 하락폭이 과장된다)
+// 매장별 매출 상세: 지금 화면의 표시 기준(하루/월 누적)에 맞춰 전일·전주·전월(또는 동기간) 비교값을 계산한다.
+// 월 누적 보기일 땐 "전월 동기간(같은 일수까지 누적)"과 비교해야 공평하다.
+// (예: 8월 31일까지 누적 vs 7월 한 달 전체 총액을 비교하면 격차가 과장된다)
+// buildStoreDeepInsights()의 서술형 분석과 "매출 요약 · 대비" 카드가 이 함수 하나를 같이 써서
+// 두 영역의 숫자·기준일이 항상 일치하도록 한다(예전엔 카드가 늘 "최신 하루" 값만 따로 계산해, 월 누적을
+// 보고 있어도 카드만 하루치 숫자를 보여주는 불일치가 있었다 — build 45, 2026-09-21 수정).
+function salesPeriodCompare(store, snaps){
   const dayOnly = (typeof selectedDetailDay!=="undefined" && selectedDetailDay!=="__all__");
   const upto = (typeof selectedSalesDate==="string" && selectedSalesDate) ? selectedSalesDate : snaps.latest.date;
   const shiftMonthStr = (d)=>{ const dt=parseYMD(d); dt.setMonth(dt.getMonth()-1); return fmtDate(dt); };
   const shiftDayStr = (d,n)=>{ const dt=parseYMD(d); dt.setDate(dt.getDate()-n); return fmtDate(dt); };
-  let cur, yest, week, month, monthLabel;
+  let cur, yest, week, month, monthLabel, dateLabel;
   if(dayOnly){
     cur  = salesStoreTotal(snaps.latest.byStoreCat, store);
     yest = snaps.yest ? salesStoreTotal(snaps.yest.byStoreCat, store) : null;
     week = snaps.week ? salesStoreTotal(snaps.week.byStoreCat, store) : null;
     month= snaps.month ? salesStoreTotal(snaps.month.byStoreCat, store) : null;
     monthLabel = '전월';
+    dateLabel = `${snaps.latest.date} 하루`;
   } else {
     // 월 누적: 현재 = 그 달 upto까지 누적, 전월 = 전월 같은 일자까지 누적(동기간)
     cur  = salesStoreTotal(cumulativeSalesMap(upto), store);
@@ -3441,7 +3467,14 @@ function buildStoreDeepInsights(store, snaps){
     week = wk ? salesStoreTotal(wk, store) : null;
     yest = null; // 누적 보기에서 전일 대비는 의미가 약해 생략
     monthLabel = '전월 동기간';
+    dateLabel = `${upto.slice(0,7)} 누적 (${upto}까지)`;
   }
+  return { cur, yest, week, month, monthLabel, dateLabel, dayOnly, upto };
+}
+function buildStoreDeepInsights(store, snaps){
+  const findings = [];
+  const pc = salesPeriodCompare(store, snaps);
+  const { cur, yest, week, month, monthLabel, dayOnly } = pc;
   const pct = (c,p) => (p && p>0) ? (c-p)/p*100 : null;
   const dPct = pct(cur,yest), wPct = pct(cur,week), mPct = pct(cur,month);
 
@@ -3468,8 +3501,8 @@ function buildStoreDeepInsights(store, snaps){
 
   // 2) 카테고리 드라이버 — 전일 대비 변화에 가장 크게 기여한 카테고리와 그에 맞는 해법 제안
   if(yest!==null){
-    const catsCur = snaps.latest.byStoreCat[store] || {};
-    const catsYest = (snaps.yest && snaps.yest.byStoreCat[store]) || {};
+    const catsCur = storeCatsAny(snaps.latest.byStoreCat, store);
+    const catsYest = snaps.yest ? storeCatsAny(snaps.yest.byStoreCat, store) : {};
     const catKeys = new Set([...Object.keys(catsCur), ...Object.keys(catsYest)]);
     const catDeltas = Array.from(catKeys).map(c=>({
       cat: c,
@@ -3492,8 +3525,8 @@ function buildStoreDeepInsights(store, snaps){
     }
   }
 
-  // 3) 공급(출고) 대비 매출 효율을 전체 매장 평균과 비교
-  const supply = storeShipTotal(store);
+  // 3) 공급(출고) 대비 매출 효율을 전체 매장 평균과 비교 ("전체"를 보고 있을 땐 그 자체가 평균이라 비교 대상이 없어 건너뜀)
+  const supply = store===ALL_STORES_KEY ? 0 : storeShipTotal(store);
   if(supply>0 && cur>0){
     const perPlt = cur/supply;
     const network = STORES.filter(s2=>storeShipTotal(s2)>0 && s2!==store)
@@ -3526,8 +3559,12 @@ function buildStoreDeepInsights(store, snaps){
   }
 
   // 5) 카테고리별 공급(출고) 대비 매출 — 적체(출고했는데 안 팔림)·공급부족(팔리는데 출고 없음) 이슈와 개선안
-  const salesCats = activeSalesMap()[store] || {};
-  const catRows = CATEGORIES.map(c=>({ cat:c, supply: planQty(store,c)+actualQty(store,c), sales: salesCats[c]?salesCats[c].amount:0 }));
+  const salesCats = storeCatsAny(activeSalesMap(), store);
+  const catRows = CATEGORIES.map(c=>({
+    cat:c,
+    supply: store===ALL_STORES_KEY ? STORES.reduce((a,s2)=>a+planQty(s2,c)+actualQty(s2,c),0) : planQty(store,c)+actualQty(store,c),
+    sales: salesCats[c]?salesCats[c].amount:0
+  }));
   const stagnant = catRows.filter(r=>r.supply>=3 && r.sales<=0).sort((a,b)=>b.supply-a.supply).slice(0,3);
   if(stagnant.length){
     const list = stagnant.map(r=>`${escHtml(r.cat)}(${Math.round(r.supply)}PLT)`).join(", ");
@@ -3594,7 +3631,19 @@ function renderSalesStoreList(){
       <span style="font-family:'JetBrains Mono';font-weight:700;color:var(--amber);font-size:13.5px;">${Math.round(grand).toLocaleString()}원</span>
     </div>
     <div style="font-size:9.5px;color:var(--muted2);font-family:'Oswald';letter-spacing:.04em;margin-top:1px;">전체 매장 합계</div>`;
-  if(!selectedSalesStore || !storesWithData.includes(selectedSalesStore)) selectedSalesStore = storesWithData[0] || null;
+  // "전체"를 이미 선택 중이면 그대로 유지하고, 그 외엔 기존 로직(목록에 없으면 첫 매장으로 폴백)을 그대로 따른다.
+  // → 기본 선택(맨 처음 진입 시)은 이전과 동일하게 storesWithData[0]이고, "전체"는 사용자가 직접 눌러야 선택된다.
+  if(!selectedSalesStore || (selectedSalesStore!==ALL_STORES_KEY && !storesWithData.includes(selectedSalesStore))){
+    selectedSalesStore = storesWithData[0] || null;
+  }
+  if(storesWithData.length){
+    const allBtn = document.createElement("button");
+    allBtn.className = "store-btn all-btn";
+    allBtn.setAttribute("aria-current", selectedSalesStore===ALL_STORES_KEY ? "true":"false");
+    allBtn.innerHTML = `<span class="nm">${ALL_STORES_KEY} (전 매장 합산)</span><span class="badge">${Math.round(grand).toLocaleString()}</span>`;
+    allBtn.onclick = ()=>{ selectedSalesStore = ALL_STORES_KEY; renderSalesStoreList(); renderSalesDetail(); };
+    el.appendChild(allBtn);
+  }
   storesWithData.slice().sort((a,b)=>(amt[b]||0)-(amt[a]||0)).forEach(s=>{
     const t = Math.round(amt[s]||0);
     const b = document.createElement("button");
@@ -3776,8 +3825,12 @@ function storeHourly(store){
   SALES_HISTORY.forEach(h=>{
     if(h.date.slice(0,7)!==month) return;
     if(selectedDetailDay!=="__all__" && h.date!==selectedDetailDay) return;
-    const sh = h.byStoreHour && h.byStoreHour[store]; if(!sh) return;
-    Object.keys(sh).forEach(hr=>{ if(!out[hr]) out[hr]={count:0,amount:0}; out[hr].count+=sh[hr].count; out[hr].amount+=sh[hr].amount; });
+    // "전체" 선택 시 모든 매장의 시간대별 집계를 합산한다.
+    const sources = store===ALL_STORES_KEY ? Object.values(h.byStoreHour||{}) : [h.byStoreHour && h.byStoreHour[store]];
+    sources.forEach(sh=>{
+      if(!sh) return;
+      Object.keys(sh).forEach(hr=>{ if(!out[hr]) out[hr]={count:0,amount:0}; out[hr].count+=sh[hr].count; out[hr].amount+=sh[hr].amount; });
+    });
   });
   return out;
 }
@@ -3877,6 +3930,10 @@ function renderSalesDetailCalendar(){
 function storeDayBill(s, dstr){
   const sc = SALES_HISTORY.find(h=>h.date===dstr);
   const bs = STORE_SALES_HISTORY.find(h=>h.date===dstr);
+  if(s === ALL_STORES_KEY){
+    if(bs) return Object.values(bs.byStore||{}).reduce((a,v)=>a+(v||0), 0);
+    return sc ? salesGrandTotal(sc.byStoreCat) : 0;
+  }
   const cats = (sc && sc.byStoreCat[s]) || {};
   if(bs && bs.byStore[s]!=null) return bs.byStore[s];
   return Object.values(cats).reduce((a,v)=>a+v.amount,0);
@@ -3952,12 +4009,15 @@ function renderSalesDetail(){
   if(dayMode){
     const sc = SALES_HISTORY.find(h=>h.date===selectedDetailDay);
     const bs = STORE_SALES_HISTORY.find(h=>h.date===selectedDetailDay);
-    cats = (sc && sc.byStoreCat[s]) || {};
-    const dayBill = bs && bs.byStore[s]!=null ? bs.byStore[s] : Object.values(cats).reduce((a,v)=>a+v.amount,0);
+    cats = storeCatsAny(sc && sc.byStoreCat, s);
+    const dayBill = s===ALL_STORES_KEY
+      ? (bs ? Object.values(bs.byStore||{}).reduce((a,v)=>a+(v||0),0) : Object.values(cats).reduce((a,v)=>a+v.amount,0))
+      : (bs && bs.byStore[s]!=null ? bs.byStore[s] : Object.values(cats).reduce((a,v)=>a+v.amount,0));
     amt = { [s]: dayBill };
   } else {
-    amt = storeSalesActiveMap().map;
-    cats = activeSalesMap()[s] || {};
+    const rawAmt = storeSalesActiveMap().map;
+    amt = s===ALL_STORES_KEY ? { [s]: Object.values(rawAmt).reduce((a,v)=>a+(v||0),0) } : rawAmt;
+    cats = storeCatsAny(activeSalesMap(), s);
   }
   const rawData = Object.keys(cats).map(c=>({label:c, value:cats[c].amount, qty:cats[c].qty})).sort((a,b)=>b.value-a.value);
   const hasCats = rawData.length>0;
@@ -3984,13 +4044,19 @@ function renderSalesDetail(){
     : `<p class="trend-empty">카테고리별 구성을 보려면 <b>카테고리별 매출 업로드</b>로 상품별 매출 파일을 올리세요.</p>`;
   let cardHtml = "";
   if(snaps){
-    const dcur = salesStoreTotal(snaps.latest.byStoreCat, s);
-    const card = statCard(`${s} · ${snaps.latest.date} 하루 (상품별 기준)`, Math.round(dcur).toLocaleString(), [
-      deltaLineMoney("전일 대비", dcur, snaps.yest ? salesStoreTotal(snaps.yest.byStoreCat, s) : null),
-      deltaLineMoney("전주 대비", dcur, snaps.week ? salesStoreTotal(snaps.week.byStoreCat, s) : null),
-      deltaLineMoney("전월 대비", dcur, snaps.month ? salesStoreTotal(snaps.month.byStoreCat, s) : null),
-      deltaLineMoney("작년 대비", dcur, snaps.year ? salesStoreTotal(snaps.year.byStoreCat, s) : null)
-    ]);
+    // 화면이 지금 "월 누적"을 보여주고 있으면 카드도 누적 기준으로, "하루"를 보여주고 있으면 하루 기준으로.
+    // (전에는 이 카드만 항상 "최신 하루" 값을 따로 계산해, 월 누적을 보고 있어도 카드엔 하루치가 찍혔다.)
+    const pc = salesPeriodCompare(s, snaps);
+    const lines = pc.dayOnly ? [
+      deltaLineMoney("전일 대비", pc.cur, pc.yest),
+      deltaLineMoney("전주 대비", pc.cur, pc.week),
+      deltaLineMoney("전월 대비", pc.cur, pc.month),
+      deltaLineMoney("작년 대비", pc.cur, snaps.year ? salesStoreTotal(snaps.year.byStoreCat, s) : null)
+    ] : [
+      deltaLineMoney("전주 대비 (동기간)", pc.cur, pc.week),
+      deltaLineMoney(`${pc.monthLabel} 대비`, pc.cur, pc.month)
+    ];
+    const card = statCard(`${s} · ${pc.dateLabel} (상품별 기준)`, Math.round(pc.cur).toLocaleString(), lines);
     cardHtml = `<div class="stat-row">${card}</div>`;
   }
   const insightsHtml = snaps ? renderStoreDeepInsights(s, snaps)
