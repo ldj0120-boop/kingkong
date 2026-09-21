@@ -772,7 +772,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 45 · 2026-09-21</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 46 · 2026-09-22</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1074,6 +1074,7 @@
       <button class="gsub-tab" data-gsub="07" role="tab">07 매장별 월별 추이</button>
       <button class="gsub-tab" data-gsub="08" role="tab">08 매장 진단 (공급×매출)</button>
       <button class="gsub-tab" data-gsub="09" role="tab">09 관리매장 매출요약</button>
+      <button class="gsub-tab" data-gsub="10" role="tab">10 공급계획(PLT) 진단</button>
     </div>
 
     <div class="gsub-panel" id="gsub-01">
@@ -1163,6 +1164,16 @@
           <span class="meta" id="goals09Meta"></span>
         </div>
         <div class="agg-scroll" id="goals09Wrap"></div>
+      </div>
+    </div>
+
+    <div class="gsub-panel" id="gsub-10" hidden>
+      <div class="agg-card">
+        <div class="p-hd">
+          <span class="store-name">10 공급계획(PLT) 진단</span>
+          <span class="meta" id="goals10Meta"></span>
+        </div>
+        <div class="agg-scroll" id="goals10Wrap"></div>
       </div>
     </div>
   </section>
@@ -5631,6 +5642,567 @@ function storeStateBadge(s, ym){
   return null;
 }
 
+
+/* ================= 매장별 운영 종합계획 — 공급(PLT) 기반 기대매출 (2026-09-22 업로드분) =========
+   목적 — 02~09 시트는 회사가 정한 월 목표매출(STORE_MONTHLY_TARGETS) 하나만 기준으로 삼는다.
+   이 블록은 사용자가 별도로 만든 "매장별 운영 종합계획" 엑셀(카테고리별 PLT 공급계획 × 단가 ×
+   전환율 = 그 매장이 "현실적으로 받을 물량만으로" 만들 수 있는 매출)을 **두 번째 기준**으로 더한다.
+   → 10번 탭에서 회사 목표매출과 나란히 놓고, 그 각각에 대해 "지금까지 실제로 얼마나 왔는지"를 보여준다.
+
+   ⚠ 카테고리 이름 불일치 주의: 이 계획표의 카테고리(상온·신선·XLA~XLS 9종)는 매출/출고 원장의
+   실제 카테고리(대형가구·대형가전·사입·임박·FC파손 등)와 코드 체계가 다르다("상온"은 사이트의
+   여러 상온 카테고리를 하나로 묶은 계획값). 그래서 카테고리별 1:1 대조는 하지 않고,
+   **매장 단위 총PLT·총 기대매출**로만 "공급목표 대비 도달율"·"기대매출 대비 도달율"을 계산한다.
+
+   데이터 출처: 사용자가 업로드한 "매장별_운영_종합계획 최종본.xlsx"의 "통합입력" 시트
+   (요약 시트와 일치하는 버전 — 같은 파일의 "통합입력 (2)" 시트는 XLC 물량을 늘린 대안 시나리오로
+   보이며 요약 시트에는 반영되지 않아 이번 탭에는 쓰지 않았다. 필요하면 알려주면 반영을 바꿀 수 있다).
+   매장명 표기 차이는 여기서 한 번만 흡수했다: 광주경안점→경안점, 서귀포점→제주서귀포점,
+   패션관기흥점→기흥 패션관 (나머지는 STORE_MONTHLY_TARGETS 표기와 그대로 일치, 회사 목표매출 금액도
+   전부 확인 완료). 대소점은 이 계획표에 비식품 카테고리 입력이 없어 계획 PLT·기대매출이 0이다. */
+const SUPPLY_PLAN_PARAMS = {
+  "상온": { price: 2100000, conv: 0.50, note: "냉장·냉동이 아닌 상온 취급 카테고리 전체를 묶은 값 — 사이트 출고 원장의 개별 코드(대형가구·대형가전·사입 등)와 1:1로 대응하지 않음" },
+  "신선": { price: 2180000, conv: 0.40, note: "신선식품(냉장·냉동). 일별 PLT × 월환산일수 30일" },
+  "XLA":  { price: 1500000, conv: 0.32 },
+  "XLB":  { price: 6000000, conv: 0.35 },
+  "XLC":  { price: 7500000, conv: 0.32 },
+  "XLK":  { price: 7200000, conv: 0.60 },
+  "XLW":  { price: 1300000, conv: 0.35 },
+  "XLG":  { price: 1100000, conv: 0.40 },
+  "XLS":  { price: 380000,  conv: 0.50 },
+};
+const SUPPLY_PLAN = {
+  "용인점": {
+    "src": "용인점",
+    "plt": {
+      "상온": 27,
+      "신선": 300,
+      "XLA": 65,
+      "XLB": 45,
+      "XLC": 30,
+      "XLK": 15,
+      "XLW": 12,
+      "XLG": 45,
+      "XLS": 18
+    },
+    "target": {
+      "상온": 28350000,
+      "신선": 261600000,
+      "XLA": 31200000,
+      "XLB": 94500000,
+      "XLC": 72000000,
+      "XLK": 64800000,
+      "XLW": 5460000,
+      "XLG": 19800000,
+      "XLS": 3420000
+    },
+    "opTotal": 581130000,
+    "companyTarget": 650000000
+  },
+  "인천점": {
+    "src": "인천점",
+    "plt": {
+      "상온": 27,
+      "신선": 300,
+      "XLA": 50,
+      "XLB": 45,
+      "XLC": 27,
+      "XLK": 12,
+      "XLW": 8,
+      "XLG": 45,
+      "XLS": 18
+    },
+    "target": {
+      "상온": 28350000,
+      "신선": 261600000,
+      "XLA": 24000000,
+      "XLB": 94500000,
+      "XLC": 64800000,
+      "XLK": 51840000,
+      "XLW": 3640000,
+      "XLG": 19800000,
+      "XLS": 3420000
+    },
+    "opTotal": 551950000,
+    "companyTarget": 520000000
+  },
+  "이천점": {
+    "src": "이천점",
+    "plt": {
+      "상온": 27,
+      "신선": 240,
+      "XLA": 42,
+      "XLB": 40,
+      "XLC": 24,
+      "XLK": 10,
+      "XLW": 8,
+      "XLG": 45,
+      "XLS": 18
+    },
+    "target": {
+      "상온": 28350000,
+      "신선": 209280000,
+      "XLA": 20160000,
+      "XLB": 84000000,
+      "XLC": 57600000,
+      "XLK": 43200000,
+      "XLW": 3640000,
+      "XLG": 19800000,
+      "XLS": 3420000
+    },
+    "opTotal": 469450000,
+    "companyTarget": 420000000
+  },
+  "기흥점": {
+    "src": "기흥점",
+    "plt": {
+      "상온": 27,
+      "신선": 240,
+      "XLA": 20,
+      "XLB": 25,
+      "XLC": 21,
+      "XLG": 45,
+      "XLS": 18
+    },
+    "target": {
+      "상온": 28350000,
+      "신선": 209280000,
+      "XLA": 9600000,
+      "XLB": 52500000,
+      "XLC": 50400000,
+      "XLG": 19800000,
+      "XLS": 3420000
+    },
+    "opTotal": 373350000,
+    "companyTarget": 400000000
+  },
+  "경안점": {
+    "src": "광주경안점",
+    "plt": {
+      "상온": 18,
+      "신선": 120,
+      "XLA": 30,
+      "XLB": 35,
+      "XLC": 16.8,
+      "XLK": 7,
+      "XLG": 25,
+      "XLS": 9
+    },
+    "target": {
+      "상온": 18900000,
+      "신선": 104640000,
+      "XLA": 14400000,
+      "XLB": 73500000,
+      "XLC": 40320000,
+      "XLK": 30240000,
+      "XLG": 11000000,
+      "XLS": 1710000
+    },
+    "opTotal": 294710000,
+    "companyTarget": 300000000
+  },
+  "김포점": {
+    "src": "김포점",
+    "plt": {
+      "상온": 18,
+      "신선": 180,
+      "XLA": 15,
+      "XLB": 12,
+      "XLC": 9,
+      "XLK": 6,
+      "XLG": 25,
+      "XLS": 9
+    },
+    "target": {
+      "상온": 18900000,
+      "신선": 156960000,
+      "XLA": 7200000,
+      "XLB": 25200000,
+      "XLC": 21600000,
+      "XLK": 25920000,
+      "XLG": 11000000,
+      "XLS": 1710000
+    },
+    "opTotal": 268490000,
+    "companyTarget": 250000000
+  },
+  "안중점": {
+    "src": "안중점",
+    "plt": {
+      "상온": 18,
+      "신선": 90,
+      "XLA": 20,
+      "XLB": 30,
+      "XLC": 16.8,
+      "XLK": 6,
+      "XLW": 8,
+      "XLG": 25,
+      "XLS": 9
+    },
+    "target": {
+      "상온": 18900000,
+      "신선": 78480000,
+      "XLA": 9600000,
+      "XLB": 63000000,
+      "XLC": 40320000,
+      "XLK": 25920000,
+      "XLW": 3640000,
+      "XLG": 11000000,
+      "XLS": 1710000
+    },
+    "opTotal": 252570000,
+    "companyTarget": 250000000
+  },
+  "청주점": {
+    "src": "청주점",
+    "plt": {
+      "상온": 18,
+      "신선": 90,
+      "XLA": 18,
+      "XLB": 22,
+      "XLC": 16.8,
+      "XLK": 6,
+      "XLG": 25,
+      "XLS": 9
+    },
+    "target": {
+      "상온": 18900000,
+      "신선": 78480000,
+      "XLA": 8640000,
+      "XLB": 46200000,
+      "XLC": 40320000,
+      "XLK": 25920000,
+      "XLG": 11000000,
+      "XLS": 1710000
+    },
+    "opTotal": 231170000,
+    "companyTarget": 230000000
+  },
+  "평택점": {
+    "src": "평택점",
+    "plt": {
+      "상온": 18,
+      "신선": 90,
+      "XLA": 20,
+      "XLB": 20,
+      "XLC": 14.4,
+      "XLK": 4,
+      "XLG": 25,
+      "XLS": 9
+    },
+    "target": {
+      "상온": 18900000,
+      "신선": 78480000,
+      "XLA": 9600000,
+      "XLB": 42000000,
+      "XLC": 34560000,
+      "XLK": 17280000,
+      "XLG": 11000000,
+      "XLS": 1710000
+    },
+    "opTotal": 213530000,
+    "companyTarget": 210000000
+  },
+  "김해점": {
+    "src": "김해점",
+    "plt": {
+      "상온": 18,
+      "신선": 90,
+      "XLA": 20,
+      "XLB": 19,
+      "XLC": 12,
+      "XLK": 4,
+      "XLG": 25,
+      "XLS": 9
+    },
+    "target": {
+      "상온": 18900000,
+      "신선": 78480000,
+      "XLA": 9600000,
+      "XLB": 39900000,
+      "XLC": 28800000,
+      "XLK": 17280000,
+      "XLG": 11000000,
+      "XLS": 1710000
+    },
+    "opTotal": 205670000,
+    "companyTarget": 200000000
+  },
+  "양주점": {
+    "src": "양주점",
+    "plt": {
+      "상온": 18,
+      "신선": 75,
+      "XLA": 18,
+      "XLB": 19,
+      "XLC": 14.4,
+      "XLK": 4,
+      "XLG": 25,
+      "XLS": 9
+    },
+    "target": {
+      "상온": 18900000,
+      "신선": 65400000,
+      "XLA": 8640000,
+      "XLB": 39900000,
+      "XLC": 34560000,
+      "XLK": 17280000,
+      "XLG": 11000000,
+      "XLS": 1710000
+    },
+    "opTotal": 197390000,
+    "companyTarget": 200000000
+  },
+  "충주점": {
+    "src": "충주점",
+    "plt": {
+      "상온": 60,
+      "XLA": 25,
+      "XLB": 24,
+      "XLC": 14.4,
+      "XLK": 6,
+      "XLW": 16,
+      "XLG": 25,
+      "XLS": 9
+    },
+    "target": {
+      "상온": 63000000,
+      "XLA": 12000000,
+      "XLB": 50400000,
+      "XLC": 34560000,
+      "XLK": 25920000,
+      "XLW": 7280000,
+      "XLG": 11000000,
+      "XLS": 1710000
+    },
+    "opTotal": 205870000,
+    "companyTarget": 200000000
+  },
+  "수원점": {
+    "src": "수원점",
+    "plt": {
+      "상온": 18,
+      "신선": 150,
+      "XLB": 14,
+      "XLC": 6.6,
+      "XLG": 25,
+      "XLS": 9
+    },
+    "target": {
+      "상온": 18900000,
+      "신선": 130800000,
+      "XLB": 29400000,
+      "XLC": 15840000,
+      "XLG": 11000000,
+      "XLS": 1710000
+    },
+    "opTotal": 207650000,
+    "companyTarget": 200000000
+  },
+  "아산점": {
+    "src": "아산점",
+    "plt": {
+      "상온": 18,
+      "신선": 90,
+      "XLA": 20,
+      "XLB": 19,
+      "XLC": 11.4,
+      "XLK": 5,
+      "XLG": 25,
+      "XLS": 9
+    },
+    "target": {
+      "상온": 18900000,
+      "신선": 78480000,
+      "XLA": 9600000,
+      "XLB": 39900000,
+      "XLC": 27360000,
+      "XLK": 21600000,
+      "XLG": 11000000,
+      "XLS": 1710000
+    },
+    "opTotal": 208550000,
+    "companyTarget": 200000000
+  },
+  "천안점": {
+    "src": "천안점",
+    "plt": {
+      "상온": 45,
+      "XLA": 20,
+      "XLB": 18,
+      "XLC": 12,
+      "XLK": 4,
+      "XLW": 2,
+      "XLG": 25,
+      "XLS": 9
+    },
+    "target": {
+      "상온": 47250000,
+      "XLA": 9600000,
+      "XLB": 37800000,
+      "XLC": 28800000,
+      "XLK": 17280000,
+      "XLW": 910000,
+      "XLG": 11000000,
+      "XLS": 1710000
+    },
+    "opTotal": 154350000,
+    "companyTarget": 150000000
+  },
+  "원주점": {
+    "src": "원주점",
+    "plt": {
+      "상온": 45,
+      "XLA": 25,
+      "XLB": 16,
+      "XLC": 9.6,
+      "XLK": 4,
+      "XLW": 20,
+      "XLG": 25,
+      "XLS": 9
+    },
+    "target": {
+      "상온": 47250000,
+      "XLA": 12000000,
+      "XLB": 33600000,
+      "XLC": 23040000,
+      "XLK": 17280000,
+      "XLW": 9100000,
+      "XLG": 11000000,
+      "XLS": 1710000
+    },
+    "opTotal": 154980000,
+    "companyTarget": 150000000
+  },
+  "제주서귀포점": {
+    "src": "서귀포점",
+    "plt": {
+      "상온": 36,
+      "XLA": 20,
+      "XLB": 20,
+      "XLC": 9,
+      "XLK": 4,
+      "XLW": 20,
+      "XLG": 25
+    },
+    "target": {
+      "상온": 37800000,
+      "XLA": 9600000,
+      "XLB": 42000000,
+      "XLC": 21600000,
+      "XLK": 17280000,
+      "XLW": 9100000,
+      "XLG": 11000000
+    },
+    "opTotal": 148380000,
+    "companyTarget": 150000000
+  },
+  "남양주점": {
+    "src": "남양주점",
+    "plt": {
+      "상온": 18,
+      "신선": 15,
+      "XLA": 26,
+      "XLB": 11,
+      "XLC": 7.2,
+      "XLK": 4,
+      "XLW": 20,
+      "XLG": 25,
+      "XLS": 9
+    },
+    "target": {
+      "상온": 18900000,
+      "신선": 13080000,
+      "XLA": 12480000,
+      "XLB": 23100000,
+      "XLC": 17280000,
+      "XLK": 17280000,
+      "XLW": 9100000,
+      "XLG": 11000000,
+      "XLS": 1710000
+    },
+    "opTotal": 123930000,
+    "companyTarget": 130000000
+  },
+  "제주점": {
+    "src": "제주점",
+    "plt": {
+      "상온": 18,
+      "신선": 15,
+      "XLB": 10,
+      "XLC": 6.6,
+      "XLG": 25
+    },
+    "target": {
+      "상온": 18900000,
+      "신선": 13080000,
+      "XLB": 21000000,
+      "XLC": 15840000,
+      "XLG": 11000000
+    },
+    "opTotal": 79820000,
+    "companyTarget": 80000000
+  },
+  "대소점": {
+    "src": "대소점",
+    "plt": {},
+    "target": {},
+    "opTotal": 0,
+    "companyTarget": 70000000
+  },
+  "기흥 패션관": {
+    "src": "패션관기흥점",
+    "plt": {
+      "XLK": 10,
+      "XLW": 45
+    },
+    "target": {
+      "XLK": 43200000,
+      "XLW": 20475000
+    },
+    "opTotal": 63675000,
+    "companyTarget": 60000000
+  },
+  "패션관광주점": {
+    "src": "패션관광주점",
+    "plt": {
+      "XLC": 12
+    },
+    "target": {
+      "XLC": 28800000
+    },
+    "opTotal": 28800000,
+    "companyTarget": 50000000
+  }
+};
+// 매장(그룹) 단위로 계획 대비 실제(이번 달) 를 계산한다. diagBuild(ctx).stores 는 ctx.rows 와
+// 정확히 같은 순서로 만들어지므로(둘 다 ctx.rows.map 결과) 인덱스로 1:1 대응시켜 재사용한다
+// — "08 매장 진단"이 이미 검증해 둔 이번 달 실제 출고 PLT·실제 매출 계산을 새로 만들지 않는다.
+function goalsSupplyPlanRows(ctx){
+  const D = diagBuild(ctx);
+  // 진행 중인 마지막 달이면 경과일 비례로 계획을 잘라 "지금까지 도달율"을 공정하게 비교한다.
+  // (계획표 자체는 월 총량이라 달이 몇 개월치든 항상 같은 값 — 기간 누적 모드나 과거 달에서는 자르지 않는다)
+  const prorate = (ctx.isLatest && !ctx.isRange && ctx.daysInMonth>0) ? ctx.elapsedDays/ctx.daysInMonth : 1;
+  const rows = ctx.rows.map((r,i)=>{
+    const plan = SUPPLY_PLAN[r.store];
+    const d = D.stores[i];
+    const actualPLT = d ? d.t : 0;
+    const actualRevenue = d ? d.rev : (r.actual||0);
+    if(!plan){
+      return { store:r.store, label:r.label, r, plan:null, actualPLT, actualRevenue };
+    }
+    const planPLT = Object.values(plan.plt).reduce((a,v)=>a+v,0);
+    const planRevenue = plan.opTotal;
+    const planPLTProrated = planPLT * prorate;
+    const planRevenueProrated = planRevenue * prorate;
+    const pltPct = planPLTProrated>0 ? actualPLT/planPLTProrated*100 : null;
+    const revPct = planRevenueProrated>0 ? actualRevenue/planRevenueProrated*100 : null;
+    return { store:r.store, label:r.label, r, plan, planPLT, planPLTProrated, planRevenue, planRevenueProrated,
+             actualPLT, actualRevenue, pltPct, revPct, companyPct:r.pct };
+  });
+  return { rows, prorate, elapsedDays:ctx.elapsedDays, daysInMonth:ctx.daysInMonth };
+}
+
 /* ================= 2026년 공휴일 (예상매출 계산용) =================
    음력 공휴일(설날·부처님오신날·추석)은 이 세션에서 음력 변환으로 계산했다:
      설날 2026-02-17(화) · 부처님오신날 2026-05-24(일) · 추석 2026-09-25(금)
@@ -7476,9 +8048,98 @@ function goalsRender09Body(ctx){
   return kpi + missNote + `<div class="g-store-list" style="margin-top:14px">${cards}</div>`;
 }
 
+/* ---------------- 10 공급계획(PLT) 대비 진단 ---------------- */
+function goalsRender10(ctx){
+  try{ return goalsRender10Body(ctx); }
+  catch(e){ return `<div class="g-tbl-sub" style="color:var(--red)">10 공급계획 진단을 만드는 중 오류가 났습니다: ${escHtml(String(e&&e.message||e))}<br>다른 탭은 정상 동작합니다 — 이 메시지를 그대로 알려주시면 고치겠습니다.</div>`; }
+}
+function goalsRender10Body(ctx){
+  const won = v => Math.round(v).toLocaleString();
+  const eok = v => (v/1e8).toFixed(2)+"억";
+  const cm = ctx.mLbl(ctx.curMonth);
+  const P = goalsSupplyPlanRows(ctx);
+  const have = P.rows.filter(x=>x.plan);
+  const missing = P.rows.filter(x=>!x.plan);
+  const pctColor = p => p==null ? "var(--muted2)" : p>=100 ? "var(--green)" : p>=80 ? "var(--info)" : p>=60 ? "var(--amber)" : "var(--red)";
+  const pctTxt = p => p==null ? "계획 없음" : `${p.toFixed(1)}%`;
+  const sumPlanPLT = have.reduce((a,x)=>a+x.planPLTProrated,0);
+  const sumActualPLT = have.reduce((a,x)=>a+x.actualPLT,0);
+  const sumPlanRev = have.reduce((a,x)=>a+x.planRevenueProrated,0);
+  const sumActualRev = have.reduce((a,x)=>a+x.actualRevenue,0);
+  const sumOpTotal = have.reduce((a,x)=>a+x.planRevenue,0);
+  const sumCompanyTarget = have.reduce((a,x)=>a+x.r.target,0);
+  const sumPltPct = sumPlanPLT>0 ? sumActualPLT/sumPlanPLT*100 : null;
+  const sumRevPct = sumPlanRev>0 ? sumActualRev/sumPlanRev*100 : null;
+  const prorateNote = (P.prorate<1)
+    ? `진행 중인 달이라 계획을 경과일 비례로 잘라서(${ctx.elapsedDays}/${ctx.daysInMonth}일 = ${(P.prorate*100).toFixed(0)}%) 비교합니다.`
+    : `이 달은 이미 끝났거나 기간 누적 모드라 계획(월 총량)을 그대로 비교합니다.`;
+  const kpi = `
+    <div class="g-kpis">
+      <div class="g-kpi"><div class="v">${eok(sumOpTotal)}</div><div class="l">공급계획 기반 기대매출 합계(월, 회사목표 ${eok(sumCompanyTarget)} 대비 ${sumCompanyTarget>0?(sumOpTotal/sumCompanyTarget*100).toFixed(1):'-'}%)</div></div>
+      <div class="g-kpi"><div class="v" style="color:${pctColor(sumPltPct)}">${pctTxt(sumPltPct)}</div><div class="l">공급목표(PLT) 대비 ${cm} 도달율 · ${Math.round(sumActualPLT).toLocaleString()} / ${Math.round(sumPlanPLT).toLocaleString()} PLT</div></div>
+      <div class="g-kpi"><div class="v" style="color:${pctColor(sumRevPct)}">${pctTxt(sumRevPct)}</div><div class="l">기대매출 대비 ${cm} 실제매출 도달율 · ${won(sumActualRev)} / ${won(sumPlanRev)}원</div></div>
+      <div class="g-kpi"><div class="v">${have.length}곳</div><div class="l">계획 반영 매장 수${missing.length?` (계획 없음 ${missing.length}곳)`:""}</div></div>
+    </div>`;
+  const missNote = missing.length
+    ? `<div class="g-tbl-sub" style="color:var(--amber)">공급계획 데이터가 없는 매장: ${escHtml(missing.map(x=>x.label).join(', '))}</div>` : "";
+  const sorted = have.slice().sort((a,b)=>{
+    const av = a.revPct==null?-1:a.revPct, bv = b.revPct==null?-1:b.revPct; return av-bv;
+  });
+  const body = sorted.map(x=>`<tr>
+      <td>${escHtml(x.label)}</td>
+      <td><span class="num">${x.planPLT.toLocaleString(undefined,{maximumFractionDigits:1})}</span></td>
+      <td><span class="num">${x.actualPLT.toLocaleString(undefined,{maximumFractionDigits:1})}</span></td>
+      <td style="color:${pctColor(x.pltPct)}"><span class="num">${pctTxt(x.pltPct)}</span></td>
+      <td><span class="num">${won(x.planRevenue)}</span></td>
+      <td><span class="num">${won(x.actualRevenue)}</span></td>
+      <td style="color:${pctColor(x.revPct)}"><span class="num">${pctTxt(x.revPct)}</span></td>
+      <td><span class="num">${won(x.r.target)}</span></td>
+      <td style="color:${pctColor(x.companyPct)}"><span class="num">${x.companyPct.toFixed(1)}%</span></td>
+    </tr>`).join("");
+  const table = `
+    <div class="g-tbl-title">매장별 공급계획(PLT) 대비 ${cm} 도달 현황 — 기대매출 도달율 낮은 순</div>
+    <div class="g-tbl-sub">계획 PLT·기대매출은 "매장별 운영 종합계획" 엑셀(카테고리별 PLT × 단가 × 전환율)에서 온 값입니다. ${prorateNote} 실제 출고 PLT·실제 매출은 08탭과 동일한 이번 달 실적을 재사용합니다(카테고리 코드 체계가 달라 매장 총량 기준으로만 비교).</div>
+    <div class="tblbox"><table class="g-tbl">
+      <thead><tr>
+        <th>매장</th><th>계획 총PLT(월)</th><th>실제 출고PLT(${cm})</th><th>공급 도달율</th>
+        <th>기대매출(공급기반, 월)</th><th>실제 매출(${cm})</th><th>기대매출 도달율</th>
+        <th>회사 목표매출(월)</th><th>회사목표 도달율</th>
+      </tr></thead>
+      <tbody>${body}</tbody>
+      <tfoot><tr>
+        <td>전사 합계</td>
+        <td><span class="num">${Math.round(sumPlanPLT/(P.prorate||1)).toLocaleString()}</span></td>
+        <td><span class="num">${Math.round(sumActualPLT).toLocaleString()}</span></td>
+        <td style="color:${pctColor(sumPltPct)}"><span class="num">${pctTxt(sumPltPct)}</span></td>
+        <td><span class="num">${won(sumOpTotal)}</span></td>
+        <td><span class="num">${won(sumActualRev)}</span></td>
+        <td style="color:${pctColor(sumRevPct)}"><span class="num">${pctTxt(sumRevPct)}</span></td>
+        <td><span class="num">${won(sumCompanyTarget)}</span></td>
+        <td></td>
+      </tr></tfoot>
+    </table></div>`;
+  const paramRows = Object.keys(SUPPLY_PLAN_PARAMS).map(c=>{
+    const p = SUPPLY_PLAN_PARAMS[c];
+    return `<tr><td>${escHtml(c)}</td><td><span class="num">${won(p.price)}</span></td><td><span class="num">${(p.conv*100).toFixed(0)}%</span></td><td>${escHtml(p.note||"")}</td></tr>`;
+  }).join("");
+  const detailRows = sorted.map(x=>{
+    const cats = Object.keys(x.plan.plt);
+    const cells = cats.map(c=>`<tr><td>${escHtml(c)}</td><td><span class="num">${x.plan.plt[c].toLocaleString(undefined,{maximumFractionDigits:1})}</span></td><td><span class="num">${won(x.plan.target[c])}</span></td></tr>`).join("");
+    return `<details class="g-store-more"><summary>${escHtml(x.label)} — 카테고리별 계획 PLT · 기대매출 (원본 표기 "${escHtml(x.plan.src||x.store)}")</summary>
+      <div class="tblbox"><table class="g-tbl"><thead><tr><th>카테고리</th><th>계획 PLT(월)</th><th>기대매출(월)</th></tr></thead><tbody>${cells}</tbody></table></div>
+    </details>`;
+  }).join("");
+  const ref = `
+    <div class="g-tbl-title" style="margin-top:18px">참고 — 카테고리별 단가 · 전환율 (계획표 산출 기준)</div>
+    <div class="tblbox"><table class="g-tbl"><thead><tr><th>카테고리</th><th>PLT당 단가</th><th>전환율</th><th>비고</th></tr></thead><tbody>${paramRows}</tbody></table></div>
+    <div class="g-tbl-title" style="margin-top:18px">매장별 계획 상세 (카테고리별 PLT·기대매출)</div>
+    <div class="g-store-list" style="margin-top:8px">${detailRows}</div>`;
+  return kpi + missNote + table + ref;
+}
+
 /* ---------------- 서브탭 전환 ---------------- */
 let goalsSubTab = "01";
-const GOALS_SUB_KEYS = ["01","02","03","04","05","06","07","08","09"];
+const GOALS_SUB_KEYS = ["01","02","03","04","05","06","07","08","09","10"];
 function selectGoalsSub(key){
   if(GOALS_SUB_KEYS.indexOf(key) < 0) return;
   goalsSubTab = key;
@@ -7515,6 +8176,7 @@ function renderGoals(){
     "07": document.getElementById("goals07Wrap"),
     "08": document.getElementById("goals08Wrap"),
     "09": document.getElementById("goals09Wrap"),
+    "10": document.getElementById("goals10Wrap"),
   };
   const metas = {
     "01": document.getElementById("goalsSummaryMeta"),
@@ -7526,6 +8188,7 @@ function renderGoals(){
     "07": document.getElementById("goals07Meta"),
     "08": document.getElementById("goals08Meta"),
     "09": document.getElementById("goals09Meta"),
+    "10": document.getElementById("goals10Meta"),
   };
   if(!panels["01"] || !panels["06"]) return;
   wireGoalsSubTabs();
@@ -7551,6 +8214,7 @@ function renderGoals(){
   panels["07"].innerHTML = goalsRender07(ctx);
   panels["08"].innerHTML = goalsRender08(ctx);
   panels["09"].innerHTML = goalsRender09(ctx);
+  panels["10"].innerHTML = goalsRender10(ctx);
   if(metas["01"]) metas["01"].textContent = base;
   if(metas["02"]) metas["02"].textContent = `${base} · 달성률 낮은 순(1위=최하위)`;
   if(metas["03"]) metas["03"].textContent = `집계 기간 ${ctx.scopeLabel} · 실매출액 기준 · 카테고리 ${ctx.cats.length}종 전체`;
@@ -7560,6 +8224,7 @@ function renderGoals(){
   if(metas["07"]) metas["07"].textContent = `${ctx.months[0]} ~ ${ctx.curMonth} · 결측 월은 0%가 아니라 '결측'으로 표기`;
   if(metas["08"]) metas["08"].textContent = `${base} · 매출·출고·재고 3소스 교차 · 판정과 문구는 매 업로드마다 자동 재생성`;
   if(metas["09"]) metas["09"].textContent = `${base} · 관리 매장 ${MANAGED_STORES.length}곳(기흥·이천·제주서귀포·충주·평택·대소) · 달성률 낮은 순`;
+  if(metas["10"]) metas["10"].textContent = `${base} · "매장별 운영 종합계획"(공급 PLT 기반 기대매출) 반영 · 기대매출 도달율 낮은 순`;
   wireGoalsForecast();
   wireCatDrill(ctx);
   selectGoalsSub(goalsSubTab);
