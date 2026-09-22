@@ -772,7 +772,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 47 · 2026-09-22</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 48 · 2026-09-22</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -5654,9 +5654,11 @@ function storeStateBadge(s, ym){
    여러 상온 카테고리를 하나로 묶은 계획값). 그래서 카테고리별 1:1 대조는 하지 않고,
    **매장 단위 총PLT·총 기대매출**로만 "공급목표 대비 도달율"·"기대매출 대비 도달율"을 계산한다.
 
-   데이터 출처: 사용자가 업로드한 "매장별_운영_종합계획 최종본.xlsx"의 "통합입력" 시트
-   (요약 시트와 일치하는 버전 — 같은 파일의 "통합입력 (2)" 시트는 XLC 물량을 늘린 대안 시나리오로
-   보이며 요약 시트에는 반영되지 않아 이번 탭에는 쓰지 않았다. 필요하면 알려주면 반영을 바꿀 수 있다).
+   데이터 출처: 사용자가 업로드한 "매장별_운영_종합계획 최종본.xlsx"의 "통합입력 (2)" 시트
+   (2026-09-22 수정 — 사용자 확인: "통합입력 (2)"가 최종 반영본이며 "통합입력"·"요약"·"요약 (2)" 시트는
+   XLC 물량 상향 개정 전 스냅샷이라 새로고침되지 않은 것이었다. 예: 제주점 운영 매출목표 합계
+   79,820,000원(구) → 90,380,000원(신, 사용자 첨부자료와 일치). 두 시트는 XLC 카테고리 PLT 수량/매출목표만
+   다르고 나머지 8개 카테고리는 동일하다.)
    매장명 표기 차이는 여기서 한 번만 흡수했다: 광주경안점→경안점, 서귀포점→제주서귀포점,
    패션관기흥점→기흥 패션관 (나머지는 STORE_MONTHLY_TARGETS 표기와 그대로 일치, 회사 목표매출 금액도
    전부 확인 완료). 대소점은 이 계획표에 비식품 카테고리 입력이 없어 계획 PLT·기대매출이 0이다. */
@@ -5679,7 +5681,7 @@ const SUPPLY_PLAN = {
       "신선": 300,
       "XLA": 65,
       "XLB": 45,
-      "XLC": 30,
+      "XLC": 50,
       "XLK": 15,
       "XLW": 12,
       "XLG": 45,
@@ -5690,13 +5692,13 @@ const SUPPLY_PLAN = {
       "신선": 261600000,
       "XLA": 31200000,
       "XLB": 94500000,
-      "XLC": 72000000,
+      "XLC": 120000000,
       "XLK": 64800000,
       "XLW": 5460000,
       "XLG": 19800000,
       "XLS": 3420000
     },
-    "opTotal": 581130000,
+    "opTotal": 629130000,
     "companyTarget": 650000000
   },
   "인천점": {
@@ -5706,7 +5708,7 @@ const SUPPLY_PLAN = {
       "신선": 300,
       "XLA": 50,
       "XLB": 45,
-      "XLC": 27,
+      "XLC": 45,
       "XLK": 12,
       "XLW": 8,
       "XLG": 45,
@@ -5717,13 +5719,13 @@ const SUPPLY_PLAN = {
       "신선": 261600000,
       "XLA": 24000000,
       "XLB": 94500000,
-      "XLC": 64800000,
+      "XLC": 108000000,
       "XLK": 51840000,
       "XLW": 3640000,
       "XLG": 19800000,
       "XLS": 3420000
     },
-    "opTotal": 551950000,
+    "opTotal": 595150000,
     "companyTarget": 520000000
   },
   "이천점": {
@@ -5733,7 +5735,7 @@ const SUPPLY_PLAN = {
       "신선": 240,
       "XLA": 42,
       "XLB": 40,
-      "XLC": 24,
+      "XLC": 40,
       "XLK": 10,
       "XLW": 8,
       "XLG": 45,
@@ -5744,13 +5746,13 @@ const SUPPLY_PLAN = {
       "신선": 209280000,
       "XLA": 20160000,
       "XLB": 84000000,
-      "XLC": 57600000,
+      "XLC": 96000000,
       "XLK": 43200000,
       "XLW": 3640000,
       "XLG": 19800000,
       "XLS": 3420000
     },
-    "opTotal": 469450000,
+    "opTotal": 507850000,
     "companyTarget": 420000000
   },
   "기흥점": {
@@ -5760,7 +5762,7 @@ const SUPPLY_PLAN = {
       "신선": 240,
       "XLA": 20,
       "XLB": 25,
-      "XLC": 21,
+      "XLC": 35,
       "XLG": 45,
       "XLS": 18
     },
@@ -5769,11 +5771,11 @@ const SUPPLY_PLAN = {
       "신선": 209280000,
       "XLA": 9600000,
       "XLB": 52500000,
-      "XLC": 50400000,
+      "XLC": 84000000,
       "XLG": 19800000,
       "XLS": 3420000
     },
-    "opTotal": 373350000,
+    "opTotal": 406950000,
     "companyTarget": 400000000
   },
   "경안점": {
@@ -5783,7 +5785,7 @@ const SUPPLY_PLAN = {
       "신선": 120,
       "XLA": 30,
       "XLB": 35,
-      "XLC": 16.8,
+      "XLC": 28,
       "XLK": 7,
       "XLG": 25,
       "XLS": 9
@@ -5793,12 +5795,12 @@ const SUPPLY_PLAN = {
       "신선": 104640000,
       "XLA": 14400000,
       "XLB": 73500000,
-      "XLC": 40320000,
+      "XLC": 67200000,
       "XLK": 30240000,
       "XLG": 11000000,
       "XLS": 1710000
     },
-    "opTotal": 294710000,
+    "opTotal": 321590000,
     "companyTarget": 300000000
   },
   "김포점": {
@@ -5808,7 +5810,7 @@ const SUPPLY_PLAN = {
       "신선": 180,
       "XLA": 15,
       "XLB": 12,
-      "XLC": 9,
+      "XLC": 15,
       "XLK": 6,
       "XLG": 25,
       "XLS": 9
@@ -5818,12 +5820,12 @@ const SUPPLY_PLAN = {
       "신선": 156960000,
       "XLA": 7200000,
       "XLB": 25200000,
-      "XLC": 21600000,
+      "XLC": 36000000,
       "XLK": 25920000,
       "XLG": 11000000,
       "XLS": 1710000
     },
-    "opTotal": 268490000,
+    "opTotal": 282890000,
     "companyTarget": 250000000
   },
   "안중점": {
@@ -5833,7 +5835,7 @@ const SUPPLY_PLAN = {
       "신선": 90,
       "XLA": 20,
       "XLB": 30,
-      "XLC": 16.8,
+      "XLC": 28,
       "XLK": 6,
       "XLW": 8,
       "XLG": 25,
@@ -5843,14 +5845,14 @@ const SUPPLY_PLAN = {
       "상온": 18900000,
       "신선": 78480000,
       "XLA": 9600000,
-      "XLB": 63000000,
-      "XLC": 40320000,
+      "XLB": 63000000.0,
+      "XLC": 67200000,
       "XLK": 25920000,
       "XLW": 3640000,
       "XLG": 11000000,
       "XLS": 1710000
     },
-    "opTotal": 252570000,
+    "opTotal": 279450000,
     "companyTarget": 250000000
   },
   "청주점": {
@@ -5860,7 +5862,7 @@ const SUPPLY_PLAN = {
       "신선": 90,
       "XLA": 18,
       "XLB": 22,
-      "XLC": 16.8,
+      "XLC": 28,
       "XLK": 6,
       "XLG": 25,
       "XLS": 9
@@ -5870,12 +5872,12 @@ const SUPPLY_PLAN = {
       "신선": 78480000,
       "XLA": 8640000,
       "XLB": 46200000,
-      "XLC": 40320000,
+      "XLC": 67200000,
       "XLK": 25920000,
       "XLG": 11000000,
       "XLS": 1710000
     },
-    "opTotal": 231170000,
+    "opTotal": 258050000,
     "companyTarget": 230000000
   },
   "평택점": {
@@ -5885,7 +5887,7 @@ const SUPPLY_PLAN = {
       "신선": 90,
       "XLA": 20,
       "XLB": 20,
-      "XLC": 14.4,
+      "XLC": 24,
       "XLK": 4,
       "XLG": 25,
       "XLS": 9
@@ -5895,12 +5897,12 @@ const SUPPLY_PLAN = {
       "신선": 78480000,
       "XLA": 9600000,
       "XLB": 42000000,
-      "XLC": 34560000,
+      "XLC": 57600000,
       "XLK": 17280000,
       "XLG": 11000000,
       "XLS": 1710000
     },
-    "opTotal": 213530000,
+    "opTotal": 236570000,
     "companyTarget": 210000000
   },
   "김해점": {
@@ -5910,7 +5912,7 @@ const SUPPLY_PLAN = {
       "신선": 90,
       "XLA": 20,
       "XLB": 19,
-      "XLC": 12,
+      "XLC": 20,
       "XLK": 4,
       "XLG": 25,
       "XLS": 9
@@ -5920,12 +5922,12 @@ const SUPPLY_PLAN = {
       "신선": 78480000,
       "XLA": 9600000,
       "XLB": 39900000,
-      "XLC": 28800000,
+      "XLC": 48000000,
       "XLK": 17280000,
       "XLG": 11000000,
       "XLS": 1710000
     },
-    "opTotal": 205670000,
+    "opTotal": 224870000,
     "companyTarget": 200000000
   },
   "양주점": {
@@ -5935,7 +5937,7 @@ const SUPPLY_PLAN = {
       "신선": 75,
       "XLA": 18,
       "XLB": 19,
-      "XLC": 14.4,
+      "XLC": 24,
       "XLK": 4,
       "XLG": 25,
       "XLS": 9
@@ -5945,12 +5947,12 @@ const SUPPLY_PLAN = {
       "신선": 65400000,
       "XLA": 8640000,
       "XLB": 39900000,
-      "XLC": 34560000,
+      "XLC": 57600000,
       "XLK": 17280000,
       "XLG": 11000000,
       "XLS": 1710000
     },
-    "opTotal": 197390000,
+    "opTotal": 220430000,
     "companyTarget": 200000000
   },
   "충주점": {
@@ -5959,7 +5961,7 @@ const SUPPLY_PLAN = {
       "상온": 60,
       "XLA": 25,
       "XLB": 24,
-      "XLC": 14.4,
+      "XLC": 24,
       "XLK": 6,
       "XLW": 16,
       "XLG": 25,
@@ -5969,13 +5971,13 @@ const SUPPLY_PLAN = {
       "상온": 63000000,
       "XLA": 12000000,
       "XLB": 50400000,
-      "XLC": 34560000,
+      "XLC": 57600000,
       "XLK": 25920000,
       "XLW": 7280000,
       "XLG": 11000000,
       "XLS": 1710000
     },
-    "opTotal": 205870000,
+    "opTotal": 228910000,
     "companyTarget": 200000000
   },
   "수원점": {
@@ -5984,19 +5986,19 @@ const SUPPLY_PLAN = {
       "상온": 18,
       "신선": 150,
       "XLB": 14,
-      "XLC": 6.6,
+      "XLC": 11,
       "XLG": 25,
       "XLS": 9
     },
     "target": {
       "상온": 18900000,
       "신선": 130800000,
-      "XLB": 29400000,
-      "XLC": 15840000,
+      "XLB": 29400000.0,
+      "XLC": 26400000,
       "XLG": 11000000,
       "XLS": 1710000
     },
-    "opTotal": 207650000,
+    "opTotal": 218210000,
     "companyTarget": 200000000
   },
   "아산점": {
@@ -6006,7 +6008,7 @@ const SUPPLY_PLAN = {
       "신선": 90,
       "XLA": 20,
       "XLB": 19,
-      "XLC": 11.4,
+      "XLC": 19,
       "XLK": 5,
       "XLG": 25,
       "XLS": 9
@@ -6016,12 +6018,12 @@ const SUPPLY_PLAN = {
       "신선": 78480000,
       "XLA": 9600000,
       "XLB": 39900000,
-      "XLC": 27360000,
+      "XLC": 45600000,
       "XLK": 21600000,
       "XLG": 11000000,
       "XLS": 1710000
     },
-    "opTotal": 208550000,
+    "opTotal": 226790000,
     "companyTarget": 200000000
   },
   "천안점": {
@@ -6030,7 +6032,7 @@ const SUPPLY_PLAN = {
       "상온": 45,
       "XLA": 20,
       "XLB": 18,
-      "XLC": 12,
+      "XLC": 20,
       "XLK": 4,
       "XLW": 2,
       "XLG": 25,
@@ -6040,13 +6042,13 @@ const SUPPLY_PLAN = {
       "상온": 47250000,
       "XLA": 9600000,
       "XLB": 37800000,
-      "XLC": 28800000,
+      "XLC": 48000000,
       "XLK": 17280000,
       "XLW": 910000,
       "XLG": 11000000,
       "XLS": 1710000
     },
-    "opTotal": 154350000,
+    "opTotal": 173550000,
     "companyTarget": 150000000
   },
   "원주점": {
@@ -6055,7 +6057,7 @@ const SUPPLY_PLAN = {
       "상온": 45,
       "XLA": 25,
       "XLB": 16,
-      "XLC": 9.6,
+      "XLC": 16,
       "XLK": 4,
       "XLW": 20,
       "XLG": 25,
@@ -6065,13 +6067,13 @@ const SUPPLY_PLAN = {
       "상온": 47250000,
       "XLA": 12000000,
       "XLB": 33600000,
-      "XLC": 23040000,
+      "XLC": 38400000,
       "XLK": 17280000,
       "XLW": 9100000,
       "XLG": 11000000,
       "XLS": 1710000
     },
-    "opTotal": 154980000,
+    "opTotal": 170340000,
     "companyTarget": 150000000
   },
   "제주서귀포점": {
@@ -6080,7 +6082,7 @@ const SUPPLY_PLAN = {
       "상온": 36,
       "XLA": 20,
       "XLB": 20,
-      "XLC": 9,
+      "XLC": 15,
       "XLK": 4,
       "XLW": 20,
       "XLG": 25
@@ -6089,12 +6091,12 @@ const SUPPLY_PLAN = {
       "상온": 37800000,
       "XLA": 9600000,
       "XLB": 42000000,
-      "XLC": 21600000,
+      "XLC": 36000000,
       "XLK": 17280000,
       "XLW": 9100000,
       "XLG": 11000000
     },
-    "opTotal": 148380000,
+    "opTotal": 162780000,
     "companyTarget": 150000000
   },
   "남양주점": {
@@ -6104,7 +6106,7 @@ const SUPPLY_PLAN = {
       "신선": 15,
       "XLA": 26,
       "XLB": 11,
-      "XLC": 7.2,
+      "XLC": 12,
       "XLK": 4,
       "XLW": 20,
       "XLG": 25,
@@ -6115,13 +6117,13 @@ const SUPPLY_PLAN = {
       "신선": 13080000,
       "XLA": 12480000,
       "XLB": 23100000,
-      "XLC": 17280000,
+      "XLC": 28800000,
       "XLK": 17280000,
       "XLW": 9100000,
       "XLG": 11000000,
       "XLS": 1710000
     },
-    "opTotal": 123930000,
+    "opTotal": 135450000,
     "companyTarget": 130000000
   },
   "제주점": {
@@ -6130,17 +6132,17 @@ const SUPPLY_PLAN = {
       "상온": 18,
       "신선": 15,
       "XLB": 10,
-      "XLC": 6.6,
+      "XLC": 11,
       "XLG": 25
     },
     "target": {
       "상온": 18900000,
       "신선": 13080000,
       "XLB": 21000000,
-      "XLC": 15840000,
+      "XLC": 26400000,
       "XLG": 11000000
     },
-    "opTotal": 79820000,
+    "opTotal": 90380000,
     "companyTarget": 80000000
   },
   "대소점": {
@@ -6166,14 +6168,14 @@ const SUPPLY_PLAN = {
   "패션관광주점": {
     "src": "패션관광주점",
     "plt": {
-      "XLC": 12
+      "XLC": 20
     },
     "target": {
-      "XLC": 28800000
+      "XLC": 48000000
     },
-    "opTotal": 28800000,
+    "opTotal": 48000000,
     "companyTarget": 50000000
-  }
+  },
 };
 // 계획표 카테고리(9종) ↔ 실제 출고/매출 원장 카테고리 대응표.
 // 사이트 자체 분류 규칙(CATE_RULES, 1347행 부근)과 동일한 대응관계를 그대로 따랐다:
@@ -7564,18 +7566,29 @@ function goalsRender05(ctx){
   }).join("");
 
   const unsold = goalsUnsoldCategories(ctx.companyCat);
-  const unsoldTbl = unsold.length
+  // 2026-09-22: 신선식품처럼 진짜 폐기 위험이 큰 카테고리 외에, 한 번만 쓰인 임시 분류명
+  // (팝업입점·오분류 등)이 20여 개까지 늘어나 표가 "중복 카테고리가 너무 많다"는 지적을 받음.
+  // → 개별 카테고리명·PLT·조치는 하나도 지우지 않고 "기타(매출없음)" 한 줄로 접되, 그 줄의
+  //   '권고 조치' 칸에 구성 카테고리와 각각의 PLT·조치를 전부 그대로 나열한다(조용히 숨기지 않음).
+  const unsoldRiskOrder = {"매우높음":3, "높음":2, "중간":1, "낮음":0};
+  const unsoldMerged = (() => {
+    if(!unsold.length) return null;
+    const totalPlt = unsold.reduce((a,u)=>a+u.plt,0);
+    const worst = unsold.reduce((a,u)=> unsoldRiskOrder[u.risk]>unsoldRiskOrder[a.risk] ? u : a, unsold[0]);
+    const detail = unsold.slice().sort((a,b)=>b.plt-a.plt)
+      .map(u=>`${escHtml(u.cat)} ${u.plt.toLocaleString()}PLT(${u.risk} — ${escHtml(u.advice)})`).join("; ");
+    return { count: unsold.length, totalPlt, worst: worst.risk, detail };
+  })();
+  const unsoldTbl = unsoldMerged
     ? `<div class="g-tbl-title">출고는 있었으나 매출이 0원인 카테고리 — 집계 기간 ${escHtml(ctx.scopeLabel)} (재고 적체 · 판매 부진 경고)</div>
-       <div class="g-tbl-sub">PLT는 나갔는데 매출이 전혀 안 잡힌 카테고리입니다. 실제로 안 팔린 것인지, 매출 등록이 누락된 것인지부터 구분해야 합니다.</div>
+       <div class="g-tbl-sub">PLT는 나갔는데 매출이 전혀 안 잡힌 카테고리입니다. 실제로 안 팔린 것인지, 매출 등록이 누락된 것인지부터 구분해야 합니다. 개별 카테고리가 ${unsoldMerged.count}개라 한 줄(기타·매출없음)로 모았고, 구성 카테고리·PLT·권고는 '권고 조치' 칸에 전부 그대로 남겼습니다(숨긴 항목 없음).</div>
 <div class="tblbox">       <table class="g-tbl"><thead><tr><th>카테고리</th><th>이번달 출고(PLT)</th><th>매출액(원)</th><th>위험도</th><th>권고 조치</th></tr></thead><tbody>
-       ${unsold.map(u=>{
-          const cls = u.risk==="매우높음"?"g-tier-bad":u.risk==="높음"?"g-tier-bad":u.risk==="중간"?"g-tier-warn":"g-tier-good";
-          return `<tr><td>${escHtml(u.cat)}</td>
-            <td><span class="num">${u.plt.toLocaleString()}</span></td>
+       <tr><td>기타(매출없음, ${unsoldMerged.count}개 카테고리)</td>
+            <td><span class="num">${unsoldMerged.totalPlt.toLocaleString()}</span></td>
             <td><span class="num">0</span></td>
-            <td><span class="g-store-badge ${cls}" style="font-size:10px;padding:2px 8px;">${u.risk}</span></td>
-            <td class="g-txt">${escHtml(u.advice)}</td></tr>`;
-       }).join("")}</tbody></table></div>`
+            <td><span class="g-store-badge ${unsoldMerged.worst==="매우높음"||unsoldMerged.worst==="높음"?"g-tier-bad":unsoldMerged.worst==="중간"?"g-tier-warn":"g-tier-good"}" style="font-size:10px;padding:2px 8px;">${unsoldMerged.worst}(최고)</span></td>
+            <td class="g-txt">${unsoldMerged.detail}</td></tr>
+       </tbody></table></div>`
     : `<div class="g-tbl-title">출고는 있었으나 매출이 0원인 카테고리</div><p class="g-note-p">현재 해당하는 카테고리가 없습니다.</p>`;
 
   return `<div class="g-tbl-title">카테고리별 전사 매출 · PLT당 매출효율 — 집계 기간 ${escHtml(ctx.scopeLabel)}</div>
@@ -7946,20 +7959,35 @@ function goalsRender08Body(ctx){
       <thead><tr><th>카테고리</th>${catHdr}<th class="total-col">전·후반<br>증감</th><th class="total-col">차이<br>(백만/일)</th><th class="total-col">감소분<br>기여</th></tr></thead>
       <tbody>${catBody}</tbody></table></div>`;
   // ── 공급 변화
-  const supCats = Array.from(new Set([...Object.keys(D.supCur), ...Object.keys(D.supPrev)]))
+  // 2026-09-22: 매출 0(noRev) 카테고리가 팝업입점·오분류성 임시 분류명까지 포함해 20여 개까지 늘어나
+  // "중복 카테고리가 너무 많다"는 지적을 받음 → 매출이 잡히는 카테고리는 그대로 개별 행, 매출 0인
+  // 카테고리만 "기타(매출없음)" 한 행으로 모은다. 구성 카테고리명·개별 PLT는 그 행의 비고에 전부
+  // 그대로 남겨(숨기지 않고) 어떤 이름이 합쳐졌는지 항상 확인할 수 있게 한다.
+  const supCatsAll = Array.from(new Set([...Object.keys(D.supCur), ...Object.keys(D.supPrev)]))
       .sort((a,b)=>(D.supCur[b]||0)-(D.supPrev[b]||0)-((D.supCur[a]||0)-(D.supPrev[a]||0)));
-  const supBody = supCats.map(c=>{
+  const supCatsRev = supCatsAll.filter(c=>!D.noRev.has(c));
+  const supCatsNoRev = supCatsAll.filter(c=>D.noRev.has(c));
+  const supBody = supCatsRev.map(c=>{
     const a = D.supPrev[c]||0, b = D.supCur[c]||0;
-    return `<tr><td>${escHtml(c)}${D.noRev.has(c)?' <span class="g-chip warn">매출 0</span>':''}</td>
+    return `<tr><td>${escHtml(c)}</td>
       <td><span class="num">${a}</span></td><td><span class="num">${b}</span></td>
       <td class="total-col"><span class="num ${b-a<0?'neg':(b-a>0?'pos':'')}">${b-a>0?"+":""}${b-a}</span></td></tr>`;
   }).join("");
+  const supNoRevRow = supCatsNoRev.length ? (()=>{
+    const a = supCatsNoRev.reduce((s,c)=>s+(D.supPrev[c]||0),0);
+    const b = supCatsNoRev.reduce((s,c)=>s+(D.supCur[c]||0),0);
+    const detail = supCatsNoRev.map(c=>`${escHtml(c)}(${D.supPrev[c]||0}→${D.supCur[c]||0})`).join(", ");
+    return `<tr><td>기타(매출없음, ${supCatsNoRev.length}개) <span class="g-chip warn">매출 0</span>
+        <div class="g-txt" style="font-size:10px;color:var(--muted2);margin-top:2px;">${detail}</div></td>
+      <td><span class="num">${a}</span></td><td><span class="num">${b}</span></td>
+      <td class="total-col"><span class="num ${b-a<0?'neg':(b-a>0?'pos':'')}">${b-a>0?"+":""}${b-a}</span></td></tr>`;
+  })() : "";
   const supTbl = D.prev ? `
     <div class="g-tbl-title">출고 카테고리 구성 변화 — ${ctx.mLbl(D.prev)} → ${ctx.mLbl(cur)} (PLT)</div>
-    <div class="g-tbl-sub">매출이 붙지 않는 카테고리(그 기간 매출 0원인데 출고는 있는 것)에는 <b>매출 0</b> 표시를 붙였습니다. 이 물량도 창고·지게차·배차 슬롯을 똑같이 소모합니다.</div>
+    <div class="g-tbl-sub">매출이 붙지 않는 카테고리(그 기간 매출 0원인데 출고는 있는 것)는 <b>매출 0</b> 표시와 함께 "기타(매출없음)" 한 행으로 모았습니다(구성 카테고리·개별 PLT는 그 행 비고에 전부 나열). 이 물량도 창고·지게차·배차 슬롯을 똑같이 소모합니다.</div>
     <div class="tblbox"><table class="g-tbl">
       <thead><tr><th>카테고리</th><th>${ctx.mLbl(D.prev)}</th><th>${ctx.mLbl(cur)}</th><th class="total-col">증감</th></tr></thead>
-      <tbody>${supBody}</tbody></table></div>` : "";
+      <tbody>${supBody}${supNoRevRow}</tbody></table></div>` : "";
   // ── 매장 표
   const rowsHtml = D.stores.map(d=>{
     const r = d.r;
