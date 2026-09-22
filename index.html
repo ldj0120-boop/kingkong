@@ -772,7 +772,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 49 · 2026-09-22</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 50 · 2026-09-22</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -7108,6 +7108,47 @@ function goalsRender01(ctx){
 }
 
 /* ---------------- 02_매장별목표달성현황 ---------------- */
+// 2026-09-22: 사용자 요청 — "기흥점 매출과 기흥 패션관 매출을 분리해서 보고 싶다".
+// 위 매장별 표·목표달성률·인센티브 구간은 여전히 "기흥 패션관은 기흥점과 같은 매장"이라는
+// 확인된 사실(5547행)에 따라 두 매장을 합산한 대표 매장(기흥점) 기준을 그대로 쓴다 — 이건
+// 인센티브 구간 등 여러 곳이 이미 그 전제로 맞춰져 있어 여기서 임의로 되돌리지 않는다.
+// 대신 monthStoreTotals()의 매장별 "원본"(그룹 합산 전) 값을 그대로 뽑아 별도 참고 표만 추가한다
+// — 합산 로직 자체는 전혀 건드리지 않으므로 02~09탭의 기존 계산에는 영향이 없다.
+function goalsHuiyongSplitTable(ctx){
+  const T = { "기흥점": STORE_MONTHLY_TARGETS["기흥점"], "기흥 패션관": STORE_MONTHLY_TARGETS["기흥 패션관"] };
+  if(T["기흥점"]==null || T["기흥 패션관"]==null) return ""; // 데이터 구조가 바뀌면 조용히 숨기고 표시하지 않는다
+  const months = ctx.months;
+  const monthlyByStore = {};
+  months.forEach(m=>{
+    const t = monthStoreTotals(m);
+    monthlyByStore[m] = { "기흥점": t.map["기흥점"]||0, "기흥 패션관": t.map["기흥 패션관"]||0 };
+  });
+  const monthHead = ctx.months.map(m=> m===ctx.curMonth
+    ? `<th>${ctx.mLbl(m)}<br>(~${m.slice(5,7)}/${ctx.elapsedDays})</th>`
+    : `<th>${ctx.mLbl(m)}</th>`).join("");
+  const rows = ["기흥점","기흥 패션관"].map(s=>{
+    const cells = months.map(m=>{
+      const st = storeActiveDays(s, m, m===ctx.curMonth ? ctx.elapsedDays : null);
+      const t = T[s]*(st.days/st.dim);
+      const v = monthlyByStore[m][s];
+      const pct = t>0 ? (v/t*100).toFixed(1)+"%" : "-";
+      return `<td><span class="num">${Math.round(v).toLocaleString()}</span><br><span style="font-size:9px;color:var(--muted2)">${pct}</span></td>`;
+    }).join("");
+    return `<tr><td>${escHtml(s)}</td><td class="tgt-col"><span class="num" style="color:var(--amber)">${T[s].toLocaleString()}</span></td>${cells}</tr>`;
+  }).join("");
+  const sumRow = months.map(m=>{
+    const v = monthlyByStore[m]["기흥점"] + monthlyByStore[m]["기흥 패션관"];
+    return `<td><span class="num">${Math.round(v).toLocaleString()}</span></td>`;
+  }).join("");
+  return `<details class="g-store-more" style="margin-top:10px">
+    <summary>기흥점 · 기흥 패션관 매출 분리 보기 (참고용)</summary>
+    <div class="g-tbl-sub" style="margin:8px 0 6px">위 표의 목표달성률 · 인센티브 구간은 두 매장을 합산(기흥점 월 목표 ${T["기흥점"].toLocaleString()}원 + 기흥 패션관 월 목표 ${T["기흥 패션관"].toLocaleString()}원 = ${(T["기흥점"]+T["기흥 패션관"]).toLocaleString()}원)한 값을 그대로 씁니다. 이 표는 원본 매출만 분리해서 보여주는 참고용이며, 각 칸 아래 %는 그 매장 단독 목표 대비 그 매장 단독 달성률입니다.</div>
+    <div class="tblbox"><table class="g-tbl"><thead><tr><th>매장</th><th class="tgt-col">월 목표</th>${monthHead}</tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><td>합계(=위 표의 기흥점)</td><td class="tgt-col"><span class="num" style="color:var(--amber)">${(T["기흥점"]+T["기흥 패션관"]).toLocaleString()}</span></td>${sumRow}</tr></tfoot>
+    </table></div>
+  </details>`;
+}
 function goalsRender02(ctx){
   const cm = ctx.mLbl(ctx.curMonth);
   const monthHdr = ctx.months.map(m=> m===ctx.curMonth
@@ -7211,6 +7252,7 @@ function goalsRender02(ctx){
     <div class="g-tbl-sub">달성률 낮은 순 정렬 · 월별 칸의 색은 그 달의 목표 달성률(붉을수록 미달) · <b>'결측'</b>은 그 달 매출 원본이 업로드되지 않은 경우(0원이 아니라 데이터 없음), <b>'미오픈/폐점'</b>은 그 달 영업하지 않은 경우로 목표에서 아예 제외됩니다 · <sup style="color:var(--amber)">*</sup>는 오픈월·폐점월로 영업일수 비례 목표를 적용한 달</div>
     <div class="g-tbl-sub">기흥점은 기흥 패션관을 합산한 값(월 목표도 합산)입니다 · '신선X'는 냉장·냉동 미취급 매장</div>
     <div class="tblbox"><table class="g-tbl">${head}<tbody>${body}</tbody>${foot}</table></div>
+    ${goalsHuiyongSplitTable(ctx)}
     ${rankList}`;
 }
 
