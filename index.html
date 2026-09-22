@@ -772,7 +772,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 48 · 2026-09-22</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 49 · 2026-09-22</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -7190,7 +7190,14 @@ function goalsRender02(ctx){
       const tier = goalsTier(r.pct);
       const c = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--info)":tier.cls==="g-tier-warn"?"var(--amber)":"var(--red)";
       // 마우스를 올리면 이 막대(달성률)의 근거인 목표매출(일할 환산)·현재 매출액을 그대로 보여준다.
-      const rowTitle = `${r.label} · ${cm} 목표매출 ${Math.round(r.proratedTarget).toLocaleString()}원 · 현재 매출 ${Math.round(r.actual).toLocaleString()}원 · 달성률 ${r.pct.toFixed(1)}%`;
+      // 2026-09-22: "9월 목표매출 210,000,000원"만 보이면 이게 월 목표 자체인 줄 오해하기 쉬워
+      // (실제로는 월 목표 300,000,000원을 21/30일로 일할 환산한 값) → 월 목표 원본과 환산 근거를 함께 표시.
+      // ★ 단, 여러 달을 선택한 기간(ctx.isRange)에서는 proratedTarget이 그 기간 전체 달의 목표를
+      //   합산한 값이라 "월 목표 하나 × 일수 비율"로 설명할 수 없다 — 이 경우는 기간 합계라고만 밝힌다.
+      const targetNote = ctx.isRange
+        ? `(선택 기간 ${ctx.scopeLabel} 목표 합계 — 월별 목표를 영업일수 비례로 합산)`
+        : `(월 목표 ${Math.round(r.target).toLocaleString()}원의 ${r.activeDays}/${r.monthDays}일 환산)`;
+      const rowTitle = `${r.label} · ${cm} 목표매출(일할 환산) ${Math.round(r.proratedTarget).toLocaleString()}원 ${targetNote} · 현재 매출 ${Math.round(r.actual).toLocaleString()}원 · 달성률 ${r.pct.toFixed(1)}%`;
       return `<div class="g-rank-row" title="${escHtml(rowTitle)}"><span class="g-rank-num">${r.rank}</span>
         <span class="g-rank-name">${escHtml(r.label)}</span>
         <div class="mini-bar" style="flex:1;"><div class="mini-bar-fill" style="width:${Math.min(100,r.pct).toFixed(1)}%;background:${c}"></div></div>
