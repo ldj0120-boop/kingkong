@@ -772,7 +772,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 53 · 2026-09-23</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 54 · 2026-09-23</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -8220,6 +8220,33 @@ function goalsRender10Body(ctx){
       <tbody>${catRows}</tbody>
     </table></div>`;
 
+  // 매장×카테고리 PLT 공급 도달율 매트릭스 — 사용자가 반복 요청한 "매장별로 공급 PLT 카테고리별로
+  // 수량 쪼개고 목표 대비 해당 카테고리 PLT 공급 도달율"을 한 화면에서 바로 보이게(2026-09-23).
+  // 아래 x.cats(매장별 카테고리 계획·실제 PLT, goalsSupplyDetail에서 이미 계산됨)는 원래도 있었지만
+  // 매장별 <details> 아코디언 안에 하나씩 접혀 있어 찾기 어려웠다는 지적 — 같은 데이터를 접지 않은
+  // 표 하나로 다시 그린다(계산 로직은 그대로, 표시 위치·형태만 바꿈).
+  const matrixCats = Object.keys(SUPPLY_PLAN_PARAMS); // 상온·신선·XLA·XLB·XLC·XLK·XLW·XLG·XLS
+  const sortedByPlt = have.slice().sort((a,b)=>{
+    const av = a.pltPct==null?-1:a.pltPct, bv = b.pltPct==null?-1:b.pltPct;
+    return av-bv;
+  });
+  const matrixHead = `<th>매장</th>` + matrixCats.map(c=>`<th>${escHtml(c)}</th>`).join("") + `<th>전체</th>`;
+  const matrixBody = sortedByPlt.map(x=>{
+    const cells = matrixCats.map(cat=>{
+      const c = x.cats.find(y=>y.cat===cat);
+      if(!c || !(c.planPLTFull>0)) return `<td style="color:var(--muted2)" title="${escHtml(x.label)} · ${escHtml(cat)} 계획 없음(이 매장은 이 카테고리를 취급하지 않음)">-</td>`;
+      return `<td style="color:${pctColor(c.pltPct)}" title="${escHtml(x.label)} · ${escHtml(cat)} · 계획 ${c.planPLTFull.toLocaleString(undefined,{maximumFractionDigits:1})} / 실제 ${Math.round(c.actualPLT).toLocaleString()} PLT"><span class="num">${pctTxt(c.pltPct)}</span></td>`;
+    }).join("");
+    return `<tr><td>${escHtml(x.label)}</td>${cells}<td style="color:${pctColor(x.pltPct)};font-weight:700"><span class="num">${pctTxt(x.pltPct)}</span></td></tr>`;
+  }).join("");
+  const matrixTable = `
+    <div class="g-tbl-title" style="margin-top:18px">매장별 × 카테고리별 PLT 공급 도달율 (${cm}, 매장 전체 도달율 낮은 순)</div>
+    <div class="g-tbl-sub">칸에 마우스를 올리면 계획 PLT·실제 PLT가 그대로 보입니다. "-"는 그 매장이 해당 카테고리 자체를 취급하지 않는다는 뜻입니다(상온전용 매장의 "신선" 등). ${prorateNote}</div>
+    <div class="tblbox agg-scroll"><table class="g-tbl">
+      <thead><tr>${matrixHead}</tr></thead>
+      <tbody>${matrixBody}</tbody>
+    </table></div>`;
+
   const sorted = have.slice().sort((a,b)=>{ const av=a.revPct==null?-1:a.revPct, bv=b.revPct==null?-1:b.revPct; return av-bv; });
   const body = sorted.map(x=>`<tr>
       <td>${escHtml(x.label)}</td>
@@ -8285,7 +8312,7 @@ function goalsRender10Body(ctx){
     <div class="g-tbl-title" style="margin-top:18px">매장별 계획 상세 — 카테고리별 계획 PLT 대비 ${cm} 실제, PLT·기대매출 도달율 함께 보기</div>
     <div class="g-store-list" style="margin-top:8px">${detailRows}</div>`;
 
-  return kpi + missNote + monthBar + catTable + table + ref;
+  return kpi + missNote + monthBar + catTable + matrixTable + table + ref;
 }
 
 /* ---------------- 서브탭 전환 ---------------- */
