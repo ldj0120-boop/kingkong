@@ -772,7 +772,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 51 · 2026-09-23</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 52 · 2026-09-23</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -3295,14 +3295,20 @@ function salesTypicalStoreCoverage(excludeDate){
   if(!days.length) return 0;
   return Math.max(...days.map(h=>Object.keys(h.byStore).length));
 }
-function salesCoverageWarningHtml(dateStr){
+// 이 날짜가 "일부 매장만 반영된" 결측 파일인지 여부와 근거를 함께 돌려준다. 경고문과 상단 KPI 카드가 같은 판정을 공유하도록 하나로 모음(build 52).
+function salesCoverageInfo(dateStr){
   const h = STORE_SALES_HISTORY.find(x=>x.date===dateStr);
-  if(!h || !h.byStore) return "";
+  if(!h || !h.byStore) return null;
   const n = Object.keys(h.byStore).length;
   const typical = salesTypicalStoreCoverage(dateStr);
-  if(typical<=0 || n>=Math.ceil(typical*0.5)) return "";
+  const bad = typical>0 && n<Math.ceil(typical*0.5);
+  return { n, typical, bad, file: h.file||"업로드 파일" };
+}
+function salesCoverageWarningHtml(dateStr){
+  const info = salesCoverageInfo(dateStr);
+  if(!info || !info.bad) return "";
   return `<p style="font-size:12.5px;color:var(--red);margin:10px 0 0;background:rgba(230,60,60,.08);border:1px solid var(--red);border-radius:8px;padding:9px 13px;">
-    ⚠ <b>${escHtml(dateStr)}</b> 파일(${escHtml(h.file||"업로드 파일")})에는 <b>${n}개 매장</b> 데이터만 들어있습니다(최근 정상 업로드는 매장 ${typical}개).
+    ⚠ <b>${escHtml(dateStr)}</b> 파일(${escHtml(info.file)})에는 <b>${info.n}개 매장</b> 데이터만 들어있습니다(최근 정상 업로드는 매장 ${info.typical}개).
     이 날짜의 합계·전일/전주/전월 대비는 실제 매출이 아니라 <b>일부 매장만 반영된 값</b>일 가능성이 매우 높습니다 —
     전체 매장이 포함된 매출현황-${escHtml(dateStr.replace(/-/g,''))}.xlsx 파일을 다시 올려 이 날짜를 교체해 주세요(같은 날짜로 다시 올리면 자동으로 덮어써집니다).
   </p>`;
@@ -3323,12 +3329,21 @@ function renderSalesTrend(){
     const cur = grand(storeSalesMapAt(upto)) || 0;
     const shift = (dstr,days)=>{ const d=parseYMD(dstr); d.setDate(d.getDate()-days); return fmtDate(d); };
     const prevMonthSameDay = (()=>{ const d=parseYMD(upto); d.setMonth(d.getMonth()-1); return fmtDate(d); })();
-    const card = statCard(`매출 종합 · ${salesModeLabel()} · 청구금액 기준`, Math.round(cur).toLocaleString(), [
-      deltaLineMoney("전일 대비", cur, grand(storeSalesMapAt(shift(upto,1)))),
-      deltaLineMoney("전주 대비", cur, grand(storeSalesMapAt(shift(upto,7)))),
-      deltaLineMoney("전월 대비", cur, grand(storeSalesMapAt(prevMonthSameDay)))
-    ]);
-    const covWarn = (salesViewMode==="daily") ? salesCoverageWarningHtml(upto) : "";
+    // 그날 파일이 일부 매장만 담고 있으면(9/21 사고 케이스) 큰 숫자 자리에 잘못된 합계(예: -31,440원)를
+    // 그대로 헤드라인으로 내보내지 않는다 — "숫자가 나왔으니 맞겠지"로 오인하기 쉬워서, 대비%까지
+    // 같이 무의미해지므로 숫자 대신 경고 상태로 바꾸고 원래 합계는 참고용으로만 작게 보여준다(build 52).
+    const covInfo = (salesViewMode==="daily") ? salesCoverageInfo(upto) : null;
+    const card = (covInfo && covInfo.bad)
+      ? statCard(`매출 종합 · ${salesModeLabel()} · 청구금액 기준`, `⚠ 데이터 이상`, [
+          `<div class="delta-line"><span class="lbl">파일 내 합계(참고용)</span><span class="delta" style="color:var(--red);">${Math.round(cur).toLocaleString()}원 · 매장 ${covInfo.n}/${covInfo.typical}곳만 반영</span></div>`,
+          `<div class="delta-line"><span class="lbl">전일/전주/전월 대비</span><span class="delta na">매장 데이터 누락으로 비교 불가</span></div>`
+        ])
+      : statCard(`매출 종합 · ${salesModeLabel()} · 청구금액 기준`, Math.round(cur).toLocaleString(), [
+          deltaLineMoney("전일 대비", cur, grand(storeSalesMapAt(shift(upto,1)))),
+          deltaLineMoney("전주 대비", cur, grand(storeSalesMapAt(shift(upto,7)))),
+          deltaLineMoney("전월 대비", cur, grand(storeSalesMapAt(prevMonthSameDay)))
+        ]);
+    const covWarn = (covInfo && covInfo.bad) ? salesCoverageWarningHtml(upto) : "";
     wrap.innerHTML = `<div class="stat-row">${card}</div>${covWarn}`;
     return;
   }
