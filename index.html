@@ -772,7 +772,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 50 · 2026-09-22</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 51 · 2026-09-23</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -895,7 +895,7 @@
 
     <div class="agg-card">
       <div class="p-hd">
-        <span class="store-name">출고 출처 비교 (본사 출고계획서 ↔ 센터 출고내역서)</span>
+        <span class="store-name">매장별 최종 출고완료 카테고리별 공급 PLT</span>
         <span class="meta" id="shipSrcMeta"></span>
       </div>
       <div style="padding:12px 18px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -1032,12 +1032,16 @@
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">
           <select id="salesCatSelect" style="max-width:280px;"></select>
           <select id="salesCatRankMonth" style="max-width:150px;" title="월을 선택하면 그 달 매출로 순위를 봅니다"></select>
+          <select id="salesCatRankDay" style="max-width:150px;" title="날짜를 선택하면 그 하루 매출로만 순위를 봅니다(월 선택과 별도)"></select>
         </div>
         <div id="salesCatRankBody"></div>
       </div>
     </div>
 
-    <div class="agg-card" id="salesDetailCard">
+    <!-- 2026-09-23: 사용자 요청 — "매장별 매출 카테고리 일괄 나오는 화면은 없애주세요"(21개 매장 도넛
+         그리드가 너무 길다). renderSalesAgg() 함수 자체는 그대로 두고(다른 곳에서 참조돼 있어 호출부를
+         일일이 바꾸지 않음) 화면에서만 hidden으로 뺀다 — 계산은 계속 돌지만 숨겨진 DOM이라 눈에 안 보인다. -->
+    <div class="agg-card" id="salesDetailCard" hidden>
       <div class="p-hd">
         <span class="store-name">매장별 매출 카테고리 (실매출액 기준)</span>
         <span class="meta" id="salesMeta"></span>
@@ -1064,53 +1068,35 @@
       <span class="fld" id="goalsToFld" hidden><label for="goalsToSel">종료월</label><select id="goalsToSel"></select></span>
       <span class="note" id="goalsScopeNote"></span>
     </div>
+    <!-- 2026-09-23 사용자 요청으로 구 "02 매장별 목표달성 현황"·"03 카테고리 매출 매트릭스" 탭을
+         삭제했다(02는 "매장별 매출" 페이지와 내용이 중복돼 그쪽으로 통합, 03은 "하나도 못 알아보겠다"는
+         피드백으로 삭제). 남은 탭들은 내부 data-gsub/#gsub-ID/함수명은 그대로 두고(04~10 — 코드 곳곳의
+         참조를 건드리지 않기 위해) 화면에 보이는 번호·이름만 01~08로 다시 붙였다. -->
     <div class="gsub-tabs" id="goalsSubTabs" role="tablist">
-      <button class="gsub-tab active" data-gsub="01" role="tab">01 요약 · 방법론</button>
-      <button class="gsub-tab" data-gsub="02" role="tab">02 매장별 목표달성 현황</button>
-      <button class="gsub-tab" data-gsub="03" role="tab">03 카테고리 매출 매트릭스</button>
-      <button class="gsub-tab" data-gsub="04" role="tab">04 카테고리 진단</button>
-      <button class="gsub-tab" data-gsub="05" role="tab">05 전사 카테고리 벤치마크</button>
-      <button class="gsub-tab" data-gsub="06" role="tab">06 매장별 실행방안</button>
-      <button class="gsub-tab" data-gsub="07" role="tab">07 매장별 월별 추이</button>
-      <button class="gsub-tab" data-gsub="08" role="tab">08 매장 진단 (공급×매출)</button>
-      <button class="gsub-tab" data-gsub="09" role="tab">09 관리매장 매출요약</button>
-      <button class="gsub-tab" data-gsub="10" role="tab">10 공급계획(PLT) 진단</button>
+      <button class="gsub-tab active" data-gsub="01" role="tab">01 요약</button>
+      <button class="gsub-tab" data-gsub="04" role="tab">02 카테고리 진단</button>
+      <button class="gsub-tab" data-gsub="05" role="tab">03 전사 카테고리 벤치마크</button>
+      <button class="gsub-tab" data-gsub="06" role="tab">04 매장별 실행방안</button>
+      <button class="gsub-tab" data-gsub="07" role="tab">05 매장별 월별 추이</button>
+      <button class="gsub-tab" data-gsub="08" role="tab">06 매장 진단 (공급×매출)</button>
+      <button class="gsub-tab" data-gsub="09" role="tab">07 관리매장 매출요약</button>
+      <button class="gsub-tab" data-gsub="10" role="tab">08 공급계획(PLT) 진단</button>
     </div>
 
     <div class="gsub-panel" id="gsub-01">
       <div class="agg-card">
         <div class="p-hd">
-          <span class="store-name">01 요약 · 방법론</span>
+          <span class="store-name">01 요약</span>
           <span class="meta" id="goalsSummaryMeta"></span>
         </div>
         <div class="agg-scroll" id="goalsSummaryWrap"></div>
       </div>
     </div>
 
-    <div class="gsub-panel" id="gsub-02" hidden>
-      <div class="agg-card">
-        <div class="p-hd">
-          <span class="store-name">02 매장별 목표달성 현황</span>
-          <span class="meta" id="goals02Meta"></span>
-        </div>
-        <div class="agg-scroll" id="goals02Wrap"></div>
-      </div>
-    </div>
-
-    <div class="gsub-panel" id="gsub-03" hidden>
-      <div class="agg-card">
-        <div class="p-hd">
-          <span class="store-name">03 카테고리 매출 매트릭스</span>
-          <span class="meta" id="goals03Meta"></span>
-        </div>
-        <div class="agg-scroll" id="goals03Wrap"></div>
-      </div>
-    </div>
-
     <div class="gsub-panel" id="gsub-04" hidden>
       <div class="agg-card">
         <div class="p-hd">
-          <span class="store-name">04 카테고리 진단</span>
+          <span class="store-name">02 카테고리 진단</span>
           <span class="meta" id="goals04Meta"></span>
         </div>
         <div class="agg-scroll" id="goals04Wrap"></div>
@@ -1120,7 +1106,7 @@
     <div class="gsub-panel" id="gsub-05" hidden>
       <div class="agg-card">
         <div class="p-hd">
-          <span class="store-name">05 전사 카테고리 벤치마크</span>
+          <span class="store-name">03 전사 카테고리 벤치마크</span>
           <span class="meta" id="goals05Meta"></span>
         </div>
         <div class="agg-scroll" id="goals05Wrap"></div>
@@ -1130,7 +1116,7 @@
     <div class="gsub-panel" id="gsub-06" hidden>
       <div class="agg-card">
         <div class="p-hd">
-          <span class="store-name">06 매장별 실행방안</span>
+          <span class="store-name">04 매장별 실행방안</span>
           <span class="meta" id="goalsStoreMeta"></span>
         </div>
         <div class="agg-scroll" id="goalsStoreWrap"></div>
@@ -1140,7 +1126,7 @@
     <div class="gsub-panel" id="gsub-07" hidden>
       <div class="agg-card">
         <div class="p-hd">
-          <span class="store-name">07 매장별 월별 추이</span>
+          <span class="store-name">05 매장별 월별 추이</span>
           <span class="meta" id="goals07Meta"></span>
         </div>
         <div class="agg-scroll" id="goals07Wrap"></div>
@@ -1150,7 +1136,7 @@
     <div class="gsub-panel" id="gsub-08" hidden>
       <div class="agg-card">
         <div class="p-hd">
-          <span class="store-name">08 매장 진단 (공급×매출)</span>
+          <span class="store-name">06 매장 진단 (공급×매출)</span>
           <span class="meta" id="goals08Meta"></span>
         </div>
         <div class="agg-scroll" id="goals08Wrap"></div>
@@ -1160,7 +1146,7 @@
     <div class="gsub-panel" id="gsub-09" hidden>
       <div class="agg-card">
         <div class="p-hd">
-          <span class="store-name">09 관리매장 매출요약</span>
+          <span class="store-name">07 관리매장 매출요약</span>
           <span class="meta" id="goals09Meta"></span>
         </div>
         <div class="agg-scroll" id="goals09Wrap"></div>
@@ -1170,7 +1156,7 @@
     <div class="gsub-panel" id="gsub-10" hidden>
       <div class="agg-card">
         <div class="p-hd">
-          <span class="store-name">10 공급계획(PLT) 진단</span>
+          <span class="store-name">08 공급계획(PLT) 진단</span>
           <span class="meta" id="goals10Meta"></span>
         </div>
         <div class="agg-scroll" id="goals10Wrap"></div>
@@ -2591,8 +2577,15 @@ function renderShipSourceDiff(){
     });
   });
   rows.sort((a,b)=> Math.abs(b.hq-b.center) - Math.abs(a.hq-a.center));
+  // 2026-09-23: 이 카드는 원래 "출고 출처 비교"(본사↔센터 어긋나는 칸 상세 — 자료가 매우 길어짐)였는데,
+  // 사용자가 "너무 길다, 매장별 최종 출고완료 카테고리별 공급 PLT만 보이게 해달라"고 요청.
+  // → 맨 아래에 있던 shipStoreCatChartHtml()(최종 출고완료 매트릭스, actualQty 기반이라 아래 어긋남
+  //   진단(rows/byStore/byCat)과 독립적으로 계산됨)을 카드 맨 위로 올리고, 어긋남 진단 상세는
+  //   접힌 <details>로 감싸 기본적으로는 안 보이게 했다 — 계산 자체는 그대로 두어(진단이 필요할 때
+  //   펼쳐볼 수 있게) 정보를 지우지는 않았다.
+  const chartHtml = shipStoreCatChartHtml();
   if(!rows.length){
-    wrap.innerHTML = `<p class="trend-empty" style="padding:16px 18px;">두 파일이 어긋나는 칸이 없습니다. (두 파일 중 하나만 올라와 있으면 비교할 대상이 없어 이 표도 비어 있습니다.)</p>`;
+    wrap.innerHTML = `${chartHtml}<p class="trend-empty" style="padding:16px 18px;">본사·센터 두 파일이 어긋나는 칸은 없습니다. (두 파일 중 하나만 올라와 있으면 비교할 대상이 없어 이 진단도 비어 있습니다.)</p>`;
     if(meta) meta.textContent = "";
     return;
   }
@@ -2681,15 +2674,20 @@ function renderShipSourceDiff(){
         goalsLine(`센터 우선 ${eok(rows.reduce((a,r)=>a+(r.center||r.hq),0) + (allPick-tPick))} · 큰 값 ${eok(rows.reduce((a,r)=>a+Math.max(r.hq,r.center),0) + (allPick-tPick))} · 본사 우선 ${eok(rows.reduce((a,r)=>a+(r.hq||r.center),0) + (allPick-tPick))} PLT`),
         goalsLine("드롭다운을 바꾸면 위 총합이 즉시 이 값으로 바뀝니다")])}
     </div>`;
-  wrap.innerHTML = `${totalBox}
-    <div class="g-tbl-title">어긋나는 칸 상세 (차이 큰 순)</div>
-    <div class="tblbox"><table class="g-tbl">
-    <thead><tr><th>매장</th><th>카테고리</th><th>본사 출고계획서</th><th>센터 출고내역서</th><th>차이<br>(센터−본사)</th><th>현재 채택값</th><th>판정</th></tr></thead>
-    <tbody>${body}</tbody>${foot}</table></div>
-    ${subTbl("매장별 채택값 소계 (전체 칸 기준 · 채택값 큰 순)", byStore, "매장")}
-    ${subTbl("카테고리별 채택값 소계 (전체 칸 기준 · 채택값 큰 순)", byCat, "카테고리")}
-    ${shipStoreCatChartHtml()}`;
-  if(meta) meta.textContent = `${shipScope==="all"?"전체 기간":shipScope} · 현재 채택값 총합 ${eok(allPick)} PLT · 어긋나는 칸 ${rows.length}개(양쪽 값 있는 칸 ${both.length}개: 본사 ${Math.round(sumHq)} vs 센터 ${Math.round(sumCen)}) · 현재 규칙: ${SHIP_MERGE_LABEL[shipMergePolicy]}`;
+  wrap.innerHTML = `${chartHtml}
+    <details style="margin-top:16px;">
+      <summary style="cursor:pointer;font-size:12px;color:var(--muted2);">본사 출고계획서 ↔ 센터 출고내역서 비교 상세 보기 (어긋나는 칸 ${rows.length}개 · 자료가 길어 기본은 접어둠)</summary>
+      <div style="margin-top:10px;">
+        ${totalBox}
+        <div class="g-tbl-title">어긋나는 칸 상세 (차이 큰 순)</div>
+        <div class="tblbox"><table class="g-tbl">
+        <thead><tr><th>매장</th><th>카테고리</th><th>본사 출고계획서</th><th>센터 출고내역서</th><th>차이<br>(센터−본사)</th><th>현재 채택값</th><th>판정</th></tr></thead>
+        <tbody>${body}</tbody>${foot}</table></div>
+        ${subTbl("매장별 채택값 소계 (전체 칸 기준 · 채택값 큰 순)", byStore, "매장")}
+        ${subTbl("카테고리별 채택값 소계 (전체 칸 기준 · 채택값 큰 순)", byCat, "카테고리")}
+      </div>
+    </details>`;
+  if(meta) meta.textContent = `${shipScope==="all"?"전체 기간":shipScope} · 현재 규칙: ${SHIP_MERGE_LABEL[shipMergePolicy]}`;
 }
 // 매장별 "최종" 출고완료 값(actualQty = 본사↔센터 판정값 + 센터 직출(창고 미경유) + 가전센터(방도리) + 신선(신선식품·수박) + 롯데제타,
 // storeActualTotal과 완전히 같은 정의)을 "매장별 이번달 출고 현황(카테고리별)" 표(renderShipAgg)와 같은
@@ -2805,6 +2803,46 @@ function renderSalesMonthly(){
     A += `<tr><td>${s}</td>${months.map(m=>{const v=storeMonth[m][s]||0;return `<td><span class="num">${v?Math.round(v).toLocaleString():''}</span>${v?cellDeltas(m,v,(mm)=>storeMonth[mm][s]||0):''}</td>`;}).join("")}<td class="total-col"><span class="num">${Math.round(storeGrand(s)).toLocaleString()}</span></td></tr>`;
   });
   A += `</tbody><tfoot><tr><td>합계</td>${months.map(m=>{const v=monthGrand(m);return `<td><span class="num">${Math.round(v).toLocaleString()}</span>${cellDeltas(m,v,(mm)=>monthGrand(mm))}</td>`;}).join("")}<td class="total-col"><span class="num">${Math.round(months.reduce((a,m)=>a+monthGrand(m),0)).toLocaleString()}</span></td></tr></tfoot></table>`;
+  // C: 이번달 목표매출 대비 달성률 · 인센티브 구간 — 2026-09-23 사용자 요청으로 "목표매출 달성 방안 ›
+  // 02 매장별 목표달성 현황" 탭에서 이 화면으로 이전(두 페이지에 매장별 월별 매출이 중복돼 있었음).
+  // goalsBuildContext()가 이미 검증해 쓰는 목표·달성률·인센티브 구간 계산을 그대로 재사용한다.
+  let C = "";
+  try{
+    const ctx = goalsBuildContext();
+    if(ctx && ctx.rows && ctx.rows.length){
+      const cm = ctx.mLbl(ctx.curMonth);
+      const rows2 = (selectedMonthlyStore==="__all__") ? ctx.rows : ctx.rows.filter(r=>r.store===storeSalesGroup(selectedMonthlyStore));
+      if(rows2.length){
+        const body2 = rows2.map(r=>{
+          const band = goalsIncentiveBand(r.dev);
+          return `<tr>
+            <td title="${escHtml(r.label)}">${escHtml(r.label)}</td>
+            <td class="tgt-col"><span class="num" style="color:var(--amber)">${Math.round(r.proratedTarget).toLocaleString()}</span></td>
+            <td><span class="num">${Math.round(r.actual).toLocaleString()}</span></td>
+            <td class="total-col" style="${goalsHeatBg((r.pct/100)/1.2)}"><span class="num">${r.pct.toFixed(1)}%</span></td>
+            <td class="g-band"><span class="g-store-badge ${band.cls}" style="font-size:10px;padding:2px 7px;">${escHtml(band.label)}</span></td>
+          </tr>`;
+        }).join("");
+        const totTarget2 = rows2.reduce((a,r)=>a+r.proratedTarget,0);
+        const totActual2 = rows2.reduce((a,r)=>a+r.actual,0);
+        const rankList2 = selectedMonthlyStore==="__all__" ? `<div class="g-rank-list">${ctx.rows.map(r=>{
+            const tier = goalsTier(r.pct);
+            const c = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--info)":tier.cls==="g-tier-warn"?"var(--amber)":"var(--red)";
+            return `<div class="g-rank-row" title="${escHtml(r.label)} · 달성률 ${r.pct.toFixed(1)}%"><span class="g-rank-num">${r.rank}</span>
+              <span class="g-rank-name">${escHtml(r.label)}</span>
+              <div class="mini-bar" style="flex:1;"><div class="mini-bar-fill" style="width:${Math.min(100,r.pct).toFixed(1)}%;background:${c}"></div></div>
+              <span class="g-rank-pct">${r.pct.toFixed(1)}%</span></div>`;
+          }).join("")}</div>` : "";
+        C = `<div style="padding:16px 4px 4px;font-family:'Oswald';font-size:12px;letter-spacing:.06em;color:var(--muted2);">${escHtml(cm)} 목표매출 대비 달성률 · 인센티브 구간 (${ctx.elapsedDays}/${ctx.daysInMonth}일 경과 일할 환산 · 달성률 낮은 순)</div>
+          <div class="tblbox"><table class="g-tbl"><thead><tr><th>매장</th><th class="tgt-col">목표(일할)</th><th>실적</th><th class="total-col">달성률</th><th>인센티브 구간</th></tr></thead>
+          <tbody>${body2}</tbody>
+          <tfoot><tr><td>합계</td><td class="tgt-col"><span class="num" style="color:var(--amber)">${Math.round(totTarget2).toLocaleString()}</span></td><td><span class="num">${Math.round(totActual2).toLocaleString()}</span></td><td class="total-col"><span class="num">${totTarget2>0?(totActual2/totTarget2*100).toFixed(1):'0.0'}%</span></td><td></td></tr></tfoot>
+          </table></div>
+          ${rankList2}
+          ${goalsHuiyongSplitTable(ctx)}`;
+      }
+    }
+  }catch(_){}
   // 카테고리별 월 점유율 (실매출액 기준) — 매장 선택 시 그 매장만, 전체면 합산
   const catMonth = {};
   months.forEach(m=>{
@@ -2850,7 +2888,7 @@ function renderSalesMonthly(){
       (anySuspect?`<br><span style="color:var(--red);">→ 누적본이 섞였으면, 그 달은 마지막 날짜 1개만 올리거나 알려주세요. 하루치/누적본 처리 방식을 바꿔드립니다.</span>`:'') +
       `</div>`;
   }
-  wrap.innerHTML = A + B + diag;
+  wrap.innerHTML = A + C + B + diag;
   const ssel = document.getElementById("salesMonthlyStore");
   if(ssel) ssel.onchange = ()=>{ selectedMonthlyStore = ssel.value; renderSalesMonthly(); saveState(); };
   if(meta) meta.textContent = `업로드된 월 ${months.length}개 (${months[0]}~${months[months.length-1]}) · 매장 ${allStores.length}곳 · 금액 기준: 월마다 더 완전한 소스 자동 채택 (${months.map(m=>m.slice(5)+'월:'+storeMonthSrc[m]).join(', ')})`;
@@ -3246,6 +3284,29 @@ function renderPeriodCompare(){
   body.innerHTML = `<p style="font-size:12.5px;color:var(--muted);margin:0 0 8px;"><b style="color:var(--text);">${escHtml(storeLabel)}</b> · 기간 총합(실매출액)</p>${totalBox}${legend}${warnHtml}<div class="cat-bar-list">${rows}</div>`;
 }
 
+/* ================= 매출 데이터 커버리지(업로드 누락) 경고 =================
+   2026-09-21 사고: 그 날 파일(매출현황-20260921.xlsx)에 양주점(-41,440원)·인천점(10,000원) 단 2개
+   매장만 들어있었는데(정상은 21~22개 매장), 코드는 파일 안 값을 그대로 합산해 "매출 종합 -31,440원"을
+   조용히 표시했다 — 계산 로직 버그가 아니라 업로드된 원본 파일 자체가 일부 매장 데이터만 담고 있었던
+   것. 이런 날은 합계·전일/전주/전월 대비가 실제 매출이 아니므로, 화면에 눈에 띄게 경고해 사용자가
+   그 파일을 다시 올려 교체하도록 유도한다("조용한 실패가 더 위험하다" 원칙). */
+function salesTypicalStoreCoverage(excludeDate){
+  const days = STORE_SALES_HISTORY.filter(h=>h.date!==excludeDate && h.byStore && Object.keys(h.byStore).length>0).slice(-14);
+  if(!days.length) return 0;
+  return Math.max(...days.map(h=>Object.keys(h.byStore).length));
+}
+function salesCoverageWarningHtml(dateStr){
+  const h = STORE_SALES_HISTORY.find(x=>x.date===dateStr);
+  if(!h || !h.byStore) return "";
+  const n = Object.keys(h.byStore).length;
+  const typical = salesTypicalStoreCoverage(dateStr);
+  if(typical<=0 || n>=Math.ceil(typical*0.5)) return "";
+  return `<p style="font-size:12.5px;color:var(--red);margin:10px 0 0;background:rgba(230,60,60,.08);border:1px solid var(--red);border-radius:8px;padding:9px 13px;">
+    ⚠ <b>${escHtml(dateStr)}</b> 파일(${escHtml(h.file||"업로드 파일")})에는 <b>${n}개 매장</b> 데이터만 들어있습니다(최근 정상 업로드는 매장 ${typical}개).
+    이 날짜의 합계·전일/전주/전월 대비는 실제 매출이 아니라 <b>일부 매장만 반영된 값</b>일 가능성이 매우 높습니다 —
+    전체 매장이 포함된 매출현황-${escHtml(dateStr.replace(/-/g,''))}.xlsx 파일을 다시 올려 이 날짜를 교체해 주세요(같은 날짜로 다시 올리면 자동으로 덮어써집니다).
+  </p>`;
+}
 /* ================= 집계 현황 : 매출 추이 (전일/전주/전월/작년 대비) ================= */
 function renderSalesTrend(){
   const wrap = document.getElementById("salesTrendBody");
@@ -3267,7 +3328,8 @@ function renderSalesTrend(){
       deltaLineMoney("전주 대비", cur, grand(storeSalesMapAt(shift(upto,7)))),
       deltaLineMoney("전월 대비", cur, grand(storeSalesMapAt(prevMonthSameDay)))
     ]);
-    wrap.innerHTML = `<div class="stat-row">${card}</div>`;
+    const covWarn = (salesViewMode==="daily") ? salesCoverageWarningHtml(upto) : "";
+    wrap.innerHTML = `<div class="stat-row">${card}</div>${covWarn}`;
     return;
   }
   // 일자별 파일이 없을 때만: 예전처럼 상품별 파일 기반 총합(세일적용가)으로 표시
@@ -4000,6 +4062,36 @@ function buildStoreMonthlyTable(s, month){
     <div style="font-size:11px;color:var(--muted2);margin-top:8px;">${escHtml(avgTxt)} · <span style="color:#e8b93f;">금</span>·<span style="color:#5aa9ff;">토</span>·<span style="color:#ff6b6b;">일</span>요일 색으로 구분 · <span style="color:#ff6b6b;">빨강</span> = 공휴일·대체휴무일 · 금액 단위 만원(정확한 값은 칸에 마우스 올리면 표시)</div>
   </div>`;
 }
+/* ================= 매장별 매출 탭: 목표매출 대비 도달율(전사 + 매장별) =================
+   2026-09-23 사용자 요청 — "목표매출 대비 도달율을 전체 / 매장별로 나올수있게 수정해주세요".
+   "목표매출 달성 방안" 탭이 이미 검증해 쓰는 goalsBuildContext()(STORE_MONTHLY_TARGETS 기반,
+   영업일수 비례 일할 계산)를 그대로 재사용한다 — 목표 계산 로직을 새로 만들지 않는다. */
+function salesTargetAchievementHtml(store){
+  let ctx;
+  try{ ctx = goalsBuildContext(); }catch(_){ ctx = null; }
+  if(!ctx || !ctx.rows || !ctx.rows.length) return "";
+  const companyActual = ctx.rows.reduce((a,r)=>a+r.actual,0);
+  const companyTarget = ctx.rows.reduce((a,r)=>a+r.proratedTarget,0);
+  const companyPct = companyTarget>0 ? companyActual/companyTarget*100 : null;
+  const pctChip = pct => {
+    if(pct==null) return '<span class="delta na">목표 데이터 없음</span>';
+    const cls = pct>=100?'up':(pct>=80?'flat':'down');
+    const arrow = pct>=100?'▲':(pct>=80?'－':'▼');
+    return `<span class="delta ${cls}">${arrow} ${pct.toFixed(1)}%</span>`;
+  };
+  const monthLbl = ctx.mLbl(ctx.curMonth);
+  const rows = [`<div class="delta-line"><span class="lbl">전사 ${escHtml(monthLbl)} 목표매출 대비 도달율</span>${pctChip(companyPct)}<span class="ref">(${Math.round(companyActual).toLocaleString()}/${Math.round(companyTarget).toLocaleString()}원)</span></div>`];
+  if(store && store!==ALL_STORES_KEY){
+    const groupKey = storeSalesGroup(store);
+    const row = ctx.rows.find(r=>r.store===groupKey);
+    if(row){
+      rows.push(`<div class="delta-line"><span class="lbl">${escHtml(storeGroupLabel(groupKey))} ${escHtml(monthLbl)} 목표매출 대비 도달율</span>${pctChip(row.pct)}<span class="ref">(${Math.round(row.actual).toLocaleString()}/${Math.round(row.proratedTarget).toLocaleString()}원)</span></div>`);
+    } else {
+      rows.push(`<div class="delta-line"><span class="lbl">${escHtml(store)}</span><span class="delta na">개별 목표매출 데이터 없음</span></div>`);
+    }
+  }
+  return `<div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--line-soft);">${rows.join("")}</div>`;
+}
 function renderSalesDetail(){
   renderSalesDetailMonthSelect();
   renderSalesDetailDaySelect();
@@ -4070,6 +4162,7 @@ function renderSalesDetail(){
     const card = statCard(`${s} · ${pc.dateLabel} (상품별 기준)`, Math.round(pc.cur).toLocaleString(), lines);
     cardHtml = `<div class="stat-row">${card}</div>`;
   }
+  cardHtml += salesTargetAchievementHtml(s);
   const insightsHtml = snaps ? renderStoreDeepInsights(s, snaps)
     : `<div class="insight-tag">매장 상세 자동 분석</div><p class="trend-empty">카테고리별 매출 파일(상품별)을 올리면 공급 대비 매출 이슈·개선 분석이 여기에 표시됩니다.</p>`;
   // 행사/프로모션 입력 + 자동 참고 코멘트
@@ -4134,7 +4227,14 @@ function renderSalesCatSelect(){
   sel.onchange = ()=>{ selectedSalesCategory = sel.value; renderSalesCatRank(); };
 }
 let selectedCatRankMonth = "__active__"; // "__active__" = 상단 표시기준 따름, 아니면 특정 월
+let selectedCatRankDay = "__all__"; // "__all__" = 월 전체 합계, 아니면 그 달의 특정 날짜 하루만
+// 2026-09-23: 사용자 요청 — "카테고리별 매장순위에서는 월/날짜를 별도로 지정할수있게 해주세요".
+// 월 선택(selectedCatRankMonth)은 이미 있었으나 "그 달 전체 합계"만 가능했다 — 날짜 선택을 별도로 더해
+// 특정 하루 매출만으로도 순위를 볼 수 있게 한다(월을 "상단 표시기준 따름"으로 둔 채로도 날짜만 고를 수 있음).
 function catRankMap(){
+  if(selectedCatRankDay && selectedCatRankDay!=="__all__"){
+    return mergeByStoreCat(SALES_HISTORY.filter(h=>h.date===selectedCatRankDay));
+  }
   if(selectedCatRankMonth && selectedCatRankMonth!=="__active__"){
     return mergeByStoreCat(SALES_HISTORY.filter(h=>h.date.slice(0,7)===selectedCatRankMonth));
   }
@@ -4145,14 +4245,30 @@ function renderSalesCatRankMonthSelect(){
   if(!sel) return;
   const months = Array.from(new Set(SALES_HISTORY.map(h=>h.date.slice(0,7)))).sort();
   if(!selectedCatRankMonth || (selectedCatRankMonth!=="__active__" && !months.includes(selectedCatRankMonth))) selectedCatRankMonth="__active__";
-  sel.innerHTML = `<option value="__active__">상단 표시기준 따름</option>` + months.map(m=>`<option value="${m}"${m===selectedCatRankMonth?' selected':''}>${m.replace('-','년 ')}월</option>`).join("");
+  sel.innerHTML = `<option value="__active__">월: 상단 표시기준 따름</option>` + months.map(m=>`<option value="${m}"${m===selectedCatRankMonth?' selected':''}>${m.replace('-','년 ')}월</option>`).join("");
   sel.value = selectedCatRankMonth;
-  sel.onchange = ()=>{ selectedCatRankMonth = sel.value; renderSalesCatSelect(); renderSalesCatRank(); saveState(); };
+  sel.onchange = ()=>{ selectedCatRankMonth = sel.value; selectedCatRankDay = "__all__"; renderSalesCatSelect(); renderSalesCatRank(); saveState(); };
+}
+// 날짜 선택지는 "그 달"(월을 특정 달로 골랐으면 그 달, 아니면 매출 데이터가 있는 전체 기간) 안의
+// 날짜들로만 채운다 — 월 선택과 무관한 날짜를 고를 수 없게 해서 "월/날짜 조합"이 항상 말이 되게 한다.
+function renderSalesCatRankDaySelect(){
+  const sel = document.getElementById("salesCatRankDay");
+  if(!sel) return;
+  const days = Array.from(new Set(
+    SALES_HISTORY
+      .filter(h=> selectedCatRankMonth==="__active__" || h.date.slice(0,7)===selectedCatRankMonth)
+      .map(h=>h.date)
+  )).sort();
+  if(!selectedCatRankDay || (selectedCatRankDay!=="__all__" && !days.includes(selectedCatRankDay))) selectedCatRankDay = "__all__";
+  sel.innerHTML = `<option value="__all__">날짜: 월 전체 합계</option>` + days.map(d=>`<option value="${d}"${d===selectedCatRankDay?' selected':''}>${d} 하루</option>`).join("");
+  sel.value = selectedCatRankDay;
+  sel.onchange = ()=>{ selectedCatRankDay = sel.value; renderSalesCatSelect(); renderSalesCatRank(); saveState(); };
 }
 function renderSalesCatRank(){
   const body = document.getElementById("salesCatRankBody");
   if(!body) return;
   renderSalesCatRankMonthSelect();
+  renderSalesCatRankDaySelect();
   const latestMap = catRankMap();
   if(!Object.keys(latestMap).length || !selectedSalesCategory){
     body.innerHTML = `<p class="trend-empty">매출현황을 업로드하면 카테고리를 선택해 매장별 순위를 볼 수 있습니다.</p>`;
@@ -4162,8 +4278,9 @@ function renderSalesCatRank(){
     const v = latestMap[s] && latestMap[s][selectedSalesCategory];
     return { label: s, value: v ? v.amount : 0, qty: v ? v.qty : 0 };
   }).filter(r=>r.value>0).sort((a,b)=>b.value-a.value);
-  const monthLabel = (selectedCatRankMonth && selectedCatRankMonth!=="__active__") ? `${selectedCatRankMonth} 기준` : salesModeLabel();
-  body.innerHTML = `<div style="font-size:11px;color:var(--muted2);margin-bottom:10px;">${escHtml(monthLabel)} · <b>${escHtml(selectedSalesCategory)}</b> 매출 많은 매장 순</div>` + buildCategoryBarList(rows);
+  const dayLabel = (selectedCatRankDay && selectedCatRankDay!=="__all__") ? `${selectedCatRankDay} 하루 기준`
+    : (selectedCatRankMonth && selectedCatRankMonth!=="__active__") ? `${selectedCatRankMonth} 기준` : salesModeLabel();
+  body.innerHTML = `<div style="font-size:11px;color:var(--muted2);margin-bottom:10px;">${escHtml(dayLabel)} · <b>${escHtml(selectedSalesCategory)}</b> 매출 많은 매장 순</div>` + buildCategoryBarList(rows);
 }
 
 /* ================= 추이 그래프 : 날짜 유틸 ================= */
@@ -7052,10 +7169,22 @@ function goalsRender01(ctx){
         <div style="flex:1;min-width:220px;">${buildSharePercentBars(companyCatData, {compact:true})}</div>
       </div>` : "";
 
-  const unsold = goalsUnsoldCategories(ctx.companyCat);
-  const unsoldTxt = unsold.length
-    ? unsold.slice(0,8).map(u=>`${escHtml(u.cat)} ${u.plt.toLocaleString()} PLT`).join(" · ")
-    : "해당 없음";
+  // 2026-09-23 사용자 요청 — "01번 요약 방법론에 쓸데없는거 다 지우고 전사 달성율과 월 목표매출
+  // 위험군 달성률 등 대시보드만 보이게 해주세요". 아래 4개 g-note-card(데이터 기준/핵심 가정/
+  // 전사 카테고리 판매 부진 경고/시트 구성 — 전부 긴 설명 텍스트인 "방법론")는 삭제했다.
+  // 대신 "위험군(달성률 65% 미만)" 매장을 숫자 하나가 아니라 실제 매장명·달성률 목록으로 보여줘
+  // 이름 그대로 "대시보드"가 되게 했다 — 계산 로직(ctx.rows)은 그대로, 표시만 바꾼 것.
+  const dangerRows = ctx.rows.filter(r=>r.pct<65);
+  const dangerListHtml = dangerRows.length
+    ? `<div class="g-rank-list">${dangerRows.map(r=>{
+        const tier = goalsTier(r.pct);
+        const c = tier.cls==="g-tier-bad" ? "var(--red)" : "var(--amber)";
+        return `<div class="g-rank-row" title="${escHtml(r.label)} · 달성률 ${r.pct.toFixed(1)}%">
+          <span class="g-rank-name">${escHtml(r.label)}</span>
+          <div class="mini-bar" style="flex:1;"><div class="mini-bar-fill" style="width:${Math.min(100,r.pct).toFixed(1)}%;background:${c}"></div></div>
+          <span class="g-rank-pct">${r.pct.toFixed(1)}%</span></div>`;
+      }).join("")}</div>`
+    : `<p class="g-note-p" style="color:var(--green);">위험군(달성률 65% 미만) 매장 없음</p>`;
 
   return `<div class="stat-row">
       ${statCard(`전사 달성률 · ${ctx.curMonth} (${ctx.elapsedDays}/${ctx.daysInMonth}일 경과)`, totalPct.toFixed(1)+"%", [
@@ -7072,39 +7201,8 @@ function goalsRender01(ctx){
     ${salesAuditHtml(ctx)}
     ${goalsForecastCardHtml(ctx)}
     ${donutHtml}
-    <div class="g-note-card">
-      <h4>데이터 기준</h4>
-      <div class="g-note-row"><span class="k">· 매장 단위</span><span class="v">기흥 패션관은 기흥점과 같은 매장이므로 <b>기흥점에 합산</b>해 하나의 행으로 봅니다(월 목표도 합산). 패션관광주점은 별도 매장으로 유지합니다.</span></div>
-      <div class="g-note-row"><span class="k">· 오픈 / 폐점</span><span class="v">제주서귀포점 <b>2026-02 오픈</b> → 1월은 결측이 아니라 영업 전으로 처리(누적목표에서 제외). 광주점 <b>2026-08-23 영업 종결</b> → 8월 목표는 23/31일치만 인정하고 9월부터 대상 제외.${ctx.closedStores.length?` 현재 기준월 대상 제외: ${escHtml(ctx.closedStores.join(", "))}`:""}</span></div>
-      <div class="g-note-row"><span class="k">· 신선식품 취급</span><span class="v">식품(냉장·냉동·상온) 운영 매장이 매장별로 다릅니다. 신선 미취급 매장(대소점·제주서귀포점·원주점)은 신선식품 진단 대상에서 빼고, <b>전사 신선 평균 구성비는 취급 매장만</b>을 분모로 계산합니다${ctx.freshBasis?"":" (단, 현재 신선 취급 매장 매출이 0이라 전사 평균으로 대체)"}.</span></div>
-      <div class="g-note-row"><span class="k">· 목표매출</span><span class="v">코드 상단 <code>STORE_MONTHLY_TARGETS</code>에 고정 입력된 <b>월 목표</b>(${ctx.rows.length}개 매장). 목표가 바뀌면 이 객체만 수정하면 전 시트에 반영됩니다.</span></div>
-      <div class="g-note-row"><span class="k">· 실적 / 카테고리</span><span class="v">이 사이트에 업로드된 매출 데이터 — 금액은 청구금액(${escHtml(ctx.curTot.source)}) 기준, 카테고리 구성은 상품별 매출현황의 대분류 기준</span></div>
-      <div class="g-note-row"><span class="k">· ${cm} 데이터 범위</span><span class="v">${ctx.curMonth}-01 ~ ${ctx.curMonth}-${String(ctx.elapsedDays).padStart(2,'0')} (${ctx.elapsedDays}일 / ${ctx.daysInMonth}일, 월 마감 전)</span></div>
-      <div class="g-note-row"><span class="k">· 월별 추이 데이터</span><span class="v">${ctx.months[0]} ~ ${ctx.curMonth} 월별 합계까지만 확보됨. 일별/주별 매출은 이 사이트가 월 단위로만 집계·저장하고 있어 반영 불가 — 07 시트에서 월 단위 추이로 대신 제공</span></div>
-    </div>
-    <div class="g-note-card">
-      <h4>핵심 가정 (중요)</h4>
-      <div class="g-note-row"><span class="k">· 목표매출의 성격</span><span class="v">목표매출은 <b>연간이 아니라 월 목표</b>로 판단. 근거① 용인점 목표 6.5억은 상반기 월평균 5.52억과 같은 자릿수(연 목표라면 월 5,400만원이 되어 이미 10배 초과 달성이 되므로 모순). 근거② 매출 인센티브 기준표가 '목표 대비 ±%'의 월 단위 구간 구조라 월 단위 비교 체계와 일치</span></div>
-      <div class="g-note-row"><span class="k">· ${cm} 목표 환산</span><span class="v">월 목표 × (${ctx.elapsedDays}/${ctx.daysInMonth})로 일할 환산해 같은 기간 누적 실적과 비교 — 부분월을 만월 목표와 비교해 과소평가하지 않기 위함</span></div>
-      <div class="g-note-row"><span class="k">· 인센티브 구간</span><span class="v">-10~-15% 수당없음 · -15~-20% 수당없음+사유서(3회 누적 시 관리자 교체) · +1~10% 이상 구간별 수당 지급 — 02 시트 '인센티브구간' 열에서 매장별 자동 판정</span></div>
-      <div class="g-note-row"><span class="k">· 카테고리 매출</span><span class="v">사입 = 외부 소싱 상품, XLA~XLE = 본사 공급 가전/생활 규격 코드, 신선식품 = 신선 별도 라인</span></div>
-      <div class="g-note-row"><span class="k">· 데이터 결측 처리</span><span class="v">${Object.keys(ctx.missingMonths).length ? Object.entries(ctx.missingMonths).map(([s,m])=>`${escHtml(s)}(${m})`).join(", ")+" 매출 원본이 통째로 누락됨. 이 매장들은 누적목표/누적격차를 억지로 계산하지 않고 <b>'결측으로 산출 제외'</b>로 표기합니다(없는 달을 0으로 채우면 실제보다 낮게 나와 오해를 부르기 때문)." : "현재 결측 월이 있는 매장 없음."}</span></div>
-      <div class="g-note-row"><span class="k">· 매장 정렬</span><span class="v">02 / 03 / 04 / 06 / 07 시트 모두 <b>${cm} 달성률이 낮은 매장 → 높은 매장</b> 순(1위 = 최하위) — 대응 우선순위가 위에서부터 보이도록</span></div>
-    </div>
-    <div class="g-note-card">
-      <h4>전사 카테고리 판매 부진 경고 (출고는 있었으나 ${cm} 매출 0원)</h4>
-      <p class="g-note-p warn">${escHtml(unsoldTxt)}</p>
-      <p class="g-note-p">상세는 <b>05 전사 카테고리 벤치마크</b> 하단 표 참조. 특히 신선식품 계열의 대량 미판매는 진열/폐기 여부를 즉시 확인해야 합니다.</p>
-    </div>
-    <div class="g-note-card">
-      <h4>시트 구성 (위 서브탭)</h4>
-      <p class="g-note-p">02 매장별 목표달성 현황 — 매장별 월 목표 대비 월별 실적, 누적 격차, 달성률, 인센티브 구간, 달성률 랭킹<br>
-      03 카테고리 매출 매트릭스 — 매장 × 카테고리 매출액 / 구성비 / 전사평균 대비 격차 (히트맵)<br>
-      04 카테고리 진단 — 매장별 1위 카테고리, 강점/기회 카테고리 자동 진단<br>
-      05 전사 카테고리 벤치마크 — 카테고리별 전사 매출비중 · PLT당 매출효율 · 미판매 경고<br>
-      06 매장별 실행방안 — 달성률 4개 그룹별 매장 카드(4문장 진단 + 카테고리 도넛 + 격차표 + 월별 이력)<br>
-      07 매장별 월별 추이 — 매장 × 월별 달성률 매트릭스 (히트맵)</p>
-    </div>`;
+    <div class="g-tbl-title">${cm} 목표매출 위험군 매장 (달성률 65% 미만 · 낮은 순)</div>
+    ${dangerListHtml}`;
 }
 
 /* ---------------- 02_매장별목표달성현황 ---------------- */
@@ -8320,7 +8418,7 @@ function goalsRender10Body(ctx){
 
 /* ---------------- 서브탭 전환 ---------------- */
 let goalsSubTab = "01";
-const GOALS_SUB_KEYS = ["01","02","03","04","05","06","07","08","09","10"];
+const GOALS_SUB_KEYS = ["01","04","05","06","07","08","09","10"]; // 02·03은 2026-09-23 삭제(아래 참고)
 function selectGoalsSub(key){
   if(GOALS_SUB_KEYS.indexOf(key) < 0) return;
   goalsSubTab = key;
@@ -8349,8 +8447,6 @@ function wireGoalsSubTabs(){
 function renderGoals(){
   const panels = {
     "01": document.getElementById("goalsSummaryWrap"),
-    "02": document.getElementById("goals02Wrap"),
-    "03": document.getElementById("goals03Wrap"),
     "04": document.getElementById("goals04Wrap"),
     "05": document.getElementById("goals05Wrap"),
     "06": document.getElementById("goalsStoreWrap"),
@@ -8361,8 +8457,6 @@ function renderGoals(){
   };
   const metas = {
     "01": document.getElementById("goalsSummaryMeta"),
-    "02": document.getElementById("goals02Meta"),
-    "03": document.getElementById("goals03Meta"),
     "04": document.getElementById("goals04Meta"),
     "05": document.getElementById("goals05Meta"),
     "06": document.getElementById("goalsStoreMeta"),
@@ -8388,8 +8482,6 @@ function renderGoals(){
     : `기준월 ${ctx.curMonth} (${ctx.elapsedDays}/${ctx.daysInMonth}일 경과)`;
   const base = `${period} · 데이터 소스 ${ctx.curTot.source} · 목표는 코드(STORE_MONTHLY_TARGETS)의 월 목표 기준(연간 아님)`;
   panels["01"].innerHTML = goalsRender01(ctx);
-  panels["02"].innerHTML = goalsRender02(ctx);
-  panels["03"].innerHTML = goalsRender03(ctx);
   panels["04"].innerHTML = goalsRender04(ctx);
   panels["05"].innerHTML = goalsRender05(ctx);
   panels["06"].innerHTML = goalsRender06(ctx);
@@ -8398,8 +8490,6 @@ function renderGoals(){
   panels["09"].innerHTML = goalsRender09(ctx);
   panels["10"].innerHTML = goalsRender10(ctx);
   if(metas["01"]) metas["01"].textContent = base;
-  if(metas["02"]) metas["02"].textContent = `${base} · 달성률 낮은 순(1위=최하위)`;
-  if(metas["03"]) metas["03"].textContent = `집계 기간 ${ctx.scopeLabel} · 실매출액 기준 · 카테고리 ${ctx.cats.length}종 전체`;
   if(metas["04"]) metas["04"].textContent = `집계 기간 ${ctx.scopeLabel} · 강점/기회는 전사 평균 구성비 대비 격차가 가장 큰/작은 카테고리`;
   if(metas["05"]) metas["05"].textContent = `집계 기간 ${ctx.scopeLabel} · PLT당 매출 = 카테고리 매출 ÷ 출고 PLT (판매수량 아님)`;
   if(metas["06"]) metas["06"].textContent = `${base} · 달성률 4개 그룹 · 매장별 4문장 자동 진단`;
