@@ -772,7 +772,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 56 · 2026-09-23</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 57 · 2026-09-23</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1199,13 +1199,16 @@
 
 <script>
 /* ================= 매장 별칭 (같은 매장을 다른 이름으로 적은 파일 보정) ================= */
-// 매출현황 POS 매장코드 표기 보정: "광주경안점"은 경안점, "광주점(구,샐비지)"은 광주점, "패션관기흥점"은 기흥점과 다른 별도 매장인 "기흥 패션관".
-const STORE_ALIASES = { "서귀포점":"제주서귀포점", "광주경안점":"경안점", "광주점(구,샐비지)":"광주점", "패션관기흥점":"기흥 패션관",
+// 매출현황 POS 매장코드 표기 보정: "광주경안점"은 경안점, "광주점(구,샐비지)"은 광주점.
+// 2026-09-23: 옛 "기흥 패션관"(기흥점과는 별도 매장, 기흥점 매출에 합산해오던 것을 사용자 요청으로
+// 분리 — build 57)이 출고계획서 기준 "동탄점"으로 개명됐다. 과거 표기("패션관기흥점"·"기흥가구패션관"
+// 등)와 새 표기("기흥점 패션관"·"패션관 기흥"·"동탄점")를 전부 새 내부 매장명 "동탄점"으로 흡수한다
+// — 기존에 저장된 브라우저 데이터의 "기흥 패션관" 키도 migrateRenamedStores()가 같이 이관한다.
+const STORE_ALIASES = { "서귀포점":"제주서귀포점", "광주경안점":"경안점", "광주점(구,샐비지)":"광주점",
+  "패션관기흥점":"동탄점", "기흥 패션관":"동탄점", "기흥점 패션관":"동탄점", "패션관 기흥":"동탄점",
   // 본사 출고계획서의 "기흥가구패션관"은 어떤 매장으로도 인식되지 않아 그 목적지가 통째로 집계에서
-  // 빠지고 있었다("집계 확인 필요" 배너에 뜨던 그 1건). 사용자 확인: **출고는 기흥 패션관으로**,
-  // **매출은 기흥점으로** 잡는다 → 여기서 기흥 패션관에 매핑하면, 매출 쪽은 storeSalesGroup 이
-  // 기흥 패션관을 기흥점에 합산하므로 두 요구가 한 번에 충족된다. (2026-08-28 18차)
-  "기흥가구패션관":"기흥 패션관", "기흥가구/패션관":"기흥 패션관", "가구패션관기흥점":"기흥 패션관",
+  // 빠지고 있었다("집계 확인 필요" 배너에 뜨던 그 1건). (2026-08-28 18차, 2026-09-23 동탄점으로 개명)
+  "기흥가구패션관":"동탄점", "기흥가구/패션관":"동탄점", "가구패션관기흥점":"동탄점",
   // seunghyun(매장 PLT 현황) 실시간 연동에서 쓰는 표기 보정: "시그니처OO점"은 표기만 다를 뿐 같은 매장. (2026-09-11)
   "시그니처용인점":"용인점", "시그니처이천점":"이천점", "시그니처인천점":"인천점" };
 const _ALIAS_SQUASH = (()=>{ const m={}; Object.keys(STORE_ALIASES).forEach(k=> m[k.replace(/[\s/]+/g,'')] = STORE_ALIASES[k]); return m; })();
@@ -1534,7 +1537,7 @@ const STOCK_HDR_MATCH = [
 
 /* ============ 데이터 (첨부 "주차별 점별 PLT현황" 마지막 시트에서 추출 / 이후 재업로드로 대체) ============ */
 // 각 배열 = 값 17칸(AGG_HDR 순서) + 비고(memo) 1칸. 파일에 없는 뒤 5곳은 빈 값으로 유지.
-let STORES = ["광주점","경안점","남양주점","기흥점","김포점","대소점","수원점","아산점","안중점","양주점","원주점","이천점","인천점","천안점","청주점","충주점","평택점","김해점","용인점","기흥 패션관","패션관광주점","제주서귀포점","서비스솔루션","이천센터","제주점","방도리센터","의정부가맹점","파주가맹점","파주가맹점2","신광주점","신광주점패션관"];
+let STORES = ["광주점","경안점","남양주점","기흥점","김포점","대소점","수원점","아산점","안중점","양주점","원주점","이천점","인천점","천안점","청주점","충주점","평택점","김해점","용인점","동탄점","패션관광주점","제주서귀포점","서비스솔루션","이천센터","제주점","방도리센터","의정부가맹점","파주가맹점","파주가맹점2","신광주점","신광주점패션관"];
 // "신광주점"·"신광주점패션관": 2026-08-23 폐점된 기존 "광주점"과는 무관한 완전히 새로운 별도 매장(사용자 확인, build 41).
 // 파일에 없는 뒤쪽 매장들은 수동 유지 매장. "패션관광주점"은 광주점 바로 옆이지만 별도 운영되는 독립 매장이라 광주점과 합쳐지지 않고 매출·출고 모두 별도 집계된다(기흥점/기흥 패션관과 같은 구조).
 // "의정부가맹점"·"파주가맹점"·"파주가맹점2"는 킹콩백화점 직영이 아닌 가맹점이라 매출(매출현황)에는 잡히지 않지만, 출고내역서의 출고 수량은 매장 목록에 없어 누락되지 않도록 계속 카운트한다.
@@ -1558,7 +1561,7 @@ let STOCK = {
 "평택점":[24,8,10,0,null,null,null,null,null,1,null,null,null,null,null,32,11,null],
 "김해점":[172,33,37,11,13,21,3,11,0,0,0,0,0,null,null,0,0,null],
 "용인점":[23,5,2,5,6,null,null,null,15,4,null,8,null,null,null,null,20,"대형가구 7 / 쇼파 8/ 대형티비 4/ XLC 부족입니다"],
-"기흥 패션관":[null,0,0,0,null,null,null,null,9,null,16,null,null,null,null,25,null,"20일부터 일주일동안 비예고있음 \n직출이 아니면 차주로 미뤘으면 함.\n야적에따른 물건 손상예상"],
+"동탄점":[null,0,0,0,null,null,null,null,9,null,16,null,null,null,null,25,null,"20일부터 일주일동안 비예고있음 \n직출이 아니면 차주로 미뤘으면 함.\n야적에따른 물건 손상예상 (구 기흥 패션관)"],
 "패션관광주점":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],
 "제주서귀포점":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],
 "서비스솔루션":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],
@@ -1998,6 +2001,48 @@ if(typeof window!=="undefined"){
   window.addEventListener("beforeunload", ()=>{ try{ saveStateNow(); }catch(_){} });
   window.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden"){ try{ saveStateNow(); }catch(_){} } });
 }
+// 2026-09-23 build 57: 매장이 개명될 때("기흥 패션관"→"동탄점") 이미 브라우저에 저장된 옛 상태
+// (localStorage/IndexedDB/Firebase 세 군데 어디서 복원되든)가 옛 이름으로 데이터를 들고 있으면,
+// 다음 파일을 새로 올리기 전까지 새 매장명이 텅 비어 보인다. RENAMED_STORES에 항목을 추가해두면
+// applyStateObject()가 상태를 적용할 때마다 옛 이름 키의 데이터를 새 이름으로 그대로 옮겨준다 —
+// 데이터 손실 없이 "매장명만 바뀐 것"으로 취급한다. 이미 새 이름 쪽에 그 날짜/월 데이터가 있으면
+// (예: 개명 이후 새로 업로드된 값) 그쪽을 우선하고 옛 값은 버린다.
+const RENAMED_STORES = { "기흥 패션관": "동탄점" };
+function migrateRenamedStores(){
+  Object.keys(RENAMED_STORES).forEach(oldName=>{
+    const newName = RENAMED_STORES[oldName];
+    const idx = STORES.indexOf(oldName);
+    if(idx>=0){
+      if(STORES.includes(newName)) STORES.splice(idx,1);
+      else STORES[idx] = newName;
+    }
+    [STOCK, SHIP, ACTUAL, HQ_ACTUAL, APPLIANCE_ACTUAL, CENTER_DIRECT_ACTUAL, FRESH_ACTUAL].forEach(obj=>{
+      if(!obj || obj[oldName]===undefined) return;
+      if(obj[newName]===undefined) obj[newName] = obj[oldName];
+      delete obj[oldName];
+    });
+    [CENTER_M, HQ_M, APPLIANCE_M, CENTER_DIRECT_M, FRESH_M, LOTTE_M].forEach(byMonth=>{
+      if(!byMonth) return;
+      Object.keys(byMonth).forEach(m=>{
+        const mm = byMonth[m];
+        if(!mm || mm[oldName]===undefined) return;
+        if(mm[newName]===undefined) mm[newName] = mm[oldName];
+        delete mm[oldName];
+      });
+    });
+    (STORE_SALES_HISTORY||[]).forEach(h=>{
+      if(!h || !h.byStore || h.byStore[oldName]===undefined) return;
+      h.byStore[newName] = (h.byStore[newName]||0) + h.byStore[oldName];
+      delete h.byStore[oldName];
+    });
+    (SALES_HISTORY||[]).forEach(h=>{
+      if(!h || !h.byStoreCat || h.byStoreCat[oldName]===undefined) return;
+      if(h.byStoreCat[newName]===undefined) h.byStoreCat[newName] = h.byStoreCat[oldName];
+      delete h.byStoreCat[oldName];
+    });
+    if(typeof selected!=="undefined" && selected===oldName) selected = newName;
+  });
+}
 function applyStateObject(s){
   try{
     if(!s || !Array.isArray(s.STORES) || !s.STORES.length) return null;
@@ -2086,6 +2131,9 @@ function applyStateObject(s){
     unmatchedApplianceStores = Array.isArray(s.unmatchedApplianceStores) ? s.unmatchedApplianceStores : [];
     selectedSalesMonth = s.selectedSalesMonth || null;
     selected = STORES.includes(s.selected) ? s.selected : STORES[0];
+    // 2026-09-23 build 57: 이 상태 블롭이 개명 전("기흥 패션관") 데이터를 들고 있으면 여기서 새
+    // 매장명("동탄점")으로 이관 — RENAMED_STORES/migrateRenamedStores() 선언부 주석 참고.
+    try{ migrateRenamedStores(); }catch(_){}
     // ★ 사용자가 직접 고른 카테고리 지정은 어떤 상태 블롭보다 우선한다 — 반드시 마지막에 덮어쓴다.
     // (로컬/IndexedDB/클라우드 어디서 호출돼도 지정이 살아남게 하는 지점. 위 mergeStoredCatMaps 주석 참고)
     mergeStoredCatMaps();
@@ -2828,8 +2876,7 @@ function renderSalesMonthly(){
           <tbody>${body2}</tbody>
           <tfoot><tr><td>합계</td><td class="tgt-col"><span class="num" style="color:var(--amber)">${Math.round(totTargetFull2).toLocaleString()}</span></td><td class="tgt-col" style="font-size:10.5px;color:var(--muted2);"><span class="num">${Math.round(totTarget2).toLocaleString()}</span></td><td><span class="num">${Math.round(totActual2).toLocaleString()}</span></td><td class="total-col"><span class="num">${totTarget2>0?(totActual2/totTarget2*100).toFixed(1):'0.0'}%</span></td><td></td></tr></tfoot>
           </table></div>
-          ${rankList2}
-          ${goalsHuiyongSplitTable(ctx)}`;
+          ${rankList2}`;
       }
     }
   }catch(_){}
@@ -5499,7 +5546,7 @@ const STORE_MONTHLY_TARGETS = {
   "인천점": 520000000,
   "이천점": 420000000,
   "기흥점": 400000000,
-  "기흥 패션관": 60000000,
+  "동탄점": 60000000, // 구 "기흥 패션관" — 2026-09-23 개명 + 기흥점 합산 해제(build 57)
   "김포점": 250000000,
   "안중점": 250000000,
   "청주점": 230000000,
@@ -5524,8 +5571,9 @@ const STORE_MONTHLY_TARGETS = {
    ① 제주서귀포점은 2026년 2월 오픈 → 1월 매출이 없는 것은 "결측"이 아니라 "영업 전"이다.
       예전에는 결측으로 보고 누적목표 산출을 통째로 포기했는데, 이제 오픈 이후 달만 세어 정상 계산한다.
    ② 광주점은 2026-08-23 영업 종결 → 8월 목표는 23/31일만 인정하고, 9월 이후는 대상에서 자동 제외된다.
-   ③ 기흥 패션관은 기흥점과 같은 매장 → 매출·목표를 기흥점에 합산한다(대표 매장 = 기흥점).
-      ※ "패션관광주점"은 사용자가 별도 매장이라고 확인한 곳이라 합산하지 않는다.
+   ③ (2026-09-23 build 57로 폐기) 예전엔 "기흥 패션관"을 기흥점에 매출·목표 합산했었으나, 사용자
+      요청으로 분리 + "동탄점"으로 개명 — 현재는 다른 독립 매장과 똑같이 별도 집계된다.
+      ※ "패션관광주점"도 사용자가 별도 매장이라고 확인한 곳이라 애초에 합산하지 않았다.
    ④ 식품(냉장/냉동/상온) 운영 여부가 매장별로 다르다("식품 운영 매장 현황" 20260707 기준).
       신선식품을 아예 취급하지 않는 매장에 "신선식품 편성 확대"를 권하면 안 되고,
       전사 평균 구성비를 낼 때도 미취급 매장을 분모에 넣으면 안 된다.
@@ -5553,7 +5601,7 @@ const STORE_PROFILE = {
   "청주점":      { fresh:F_ALL },
   "충주점":      { fresh:{chilled:false, frozen:true,  ambient:true} },
   "평택점":      { fresh:{chilled:true,  frozen:false, ambient:true} },
-  "기흥 패션관": { mergeSalesInto:"기흥점" },
+  "동탄점":      { fresh:{chilled:false, frozen:false, ambient:false} }, // 구 "기흥 패션관" — 가구·패션 위주라 식품 미취급, 기흥점과는 독립 집계(build 57)
 };
 // 냉장·냉동 취급 여부로 판단할 "신선식품" 성격의 매출 카테고리
 const FRESH_CATS = ["신선식품"];
@@ -6132,8 +6180,8 @@ const SUPPLY_PLAN = {
     "opTotal": 0,
     "companyTarget": 70000000
   },
-  "기흥 패션관": {
-    "src": "패션관기흥점",
+  "동탄점": {
+    "src": "패션관기흥점 (구 기흥 패션관, 2026-09-23 동탄점으로 개명)",
     "plt": {
       "XLK": 10,
       "XLW": 45
@@ -6369,8 +6417,10 @@ function goalsElapsedDays(ym){
   const last = dates.sort().slice(-1)[0];
   return Number(last.slice(8,10));
 }
-// 매출 집계를 "대표 매장" 단위로 묶는다. 기흥 패션관은 기흥점과 같은 매장이므로 기흥점에 합산된다.
-// (매출 원본의 매장 표기는 resolveStoreName으로 먼저 정규화한다 — "패션관기흥점" → "기흥 패션관".)
+// 매출 집계를 "대표 매장" 단위로 묶는다(STORE_PROFILE에 mergeSalesInto가 지정된 매장이 있으면 그
+// 대표 매장에 합산 — 2026-09-23 현재 이렇게 합산되는 매장은 없음, 예전엔 기흥 패션관→기흥점이었으나
+// build 57에서 분리+"동탄점"으로 개명했다).
+// (매출 원본의 매장 표기는 resolveStoreName으로 먼저 정규화한다 — "패션관기흥점" → "동탄점".)
 function goalsGroupMap(month){
   const t = monthStoreTotals(month);
   const map = {};
@@ -6452,7 +6502,7 @@ function goalsCumulative(store, months, curMonth){
   targetCum += target*(curA.days/curA.dim);
   return { actualCum, targetCum, pct: targetCum>0 ? actualCum/targetCum*100 : 0, gap:false, skipped };
 }
-// 대표 매장의 월 목표 = 합산 매장 목표의 합 (기흥점 4.0억 + 기흥 패션관 0.6억 = 4.6억)
+// 대표 매장의 월 목표 = 합산 매장 목표의 합 (2026-09-23 현재 합산되는 매장이 없어 항상 자기 자신 목표와 같음)
 function groupMonthlyTarget(store){
   const members = storeGroupMembers(store).filter(m=>STORE_MONTHLY_TARGETS[m]!=null);
   if(!members.length) return null;
@@ -6717,7 +6767,8 @@ function goalsBuildContext(){
   const elapsedDays = goalsElapsedDays(curMonth), daysInMonth = goalsDaysInMonth(curMonth);
   const mLbl = m => (+m.slice(5)) + "월";
   const scopeLabel = goalsScopeLabel(scopeMonths);
-  // 15차: 매장 단위가 아니라 **대표 매장(합산) 단위**로 집계한다 — 기흥 패션관은 기흥점에 합쳐진다.
+  // 15차: 매장 단위가 아니라 **대표 매장(합산) 단위**로 집계한다(STORE_PROFILE에 mergeSalesInto가
+  // 지정된 매장이 있으면 그 대표 매장에 합쳐짐) — 2026-09-23 현재 이렇게 합산되는 매장은 없다.
   const monthMaps = {}; months.forEach(m=> monthMaps[m] = goalsGroupMap(m));
   const curTot = monthMaps[curMonth];
   // ★ 카테고리 집계는 **선택 기간의 매출 파일만** 합친다.
@@ -7079,48 +7130,11 @@ function goalsRender01(ctx){
     ${dangerListHtml}`;
 }
 
-/* ---------------- 02_매장별목표달성현황 ---------------- */
-// 2026-09-22: 사용자 요청 — "기흥점 매출과 기흥 패션관 매출을 분리해서 보고 싶다".
-// 위 매장별 표·목표달성률·인센티브 구간은 여전히 "기흥 패션관은 기흥점과 같은 매장"이라는
-// 확인된 사실(5547행)에 따라 두 매장을 합산한 대표 매장(기흥점) 기준을 그대로 쓴다 — 이건
-// 인센티브 구간 등 여러 곳이 이미 그 전제로 맞춰져 있어 여기서 임의로 되돌리지 않는다.
-// 대신 monthStoreTotals()의 매장별 "원본"(그룹 합산 전) 값을 그대로 뽑아 별도 참고 표만 추가한다
-// — 합산 로직 자체는 전혀 건드리지 않으므로 02~09탭의 기존 계산에는 영향이 없다.
-function goalsHuiyongSplitTable(ctx){
-  const T = { "기흥점": STORE_MONTHLY_TARGETS["기흥점"], "기흥 패션관": STORE_MONTHLY_TARGETS["기흥 패션관"] };
-  if(T["기흥점"]==null || T["기흥 패션관"]==null) return ""; // 데이터 구조가 바뀌면 조용히 숨기고 표시하지 않는다
-  const months = ctx.months;
-  const monthlyByStore = {};
-  months.forEach(m=>{
-    const t = monthStoreTotals(m);
-    monthlyByStore[m] = { "기흥점": t.map["기흥점"]||0, "기흥 패션관": t.map["기흥 패션관"]||0 };
-  });
-  const monthHead = ctx.months.map(m=> m===ctx.curMonth
-    ? `<th>${ctx.mLbl(m)}<br>(~${m.slice(5,7)}/${ctx.elapsedDays})</th>`
-    : `<th>${ctx.mLbl(m)}</th>`).join("");
-  const rows = ["기흥점","기흥 패션관"].map(s=>{
-    const cells = months.map(m=>{
-      const st = storeActiveDays(s, m, m===ctx.curMonth ? ctx.elapsedDays : null);
-      const t = T[s]*(st.days/st.dim);
-      const v = monthlyByStore[m][s];
-      const pct = t>0 ? (v/t*100).toFixed(1)+"%" : "-";
-      return `<td><span class="num">${Math.round(v).toLocaleString()}</span><br><span style="font-size:9px;color:var(--muted2)">${pct}</span></td>`;
-    }).join("");
-    return `<tr><td>${escHtml(s)}</td><td class="tgt-col"><span class="num" style="color:var(--amber)">${T[s].toLocaleString()}</span></td>${cells}</tr>`;
-  }).join("");
-  const sumRow = months.map(m=>{
-    const v = monthlyByStore[m]["기흥점"] + monthlyByStore[m]["기흥 패션관"];
-    return `<td><span class="num">${Math.round(v).toLocaleString()}</span></td>`;
-  }).join("");
-  return `<details class="g-store-more" style="margin-top:10px">
-    <summary>기흥점 · 기흥 패션관 매출 분리 보기 (참고용)</summary>
-    <div class="g-tbl-sub" style="margin:8px 0 6px">위 표의 목표달성률 · 인센티브 구간은 두 매장을 합산(기흥점 월 목표 ${T["기흥점"].toLocaleString()}원 + 기흥 패션관 월 목표 ${T["기흥 패션관"].toLocaleString()}원 = ${(T["기흥점"]+T["기흥 패션관"]).toLocaleString()}원)한 값을 그대로 씁니다. 이 표는 원본 매출만 분리해서 보여주는 참고용이며, 각 칸 아래 %는 그 매장 단독 목표 대비 그 매장 단독 달성률입니다.</div>
-    <div class="tblbox"><table class="g-tbl"><thead><tr><th>매장</th><th class="tgt-col">월 목표</th>${monthHead}</tr></thead>
-      <tbody>${rows}</tbody>
-      <tfoot><tr><td>합계(=위 표의 기흥점)</td><td class="tgt-col"><span class="num" style="color:var(--amber)">${(T["기흥점"]+T["기흥 패션관"]).toLocaleString()}</span></td>${sumRow}</tr></tfoot>
-    </table></div>
-  </details>`;
-}
+/* ---------------- 02_매장별목표달성현황 (goalsRender02는 호출되지 않는 죽은 코드 — build 50 주석 참고) ---------------- */
+// 2026-09-23 build 57: 예전에 여기 있던 goalsHuiyongSplitTable()("기흥점·기흥 패션관 매출 분리 보기"
+// 참고 표)는 삭제했다 — 애초에 "메인 표는 두 매장을 합산한 값을 쓴다"는 전제를 설명하려고 만든
+// 표였는데, 이제 기흥점과 동탄점(구 기흥 패션관)은 애초에 합산하지 않고 각자 별도 행으로 집계되므로
+// 그 전제 자체가 사라졌다 — 표가 있으면 오히려 "아직도 합산되나?" 하는 오해만 남긴다.
 function goalsRender02(ctx){
   const cm = ctx.mLbl(ctx.curMonth);
   const monthHdr = ctx.months.map(m=> m===ctx.curMonth
@@ -7222,9 +7236,8 @@ function goalsRender02(ctx){
   return `<div class="g-tbl-title">매장별 월 목표 대비 실적 · 누적 격차 · 인센티브 구간</div>
     ${fcLine}
     <div class="g-tbl-sub">달성률 낮은 순 정렬 · 월별 칸의 색은 그 달의 목표 달성률(붉을수록 미달) · <b>'결측'</b>은 그 달 매출 원본이 업로드되지 않은 경우(0원이 아니라 데이터 없음), <b>'미오픈/폐점'</b>은 그 달 영업하지 않은 경우로 목표에서 아예 제외됩니다 · <sup style="color:var(--amber)">*</sup>는 오픈월·폐점월로 영업일수 비례 목표를 적용한 달</div>
-    <div class="g-tbl-sub">기흥점은 기흥 패션관을 합산한 값(월 목표도 합산)입니다 · '신선X'는 냉장·냉동 미취급 매장</div>
+    <div class="g-tbl-sub">'신선X'는 냉장·냉동 미취급 매장</div>
     <div class="tblbox"><table class="g-tbl">${head}<tbody>${body}</tbody>${foot}</table></div>
-    ${goalsHuiyongSplitTable(ctx)}
     ${rankList}`;
 }
 
