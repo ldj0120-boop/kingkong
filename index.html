@@ -772,7 +772,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 58 · 2026-09-23</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 59 · 2026-09-23</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -6558,6 +6558,9 @@ function goalsCategoryEfficiency(scopedSales){
   return rows;
 }
 function goalsEffMap(){ const m={}; goalsCategoryEfficiency().forEach(r=>m[r.cat]=r); return m; }
+// 2026-09-23 build 59: goalsNarrative()가 더 이상 이 함수(및 goalsTrendPhrase)를 호출하지
+// 않아 당장 쓰는 곳이 없다 — 사용자가 이 함수가 만들던 해석성 문장 자체를 "개똥"이라며
+// 삭제를 요청했기 때문. 다만 규칙 기반 문구 생성 로직 자체는 재사용 가능성이 있어 남겨둔다.
 // 매장별 4~5문장 진단 문구를 규칙 기반으로 만든다(엑셀 리포트 06시트와 같은 로직) —
 // 데이터가 바뀌면 문구도 매번 새로 생성되어, 사람이 쓴 고정 문구처럼 낡지 않는다.
 function goalsActionText(diag, effMap){
@@ -6738,21 +6741,37 @@ function goalsHasBatchim(word){
 }
 function goalsJosaIGa(word){ return goalsHasBatchim(word) ? "이" : "가"; }
 // 06시트 매장별 4문장 서술 — 엑셀 build_narrative()와 같은 문장 구조·같은 분기 규칙.
+// 2026-09-23 build 59: 예전엔 이 함수가 "①달성률·순위 ②카테고리 강점/기회 진단 ③추세 판단
+// ④개선 레버리지 추천" 4문장을 자동 생성했는데, 사용자 지적 — "이거 설명 개똥 하나도 안맞아아
+// 차라리 삭제해라 최근 3개월간의 매출 데이터를 통한 팩트만 출력해줘라"(특히 매출이 거의 없는
+// 신규/소규모 매장에서 "강점 +64%p" 같은 진단이 표본이 너무 작아 의미가 없는데도 확신에 찬 문장으로
+// 나가는 게 문제였다). 판단·추천 문장은 전부 없애고, 최근 3개월 실제 매출 금액과 그 달 일할 목표
+// 대비 값만 사실 그대로 나열한다 — "강점"·"기회"·"추세 판단"·"레버리지" 같은 해석은 하지 않는다.
 function goalsNarrative(r, ctx){
-  const won = n => Math.round(Math.abs(n)).toLocaleString()+"원";
-  const pp  = n => (n>=0?"+":"")+n.toFixed(1)+"%p";
-  let gapTxt;
-  if(!r.cum)            gapTxt = "누적 비교 데이터 없음";
-  else if(r.cum.gap)    gapTxt = `${ctx.missingMonths[r.store] ? ctx.missingMonths[r.store]+" " : ""}매출 원본 결측으로 누적갭 산출 제외(${ctx.mLbl(ctx.curMonth)} 실적만 신뢰)`;
-  else if(r.cum.actualCum >= r.cum.targetCum) gapTxt = `${won(r.cum.actualCum-r.cum.targetCum)} 초과 달성`;
-  else                  gapTxt = `${won(r.cum.targetCum-r.cum.actualCum)} 미달`;
-  const s1 = `${ctx.mLbl(ctx.curMonth)} 달성률 <b>${r.pct.toFixed(1)}%</b>로 ${ctx.rows.length}개 매장 중 낮은 순 <b>${r.rank}위</b>(1위가 최하위). ${ctx.months.length}개월 누적 기준 ${gapTxt}.`;
-  const s2 = r.diag
-    ? `카테고리 구성은 전사 평균 대비 <b>${escHtml(r.diag.strength.cat)}</b>${goalsJosaIGa(r.diag.strength.cat)} ${pp(r.diag.strength.diff)}로 강점, <b>${escHtml(r.diag.opportunity.cat)}</b>${goalsJosaIGa(r.diag.opportunity.cat)} ${pp(r.diag.opportunity.diff)}로 기회(열위) 영역으로 진단됨.`
-    : `카테고리 매출 데이터가 없어 구성 진단 불가.`;
-  const s3 = `추세: ${goalsTrendPhrase(r.hist)}.`;
-  const s4 = goalsActionText(r.diag, ctx.effMap);
-  return `<div class="g-narr"><span class="sn">① ${s1}</span><span class="sn">② ${s2}</span><span class="sn">③ ${s3}</span><span class="sn">④ ${s4}</span></div>`;
+  const months = ctx.months.slice(-3);
+  const won = n => Math.round(n).toLocaleString();
+  const cells = months.map(m=>{
+    const st = storeActiveDays(r.store, m, m===ctx.curMonth ? ctx.elapsedDays : null);
+    const isCur = m===ctx.curMonth;
+    if(st.days<=0){
+      return `<div class="g-month-cell"><div class="mm">${m.slice(5)}월</div><div class="mv" style="color:var(--muted2)">${st.state==="before"?"미오픈":"폐점"}</div></div>`;
+    }
+    const actual = ctx.monthMaps[m] ? (ctx.monthMaps[m].map[r.store]||0) : 0;
+    if(actual<=0 && !isCur){
+      return `<div class="g-month-cell"><div class="mm">${m.slice(5)}월</div><div class="mv" style="color:var(--muted2)">결측</div></div>`;
+    }
+    const t = r.target*(st.days/st.dim);
+    const pct = t>0 ? actual/t*100 : null;
+    return `<div class="g-month-cell${isCur?' cur':''}">
+      <div class="mm">${m.slice(5)}월${isCur?' (진행중)':''}</div>
+      <div class="mv">${won(actual)}원</div>
+      <div style="font-size:9px;color:var(--muted2);margin-top:1px;">${pct!=null?'목표 대비 '+pct.toFixed(1)+'%':''}</div>
+    </div>`;
+  }).join("");
+  return `<div class="g-narr">
+    <div class="g-month-title" style="margin-bottom:6px;">최근 3개월 실적 (해석·추천 없이 실제 매출 금액만)</div>
+    <div class="g-month-strip" style="overflow-x:visible;">${cells}</div>
+  </div>`;
 }
 
 /* ---- 7개 시트가 공유하는 계산을 한 번만 수행해서 넘겨준다(매장별 진단·월별 이력 등 중복 계산 방지) ---- */
@@ -8387,7 +8406,7 @@ function renderGoals(){
   if(metas["01"]) metas["01"].textContent = base;
   if(metas["04"]) metas["04"].textContent = `집계 기간 ${ctx.scopeLabel} · 강점/기회는 전사 평균 구성비 대비 격차가 가장 큰/작은 카테고리`;
   if(metas["05"]) metas["05"].textContent = `집계 기간 ${ctx.scopeLabel} · PLT당 매출 = 카테고리 매출 ÷ 출고 PLT (판매수량 아님)`;
-  if(metas["06"]) metas["06"].textContent = `${base} · 달성률 4개 그룹 · 매장별 4문장 자동 진단`;
+  if(metas["06"]) metas["06"].textContent = `${base} · 달성률 4개 그룹 · 매장별 최근 3개월 실적(해석 없음)`;
   if(metas["07"]) metas["07"].textContent = `${ctx.months[0]} ~ ${ctx.curMonth} · 결측 월은 0%가 아니라 '결측'으로 표기`;
   if(metas["08"]) metas["08"].textContent = `${base} · 매출·출고·재고 3소스 교차 · 판정과 문구는 매 업로드마다 자동 재생성`;
   if(metas["09"]) metas["09"].textContent = `${base} · 관리 매장 ${MANAGED_STORES.length}곳(기흥·이천·제주서귀포·충주·평택·대소) · 달성률 낮은 순`;
