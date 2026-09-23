@@ -772,7 +772,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 57 · 2026-09-23</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 58 · 2026-09-23</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -8054,32 +8054,13 @@ function goalsRender08Body(ctx){
       <div class="g-qbox"><h4>③ 창고봉쇄 — 비워야 들어간다</h4><p>야적·정체 재고가 신규 입고를 물리적으로 막고 있는 매장.</p><div class="s">${byTag("창고봉쇄")}</div></div>
       <div class="g-qbox"><h4>④ 배정오류 — 애초에 잘못 실렸다</h4><p>받은 물량의 절반 이상이 매출 0 카테고리. 배차 룰 자체를 고쳐야 합니다.</p><div class="s">${byTag("배정오류")}</div></div>
     </div>`;
-  // ── 매장 카드 (월 목표 격차 큰 순)
-  const cards = D.stores.slice().sort((a,b)=>
-      (a.r.actual-a.r.proratedTarget) - (b.r.actual-b.r.proratedTarget)
-    ).map(d=>{
-    const r = d.r;
-    const gap = r.actual - r.proratedTarget;
-    const chips = [
-      `달성 ${r.pct.toFixed(0)}%`,
-      d.trend!=null ? `추세 ${(d.trend>0?"+":"")+d.trend.toFixed(0)}%` : null,
-      `격차 ${eok(gap)}억`,
-      d.t ? `${ctx.mLbl(cur)} ${d.t}PLT` : null,
-      d.nrPct!=null ? `무매출 ${d.nrPct.toFixed(0)}%` : null,
-      d.stockTot ? `재고 ${d.stockTot}PLT` : null,
-      d.yard ? `야적 ${d.yard}` : null,
-    ].filter(Boolean).map(t=>`<span class="g-chip">${escHtml(t)}</span>`).join("");
-    const tagline = d.tags.length ? d.tags.map(t=>`<span class="g-chip ${t==="공급기아"?"good":"warn"}">${t}</span>`).join("") : "";
-    return `<article class="g-card">
-      <div class="g-card-hd"><span class="nm">${escHtml(r.label)}</span>${tagline}</div>
-      <div class="g-card-chips">${chips}</div>
-      <ul class="g-card-acts">${diagActions(d, ctx, D).map(a=>`<li>${a}</li>`).join("")}</ul>
-    </article>`;
-  }).join("");
-  return kpi + catTbl + supTbl + storeTbl + quad +
-    `<div class="g-tbl-title" style="margin-top:22px">매장별 진단과 실행안 (목표 격차 큰 순)</div>
-     <div class="g-tbl-sub">아래 문장은 모두 오늘 올라온 매출·출고·재고에서 자동 생성됩니다 — 파일을 새로 올리면 문구도 함께 바뀝니다.</div>
-     <div class="g-cards">${cards}</div>`;
+  // 2026-09-23 build 58: "매장별 진단과 실행안(목표 격차 큰 순)" 카드 — 매장마다 diagActions()가
+  // 자동 생성하던 문장형 처방("배차 정리"·"창고 확보 선행"·"하락 원인 실사" 등) — 사용자 지적:
+  // "맞지도 않는 해석따위 써서 오히려 혼란만준다" → 전부 삭제. 바로 위 "매장별 공급 × 매출 교차표"
+  // (storeTbl)에 같은 근거 수치(달성률·추세·PLT·무매출%·재고·야적·신선·판정)가 이미 표로 나와
+  // 있으므로 정보 손실은 없다. diagActions()는 당장 쓰는 곳이 없어졌지만 재사용 가능성을 고려해
+  // 함수 자체는 남겨둔다(호출부만 제거).
+  return kpi + catTbl + supTbl + storeTbl + quad;
 }
 
 /* ================= 09 관리매장 매출요약 =================
