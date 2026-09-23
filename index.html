@@ -772,7 +772,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 52 · 2026-09-23</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 53 · 2026-09-23</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -948,24 +948,11 @@
       <div class="agg-scroll" id="salesMonthlyWrap"></div>
     </div>
 
-    <div class="agg-card">
-      <div class="p-hd">
-        <span class="store-name">매장별 공급 대비 매출</span>
-        <span class="meta" id="salesVsSupplyMeta"></span>
-      </div>
-      <div style="padding:10px 14px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <label for="salesVsSupplyMonth" style="font-family:'Oswald';font-size:11px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;">월 선택</label>
-        <select id="salesVsSupplyMonth" style="max-width:170px;" title="이 달의 출고·매출로 비교합니다"></select>
-        <span style="font-size:11px;color:var(--muted2);">선택한 달의 출고 대비 매출(누적 아님)</span>
-      </div>
-      <div id="salesInsightsBody"></div>
-      <div class="agg-scroll"><table id="salesVsSupplyTable"></table></div>
-      <div class="readonly-wrap">
-        <div class="r-hd">카테고리별 공급 대비 매출</div>
-        <div class="agg-scroll"><table id="catSupplySalesTable"></table></div>
-      </div>
-    </div>
-
+<!-- 2026-09-23: "매장별 공급 대비 매출"·"카테고리별 공급 대비 매출" 카드 삭제(사용자 요청 — "근거가 안맞는다").
+         이번달 출고량(출고예정+출고완료)과 이번달 매출을 그대로 나눠 "PLT당 매출"을 냈는데, 출고와 판매 사이엔
+         시차가 있어(이번달 받은 물량이 다음달에 팔리는 경우 등) 같은 달로 묶어 비교하는 게 방법론적으로
+         맞지 않다는 지적. 렌더 함수(renderSalesVsSupply 등)는 코드에서 완전히 제거했다 — 되살릴 근거가
+         마련되면(예: 입고~판매 시차를 감안한 재고 회전 기준으로 다시 설계) 그때 새로 만들 것. -->
     <div class="agg-card">
       <div class="p-hd">
         <span class="store-name">기간별 카테고리별 매출 비교</span>
@@ -2423,7 +2410,7 @@ function afterChange(){
   renderStoreList();
   renderPanel();
   if(!document.getElementById("view-agg").hidden){ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }
-  if(!document.getElementById("view-sales").hidden){ renderSalesDateSelect(); renderSalesTrend(); renderSalesVsSupply(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); }
+  if(!document.getElementById("view-sales").hidden){ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); }
   if(!document.getElementById("view-goals").hidden){ renderGoals(); }
   renderDataQuality();
   saveState();
@@ -3056,7 +3043,7 @@ function renderSalesDateSelect(){
   sel.innerHTML = sortedDesc.map(d=>`<option value="${d}"${d===selectedSalesDate?' selected':''}>${d}</option>`).join("");
   sel.onchange = ()=>{
     selectedSalesDate = sel.value;
-    renderSalesTrend(); renderSalesVsSupply(); renderSalesAgg();
+    renderSalesTrend(); renderSalesAgg();
     renderSalesStoreList(); renderSalesDetail();
     renderSalesCatSelect(); renderSalesCatRank();
     saveState();
@@ -3066,7 +3053,7 @@ function renderSalesDateSelect(){
     modeSel.value = salesViewMode;
     modeSel.onchange = ()=>{
       salesViewMode = modeSel.value;
-      renderSalesTrend(); renderSalesVsSupply(); renderSalesAgg();
+      renderSalesTrend(); renderSalesAgg();
       renderSalesStoreList(); renderSalesDetail();
       renderSalesCatSelect(); renderSalesCatRank();
       saveState();
@@ -3084,7 +3071,7 @@ function renderSalesDateSelect(){
       if(inMonth.length){
         selectedSalesDate = inMonth[inMonth.length-1];
         renderSalesDateSelect();
-        renderSalesTrend(); renderSalesVsSupply(); renderSalesAgg();
+        renderSalesTrend(); renderSalesAgg();
         renderSalesStoreList(); renderSalesDetail();
         renderSalesCatSelect(); renderSalesCatRank();
         saveState();
@@ -3359,165 +3346,12 @@ function renderSalesTrend(){
   wrap.innerHTML = `<div class="stat-row">${card}</div>`;
 }
 
-/* ================= 집계 현황 : 매장별 공급(출고) 대비 매출 한눈에 보기 ================= */
-// 매장별 매출을 전일뿐 아니라 전주·전월 대비까지, 그리고 이번달 출고 대비 매출 효율(PLT당 매출)까지 한 표에서 보여준다.
-function salesDeltaCell(cur, prev){
-  if(prev===null || prev===undefined) return '<span class="delta na">비교 데이터 없음</span>';
-  if(prev===0) return cur===0 ? '<span class="delta flat">변동 없음</span>' : `<span class="delta up">▲ 신규 ${Math.round(cur).toLocaleString()}</span>`;
-  const pct = Math.round((cur-prev)/prev*100);
-  const cls = pct>0?'up':(pct<0?'down':'flat'); const arrow = pct>0?'▲':(pct<0?'▼':'－');
-  return `<span class="delta ${cls}">${arrow} ${Math.abs(pct)}%<span class="ref">(${Math.round(prev).toLocaleString()})</span></span>`;
-}
-function renderSalesVsSupply(){
-  const tbl = document.getElementById("salesVsSupplyTable");
-  const meta = document.getElementById("salesVsSupplyMeta");
-  // 월 선택 배선: 이 달의 출고(shipScope)와 매출(selectedSalesDate)을 같은 달로 맞춰 "그 달" 기준 비교
-  const vsSel = document.getElementById("salesVsSupplyMonth");
-  if(vsSel){
-    const allDates = Array.from(new Set([...STORE_SALES_HISTORY.map(h=>h.date), ...SALES_HISTORY.map(h=>h.date)])).sort();
-    const months = Array.from(new Set(allDates.map(d=>d.slice(0,7)))).sort();
-    const cur = selectedSalesDate ? selectedSalesDate.slice(0,7) : (months[months.length-1]||"");
-    vsSel.innerHTML = months.map(m=>`<option value="${m}"${m===cur?' selected':''}>${m.replace('-','년 ')}월</option>`).join("");
-    vsSel.value = cur;
-    vsSel.onchange = ()=>{
-      const inM = allDates.filter(d=>d.slice(0,7)===vsSel.value).sort();
-      if(inM.length) selectedSalesDate = inM[inM.length-1];
-      shipScope = vsSel.value; // 출고도 같은 달로
-      renderSalesDateSelect(); renderShipScopeSelect();
-      renderSalesTrend(); renderSalesVsSupply(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail();
-      try{ renderShipAgg(); renderStockAgg(); renderTrend(); }catch(_){}
-      saveState();
-    };
-  }
-  const snaps = salesComparisonSnapshots();
-  const hasStore = STORE_SALES_HISTORY.length>0;
-  const amtInfo = storeSalesActiveMap();
-  const amt = amtInfo.map;                 // 매장별 금액(청구금액 우선)
-  const shift = (dstr,days)=>{ const d=parseYMD(dstr); d.setDate(d.getDate()-days); return fmtDate(d); };
-  const upto = amtInfo.upto;
-  // 비교 맵: 일자별(청구금액) 데이터가 있으면 그 기준으로, 없으면 상품별 스냅샷으로.
-  const mapOf = snap => !snap ? null : (salesViewMode==="daily" ? snap.byStoreCat : cumulativeSalesMap(snap.date));
-  const activeStores = STORES.filter(s=> storeShipTotal(s)>0 || (amt[s]!=null && amt[s]!==0) );
-  if(!activeStores.length){ tbl.innerHTML=""; meta.textContent=""; return; }
-  const salesOf = s => amt[s] || 0;
-  const cmpOf = (snap, s, storeShiftDays) => {
-    if(hasStore){ const m = upto ? storeSalesMapAt(shift(upto, storeShiftDays)) : null; return m ? (m[s]||0) : null; }
-    const m = mapOf(snap); return m ? salesStoreTotal(m, s) : null;
-  };
-  let head = "<thead><tr><th>매장</th><th>이번달 출고(출고예정+출고완료)</th><th>실매출액(청구금액)</th><th>PLT당 매출</th><th>전일 대비</th><th>전주 대비</th><th>전월 대비</th></tr></thead>";
-  let body = "<tbody>";
-  activeStores.slice().sort((a,b)=>salesOf(b)-salesOf(a)).forEach(s=>{
-    const supply = storeShipTotal(s);
-    const sales = salesOf(s);
-    const perPlt = supply>0 ? Math.round(sales/supply) : null;
-    body += `<tr><td>${s}</td><td><span class="num">${supply||''}</span></td><td class="total-col"><span class="num">${sales?Math.round(sales).toLocaleString():''}</span></td>` +
-      `<td><span class="num">${perPlt!==null?perPlt.toLocaleString():''}</span></td>` +
-      `<td>${salesDeltaCell(sales, cmpOf(snaps&&snaps.yest,s,1))}</td>` +
-      `<td>${salesDeltaCell(sales, cmpOf(snaps&&snaps.week,s,7))}</td>` +
-      `<td>${salesDeltaCell(sales, cmpOf(snaps&&snaps.month,s,30))}</td></tr>`;
-  });
-  body += "</tbody>";
-  const supplyGrand = activeStores.reduce((a,s)=>a+storeShipTotal(s),0);
-  const salesGrand = activeStores.reduce((a,s)=>a+salesOf(s),0);
-  const foot = `<tfoot><tr><td>합계</td><td><span class="num">${supplyGrand||''}</span></td><td class="total-col"><span class="num">${salesGrand?Math.round(salesGrand).toLocaleString():''}</span></td>` +
-    `<td><span class="num">${supplyGrand>0?Math.round(salesGrand/supplyGrand).toLocaleString():''}</span></td><td></td><td></td><td></td></tr></tfoot>`;
-  tbl.innerHTML = head + body + foot;
-  meta.textContent = (hasStore||snaps) ? `${salesModeLabel()} · 금액기준 ${amtInfo.source} · 매장 ${activeStores.length}곳 (매출 많은 순) · PLT당 매출 = 실매출액 ÷ 이번달 출고량` : "매출 업로드 전 (이번달 출고량만 표시)";
-  renderCatSupplySales();
-  renderSalesInsights();
-}
-
-/* ================= 카테고리별 공급(출고) 대비 매출 ================= */
-// 매출현황의 카테고리는 이제 상품분류 분류기(classifySalesCategory)를 통해 출고 카테고리(XLA/XLB/…/대형가전 등)와
-// 같은 이름 체계로 들어오므로, 카테고리 단위로 "출고량 대비 매출"을 바로 비교할 수 있다.
-function categorySupplySalesAnalysis(){
-  const latestMap = activeSalesMap();
-  return CATEGORIES.map(cat=>{
-    const supply = STORES.reduce((a,s)=>a+planQty(s,cat)+actualQty(s,cat),0);
-    const sales = STORES.reduce((a,s)=>a+((latestMap[s]&&latestMap[s][cat])?latestMap[s][cat].amount:0),0);
-    return {cat, supply, sales};
-  }).filter(r=>r.supply>0 || r.sales>0);
-}
-function renderCatSupplySales(){
-  const tbl = document.getElementById("catSupplySalesTable");
-  if(!tbl) return;
-  const rows = categorySupplySalesAnalysis().sort((a,b)=>b.sales-a.sales);
-  if(!rows.length){ tbl.innerHTML = `<caption style="caption-side:top;text-align:left;color:var(--muted);font-size:12.5px;padding:6px 0;">출고 또는 매출 데이터가 아직 없습니다.</caption>`; return; }
-  let head = "<thead><tr><th>카테고리</th><th>이번달 출고</th><th>실매출액</th><th>PLT당 매출</th></tr></thead>";
-  let body = "<tbody>";
-  rows.forEach(r=>{
-    const perPlt = r.supply>0 ? Math.round(r.sales/r.supply) : null;
-    body += `<tr><td>${escHtml(r.cat)}</td><td><span class="num">${r.supply||''}</span></td><td class="total-col"><span class="num">${r.sales?Math.round(r.sales).toLocaleString():''}</span></td><td><span class="num">${perPlt!==null?perPlt.toLocaleString():''}</span></td></tr>`;
-  });
-  body += "</tbody>";
-  const supplyGrand = rows.reduce((a,r)=>a+r.supply,0);
-  const salesGrand = rows.reduce((a,r)=>a+r.sales,0);
-  const foot = `<tfoot><tr><td>합계</td><td><span class="num">${supplyGrand||''}</span></td><td class="total-col"><span class="num">${salesGrand?Math.round(salesGrand).toLocaleString():''}</span></td>` +
-    `<td><span class="num">${supplyGrand>0?Math.round(salesGrand/supplyGrand).toLocaleString():''}</span></td></tr></tfoot>`;
-  tbl.innerHTML = head + body + foot;
-}
-
-/* ================= 규칙 기반 자동 분석 코멘트 ================= */
-// AI/딥러닝이 아니라, 증감률·이상치를 통계적으로 계산해 사람이 보기 쉬운 문장으로 바꿔주는 규칙 기반 엔진이다.
-// (실시간 데이터에 바로 반영되고 비용이 들지 않는 대신, 진짜 생성형 AI 같은 자연스러운 문장은 아니다.)
-function generateSalesInsights(){
-  const snaps = salesComparisonSnapshots();
-  if(!snaps) return [];
-  const insights = [];
-  const latestMap = snaps.latest.byStoreCat;
-
-  // 1) 매장별 전일 대비 최대 상승/하락
-  const yestDeltas = STORES.map(s=>{
-    const cur = salesStoreTotal(latestMap, s);
-    const y = snaps.yest ? salesStoreTotal(snaps.yest.byStoreCat, s) : null;
-    if(y===null || y<=0 || cur===0) return null;
-    return { s, cur, y, pct: (cur-y)/y*100 };
-  }).filter(Boolean);
-  if(yestDeltas.length){
-    const top = yestDeltas.slice().sort((a,b)=>b.pct-a.pct)[0];
-    const bottom = yestDeltas.slice().sort((a,b)=>a.pct-b.pct)[0];
-    if(top.pct>=10) insights.push({type:'up', icon:'📈', html:`<b>${escHtml(top.s)}</b> 매출이 전일 대비 <b>${Math.round(top.pct)}%</b> 증가해 가장 큰 상승폭을 보였습니다.`});
-    if(bottom.pct<=-10 && bottom.s!==top.s) insights.push({type:'down', icon:'📉', html:`<b>${escHtml(bottom.s)}</b> 매출이 전일 대비 <b>${Math.round(Math.abs(bottom.pct))}%</b> 감소해 가장 큰 하락폭을 보였습니다.`});
-  }
-
-  // 2) 카테고리별 출고 대비 매출 이상치 (PLT당 매출이 평균의 2배 이상 / 절반 이하)
-  const catRows = categorySupplySalesAnalysis().filter(r=>r.supply>0 && r.sales>0);
-  if(catRows.length>=2){
-    const perPltList = catRows.map(r=>r.sales/r.supply);
-    const avg = perPltList.reduce((a,v)=>a+v,0)/perPltList.length;
-    const best = catRows.slice().sort((a,b)=>(b.sales/b.supply)-(a.sales/a.supply))[0];
-    const worst = catRows.slice().sort((a,b)=>(a.sales/a.supply)-(b.sales/b.supply))[0];
-    if(avg>0 && best.sales/best.supply >= avg*1.8 && best.cat!==worst.cat){
-      insights.push({type:'up', icon:'⭐', html:`<b>${escHtml(best.cat)}</b> 카테고리는 PLT당 매출이 전체 평균의 <b>${(best.sales/best.supply/avg).toFixed(1)}배</b>로, 출고 대비 매출 효율이 가장 좋습니다.`});
-    }
-    if(avg>0 && worst.sales/worst.supply <= avg*0.5){
-      insights.push({type:'warn', icon:'⚠', html:`<b>${escHtml(worst.cat)}</b> 카테고리는 PLT당 매출이 전체 평균의 <b>${Math.round(worst.sales/worst.supply/avg*100)}%</b>에 그쳐, 출고량 대비 매출이 낮은 편입니다.`});
-    }
-  }
-
-  // 3) 출고는 있었지만 매출이 전혀 안 잡힌 카테고리 (재고 정체 가능성)
-  const noSaleCats = categorySupplySalesAnalysis().filter(r=>r.supply>0 && r.sales===0).map(r=>r.cat);
-  if(noSaleCats.length){
-    insights.push({type:'warn', icon:'📦', html:`<b>${noSaleCats.map(escHtml).join(', ')}</b> 카테고리는 이번달 출고는 있었지만 매출 반영이 아직 없습니다 — 진열·판매 여부를 확인해보세요.`});
-  }
-
-  // 4) 매출은 있는데 이번달 출고 자체가 없는 매장 (재고 소진/추가 공급 필요 가능성)
-  const salesNoSupply = STORES.filter(s=> storeShipTotal(s)===0 && salesStoreTotal(latestMap,s)>0);
-  if(salesNoSupply.length){
-    insights.push({type:'warn', icon:'🚚', html:`<b>${salesNoSupply.slice(0,5).map(escHtml).join(', ')}</b>${salesNoSupply.length>5?` 외 ${salesNoSupply.length-5}곳`:''}은 매출은 발생했지만 이번달 출고 입력이 없습니다 — 추가 공급이 필요한지 확인해보세요.`});
-  }
-
-  return insights;
-}
-function renderSalesInsights(){
-  const wrap = document.getElementById("salesInsightsBody");
-  if(!wrap) return;
-  const insights = generateSalesInsights();
-  if(!insights.length){ wrap.innerHTML = ""; return; }
-  wrap.innerHTML = `<div class="insight-tag">규칙 기반 자동 분석</div><div class="insight-wrap">` +
-    insights.map(i=>`<div class="insight-row ${i.type}"><span class="ic">${i.icon}</span><span>${i.html}</span></div>`).join("") +
-    `</div>`;
-}
+/* ================= (2026-09-23 삭제) 매장별/카테고리별 공급(출고) 대비 매출 =================
+   renderSalesVsSupply · salesDeltaCell · categorySupplySalesAnalysis · renderCatSupplySales ·
+   generateSalesInsights · renderSalesInsights 전부 삭제(사용자 요청 — "근거가 안맞는다": 이번달 출고량과
+   이번달 매출을 그대로 나눠 "PLT당 매출"을 냈는데, 입고~판매 사이 시차 때문에 같은 달로 묶어 비교하는 게
+   방법론적으로 맞지 않음). 이 함수들을 부르던 8곳의 renderSalesVsSupply() 호출도 같이 제거했다.
+   되살릴 근거가 마련되면(예: 시차를 감안한 재고회전 기준) 그때 새로 설계할 것. */
 
 /* ================= 매장별 매출 상세 — 심층 코멘트 엔진 =================
    전일/전주/전월/공급(출고) 대비를 종합해 "왜" 오르고 내렸는지와 "어떻게 하면 좋을지"까지 문장으로 만든다.
@@ -3874,7 +3708,7 @@ function wireSalesSectionMonth(selectId){
     if(inMonth.length){
       selectedSalesDate = inMonth[inMonth.length-1];
       renderSalesDateSelect();
-      renderSalesTrend(); renderSalesVsSupply(); renderSalesAgg();
+      renderSalesTrend(); renderSalesAgg();
       renderSalesStoreList(); renderSalesDetail();
       renderSalesCatSelect(); renderSalesCatRank();
       saveState();
@@ -4524,7 +4358,7 @@ function selectTab(which){
     view.hidden = !on;
   });
   if(which==="agg"){ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }
-  if(which==="sales"){ renderSalesDateSelect(); renderSalesTrend(); renderSalesVsSupply(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); }
+  if(which==="sales"){ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); }
   if(which==="goals"){ renderGoals(); }
 }
 tabEntry.onclick=()=>selectTab("entry");
@@ -5640,12 +5474,24 @@ function monthStoreTotals(month){
   if(realTot>0) return { map: real, total: realTot, source: "실매출액" };
   return { map: bill, total: billTot, source: "청구금액" };
 }
-/* ================= 목표매출 달성 방안 (하드코딩 월 목표 대비) ================= */
-// "목표매출 달성 방안" 탭에서 쓰는 매장별 월 목표(원). 사용자가 매일 매출을 업로드하는
-// 것과 달리 이 목표 숫자는 자주 바뀌지 않으므로 파일 업로드가 아니라 코드에 직접 고정값으로
-// 넣는다(2026-08-26 세션에서 사용자가 선택한 방식). 목표가 바뀌거나 매장이 추가/폐점되면
-// 이 표만 수정하면 된다. "목표매출"은 연간이 아니라 월 목표로 취급함 — 근거는
-// STORE_MONTHLY_TARGETS 바로 아래 goalsCumulative()의 주석 참고.
+/* ================= 목표매출 달성 방안 (매장별 월 목표) ================= */
+// "목표매출 달성 방안" 탭에서 쓰는 매장별 월 목표(원).
+//
+// 2026-09-23 변경 — 아래 표는 이제 "회사 목표 매출"(옛 고정값, 2026-08-26 세션에서 코드에 직접 넣은 값)
+// 그대로가 아니라 **SUPPLY_PLAN(매장별_운영_종합계획 최종본.xlsx "통합입력 (2)" 시트, 카테고리별
+// PLT×단가×전환율로 산출한 "운영 매출목표 합계")로 덮어써진다** — 아래 SUPPLY_PLAN 선언 직후의
+// override 루프 참고. 사용자가 인천점 스크린샷으로 지적: "01 요약" 화면이 인천점 목표로
+// 381,333,333원(=옛 회사 목표 520,000,000원의 일할)을 쓰고 있었는데, 최신 확정 자료 기준 인천점의
+// 진짜 월 목표는 595,150,000원(운영 매출목표 합계)이라는 지적 — 회사 목표 매출은 더 이상 갱신되지
+// 않는 옛 숫자였고, 실제로 써야 할 기준은 SUPPLY_PLAN 쪽이었다.
+//
+// 이 표(과거 이름 그대로 STORE_MONTHLY_TARGETS 아래에 남겨둠)는 이제 두 가지 역할만 한다:
+//  ① SUPPLY_PLAN에 아예 없는 매장(광주점 — 2026-08-23 폐점이라 최신 운영계획표 자체에 없음)의 목표.
+//  ② SUPPLY_PLAN은 있지만 opTotal이 0인 매장(대소점 — 비식품 카테고리 PLT 입력이 없어 계획값이 0)의
+//     목표. opTotal=0을 그대로 목표로 쓰면 달성률이 항상 0÷0류로 왜곡되므로 옛 값을 그대로 둔다.
+// 그 외 20개 매장은 전부 SUPPLY_PLAN.opTotal로 덮어써지므로, 실제로 목표를 바꾸려면 이제 이 표가 아니라
+// SUPPLY_PLAN 쪽(또는 향후 새 운영계획표가 오면 그 전체)을 갱신해야 한다. "목표매출"은 연간이 아니라
+// 월 목표로 취급함 — 근거는 STORE_MONTHLY_TARGETS 바로 아래 goalsCumulative()의 주석 참고.
 const STORE_MONTHLY_TARGETS = {
   "용인점": 650000000,
   "인천점": 520000000,
@@ -6309,6 +6155,14 @@ const SUPPLY_PLAN = {
     "companyTarget": 50000000
   },
 };
+// 2026-09-23: STORE_MONTHLY_TARGETS를 "회사 목표 매출"(위 옛 고정값)에서 SUPPLY_PLAN.opTotal(운영
+// 매출목표 합계)로 덮어쓴다. 두 숫자를 각자 다른 곳에 하드코딩해두면 한쪽만 갱신됐을 때 이번처럼
+// 조용히 어긋나므로(인천점: 목표 520,000,000원 vs 실제 확정 595,150,000원), SUPPLY_PLAN 쪽이 갱신되면
+// STORE_MONTHLY_TARGETS도 항상 같이 따라가도록 여기서 한 번만 계산한다. opTotal이 없거나(광주점 —
+// 최신 운영계획표 자체에 없는 폐점 매장) 0인(대소점 — 비식품 PLT 입력 없음) 매장만 위 옛 값을 그대로 둔다.
+Object.keys(SUPPLY_PLAN).forEach(s=>{
+  if(SUPPLY_PLAN[s].opTotal>0) STORE_MONTHLY_TARGETS[s] = SUPPLY_PLAN[s].opTotal;
+});
 // 계획표 카테고리(9종) ↔ 실제 출고/매출 원장 카테고리 대응표.
 // 사이트 자체 분류 규칙(CATE_RULES, 1347행 부근)과 동일한 대응관계를 그대로 따랐다:
 //   XLK → "대형가전"(방도리/가전센터 출고내역서 전용 표기, 1350행) · XLW → "대형가구"(1352행)
@@ -7205,6 +7059,9 @@ function goalsRender01(ctx){
       ${statCard(`전사 달성률 · ${ctx.curMonth} (${ctx.elapsedDays}/${ctx.daysInMonth}일 경과)`, totalPct.toFixed(1)+"%", [
         goalsLine("목표(일할 환산) "+Math.round(totalTarget).toLocaleString()+"원"),
         goalsLine("실적 "+Math.round(totalActual).toLocaleString()+"원")])}
+      ${statCard(`금일까지 실적 매출 · ${cm} ${ctx.elapsedDays}일차`, (totalActual/100000000).toFixed(2)+"억", [
+        goalsLine(Math.round(totalActual).toLocaleString()+"원 · 대상 "+ctx.rows.length+"개 매장 합계"),
+        goalsLine("일할 목표 대비 "+totalPct.toFixed(1)+"%")])}
       ${statCard("전사 월 목표매출", (ctx.rows.reduce((a,r)=>a+r.target,0)/100000000).toFixed(2)+"억", [
         goalsLine(ctx.rows.reduce((a,r)=>a+r.target,0).toLocaleString()+"원 · 대상 "+ctx.rows.length+"개 매장 합계"),
         goalsLine("경과일 기준 일할 환산 "+Math.round(totalTarget).toLocaleString()+"원")])}
@@ -9518,7 +9375,7 @@ idbGet("state").then(async st=>{
   renderStoreList(); renderPanel(); refreshSlotStates(); renderDataQuality();
   document.getElementById("totalCount").textContent = grandTotal();
   try{ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }catch(_){}
-  try{ renderSalesDateSelect(); renderSalesTrend(); renderSalesVsSupply(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderSalesMonthly(); }catch(_){}
+  try{ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderSalesMonthly(); }catch(_){}
   showNotice(reparsed.length
     ? `저장된 전체 데이터를 불러왔습니다. 집계 로직이 업데이트되어 보관된 원본으로 ${reparsed.map(s=>PARSE_SRC_LABEL[s]||s).join(" · ")}를 자동으로 다시 계산했습니다 — 재업로드하실 필요 없습니다.`
     : "저장된 전체 데이터를 불러왔습니다 (대용량 포함).");
@@ -9581,7 +9438,7 @@ function cloudInit(){
         renderStoreList(); renderPanel(); refreshSlotStates(); renderDataQuality();
         document.getElementById("totalCount").textContent = grandTotal();
         try{ renderStockAgg(); renderShipAgg(); renderTrend(); }catch(_){}
-        try{ renderSalesDateSelect(); renderSalesTrend(); renderSalesVsSupply(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderSalesMonthly(); }catch(_){}
+        try{ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderSalesMonthly(); }catch(_){}
         if(!_cloudPulled){ _cloudPulled=true; showNotice("☁ 실시간 공유: 최신 데이터를 불러왔습니다(뷰어 모드). 관리자가 업로드하면 자동으로 갱신됩니다."); }
       }catch(e){}
     });
