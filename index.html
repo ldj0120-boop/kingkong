@@ -772,7 +772,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 54 · 2026-09-23</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 56 · 2026-09-23</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -839,24 +839,17 @@
   <div id="noticeBar" class="notice-bar" hidden></div>
   <div id="qualityBar" class="notice-bar" style="border-color:var(--red);" hidden></div>
 
+  <!-- 2026-09-23: '출고 입력' 탭(수동 출고예정 입력 UI) 삭제 — 사용자 요청("해당 시트는 사용하지
+       않는다 삭제해줘라"). 실제 출고량은 센터/본사 출고내역서 업로드(출고완료)로만 집계되고, 이
+       수동 입력 화면은 실사용되지 않고 있었음(모든 매장 출고예정이 항상 0으로 확인됨). SHIP 변수·
+       planQty()·storeShipTotal() 등 데이터 계층은 그대로 남겨둔다(다른 집계 함수들이 "출고예정+
+       출고완료" 합산에 여전히 참조하며, 앞으로 실적 0으로만 남아 있어도 무해함) — UI만 제거. 기본
+       활성 탭은 '매장별 재고/공급 현황'으로 변경(JS 초기화 블록의 selectTab("agg") 참고). -->
   <div class="tabs" role="tablist">
-    <button class="tab" role="tab" id="tab-entry" aria-selected="true" aria-controls="view-entry">출고 입력</button>
     <button class="tab" role="tab" id="tab-agg" aria-selected="false" aria-controls="view-agg">매장별 재고/공급 현황</button>
     <button class="tab" role="tab" id="tab-sales" aria-selected="false" aria-controls="view-sales">매장별 매출</button>
     <button class="tab" role="tab" id="tab-goals" aria-selected="false" aria-controls="view-goals">목표매출 달성 방안</button>
   </div>
-
-  <section id="view-entry" role="tabpanel" aria-labelledby="tab-entry">
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;background:var(--ink);border:1px solid var(--line);border-radius:10px;">
-      <label for="shipScopeSelect" style="font-family:'Oswald';font-size:11px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;">출고 월</label>
-      <select id="shipScopeSelect" style="max-width:200px;"></select>
-      <span style="font-size:11px;color:var(--muted2);">여러 달 출고 파일을 폴더로 불러오면 월별로 누적됩니다. (신선식품 포함)</span>
-    </div>
-    <div class="entry">
-      <div class="stores" id="storeList"><div class="hd">매장 (20)</div></div>
-      <div id="entryPanel"></div>
-    </div>
-  </section>
 
   <section id="view-agg" role="tabpanel" aria-labelledby="tab-agg" hidden>
     <div class="agg-card trend-card">
@@ -2258,8 +2251,10 @@ basedateEl.onchange = ()=> applyStockSnapshot(+basedateEl.value);
 
 /* ================= 매장 목록 (출고 물량 많은 순 정렬) ================= */
 function storeStockTotal(s){ const arr=STOCK[s]||[]; let sum=0; for(let i=0;i<STOCK_COLS;i++) sum+=num(arr[i]); return sum; }
+// 2026-09-23: '출고 입력' 탭 삭제로 #storeList가 더 이상 없어 storeListEl은 항상 null이다.
+// renderStoreList()가 이를 감지해 조용히 무시하도록 아래에서 가드한다(호출부는 그대로 남겨둠).
 const storeListEl = document.getElementById("storeList");
-const storeListHd = storeListEl.querySelector(".hd");
+const storeListHd = storeListEl ? storeListEl.querySelector(".hd") : null;
 function renderShipScopeSelect(){
   const months = shipMonths();
   if(shipScope!=="all" && !months.includes(shipScope)) shipScope = "all";
@@ -2272,6 +2267,7 @@ function renderShipScopeSelect(){
   });
 }
 function renderStoreList(){
+  if(!storeListEl) return; // '출고 입력' 탭 삭제 — 더 이상 존재하지 않는 화면, 안전하게 무시
   renderShipScopeSelect();
   storeListEl.querySelectorAll(".store-btn").forEach(n=>n.remove());
   storeListHd.textContent = `매장 (${STORES.length})`;
@@ -2291,6 +2287,7 @@ function renderStoreList(){
 /* ================= 출고 입력 패널 ================= */
 const panelEl = document.getElementById("entryPanel");
 function renderPanel(){
+  if(!panelEl) return; // '출고 입력' 탭 삭제 — 더 이상 존재하지 않는 화면, 안전하게 무시
   const stk = STOCK[selected] || [];
   const stkTotal = stk.slice(0,STOCK_COLS).reduce((a,v)=>a+num(v),0);
   const order = CATEGORIES.map((cat,idx)=>{
@@ -2800,16 +2797,22 @@ function renderSalesMonthly(){
       const cm = ctx.mLbl(ctx.curMonth);
       const rows2 = (selectedMonthlyStore==="__all__") ? ctx.rows : ctx.rows.filter(r=>r.store===storeSalesGroup(selectedMonthlyStore));
       if(rows2.length){
+        // 2026-09-23: 사용자 지적 — "일할" 값만 보이면 매장 월 목표매출 원본 금액(엑셀과 대조 가능한
+        // 숫자)을 못 알아본다("매장별 월 총 목표 매출액이 나와야지 왜 일할로 쪼개고 앉아서 못알아보게
+        // 만드냐고"). goalsRender02가 예전에 쓰던 방식대로 "월 목표매출(그 달 전체)"을 주 컬럼으로
+        // 다시 보여주고, 일할 환산값은 달성률 계산 근거로서 옆에 참고용으로만 남긴다.
         const body2 = rows2.map(r=>{
           const band = goalsIncentiveBand(r.dev);
           return `<tr>
             <td title="${escHtml(r.label)}">${escHtml(r.label)}</td>
-            <td class="tgt-col"><span class="num" style="color:var(--amber)">${Math.round(r.proratedTarget).toLocaleString()}</span></td>
+            <td class="tgt-col"><span class="num" style="color:var(--amber)">${Math.round(r.target).toLocaleString()}</span></td>
+            <td class="tgt-col" style="font-size:10.5px;color:var(--muted2);"><span class="num">${Math.round(r.proratedTarget).toLocaleString()}</span></td>
             <td><span class="num">${Math.round(r.actual).toLocaleString()}</span></td>
             <td class="total-col" style="${goalsHeatBg((r.pct/100)/1.2)}"><span class="num">${r.pct.toFixed(1)}%</span></td>
             <td class="g-band"><span class="g-store-badge ${band.cls}" style="font-size:10px;padding:2px 7px;">${escHtml(band.label)}</span></td>
           </tr>`;
         }).join("");
+        const totTargetFull2 = rows2.reduce((a,r)=>a+r.target,0);
         const totTarget2 = rows2.reduce((a,r)=>a+r.proratedTarget,0);
         const totActual2 = rows2.reduce((a,r)=>a+r.actual,0);
         const rankList2 = selectedMonthlyStore==="__all__" ? `<div class="g-rank-list">${ctx.rows.map(r=>{
@@ -2820,10 +2823,10 @@ function renderSalesMonthly(){
               <div class="mini-bar" style="flex:1;"><div class="mini-bar-fill" style="width:${Math.min(100,r.pct).toFixed(1)}%;background:${c}"></div></div>
               <span class="g-rank-pct">${r.pct.toFixed(1)}%</span></div>`;
           }).join("")}</div>` : "";
-        C = `<div style="padding:16px 4px 4px;font-family:'Oswald';font-size:12px;letter-spacing:.06em;color:var(--muted2);">${escHtml(cm)} 목표매출 대비 달성률 · 인센티브 구간 (${ctx.elapsedDays}/${ctx.daysInMonth}일 경과 일할 환산 · 달성률 낮은 순)</div>
-          <div class="tblbox"><table class="g-tbl"><thead><tr><th>매장</th><th class="tgt-col">목표(일할)</th><th>실적</th><th class="total-col">달성률</th><th>인센티브 구간</th></tr></thead>
+        C = `<div style="padding:16px 4px 4px;font-family:'Oswald';font-size:12px;letter-spacing:.06em;color:var(--muted2);">${escHtml(cm)} 목표매출 대비 달성률 · 인센티브 구간 (달성률은 ${ctx.elapsedDays}/${ctx.daysInMonth}일 경과 일할 환산 기준 · 달성률 낮은 순)</div>
+          <div class="tblbox"><table class="g-tbl"><thead><tr><th>매장</th><th class="tgt-col">월 목표매출<br><span style="font-weight:400;color:var(--muted2);font-size:9px;">(그 달 전체)</span></th><th class="tgt-col">목표(일할)<br><span style="font-weight:400;color:var(--muted2);font-size:9px;">(${ctx.elapsedDays}/${ctx.daysInMonth}일 환산)</span></th><th>실적</th><th class="total-col">달성률</th><th>인센티브 구간</th></tr></thead>
           <tbody>${body2}</tbody>
-          <tfoot><tr><td>합계</td><td class="tgt-col"><span class="num" style="color:var(--amber)">${Math.round(totTarget2).toLocaleString()}</span></td><td><span class="num">${Math.round(totActual2).toLocaleString()}</span></td><td class="total-col"><span class="num">${totTarget2>0?(totActual2/totTarget2*100).toFixed(1):'0.0'}%</span></td><td></td></tr></tfoot>
+          <tfoot><tr><td>합계</td><td class="tgt-col"><span class="num" style="color:var(--amber)">${Math.round(totTargetFull2).toLocaleString()}</span></td><td class="tgt-col" style="font-size:10.5px;color:var(--muted2);"><span class="num">${Math.round(totTarget2).toLocaleString()}</span></td><td><span class="num">${Math.round(totActual2).toLocaleString()}</span></td><td class="total-col"><span class="num">${totTarget2>0?(totActual2/totTarget2*100).toFixed(1):'0.0'}%</span></td><td></td></tr></tfoot>
           </table></div>
           ${rankList2}
           ${goalsHuiyongSplitTable(ctx)}`;
@@ -4321,8 +4324,8 @@ function renderTrend(){
 }
 
 /* ================= 탭 ================= */
-const tabEntry=document.getElementById("tab-entry"), tabAgg=document.getElementById("tab-agg"), tabSales=document.getElementById("tab-sales"), tabGoals=document.getElementById("tab-goals");
-const viewEntry=document.getElementById("view-entry"), viewAgg=document.getElementById("view-agg"), viewSales=document.getElementById("view-sales"), viewGoals=document.getElementById("view-goals");
+const tabAgg=document.getElementById("tab-agg"), tabSales=document.getElementById("tab-sales"), tabGoals=document.getElementById("tab-goals");
+const viewAgg=document.getElementById("view-agg"), viewSales=document.getElementById("view-sales"), viewGoals=document.getElementById("view-goals");
 /* ================= 화면 폭 (17차) =================
    16차에서는 탭마다 폭을 자동으로 바꿨는데(넓은 표는 넓게, 읽는 화면은 보통), 탭을 옮길 때마다
    화면이 들썩여서 오히려 산만하다는 지적을 받았다. → **전 화면 동일한 폭 하나**만 쓴다.
@@ -4352,7 +4355,7 @@ function wireWidthMode(){
   applyWidthMode();
 }
 function selectTab(which){
-  [["entry",tabEntry,viewEntry],["agg",tabAgg,viewAgg],["sales",tabSales,viewSales],["goals",tabGoals,viewGoals]].forEach(([name,tab,view])=>{
+  [["agg",tabAgg,viewAgg],["sales",tabSales,viewSales],["goals",tabGoals,viewGoals]].forEach(([name,tab,view])=>{
     const on = name===which;
     tab.setAttribute("aria-selected", on);
     view.hidden = !on;
@@ -4361,7 +4364,6 @@ function selectTab(which){
   if(which==="sales"){ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); }
   if(which==="goals"){ renderGoals(); }
 }
-tabEntry.onclick=()=>selectTab("entry");
 tabAgg.onclick=()=>selectTab("agg");
 tabSales.onclick=()=>selectTab("sales");
 tabGoals.onclick=()=>selectTab("goals");
@@ -9382,6 +9384,9 @@ renderPanel();
 document.getElementById("totalCount").textContent = grandTotal();
 refreshSlotStates();
 renderDataQuality(); // 새로고침 직후에도 이전에 저장된 미매칭/자동추가 카테고리 경고가 바로 보이도록
+// 2026-09-23: '출고 입력' 탭 삭제로 새 기본 활성 탭은 '매장별 재고/공급 현황'(agg) — HTML에서는
+// view-agg가 여전히 hidden으로 시작하므로, 여기서 selectTab으로 켜고 해당 탭 렌더를 한 번 돌린다.
+selectTab("agg");
 if(restoredState) showNotice("마지막으로 저장된 재고·출고 데이터를 불러왔습니다.");
 // IndexedDB(대용량·최신)에 저장된 전체 데이터가 있으면 그걸로 덮어쓰고 다시 그린다(localStorage 초과분까지 복원).
 idbGet("state").then(async st=>{
