@@ -772,7 +772,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 63 · 2026-09-29</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 64 · 2026-09-29</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -4040,6 +4040,7 @@ function salesCardTargetLines(store, cur){
     const g = storeSalesGroup(store);
     const t = groupMonthlyTarget(g);
     if(t>0) full = t;
+    else if(t===0) return [`<div class="delta-line"><span class="lbl">목표매출 (월 전체)</span><span class="delta flat" style="font-weight:700;color:var(--text)">0원</span><span class="ref">(목표 미설정 매장 — 달성률 계산 제외)</span></div>`];
   } else {
     let ctx = null; try{ ctx = goalsBuildContext(); }catch(_){ ctx = null; }
     if(ctx && ctx.rows && ctx.rows.length) full = ctx.rows.reduce((a,r)=>a+(r.target||0),0);
@@ -4077,6 +4078,8 @@ function salesTargetAchievementHtml(store){
     const row = ctx.rows.find(r=>r.store===groupKey);
     if(row){
       rows.push(`<div class="delta-line"><span class="lbl">${escHtml(storeGroupLabel(groupKey))} ${escHtml(monthLbl)} 목표매출 대비 도달율</span>${pctChip(row.pct)}<span class="ref">(${Math.round(row.actual).toLocaleString()}/${Math.round(row.proratedTarget).toLocaleString()}원)</span></div>`);
+    } else if(storeHasZeroTarget(groupKey)){
+      rows.push(`<div class="delta-line"><span class="lbl">${escHtml(storeGroupLabel(groupKey))} ${escHtml(monthLbl)} 목표매출 대비 도달율</span><span class="delta na">목표 0원 — 계산 제외</span></div>`);
     } else {
       rows.push(`<div class="delta-line"><span class="lbl">${escHtml(store)}</span><span class="delta na">개별 목표매출 데이터 없음</span></div>`);
     }
@@ -6336,9 +6339,13 @@ const SUPPLY_PLAN = {
 // 조용히 어긋나므로(인천점: 목표 520,000,000원 vs 실제 확정 595,150,000원), SUPPLY_PLAN 쪽이 갱신되면
 // STORE_MONTHLY_TARGETS도 항상 같이 따라가도록 여기서 한 번만 계산한다. opTotal이 없거나(광주점 —
 // 최신 운영계획표 자체에 없는 폐점 매장) 0인(대소점 — 비식품 PLT 입력 없음) 매장만 위 옛 값을 그대로 둔다.
+// ★ build 64 (2026-09-29) 사용자 확정: "대소점 목표매출 0원 맞아" — opTotal이 0인 매장도 엑셀 그대로 0원을
+//   목표로 쓴다(예전 옛 값 70,000,000원 예외 폐기). 목표 0원 매장은 goalsBuildContext에서 달성률 계산
+//   대상(ctx.rows)에서 빠지고 "목표 미설정 매장"으로 따로 표시된다(0÷0 달성률 방지).
 Object.keys(SUPPLY_PLAN).forEach(s=>{
-  if(SUPPLY_PLAN[s].opTotal>0) STORE_MONTHLY_TARGETS[s] = SUPPLY_PLAN[s].opTotal;
+  if(typeof SUPPLY_PLAN[s].opTotal==="number" && SUPPLY_PLAN[s].opTotal>=0) STORE_MONTHLY_TARGETS[s] = SUPPLY_PLAN[s].opTotal;
 });
+function storeHasZeroTarget(s){ const t = groupMonthlyTarget(s); return t!=null && !(t>0); }
 // 계획표 카테고리(9종) ↔ 실제 출고/매출 원장 카테고리 대응표.
 // 사이트 자체 분류 규칙(CATE_RULES, 1347행 부근)과 동일한 대응관계를 그대로 따랐다:
 //   XLK → "대형가전"(방도리/가전센터 출고내역서 전용 표기, 1350행) · XLW → "대형가구"(1352행)
@@ -6952,7 +6959,10 @@ function goalsBuildContext(){
   const targetStores = Object.keys(STORE_MONTHLY_TARGETS)
     .filter(s=>STORES.includes(s))
     .filter(s=>!storeProfile(s).mergeSalesInto)
-    .filter(s=>storeActiveDays(s, curMonth).days > 0);
+    .filter(s=>storeActiveDays(s, curMonth).days > 0)
+    .filter(s=>!storeHasZeroTarget(s)); // 목표 0원(대소점) — 달성률 계산 대상 아님
+  const noTargetStores = Object.keys(STORE_MONTHLY_TARGETS)
+    .filter(s=>STORES.includes(s) && !storeProfile(s).mergeSalesInto && storeHasZeroTarget(s));
   const closedStores = Object.keys(STORE_MONTHLY_TARGETS)
     .filter(s=>STORES.includes(s) && !storeProfile(s).mergeSalesInto)
     .filter(s=>storeActiveDays(s, curMonth).days <= 0)
@@ -6989,7 +6999,7 @@ function goalsBuildContext(){
   const ctx = { months, scopeMonths, isRange, isLatest, scopeLabel, curMonth, elapsedDays, daysInMonth,
                 mLbl, monthMaps, curTot, scopedSales,
                 merged, companyCat, companyTotal, companyPct: comp.pct, freshBasis: comp.freshBasis,
-                cats, rows, effRows, effMap, missingMonths, inactiveMonths, closedStores };
+                cats, rows, effRows, effMap, missingMonths, inactiveMonths, closedStores, noTargetStores };
   // 예상 총매출은 '진행 중인 마지막 달'에만 의미가 있다 — 과거 달이나 기간 누적에서는 만들지 않는다.
   ctx.forecast = (!isRange && isLatest) ? goalsForecast(ctx) : null;
   ctx.forecastSkip = (!isRange && isLatest) ? null
@@ -8249,7 +8259,8 @@ function goalsRender09Body(ctx){
   const cm = ctx.mLbl(ctx.curMonth);
   const list = MANAGED_STORES.map(s=> ctx.rows.find(r=>r.store===s)).filter(Boolean)
                  .sort((a,b)=>a.pct-b.pct); // 달성률 낮은 순 — 다른 탭과 동일한 정렬(대응 우선순위)
-  const missing = MANAGED_STORES.filter(s=> !ctx.rows.find(r=>r.store===s));
+  const noTgt = MANAGED_STORES.filter(s=> !ctx.rows.find(r=>r.store===s) && storeHasZeroTarget(s));
+  const missing = MANAGED_STORES.filter(s=> !ctx.rows.find(r=>r.store===s) && !storeHasZeroTarget(s));
   if(!list.length){
     return `<div class="g-tbl-sub">관리 매장(${escHtml(MANAGED_STORES.join(" · "))})의 매출 데이터를 찾지 못했습니다 — 매출 파일이 업로드됐는지, 이번 달 영업 중인지 확인해 주세요.</div>`;
   }
@@ -8267,6 +8278,7 @@ function goalsRender09Body(ctx){
   const missNote = missing.length
     ? `<div class="g-tbl-sub" style="color:var(--amber)">데이터를 찾지 못한 매장: ${escHtml(missing.join(', '))} — 매장명 표기나 이번 달 영업 여부를 확인해 주세요.</div>`
     : "";
+  const missNoteAll = missNote + (noTgt.length?`<div class="g-tbl-sub">목표매출 0원(달성률 계산 제외): ${escHtml(noTgt.join(', '))}</div>`:"");
   const cards = list.map(r=>{
     const tier = goalsTier(r.pct);
     const band = goalsIncentiveBand(r.dev);
@@ -8323,7 +8335,7 @@ function goalsRender09Body(ctx){
       </details>
     </div>`;
   }).join("");
-  return kpi + missNote + `<div class="g-store-list" style="margin-top:14px">${cards}</div>`;
+  return kpi + missNoteAll + `<div class="g-store-list" style="margin-top:14px">${cards}</div>`;
 }
 
 /* ---------------- 10 공급계획(PLT) 대비 진단 ---------------- */
