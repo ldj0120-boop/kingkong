@@ -772,7 +772,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 64 · 2026-09-29</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 65 · 2026-09-29</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1978,6 +1978,7 @@ async function reparseStaleSources(){
         if(src==="center"){
           const r = parseShipmentWorkbook(wb);
           if(r.kind === "direct_file"){
+            (r.unmatched||[]).forEach(u=>unmatched.add(u));
             mergeDayMapByMonth(DIRECT_FILE_D, r.byDayDirect);
             SUPPLY_HISTORY = mergeSupplyDaysMissingOnly(SUPPLY_HISTORY, r.days);
           } else {
@@ -5074,10 +5075,12 @@ function handleActualFile(file){
         mergeDayMapByMonth(DIRECT_FILE_D, result.byDayDirect);
         rebuildCenterDirectM();
         SUPPLY_HISTORY = mergeSupplyDaysMissingOnly(SUPPLY_HISTORY, result.days);
+        // build 65: 매장 목록에 없는 출고지(예: "파주점_오도동" 9PLT)는 조용히 빠지지 않게 미매칭 경고에 합친다.
+        unmatchedActualStores = Array.from(new Set([...(unmatchedActualStores||[]), ...(result.unmatched||[])]));
         afterChange();
         const dts = Object.keys(result.byDayDirect||{}).sort();
         const tot = Object.values(result.byStoreCatDirect||{}).reduce((a,o)=>a+Object.values(o).reduce((x,v)=>x+v,0),0);
-        showNotice(`직출건 출고내역서 반영 — 시트 ${result.sheetCount}개, ${dts.length?dts[0]+" ~ "+dts[dts.length-1]:"날짜 없음"}, 직출 ${Math.round(tot).toLocaleString()}PLT (센터 본 파일과 겹치는 날짜는 한 번만 셉니다)`);
+        showNotice(`직출건 출고내역서 반영 — 시트 ${result.sheetCount}개, ${dts.length?dts[0]+" ~ "+dts[dts.length-1]:"날짜 없음"}, 직출 ${Math.round(tot).toLocaleString()}PLT (센터 본 파일과 겹치는 날짜는 한 번만 셉니다)${(result.unmatched||[]).length?`\n매장 목록에 없어 제외된 출고지: ${result.unmatched.join(", ")}`:""}`);
         return;
       }
       mergeMonthMap(CENTER_M, result.byMonth);
@@ -6429,7 +6432,12 @@ function goalsSupplyDetail(ctx, month){
     let planPLT=0, actualPLT=0, planRevFull=0;
     rows.forEach(x=>{ if(!x.cats) return; const c = x.cats.find(y=>y.cat===pc); if(!c) return;
       planPLT += c.planPLT; actualPLT += c.actualPLT; planRevFull += c.planRevFull; });
-    return { cat:pc, planPLT, actualPLT, planRevFull, pltPct: planPLT>0 ? actualPLT/planPLT*100 : null };
+    // 출처별 분해(계획 있는 매장만, 실제 원장 카테고리 기준) — 표에서 마우스를 올려 검수할 수 있게
+    const parts = {hq:0, center:0, merged:0, direct:0, appliance:0, fresh:0, lotte:0};
+    const realCats = SUPPLY_PLAN_CAT_MATCH[pc] || [];
+    rows.forEach(x=>{ if(!x.cats || !x.cats.find(y=>y.cat===pc)) return;
+      (x.r.members||[x.store]).forEach(st=> realCats.forEach(rc=>{ const q = diagQtyParts(st, rc, m); Object.keys(parts).forEach(k=> parts[k]+=q[k]); })); });
+    return { cat:pc, planPLT, actualPLT, planRevFull, parts, pltPct: planPLT>0 ? actualPLT/planPLT*100 : null };
   });
   // 계획 외 출고(전사, 계획 있는 매장 기준) — 카테고리별 합계
   const outsideTotals = {};
@@ -7963,6 +7971,12 @@ function diagQty(s, c, m){
        + _mv(APPLIANCE_M,m,s,c) + _mv(CENTER_DIRECT_M,m,s,c)
        + _mv(FRESH_M,m,s,c) + _mv(LOTTE_M,m,s,c);
 }
+// build 65: 검수용 — 같은 값을 출처별로 쪼갠다(합계는 diagQty와 동일).
+function diagQtyParts(s, c, m){
+  const hq = _mv(HQ_M,m,s,c), center = _mv(CENTER_M,m,s,c);
+  return { merged: mergePick(hq, center), hq, center, direct: _mv(CENTER_DIRECT_M,m,s,c),
+           appliance: _mv(APPLIANCE_M,m,s,c), fresh: _mv(FRESH_M,m,s,c), lotte: _mv(LOTTE_M,m,s,c) };
+}
 // 그 달 출고에 등장하는 모든 카테고리 이름
 function diagMonthCatNames(m){
   const out = new Set();
@@ -8385,7 +8399,7 @@ function goalsRender10Body(ctx){
   const catRows = D.catTotals.map(c=>`<tr>
       <td>${escHtml(c.cat)}${c.cat==="상온"?' <span style="color:var(--muted2)">(XLE)</span>':""}</td>
       <td><span class="num">${c.planPLT.toLocaleString(undefined,{maximumFractionDigits:1})}</span></td>
-      <td><span class="num">${c.actualPLT.toLocaleString(undefined,{maximumFractionDigits:1})}</span></td>
+      <td title="${c.parts?escHtml(`본사↔센터 병합 ${Math.round(c.parts.merged)} (본사 ${Math.round(c.parts.hq)} / 센터 창고경유 ${Math.round(c.parts.center)}, ${SHIP_MERGE_LABEL[shipMergePolicy]||shipMergePolicy}) + 센터 직출 ${Math.round(c.parts.direct)} + 가전센터 ${Math.round(c.parts.appliance)} + 신선 ${Math.round(c.parts.fresh)}${c.parts.lotte?` + 롯데제타 ${Math.round(c.parts.lotte)}`:""}`):""}"><span class="num">${c.actualPLT.toLocaleString(undefined,{maximumFractionDigits:1})}</span>${c.parts?`<div style="font-size:10.5px;color:var(--muted2)">본사·센터 ${Math.round(c.parts.merged)} · 직출 ${Math.round(c.parts.direct)}${c.parts.appliance?` · 가전센터 ${Math.round(c.parts.appliance)}`:""}${c.parts.fresh?` · 신선 ${Math.round(c.parts.fresh)}`:""}</div>`:""}</td>
       <td style="color:${pctColor(c.pltPct)}"><span class="num">${pctTxt(c.pltPct)}</span></td>
       <td><span class="num">${won(c.planRevFull)}</span></td>
     </tr>`).join("");
