@@ -772,7 +772,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 62 · 2026-09-29</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 63 · 2026-09-29</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -4030,6 +4030,33 @@ function buildStoreMonthlyTable(s, month){
    2026-09-23 사용자 요청 — "목표매출 대비 도달율을 전체 / 매장별로 나올수있게 수정해주세요".
    "목표매출 달성 방안" 탭이 이미 검증해 쓰는 goalsBuildContext()(STORE_MONTHLY_TARGETS 기반,
    영업일수 비례 일할 계산)를 그대로 재사용한다 — 목표 계산 로직을 새로 만들지 않는다. */
+// build 63 (2026-09-29): "매출 요약 · 대비" 카드 안에 그 매장의 **월 목표매출 금액(월 전체, 일할 아님)**을
+// 바로 보이게 한다 — 사용자 요청 "여기 표시부분에 매장별 목표 매출 금액좀 기입해주면 안되냐".
+// 금액은 목표 달성 탭과 같은 출처(groupMonthlyTarget = STORE_MONTHLY_TARGETS ← 운영 매출목표 합계 AG열).
+// 전 매장 합계일 땐 목표가 있는 영업 매장의 월 목표 합계.
+function salesCardTargetLines(store, cur){
+  let full = null;
+  if(store && store!==ALL_STORES_KEY){
+    const g = storeSalesGroup(store);
+    const t = groupMonthlyTarget(g);
+    if(t>0) full = t;
+  } else {
+    let ctx = null; try{ ctx = goalsBuildContext(); }catch(_){ ctx = null; }
+    if(ctx && ctx.rows && ctx.rows.length) full = ctx.rows.reduce((a,r)=>a+(r.target||0),0);
+    else full = Object.keys(STORE_MONTHLY_TARGETS).filter(x=>STORES.includes(x) && !storeProfile(x).mergeSalesInto)
+                  .filter(x=>{ try{ return storeActiveDays(x, eventMonth()).days > 0; }catch(_){ return true; } })
+                  .reduce((a,x)=>a+(groupMonthlyTarget(x)||0),0);
+  }
+  if(!(full>0)) return [`<div class="delta-line"><span class="lbl">목표매출(월)</span><span class="delta na">목표 데이터 없음</span></div>`];
+  const mo = (typeof eventMonth==="function" && eventMonth()) ? (parseInt(eventMonth().slice(5),10)+"월 ") : "";
+  const remain = full - (cur||0);
+  return [
+    `<div class="delta-line"><span class="lbl">${escHtml(mo)}목표매출 (월 전체)</span><span class="delta flat" style="font-weight:700;color:var(--text)">${Math.round(full).toLocaleString()}원</span></div>`,
+    `<div class="delta-line"><span class="lbl">목표까지 남은 금액</span>${remain>0
+      ? `<span class="delta down">${Math.round(remain).toLocaleString()}원</span>`
+      : `<span class="delta up">목표 초과 ${Math.round(-remain).toLocaleString()}원</span>`}</div>`
+  ];
+}
 function salesTargetAchievementHtml(store){
   let ctx;
   try{ ctx = goalsBuildContext(); }catch(_){ ctx = null; }
@@ -4123,7 +4150,7 @@ function renderSalesDetail(){
       deltaLineMoney("전주 대비 (동기간)", pc.cur, pc.week),
       deltaLineMoney(`${pc.monthLabel} 대비`, pc.cur, pc.month)
     ];
-    const card = statCard(`${s} · ${pc.dateLabel} (상품별 기준)`, Math.round(pc.cur).toLocaleString(), lines);
+    const card = statCard(`${s} · ${pc.dateLabel} (상품별 기준)`, Math.round(pc.cur).toLocaleString(), lines.concat(salesCardTargetLines(s, pc.cur)));
     cardHtml = `<div class="stat-row">${card}</div>`;
   }
   cardHtml += salesTargetAchievementHtml(s);
