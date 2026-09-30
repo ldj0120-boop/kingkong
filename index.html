@@ -706,6 +706,31 @@
   .g-kpi .v{font-family:"JetBrains Mono";color:var(--text);text-align:right;}
   /* build 73: 위 .g-kpi(큰 KPI 타일, 24px Oswald) 규칙이 04 매장 카드 숫자 줄까지 먹어 글자가 거대해졌다 → 카드 안은 작게 고정 */
   /* build 75: 매장×카테고리 목표 대비 표 — 숫자 한 색 + 배경 2상태 */
+  /* build 77: 출고 카테고리 구성 변화 표 — 내용 폭만큼만(카테고리 열이 늘어나지 않게) */
+  table.sup-tbl{width:auto;}
+  table.sup-tbl td, table.sup-tbl th{padding:6px 14px;}
+  table.sup-tbl td:first-child, table.sup-tbl th:first-child{min-width:150px;max-width:240px;white-space:nowrap;text-align:left;}
+  table.sup-tbl td:not(:first-child), table.sup-tbl th:not(:first-child){min-width:64px;text-align:right;}
+  table.sup-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.018);}
+  /* build 78: 목표|실제|달성 3칸 분리 표 */
+  table.pq-tbl{border-collapse:collapse;}
+  table.pq-tbl th, table.pq-tbl td{height:auto !important;}
+  table.pq-tbl th.gh{font-size:12.5px;padding:7px 6px 3px;text-align:center;color:var(--pale);border-left:2px solid var(--line);white-space:nowrap;}
+  table.pq-tbl th.gh .pq-sub{font-size:10px;font-weight:400;color:var(--muted2);}
+  table.pq-tbl th.sh{font-size:10.5px;font-weight:400;color:var(--muted2);padding:2px 8px 6px;text-align:right;min-width:0 !important;}
+  table.pq-tbl td.pq3{font-family:"JetBrains Mono";font-size:13px;padding:7px 8px;text-align:right;white-space:nowrap;}
+  table.pq-tbl td.pq3.t{color:var(--muted2);border-left:2px solid var(--line);}
+  table.pq-tbl th.sh:nth-child(3n+1){border-left:2px solid var(--line);}
+  table.pq-tbl td.pq3.a{color:var(--text);font-weight:600;}
+  table.pq-tbl td.pq3.p{font-weight:700;font-size:12.5px;}
+  table.pq-tbl td.pq3.p.mu{color:var(--muted2);font-weight:400;font-size:11px;}
+  table.pq-tbl .g1{background:rgba(255,255,255,.035);}
+  table.pq-tbl .gT{background:rgba(232,185,63,.06);}
+  table.pq-tbl td.p.s-g{color:#4fd18b;} table.pq-tbl td.p.s-b{color:#7fb8ff;} table.pq-tbl td.p.s-y{color:#e8b93f;} table.pq-tbl td.p.s-r{color:#ff7b7b;}
+  table.pq-tbl td.pq-out, table.pq-tbl th.pq-out{font-family:"JetBrains Mono";font-size:12.5px;color:var(--muted2);text-align:right;padding:7px 12px;border-left:2px solid var(--line);}
+  table.pq-tbl tbody tr{border-bottom:1px solid var(--line-soft);}
+  table.pq-tbl tbody tr:hover td{box-shadow:inset 0 0 0 999px rgba(255,255,255,.04);}
+  table.pq-tbl tfoot td{border-top:2px solid var(--line);font-weight:700;}
   .pq-legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:var(--muted2);margin:4px 0 10px;align-items:center;}
   .pq-legend b{color:var(--text);}
   .pq-sw{display:inline-block;width:14px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line);}
@@ -810,7 +835,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 76 · 2026-09-30</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 78 · 2026-09-30</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -3230,7 +3255,8 @@ function renderSalesMonthly(){
     catList.forEach(c=>{
       B += `<tr><td>${escHtml(c)}</td>${months.map(m=>{const v=catMonth[m][c]||0;const pct=v/monthCatSum(m)*100;const bg=v>0?` style="background:rgba(245,178,17,${(0.06+0.5*(pct/100)).toFixed(2)})"`:'';return `<td${bg}><span class="num">${v?pct.toFixed(1)+'%':''}</span>${v?`<div style="font-size:9px;color:var(--muted2)">${Math.round(v).toLocaleString()}</div>`:''}</td>`;}).join("")}</tr>`;
     });
-    B += `</tbody></table>`;
+    // build 78: 합계 행
+    B += `</tbody><tfoot><tr><td>합계</td>${months.map(m=>{ const v=Object.values(catMonth[m]).reduce((a,b)=>a+b,0); return `<td><span class="num">${v?'100%':''}</span>${v?`<div style="font-size:9px;color:var(--muted2)">${Math.round(v).toLocaleString()}</div>`:''}</td>`; }).join("")}</tr></tfoot></table>`;
   }
   // 진단: 월별 "청구금액" 업로드 날짜 수 + 누적본 의심 감지 (5월 총액이 이상할 때 원인 파악용)
   let diag = "";
@@ -7924,7 +7950,16 @@ function goalsRender04(ctx){
       <th>강점 카테고리<br>(전사평균 대비)</th><th>강점 격차<br>(%p)</th>
       <th>기회 카테고리<br>(전사평균 대비 열위)</th><th>기회 격차<br>(%p)</th>
       <th>사입 비중</th><th>신선식품 비중</th><th>진단 메모</th>
-    </tr></thead><tbody>${body}</tbody></table></div>`;
+    </tr></thead><tbody>${body}</tbody>${(()=>{   // build 78: 평균 행
+      const L = ctx.rows, n = L.length||1;
+      const pOf = (r,c)=>{ const v=r.storeCat[c]; return (v && r.storeCatTotal>0) ? v.amount/r.storeCatTotal*100 : 0; };
+      const topP = r=>{ let t=0; Object.keys(r.storeCat).forEach(c=>{ const p=pOf(r,c); if(p>t) t=p; }); return t; };
+      const av = f=> L.reduce((a,r)=>a+f(r),0)/n;
+      const sd = L.map(r=>r.diag&&r.diag.strength?r.diag.strength.diff:null).filter(v=>v!=null), od = L.map(r=>r.diag&&r.diag.opportunity?r.diag.opportunity.diff:null).filter(v=>v!=null);
+      const m = a=> a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
+      return `<tfoot><tr style="border-top:2px solid var(--line)"><td><b>평균</b> (${L.length}곳)</td><td></td><td><span class="num">${av(topP).toFixed(1)}%</span></td>
+        <td></td><td><span class="num">${m(sd)!=null?'+'+m(sd).toFixed(1):'-'}</span></td><td></td><td><span class="num">${m(od)!=null?m(od).toFixed(1):'-'}</span></td>
+        <td><span class="num">${av(r=>pOf(r,"사입")).toFixed(1)}%</span></td><td><span class="num">${av(r=>pOf(r,"신선식품")).toFixed(1)}%</span></td><td></td></tr></tfoot>`; })()}</table></div>`;
 }
 
 /* ================= 매출 집계 검증 (감사) — 18차 =================
@@ -8240,7 +8275,12 @@ function goalsRender05(ctx){
   return `<div class="g-tbl-title">카테고리별 전사 매출 · PLT당 매출효율 — 집계 기간 ${escHtml(ctx.scopeLabel)}</div>
     <div class="g-tbl-sub" style="color:var(--amber);">POS 매출에서는 대형가전과 XLB(일반가전)가 구분되지 않아 <b>'가전'으로 합산</b>해 표시합니다(PLT는 두 카테고리 합). 매장별 재고/공급 현황 표에서는 지금처럼 따로 봅니다.<br>금액이 이상해 보이는 카테고리는 <b>상세</b>를 눌러 월별·매장별·평균 단가로 쪼개서 원인을 확인하세요.</div>
     <div class="g-tbl-sub">PLT당 매출 = 카테고리 매출액 ÷ 그 카테고리 출고 PLT 수(매출액과 <b>같은 집계 기간</b>만 더함 — 다른 기간 출고를 섞지 않습니다). 이 값이 높을수록 파레트 한 장이 만들어내는 매출이 크다는 뜻이라, 공급을 늘렸을 때 매출 레버리지가 큰 카테고리입니다. (판매수량이 아니라 반드시 출고 PLT 기준)<br>다만 실제 입고~판매 사이엔 시차가 있어(이 기간 나간 PLT가 다음 기간에 팔리는 경우 등), 기간이 짧을수록(특히 1개월) 이 비율이 들쭉날쭉할 수 있습니다 — 여러 달을 누적해서 볼수록 안정적입니다.</div>
-    <div class="tblbox"><table class="g-tbl"><thead><tr><th>카테고리</th><th>매출액(원)</th><th>비중(%)</th><th>판매수량</th><th>평균 단가<br><span style="font-weight:400;color:var(--muted2);font-size:9px;">(금액÷수량)</span></th><th>집계기간 출고(PLT)</th><th>PLT당 매출(원)</th><th>확인</th><th>비고</th></tr></thead><tbody>${body}</tbody></table></div>
+    <div class="tblbox"><table class="g-tbl"><thead><tr><th>카테고리</th><th>매출액(원)</th><th>비중(%)</th><th>판매수량</th><th>평균 단가<br><span style="font-weight:400;color:var(--muted2);font-size:9px;">(금액÷수량)</span></th><th>집계기간 출고(PLT)</th><th>PLT당 매출(원)</th><th>확인</th><th>비고</th></tr></thead><tbody>${body}</tbody>${(()=>{   // build 78: 합계 행
+      const L = sorted.filter(r=>r.amount>0), A = L.reduce((a,r)=>a+r.amount,0), Q = L.reduce((a,r)=>a+(r.qty>0?r.qty:0),0), P = L.reduce((a,r)=>a+(r.pltTotal>0?r.pltTotal:0),0);
+      return `<tfoot><tr style="border-top:2px solid var(--line)"><td><b>합계</b> (${L.length}개)</td><td><span class="num"><b>${Math.round(A).toLocaleString()}</b></span></td>
+        <td><span class="num">${ctx.companyTotal>0?(A/ctx.companyTotal*100).toFixed(1):'-'}%</span></td><td><span class="num">${Q>0?Math.round(Q).toLocaleString():'-'}</span></td>
+        <td><span class="num">${Q>0?Math.round(A/Q).toLocaleString():'-'}</span></td><td><span class="num"><b>${P>0?Math.round(P).toLocaleString():'-'}</b></span></td>
+        <td class="total-col"><span class="num">${P>0?Math.round(A/P).toLocaleString():'-'}</span></td><td></td><td class="g-txt" style="font-size:11px;color:var(--muted2)">단가·PLT당 매출 = 합계 기준 평균</td></tr></tfoot>`; })()}</table></div>
     ${goalsEffBarsHtml(ctx.effRows)}
     ${unsoldTbl}`;
 }
@@ -8634,14 +8674,16 @@ function goalsRender08Body(ctx){
   const valsOf = cs => { const o={}; supMonths.forEach(m=> o[m] = cs.reduce((t,c)=>t+vOf(c,m),0)); return o; };
   const supBody = supCatsRev.map(c=> supRow(escHtml(c), valsOf([c]))).join("");
   const supNoRevRow = supCatsNoRev.length
-    ? supRow(`기타(매출없음, ${supCatsNoRev.length}개) <span class="g-chip warn">매출 0</span><div class="g-txt" style="font-size:10px;color:var(--muted2);margin-top:2px;">${supCatsNoRev.map(c=>escHtml(c)+"("+supMonths.map(m=>vOf(c,m)).join("→")+")").join(", ")}</div>`, valsOf(supCatsNoRev)) : "";
+    ? supRow(`기타(매출없음, ${supCatsNoRev.length}개) <span class="g-chip warn">매출 0</span>`, valsOf(supCatsNoRev)) : "";
+  // build 77: 구성 내역을 첫 칸 안에 길게 쓰면 카테고리 열이 화면 절반을 차지했다 → 표 아래 한 줄로 뺀다.
+  const supNoRevNote = supCatsNoRev.length ? `<div class="g-tbl-sub" style="margin-top:6px">기타(매출없음) 구성 (${supMonths.map(m=>ctx.mLbl(m)).join("→")}): ${supCatsNoRev.map(c=>escHtml(c)+" "+supMonths.map(m=>vOf(c,m)).join("→")).join(" · ")}</div>` : "";
   const supTotRow = `<tfoot>${supRow("합계", valsOf(supCatsAll))}</tfoot>`;
   const supTbl = supMonths.length ? `
     <div class="g-tbl-title">출고 카테고리 구성 변화 — ${supMonths.map(m=>ctx.mLbl(m)).join(" · ")} (PLT)</div>
-    <div class="g-tbl-sub">출고 데이터가 있는 모든 달을 나란히 보여줍니다. 증감은 ${ctx.mLbl(cur)} 기준 전월·전전월 대비${cur===ctx.curMonth?` (${ctx.mLbl(cur)}은 ${ctx.elapsedDays}/${ctx.daysInMonth}일 진행 중)`:""}. 매출이 0원인데 출고만 있는 카테고리는 "기타(매출없음)" 한 행으로 모았고, 구성 카테고리의 월별 PLT는 그 행 아래에 적었습니다.</div>
-    <div class="tblbox"><table class="g-tbl">
+    <div class="g-tbl-sub">출고 데이터가 있는 모든 달을 나란히 보여줍니다. 증감은 ${ctx.mLbl(cur)} 기준 전월·전전월 대비${cur===ctx.curMonth?` (${ctx.mLbl(cur)}은 ${ctx.elapsedDays}/${ctx.daysInMonth}일 진행 중)`:""}. 매출이 0원인데 출고만 있는 카테고리는 "기타(매출없음)" 한 행으로 모았고, 구성 카테고리의 월별 PLT는 표 아래에 적었습니다.</div>
+    <div class="tblbox" style="width:max-content;max-width:100%"><table class="g-tbl sup-tbl">
       <thead><tr><th>카테고리</th>${supMonths.map(m=>`<th>${ctx.mLbl(m)}</th>`).join("")}<th class="total-col">전월 대비${mPrev?`<br><span style="font-weight:400;font-size:9px">${ctx.mLbl(mPrev)}→${ctx.mLbl(cur)}</span>`:""}</th><th class="total-col">전전월 대비${mPrev2?`<br><span style="font-weight:400;font-size:9px">${ctx.mLbl(mPrev2)}→${ctx.mLbl(cur)}</span>`:""}</th></tr></thead>
-      <tbody>${supBody}${supNoRevRow}</tbody>${supTotRow}</table></div>` : "";
+      <tbody>${supBody}${supNoRevRow}</tbody>${supTotRow}</table></div>${supNoRevNote}` : "";
   // ── 매장 표
   const rowsHtml = D.stores.map(d=>{
     const r = d.r;
@@ -8664,7 +8706,21 @@ function goalsRender08Body(ctx){
     <div class="g-tbl-sub">매장별 <b>카테고리별 공급 PLT와 월별 추세</b>는 "06 공급계획(PLT) 진단" 탭의 "매장별 × 카테고리별 공급 PLT" 표에 있습니다. <b>매출/PLT</b> = 그 달 매출 ÷ (출고 PLT − 매출 0 카테고리 PLT). 받은 물건을 얼마나 돈으로 바꿨는지를 봅니다. 전사 중앙값 ${D.medPerPlt?won(D.medPerPlt)+"원":"-"} · 물량 중앙값 ${D.medPlt||"-"}PLT.</div>
     <div class="tblbox"><table class="g-tbl">
       <thead><tr><th>매장</th><th>달성률</th><th>추세</th><th>${ctx.mLbl(cur)} PLT</th><th>월별 PLT<br><span style="font-weight:400;font-size:9px">${supMonths.map(m=>ctx.mLbl(m)).join("→")}</span></th><th>무매출%</th><th>매출/PLT<br>(백만)</th><th>재고PLT</th><th>야적</th><th>신선</th><th>판정</th></tr></thead>
-      <tbody>${rowsHtml}</tbody></table></div>`;
+      <tbody>${rowsHtml}</tbody>${(()=>{   // build 78: 합계·평균 행
+        const L = D.stores, n = L.length||1, avg = f=>{ const v=L.map(f).filter(x=>x!=null&&isFinite(x)); return v.length? v.reduce((a,b)=>a+b,0)/v.length : null; };
+        const sumPlt = L.reduce((a,d)=>a+(+d.t||0),0);
+        const mSum = supMonths.map(m=> L.reduce((a,d)=> a + Math.round(Object.values(diagStoreMonth(d.r.members||[d.r.store], m)).reduce((x,y)=>x+y,0)),0));
+        const aPct = avg(d=>d.r.pct), aTr = avg(d=>d.trend), aNr = avg(d=>d.nrPct), aPer = avg(d=>d.perPlt);
+        return `<tfoot><tr style="border-top:2px solid var(--line)"><td><b>합계 / 평균</b></td>
+          <td><span class="num">평균 ${aPct!=null?aPct.toFixed(1)+'%':'-'}</span></td>
+          <td><span class="num">평균 ${aTr!=null?(aTr>0?'+':'')+aTr.toFixed(1)+'%':'-'}</span></td>
+          <td><span class="num"><b>${Math.round(sumPlt).toLocaleString()}</b></span></td>
+          <td style="white-space:nowrap"><span class="num" style="font-size:11px">${mSum.map((v,i)=> supMonths[i]===cur?`<b>${v.toLocaleString()}</b>`:v.toLocaleString()).join(" → ")}</span></td>
+          <td><span class="num">평균 ${aNr!=null?aNr.toFixed(0)+'%':'-'}</span></td>
+          <td><span class="num">평균 ${aPer!=null?(aPer/1e6).toFixed(1):'-'}</span></td>
+          <td><span class="num"><b>${L.reduce((a,d)=>a+(+d.stockTot||0),0).toLocaleString()}</b></span></td>
+          <td><span class="num"><b>${L.reduce((a,d)=>a+(+d.yard||0),0).toLocaleString()}</b></span></td>
+          <td></td><td><span class="num">${L.length}곳</span></td></tr></tfoot>`; })()}</table></div>`;
   // ── 유형 요약
   const byTag = t => D.stores.filter(s=>s.tags.indexOf(t)>=0)
       .sort((a,b)=>(a.r.pct)-(b.r.pct)).map(s=>escHtml(s.r.label)).join(" · ") || "해당 없음";
@@ -8833,11 +8889,22 @@ function goalsRender10Body(ctx){
     </tr>`).join("");
   const _outE = Object.entries(D.outsideTotals||{}).sort((a,b)=>b[1]-a[1]);
   const _outSum = _outE.reduce((a,[,v])=>a+v,0);
-  const outsideRow = _outSum>0 ? `<tfoot><tr>
+  // build 78: 합계 행 — 계획 카테고리 합계(신선 파일 없는 달은 신선 제외) + 계획 외 + 총 출고
+  const _fm = !(FRESH_M[D.month] && Object.keys(FRESH_M[D.month]).length);
+  const _ct = D.catTotals.filter(c=> !(_fm && c.cat==="신선"));
+  const _cP = _ct.reduce((a,c)=>a+c.planPLT,0), _cA = _ct.reduce((a,c)=>a+c.actualPLT,0), _cR = _ct.reduce((a,c)=>a+c.planRevFull,0);
+  const _cPct = _cP>0 ? _cA/_cP*100 : null;
+  const catSumRow = `<tr style="border-top:2px solid var(--line)"><td><b>계획 카테고리 합계</b>${_fm?' <span style="color:var(--muted2);font-size:11px">(신선 제외 — 파일 없음)</span>':''}</td>
+      <td><span class="num"><b>${_cP.toLocaleString(undefined,{maximumFractionDigits:1})}</b></span></td>
+      <td><span class="num"><b>${Math.round(_cA).toLocaleString()}</b></span></td>
+      <td style="color:${pctColor(_cPct)}"><span class="num"><b>${pctTxt(_cPct)}</b></span></td>
+      <td><span class="num"><b>${won(_cR)}</b></span></td></tr>`;
+  const catGrandRow = `<tr><td><b>총 출고</b> <span style="color:var(--muted2);font-size:11px">(계획 카테고리 + 계획 외)</span></td><td>-</td><td><span class="num"><b>${Math.round(_cA+_outSum).toLocaleString()}</b></span></td><td>-</td><td>-</td></tr>`;
+  const outsideRow = `<tfoot>${catSumRow}` + (_outSum>0 ? `<tr>
       <td>계획 외 <span style="color:var(--muted2)">(참고)</span></td><td>-</td>
       <td title="${escHtml(_outE.map(([c,v])=>c+' '+Math.round(v)).join(' · '))}"><span class="num">${_outSum.toLocaleString(undefined,{maximumFractionDigits:1})}</span></td>
-      <td colspan="2" style="color:var(--muted2);font-size:12px;text-align:left">${escHtml(_outE.slice(0,6).map(([c,v])=>c+' '+Math.round(v)).join(' · '))}${_outE.length>6?' 외':''} — 도달율 미반영</td>
-    </tr></tfoot>` : "";
+      <td colspan="2" style="color:var(--muted2);font-size:11.5px;text-align:left;white-space:normal;line-height:1.6;max-width:760px">${escHtml(_outE.map(([c,v])=>c+' '+Math.round(v)).join(' · '))} — 도달율 미반영</td>
+    </tr>` : "") + catGrandRow + `</tfoot>`;
   // 이 달 출고 원천이 비어 있으면(파일 미업로드) 그 카테고리가 0으로 보이는 이유를 바로 밝힌다.
   const _srcMissing = [];
   const _hasM = mp => !!(mp[D.month] && Object.keys(mp[D.month]).length);
@@ -8904,15 +8971,18 @@ function goalsRender10Body(ctx){
   const fmt1 = v => (Math.round(v*10)/10).toLocaleString(undefined,{maximumFractionDigits:1});
   const paceCol = p => p==null ? "var(--muted2)" : p>=100 ? "var(--green)" : p>=80 ? "var(--info)" : p>=60 ? "var(--amber)" : "var(--red)";
   // build 75: 가독성 — 막대·4색 글자 제거. 숫자는 한 색, 상태는 칸 배경 2가지(부족=연한 빨강, 초과=연한 파랑)만.
-  const gCell = (act, planFull, planPace, title)=>{
+  // build 78: 한 칸에 숫자 3개를 겹쳐 쓰던 방식 → 카테고리마다 [목표 | 실제 | 달성] 3칸으로 나눠 세로줄이 맞게(엑셀처럼).
+  //   색은 "달성" 칸 글자에만(경과일 기준 페이스 4단계). 카테고리 묶음은 배경을 번갈아 구분.
+  const gCell = (act, planFull, planPace, title, gi)=>{
+    const g = `pq3 g${gi}`;
     if(!(planFull>0)){
-      return act>0 ? `<td class="pq s-none" title="${escHtml(title+' · 공급계획 없음')}"><div class="pq-n"><b>${fmt1(act)}</b></div><div class="pq-p">계획 없음</div></td>`
-                   : `<td class="pq s-none"><span class="pq-dash">–</span></td>`;
+      return act>0 ? `<td class="${g} t">–</td><td class="${g} a" title="${escHtml(title+' · 공급계획 없음')}">${fmt1(act)}</td><td class="${g} p mu">계획 없음</td>`
+                   : `<td class="${g}"></td><td class="${g}"></td><td class="${g}"></td>`;
     }
     const pctFull = act/planFull*100, pace = planPace>0 ? act/planPace*100 : null;
-    // build 76: 목표(왼쪽) → 실제(오른쪽) → 도달율%. 색 4단계(경과일 기준 페이스): 초록 100↑ · 파랑 80↑ · 노랑 50↑ · 빨강 50 미만. 막대 없음.
     const st = pace==null ? "" : pace>=100 ? "s-g" : pace>=80 ? "s-b" : pace>=50 ? "s-y" : "s-r";
-    return `<td class="pq ${st}" title="${escHtml(`${title}\n월 목표 ${fmt1(planFull)} PLT → 실제 ${fmt1(act)} PLT (월 목표 대비 ${pctFull.toFixed(0)}%)`+(D.isOngoing?`\n경과일 기준 목표 ${fmt1(planPace)} PLT 대비 ${pace!=null?pace.toFixed(0):'-'}%`:""))}"><div class="pq-n"><span class="pq-t">${fmt1(planFull)}</span><span class="pq-ar">→</span><b>${fmt1(act)}</b></div><div class="pq-p">${pctFull.toFixed(0)}%</div></td>`;
+    const tt = escHtml(`${title}\n월 목표 ${fmt1(planFull)} PLT → 실제 ${fmt1(act)} PLT (월 목표 대비 ${pctFull.toFixed(0)}%)`+(D.isOngoing?`\n경과일 기준 목표 ${fmt1(planPace)} PLT 대비 ${pace!=null?pace.toFixed(0):'-'}%`:""));
+    return `<td class="${g} t" title="${tt}">${fmt1(planFull)}</td><td class="${g} a" title="${tt}">${fmt1(act)}</td><td class="${g} p ${st}" title="${tt}">${pctFull.toFixed(0)}%</td>`;
   };
   // 이번 달 신선 출고내역서가 없으면 신선은 0이 아니라 "파일 없음"으로 보이고 합계·정렬에서도 뺀다.
   const freshMissing = !(FRESH_M[pm] && Object.keys(FRESH_M[pm]).length);
@@ -8920,29 +8990,30 @@ function goalsRender10Body(ctx){
   const stTot = x => { let a=0,f=0,pp=0; useCats.forEach(pc=>{ const c=x.cats.find(y=>y.cat===pc); if(c){ a+=c.actualPLT; f+=c.planPLTFull; pp+=c.planPLT; } }); return {a,f,pp,pct: pp>0?a/pp*100:null}; };
   const gRows = D.rows.slice().sort((a,b)=>{ const av=a.cats?stTot(a).pct:null, bv=b.cats?stTot(b).pct:null; return (av==null?1e9:av)-(bv==null?1e9:bv); }).map(x=>{
     if(!x.cats){
-      return `<tr><td class="pq-st">${escHtml(x.label)}</td><td class="pq s-none pq-tot"><div class="pq-n"><b>${fmt1(x.actualPLTAll||0)}</b></div><div class="pq-p">공급계획 없음</div></td>${useCats.map(()=>`<td class="pq s-none"><span class="pq-dash">–</span></td>`).join("")}<td class="pq pq-out">${fmt1(x.outsideTotal||0)}</td></tr>`;
+      return `<tr><td class="pq-st">${escHtml(x.label)}</td><td class="pq3 gT t">–</td><td class="pq3 gT a">${fmt1(x.actualPLTAll||0)}</td><td class="pq3 gT p mu">계획 없음</td>${useCats.map((_,i)=>`<td class="pq3 g${i%2}"></td><td class="pq3 g${i%2}"></td><td class="pq3 g${i%2}"></td>`).join("")}<td class="pq-out">${fmt1(x.outsideTotal||0)}</td></tr>`;
     }
-    const cells = useCats.map(pc=>{ const c = x.cats.find(y=>y.cat===pc);
-      return gCell(c?c.actualPLT:0, c?c.planPLTFull:0, c?c.planPLT:0, `${x.label} · ${pc}${catSub(pc)?' ('+catSub(pc)+')':''}`); }).join("");
+    const cells = useCats.map((pc,i)=>{ const c = x.cats.find(y=>y.cat===pc);
+      return gCell(c?c.actualPLT:0, c?c.planPLTFull:0, c?c.planPLT:0, `${x.label} · ${pc}${catSub(pc)?' ('+catSub(pc)+')':''}`, i%2); }).join("");
     const outE = Object.entries(x.outside||{}).sort((a,b)=>b[1]-a[1]);
-    return `<tr><td class="pq-st">${escHtml(x.label)}</td>${(t=>gCell(t.a, t.f, t.pp, `${x.label} · 계획 카테고리 합계${freshMissing?' (신선 제외)':''}`))(stTot(x)).replace('class="pq','class="pq pq-tot')}${cells}
-      <td class="pq pq-out" title="${escHtml(outE.map(([c,v])=>c+' '+fmt1(v)).join(' · '))}">${fmt1(x.outsideTotal||0)}</td></tr>`;
+    return `<tr><td class="pq-st">${escHtml(x.label)}</td>${(t=>gCell(t.a, t.f, t.pp, `${x.label} · 계획 카테고리 합계${freshMissing?' (신선 제외)':''}`, "T"))(stTot(x))}${cells}
+      <td class="pq-out" title="${escHtml(outE.map(([c,v])=>c+' '+fmt1(v)).join(' · '))}">${fmt1(x.outsideTotal||0)}</td></tr>`;
   }).join("");
   const withPlan = D.rows.filter(x=>x.cats);
-  const gFoot = `<tfoot><tr><td class="pq-st">전사 합계</td>${gCell(withPlan.reduce((a,x)=>a+stTot(x).a,0), withPlan.reduce((a,x)=>a+stTot(x).f,0), withPlan.reduce((a,x)=>a+stTot(x).pp,0), "전사 · 계획 카테고리 합계").replace('class="pq','class="pq pq-tot')}${
-      useCats.map(pc=>{ const t = D.catTotals.find(c=>c.cat===pc)||{}; const full = withPlan.reduce((a,x)=>{ const c=x.cats.find(y=>y.cat===pc); return a+(c?c.planPLTFull:0); },0);
-        return gCell(t.actualPLT||0, full, t.planPLT||0, `전사 · ${pc}`); }).join("")}<td class="pq pq-out">${fmt1(withPlan.reduce((a,x)=>a+(x.outsideTotal||0),0))}</td></tr></tfoot>`;
+  const gFoot = `<tfoot><tr><td class="pq-st">전사 합계</td>${gCell(withPlan.reduce((a,x)=>a+stTot(x).a,0), withPlan.reduce((a,x)=>a+stTot(x).f,0), withPlan.reduce((a,x)=>a+stTot(x).pp,0), "전사 · 계획 카테고리 합계", "T")}${
+      useCats.map((pc,i)=>{ const t = D.catTotals.find(c=>c.cat===pc)||{}; const full = withPlan.reduce((a,x)=>{ const c=x.cats.find(y=>y.cat===pc); return a+(c?c.planPLTFull:0); },0);
+        return gCell(t.actualPLT||0, full, t.planPLT||0, `전사 · ${pc}`, i%2); }).join("")}<td class="pq-out">${fmt1(withPlan.reduce((a,x)=>a+(x.outsideTotal||0),0))}</td></tr></tfoot>`;
   const pltQtyTable = D.rows.length ? `
     <div class="g-tbl-title" style="margin-top:18px">매장별 × 카테고리별 공급 PLT — 목표(공급계획) 대비 ${ctx.mLbl(pm)} 실제 공급</div>
     <div class="pq-legend">
-      <span>칸 = <b>월 목표 → 실제 공급</b> PLT · 아래 % = 월 목표 대비 도달율</span>
-      <span>${D.isOngoing?`색은 경과일(${D.elapsed}/${D.dim}일) 기준:`:"색:"}</span>
+      <span>카테고리마다 <b>목표</b>(월 공급계획 PLT) · <b>실제</b>(${ctx.mLbl(pm)} 공급 PLT) · <b>달성</b>(월 목표 대비 %)</span>
+      <span>${D.isOngoing?`달성 색은 경과일(${D.elapsed}/${D.dim}일) 기준:`:"달성 색:"}</span>
       <span><i class="pq-sw s-g"></i>100%↑</span><span><i class="pq-sw s-b"></i>80~100%</span><span><i class="pq-sw s-y"></i>50~80%</span><span><i class="pq-sw s-r"></i>50% 미만</span>
       <span>– 계획 없음 · 계획 외 = FC파손·사입·임박 등(달성률 미포함) · 매장은 합계 달성률 낮은 순</span>
       ${freshMissing?`<span style="color:var(--amber)">${ctx.mLbl(pm)} 신선 출고내역서 미업로드 → 신선 열 숨김</span>`:""}
     </div>
     <div class="tblbox agg-scroll"><table class="g-tbl pq-tbl">
-      <thead><tr><th class="pq-st">매장</th><th class="pq-tot">합계</th>${useCats.map(pc=>`<th>${escHtml(pc)}${catSub(pc)?`<div class="pq-sub">${escHtml(catSub(pc))}</div>`:""}</th>`).join("")}<th>계획 외</th></tr></thead>
+      <thead><tr><th class="pq-st" rowspan="2">매장</th><th colspan="3" class="gh gT">합계</th>${useCats.map((pc,i)=>`<th colspan="3" class="gh g${i%2}">${escHtml(pc)}${catSub(pc)?` <span class="pq-sub">${escHtml(catSub(pc))}</span>`:""}</th>`).join("")}<th rowspan="2" class="pq-out">계획 외</th></tr>
+        <tr>${["T",...useCats.map((_,i)=>i%2)].map(g=>`<th class="sh g${g}">목표</th><th class="sh g${g}">실제</th><th class="sh g${g}">달성</th>`).join("")}</tr></thead>
       <tbody>${gRows}</tbody>${gFoot}</table></div>` : "";
   const pTrendRows = pStores.map(st=>{
     const cs = Array.from(new Set(pMonths.flatMap(m=>Object.keys((qM[m]||{})[st]||{})))).sort((a,b)=> q(pm,st,b)-q(pm,st,a) || pMonths.reduce((t,m)=>t+q(m,st,b),0)-pMonths.reduce((t,m)=>t+q(m,st,a),0));
@@ -8962,7 +9033,10 @@ function goalsRender10Body(ctx){
       <td class="${d==null?'mu':d>0?'up':d<0?'dn':'mu'}">${d==null?'-':(d>0?'+':'')+d.toLocaleString()}</td>
       <td class="${dp==null?'mu':dp>0?'up':dp<0?'dn':'mu'}">${dp==null?'-':(dp>0?'+':'')+dp.toFixed(0)+'%'}</td></tr>`;
   }).join("");
-  const tFoot = `<tfoot><tr><td>합계</td>${pMonths.map(m=>`<td>${pStores.reduce((a,st)=>a+tv(m,st),0).toLocaleString()}</td>`).join("")}<td></td><td></td></tr></tfoot>`;
+  const _tm = m=> pStores.reduce((a,st)=>a+tv(m,st),0);
+  const _tc = _tm(pm), _tp = pPrev ? _tm(pPrev) : null, _td = _tp==null?null:_tc-_tp, _tdp = _tp>0 ? (_tc/_tp-1)*100 : null;
+  const tFoot = `<tfoot><tr><td>합계</td>${pMonths.map(m=>`<td>${_tm(m).toLocaleString()}</td>`).join("")}<td class="${_td==null?'mu':_td>0?'up':_td<0?'dn':'mu'}">${_td==null?'-':(_td>0?'+':'')+_td.toLocaleString()}</td><td class="${_tdp==null?'mu':_tdp>0?'up':_tdp<0?'dn':'mu'}">${_tdp==null?'-':(_tdp>0?'+':'')+_tdp.toFixed(0)+'%'}</td></tr>
+    <tr><td>매장 평균 (${pStores.length}곳)</td>${pMonths.map(m=>`<td class="mu">${(_tm(m)/(pStores.length||1)).toFixed(1)}</td>`).join("")}<td></td><td></td></tr></tfoot>`;
   const pltTrendBlock = pStores.length ? `
     <div class="g-tbl-title" style="margin-top:22px">매장별 공급 PLT 월별 추이 (${pMonths.map(m=>ctx.mLbl(m)).join(" → ")})</div>
     <div class="pq-legend"><span>기준 달(${ctx.mLbl(pm)}) 공급 많은 순</span>${pm===ctx.curMonth?`<span>${ctx.mLbl(pm)}은 ${ctx.elapsedDays}/${ctx.daysInMonth}일 진행 중</span>`:""}${freshMissing?`<span style="color:var(--amber)">${ctx.mLbl(pm)} 신선 파일이 없어 모든 달을 신선 제외로 비교</span>`:""}</div>
