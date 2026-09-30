@@ -778,7 +778,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 71 · 2026-09-30</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 72 · 2026-09-30</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1218,7 +1218,9 @@ const STORE_ALIASES = { "서귀포점":"제주서귀포점", "광주경안점":"
   // seunghyun(매장 PLT 현황) 실시간 연동에서 쓰는 표기 보정: "시그니처OO점"은 표기만 다를 뿐 같은 매장. (2026-09-11)
   "시그니처용인점":"용인점", "시그니처이천점":"이천점", "시그니처인천점":"인천점",
   // build 67: 직출건 출고내역서의 미매칭 출고지(build 65) — 사용자 확인 2026-09-30.
-  "의정부점":"의정부가맹점", "파주점_오도동":"파주가맹점", "파주점오도동":"파주가맹점", "파주점 오도동":"파주가맹점" };
+  "의정부점":"의정부가맹점", "파주점_오도동":"파주가맹점", "파주점오도동":"파주가맹점", "파주점 오도동":"파주가맹점",
+  // build 72: 원본 오타 — 본사 09월 출고계획서_0930 "퍙택점", 08월 _0831 "벙도리센터".
+  "퍙택점":"평택점", "벙도리센터":"방도리센터" };
 const _ALIAS_SQUASH = (()=>{ const m={}; Object.keys(STORE_ALIASES).forEach(k=> m[k.replace(/[\s/]+/g,'')] = STORE_ALIASES[k]); return m; })();
 function resolveStoreName(name){
   const t = String(name).trim();
@@ -1959,8 +1961,31 @@ function mergeStoredCatMaps(){
 //                 각 18PLT인데 1PLT. 직출건 파일 XLS 약 250PLT·XLG 약 80PLT가 이렇게 빠지고 있었다)
 //   center 13 · hq 9 : (build 67, 2026-09-30) 별칭 추가 — 의정부점→의정부가맹점, 파주점_오도동→파주가맹점.
 //                 파싱 로직은 그대로, 보관 원본으로 재계산해 빠졌던 XLA 9·XLB 9PLT를 채우기 위한 버전 올림.
-const PARSE_LOGIC_VERSIONS = { center: 14, hq: 10, appliance: 8, fresh: 2 }; // build 71: 날짜 단위 병합(최신 파일 우선) + 미매칭 위치 // build 67: 별칭 추가 → 보관 원본으로 자동 재계산
+const PARSE_LOGIC_VERSIONS = { center: 14, hq: 11, appliance: 8, fresh: 2 }; // build 72: hq 오타 별칭(퍙택점·벙도리센터) // build 71: 날짜 단위 병합(최신 파일 우선) + 미매칭 위치 // build 67: 별칭 추가 → 보관 원본으로 자동 재계산
 const PARSE_LOGIC_VERSION = 5; // (하위호환: 예전 상태에 통째로 저장돼 있던 값 비교용)
+/* ★ build 72: 엑셀의 "사용 범위"가 실제 내용보다 훨씬 크게 잡힌 파일(예: 본사 06월 출고계획서_0630 — 시트 20개가 모두
+   A1:P1040344, 실제 내용은 50~500행)은 파싱할 때 빈 행 100만 개씩을 훑어 몇 분씩 걸리거나 탭이 멈췄다.
+   재계산이 그만큼 길어지면 그 사이 저장이 끼어들 위험도 커진다. 읽자마자 범위를 실제 마지막 셀까지로 줄인다(내용은 그대로). */
+(function installXlsxTrim(){
+  if(typeof XLSX==="undefined" || XLSX.__kkTrim) return;
+  const _read = XLSX.read;
+  XLSX.read = function(data, opts){
+    const wb = _read.call(XLSX, data, opts);
+    try{
+      (wb.SheetNames||[]).forEach(n=>{
+        const ws = wb.Sheets[n]; if(!ws || !ws["!ref"] || ws["!data"]) return;   // dense 모드는 건드리지 않는다
+        const rg = XLSX.utils.decode_range(ws["!ref"]);
+        if(rg.e.r - rg.s.r < 5000) return;
+        let mr = rg.s.r, mc = rg.s.c;
+        for(const k in ws){ if(k.charCodeAt(0)===33) continue; const c = XLSX.utils.decode_cell(k); if(c.r>mr) mr=c.r; if(c.c>mc) mc=c.c; }
+        rg.e.r = Math.min(rg.e.r, mr); rg.e.c = Math.min(rg.e.c, mc);
+        ws["!ref"] = XLSX.utils.encode_range(rg);
+      });
+    }catch(_){}
+    return wb;
+  };
+  XLSX.__kkTrim = true;
+})();
 function logicVer(src){ return PARSE_LOGIC_VERSIONS[src] || 1; }
 const PARSE_SRC_LABEL = { center:"출고내역서(센터)", hq:"출고계획서(본사)", appliance:"가전센터 출고내역서", fresh:"신선 출고내역서" };
 let _parseVerBySrc = {}; // {center:5, hq:3, …} 없으면 0(버전 개념 이전 데이터)으로 본다
@@ -2039,11 +2064,29 @@ function pruneUnmatchedStores(){
   try{ ["center","hq","appliance"].forEach(k=>{ Object.keys(UNMATCHED_WHERE[k]||{}).forEach(n=>{ if(gone(n)) delete UNMATCHED_WHERE[k][n]; }); }); }catch(_){}
   return before - (unmatchedActualStores.length + unmatchedHQStores.length + unmatchedApplianceStores.length);
 }
+// ★ build 72: 재계산 중(원본을 한 파일씩 읽는 동안) 창 전환·새로고침으로 saveStateNow()가 불리면
+//   **비워진 중간 상태**가 IndexedDB·localStorage·클라우드에 그대로 저장됐다 → 센터·본사 공급 PLT가 통째로 사라진 원인.
+//   재계산 중인 종류는 저장할 때 재계산 직전 값(snapshot)으로 바꿔 끼워 저장한다.
+let _REPARSE_ACTIVE = {};   // src -> snapshot
+function withReparseSnapshots(fn){
+  const srcs = Object.keys(_REPARSE_ACTIVE);
+  if(!srcs.length) return fn();
+  const live = [];
+  srcs.forEach(src=>{ const snap=_REPARSE_ACTIVE[src]; (_REPARSE_KEYS[src]||[]).forEach(k=>{ if(k in snap){ live.push([k,_reparseGet(k)]); _reparseSet(k, snap[k]); } }); });
+  try{ return fn(); }
+  finally{ for(let i=live.length-1;i>=0;i--) _reparseSet(live[i][0], live[i][1]); }
+}
+// ★ build 72: 월 맵이 비어 있으면 staleParseSources()가 그 종류를 "낡음"으로 보지 않아(데이터 없음=재계산 대상 아님)
+//   한 번 사라진 공급 PLT가 영영 복구되지 않았다. 보관 원본이 있는데 월 맵이 비어 있으면 재계산 대상에 넣는다.
+function emptySupplySources(files){
+  return ["center","hq","appliance"].filter(src=> !_monthsWithQty(storedMapOf(src)).length && files.some(f=>f.src===src));
+}
 async function reparseStaleSources(){
-  const stale = staleParseSources();
-  if(!stale.length || typeof XLSX==="undefined") return [];
+  if(typeof XLSX==="undefined") return [];
   const files = await rawFilesList();
   if(!files.length) return [];
+  const stale = Array.from(new Set([...staleParseSources(), ...emptySupplySources(files)]));
+  if(!stale.length) return [];
   const done = [];
   for(const src of stale){
     // build 70: 이름순 → 업로드 순서(savedAt)순. "같은 달은 마지막으로 올린 파일로 교체"라는 업로드 규칙과 결과가 같아진다.
@@ -2062,6 +2105,7 @@ async function reparseStaleSources(){
       // ★ build 69: 비우기 전에 지금 값을 떠 둔다. 보관 원본이 일부만 있거나 파싱이 중간에 실패하면 이걸로 되돌린다.
       //   (build 67에서 버전을 올리자 보관 원본에 없는 기간의 공급 PLT가 통째로 사라지고 클라우드까지 덮어써졌다)
       snap = reparseSnapshot(src);
+      _REPARSE_ACTIVE[src] = snap;   // build 72: 이 종류가 끝날 때까지 저장은 이 값으로
       const where = {};   // build 71: 미매칭 위치(보관된 파일 전체)
       if(src==="center"){ CENTER_M = {}; CENTER_DIRECT_M = {}; SUPPLY_HISTORY = []; DIRECT_MAIN_D = {}; DIRECT_FILE_D = {}; CENTER_D = {}; DAY_SRC.center = {}; DAY_SRC.dmain = {}; DAY_SRC.dfile = {}; }
       else if(src==="hq"){ HQ_M = {}; HQ_SUPPLY_HISTORY = []; HQ_D = {}; DAY_SRC.hq = {}; }
@@ -2131,11 +2175,13 @@ async function reparseStaleSources(){
       else { APPLIANCE_ACTUAL = fresh; unmatchedApplianceStores = Array.from(unmatched); UNMATCHED_WHERE.appliance = where; }
       markParsed(src);
       done.push(src);
+      delete _REPARSE_ACTIVE[src];
     }catch(e){
       /* 이 종류만 실패 — 나머지는 계속하고, 실패분은 배너로 안내된다 */
       // ★ build 69: 예전에는 여기서 이미 비워진 상태 그대로 남았다 → 떠 둔 값으로 되돌린다.
       if(snap){ try{ reparseRestore(src, snap); }catch(_){} REPARSE_SKIPPED.push({ src, error:String(e&&e.message||e) }); }
     }
+    finally{ delete _REPARSE_ACTIVE[src]; }
   }
   if(done.length){ try{ saveStateNow(); }catch(_){} }
   return done;
@@ -2218,7 +2264,7 @@ function saveState(){
 }
 function saveStateNow(){
   if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer=null; }
-  const st = buildStateObject();
+  const st = withReparseSnapshots(buildStateObject);   // build 72
   // 1차: 용량 큰 IndexedDB에 저장(대용량 매출 데이터도 안전하게 보존)
   try{ idbSet("state", st).catch(()=>{}); }catch(_){}
   // 카테고리 지정(매핑)은 별도의 작은 키에 항상 저장 → 전체 상태가 용량 초과로 실패해도 지정은 유지된다.
@@ -9529,6 +9575,15 @@ async function handleFolderBatch(fileList){
   });
   // build 71: 공급 파일은 날짜 단위·최신 파일 우선으로 합치므로, 한 출처에서 한 파일이라도 다시 읽게 되면
   // 그 출처 파일을 **전부** 읽는다(일부만 읽으면 날짜 맵이 그 파일들로만 채워져 달 값이 비는 문제 방지).
+  // build 72: 공급 월 맵에 폴더의 달(하위 폴더 "2608" 등)이 비어 있으면 — 지문이 "이미 반영"이라도 — 그 출처를 전부 다시 읽는다.
+  //   (공급 PLT가 사라진 뒤 폴더를 다시 올려도 "이미 반영됨"으로 건너뛰어 복구가 안 되던 문제)
+  const _otherMonths = new Set(shipMonths());
+  const _monthOfPath = p=>{ const m = String(p).match(/(?:^|\/)(2\d)(0[1-9]|1[0-2])(?:\/|$)/); return m ? `20${m[1]}-${m[2]}` : null; };
+  ["center","appliance","hq"].forEach(k=>{
+    const have = new Set(_monthsWithQty(storedMapOf(k)));
+    const lost = orig[k].some(f=>{ const m=_monthOfPath(pathOf(f)); return m && !have.has(m) && (!have.size || _otherMonths.has(m)); });
+    if(lost && buckets[k].length < orig[k].length){ const add = orig[k].length - buckets[k].length; reread += add; skipped -= add; buckets[k] = orig[k].slice(); }
+  });
   ["center","appliance","hq"].forEach(k=>{
     if(buckets[k].length && buckets[k].length < orig[k].length){
       const add = orig[k].length - buckets[k].length; reread += add; skipped -= add; buckets[k] = orig[k].slice();
@@ -9890,7 +9945,7 @@ idbGet("state").then(async st=>{
   // (예전에는 이때 "파일을 다시 올려주세요" 배너만 띄웠고, 파서를 고칠 때마다 4종을 재업로드해야 했다)
   let reparsed = [];
   try{
-    if(staleParseSources().length){
+    if(staleParseSources().length || ["center","hq","appliance"].some(src=>!_monthsWithQty(storedMapOf(src)).length)){   // build 72: 빈 공급도 복구 시도
       showProgress(0.3, "집계 로직이 업데이트되어 보관된 원본으로 다시 계산 중…");
       reparsed = await reparseStaleSources();
       hideProgress();
