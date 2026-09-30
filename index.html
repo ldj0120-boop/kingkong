@@ -731,6 +731,18 @@
   table.pq-tbl tbody tr{border-bottom:1px solid var(--line-soft);}
   table.pq-tbl tbody tr:hover td{box-shadow:inset 0 0 0 999px rgba(255,255,255,.04);}
   table.pq-tbl tfoot td{border-top:2px solid var(--line);font-weight:700;}
+  /* build 79: 출고 배정 도우미 */
+  table.al-tbl{width:100%;}
+  table.al-tbl th, table.al-tbl td{padding:10px 12px;text-align:left;font-size:13px;vertical-align:middle;height:auto !important;}
+  table.al-tbl td.n{font-family:"JetBrains Mono";text-align:right;white-space:nowrap;width:1%;}
+  table.al-tbl th:nth-child(2), table.al-tbl th:nth-child(3){text-align:right;white-space:nowrap;}
+  table.al-tbl td:first-child{white-space:nowrap;width:1%;}
+  table.al-tbl td.chips{line-height:2.1;white-space:normal !important;min-width:420px;}
+  table.al-tbl tbody tr{border-bottom:1px solid var(--line-soft);}
+  .al-chip{display:inline-block;margin:0 6px 4px 0;padding:1px 9px;border-radius:12px;background:rgba(255,255,255,.06);color:var(--muted2);font-size:12.5px;white-space:nowrap;}
+  .al-chip b{font-family:"JetBrains Mono";color:var(--text);margin-left:2px;}
+  .al-chip.r{background:rgba(255,107,107,.16);color:#ffb3b3;} .al-chip.r b{color:#ff8a8a;}
+  .al-chip.y{background:rgba(232,185,63,.14);color:#f0d38a;} .al-chip.y b{color:#e8b93f;}
   .pq-legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:var(--muted2);margin:4px 0 10px;align-items:center;}
   .pq-legend b{color:var(--text);}
   .pq-sw{display:inline-block;width:14px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line);}
@@ -835,7 +847,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 78 · 2026-09-30</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 79 · 2026-09-30</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -9002,8 +9014,33 @@ function goalsRender10Body(ctx){
   const gFoot = `<tfoot><tr><td class="pq-st">전사 합계</td>${gCell(withPlan.reduce((a,x)=>a+stTot(x).a,0), withPlan.reduce((a,x)=>a+stTot(x).f,0), withPlan.reduce((a,x)=>a+stTot(x).pp,0), "전사 · 계획 카테고리 합계", "T")}${
       useCats.map((pc,i)=>{ const t = D.catTotals.find(c=>c.cat===pc)||{}; const full = withPlan.reduce((a,x)=>{ const c=x.cats.find(y=>y.cat===pc); return a+(c?c.planPLTFull:0); },0);
         return gCell(t.actualPLT||0, full, t.planPLT||0, `전사 · ${pc}`, i%2); }).join("")}<td class="pq-out">${fmt1(withPlan.reduce((a,x)=>a+(x.outsideTotal||0),0))}</td></tr></tfoot>`;
+  // ── build 79: 출고 배정용 요약 — "카테고리별로 목표 대비 부족한 매장" (사용자: 매일 매입분을 전 매장에 분배할 때 쓰려고)
+  //   남은 PLT = 월 목표 − 현재 공급(0보다 클 때만). 많이 남은 매장 순. 칩 색 = 경과일 기준 페이스(빨강 50% 미만 · 노랑 80% 미만 · 회색 그 이상).
+  const alRows = useCats.map(pc=>{
+    const list = D.rows.filter(x=>x.cats).map(x=>{ const c = x.cats.find(y=>y.cat===pc); if(!c || !(c.planPLTFull>0)) return null;
+        const need = c.planPLTFull - c.actualPLT, pace = c.planPLT>0 ? c.actualPLT/c.planPLT*100 : null;
+        return need>0.05 ? { label:x.label, need, act:c.actualPLT, full:c.planPLTFull, pace } : null; }).filter(Boolean)
+      .sort((a,b)=> b.need-a.need);
+    const t = D.catTotals.find(c=>c.cat===pc)||{};
+    return { pc, list, needSum: list.reduce((a,v)=>a+v.need,0), act: t.actualPLT||0 };
+  }).sort((a,b)=> b.needSum-a.needSum);
+  const alChip = v=>{ const cls = v.pace==null ? "" : v.pace<50 ? "r" : v.pace<80 ? "y" : "";
+    return `<span class="al-chip ${cls}" title="${escHtml(`${v.label} · 목표 ${fmt1(v.full)} / 현재 ${fmt1(v.act)} PLT → ${fmt1(v.need)} PLT 더 필요`+(v.pace!=null&&D.isOngoing?` (경과일 기준 ${v.pace.toFixed(0)}%)`:""))}">${escHtml(v.label.replace(/점$/,""))} <b>${fmt1(v.need)}</b></span>`; };
+  const allocTable = alRows.length ? `
+    <div class="g-tbl-title" style="margin-top:18px">출고 배정 도우미 — 카테고리별 목표 대비 부족 매장 (${ctx.mLbl(pm)})</div>
+    <div class="pq-legend"><span>숫자 = <b>월 목표까지 더 보내야 할 PLT</b> (목표 − 현재 공급), 많이 남은 매장부터</span>
+      <span><span class="al-chip r" style="padding:0 6px">빨강</span> 경과일 기준 50% 미만</span><span><span class="al-chip y" style="padding:0 6px">노랑</span> 50~80%</span><span>회색 = 속도는 괜찮지만 아직 남음</span>
+      ${freshMissing?`<span style="color:var(--amber)">신선은 ${ctx.mLbl(pm)} 파일이 없어 제외</span>`:""}</div>
+    <div class="tblbox"><table class="g-tbl al-tbl">
+      <thead><tr><th>카테고리</th><th>부족 매장</th><th>남은 PLT 합계</th><th>매장별 남은 PLT</th></tr></thead>
+      <tbody>${alRows.map(r=>`<tr><td><b>${escHtml(r.pc)}</b>${catSub(r.pc)?` <span class="pq-sub">${escHtml(catSub(r.pc))}</span>`:""}</td>
+        <td class="n">${r.list.length}곳</td><td class="n"><b>${fmt1(r.needSum)}</b></td>
+        <td class="chips">${r.list.length ? r.list.map(alChip).join("") : '<span style="color:var(--green)">모든 매장 목표 달성</span>'}</td></tr>`).join("")}</tbody>
+      <tfoot><tr><td>합계</td><td class="n">${new Set(alRows.flatMap(r=>r.list.map(v=>v.label))).size}곳</td><td class="n"><b>${fmt1(alRows.reduce((a,r)=>a+r.needSum,0))}</b></td><td></td></tr></tfoot>
+    </table></div>` : "";
   const pltQtyTable = D.rows.length ? `
-    <div class="g-tbl-title" style="margin-top:18px">매장별 × 카테고리별 공급 PLT — 목표(공급계획) 대비 ${ctx.mLbl(pm)} 실제 공급</div>
+    <details class="g-store-more" style="margin-top:14px"><summary>매장별 × 카테고리별 전체 상세표 보기 (목표 · 실제 · 달성률)</summary>
+    <div class="g-tbl-title" style="margin-top:10px">매장별 × 카테고리별 공급 PLT — 목표(공급계획) 대비 ${ctx.mLbl(pm)} 실제 공급</div>
     <div class="pq-legend">
       <span>카테고리마다 <b>목표</b>(월 공급계획 PLT) · <b>실제</b>(${ctx.mLbl(pm)} 공급 PLT) · <b>달성</b>(월 목표 대비 %)</span>
       <span>${D.isOngoing?`달성 색은 경과일(${D.elapsed}/${D.dim}일) 기준:`:"달성 색:"}</span>
@@ -9014,7 +9051,7 @@ function goalsRender10Body(ctx){
     <div class="tblbox agg-scroll"><table class="g-tbl pq-tbl">
       <thead><tr><th class="pq-st" rowspan="2">매장</th><th colspan="3" class="gh gT">합계</th>${useCats.map((pc,i)=>`<th colspan="3" class="gh g${i%2}">${escHtml(pc)}${catSub(pc)?` <span class="pq-sub">${escHtml(catSub(pc))}</span>`:""}</th>`).join("")}<th rowspan="2" class="pq-out">계획 외</th></tr>
         <tr>${["T",...useCats.map((_,i)=>i%2)].map(g=>`<th class="sh g${g}">목표</th><th class="sh g${g}">실제</th><th class="sh g${g}">달성</th>`).join("")}</tr></thead>
-      <tbody>${gRows}</tbody>${gFoot}</table></div>` : "";
+      <tbody>${gRows}</tbody>${gFoot}</table></div></details>` : "";
   const pTrendRows = pStores.map(st=>{
     const cs = Array.from(new Set(pMonths.flatMap(m=>Object.keys((qM[m]||{})[st]||{})))).sort((a,b)=> q(pm,st,b)-q(pm,st,a) || pMonths.reduce((t,m)=>t+q(m,st,b),0)-pMonths.reduce((t,m)=>t+q(m,st,a),0));
     const rows = cs.map(c=>`<tr><td>${escHtml(c)}</td>${pMonths.map((m,i)=>{ const v=q(m,st,c), pv=i?q(pMonths[i-1],st,c):null;
@@ -9111,7 +9148,7 @@ function goalsRender10Body(ctx){
     <div class="g-tbl-title" style="margin-top:18px">매장별 계획 상세 — 카테고리별 계획 PLT 대비 ${cm} 실제, PLT·기대매출 도달율 함께 보기</div>
     <div class="g-store-list" style="margin-top:8px">${detailRows}</div>`;
 
-  return kpi + missNote + monthBar + pltQtyTable + pltTrendBlock + catTable + table + ref;   // build 74: %만 있던 도달율 매트릭스는 위 목표 대비 표로 대체   // build 73: PLT 수량표·월별 추이 추가
+  return kpi + missNote + monthBar + allocTable + pltQtyTable + pltTrendBlock + catTable + table + ref;   // build 74: %만 있던 도달율 매트릭스는 위 목표 대비 표로 대체   // build 73: PLT 수량표·월별 추이 추가
 }
 
 /* ---------------- 서브탭 전환 ---------------- */
