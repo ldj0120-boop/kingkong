@@ -565,6 +565,12 @@
   .g-rank-row:last-child{border-bottom:0;}
   .g-rank-num{width:20px;text-align:center;font-family:"JetBrains Mono";font-size:10.5px;color:var(--muted2);flex:0 0 auto;}
   .g-rank-name{width:110px;flex:0 0 auto;font-size:12.5px;color:var(--pale);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .g-rank-bar{position:relative;flex:1;height:6px;background:var(--line-soft);border-radius:3px;}
+  .g-rank-bar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:3px;}
+  .g-rank-bar .ref{position:absolute;top:-4px;bottom:-4px;width:0;border-left:1px dashed var(--muted2);}
+  .g-rank-bar .ref.r100{border-left-style:solid;border-left-color:var(--green);opacity:.55;}
+  .g-rank-sep{display:flex;align-items:center;gap:8px;padding:6px 2px;font-size:11px;color:var(--muted2);}
+  .g-rank-sep::before,.g-rank-sep::after{content:"";flex:1;border-top:1px dashed var(--muted2);opacity:.6;}
   .g-rank-pct{width:54px;text-align:right;flex:0 0 auto;font-family:"JetBrains Mono";font-size:12px;font-weight:700;color:var(--text);}
   /* 2차 상세화(2026-08-26): 카테고리 전체 격차표 · 월별 이력 스트립 · 전사 카테고리 효율표 */
   .g-eff-wrap{margin:14px 0;background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px 6px;}
@@ -772,7 +778,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 67 · 2026-09-30</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 68 · 2026-09-30</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -7331,17 +7337,30 @@ function goalsRender01(ctx){
   // 전사 카테고리 판매 부진 경고/시트 구성 — 전부 긴 설명 텍스트인 "방법론")는 삭제했다.
   // 대신 "위험군(달성률 65% 미만)" 매장을 숫자 하나가 아니라 실제 매장명·달성률 목록으로 보여줘
   // 이름 그대로 "대시보드"가 되게 했다 — 계산 로직(ctx.rows)은 그대로, 표시만 바꾼 것.
+  // 2026-09-30 build 68: 위험군(65% 미만)만 보여주니 21곳 중 17곳만 떠서 "매장이 몇 개인데 17개만 나오냐"는
+  // 지적 → 대상 매장 전체를 달성률 낮은 순으로 보여주고, 막대마다 65%(점선)·100%(실선) 기준선을 긋고,
+  // 65% 경계에 구분선을 넣어 위험군이 어디까지인지 한눈에 보이게 했다. 계산(ctx.rows)은 그대로.
   const dangerRows = ctx.rows.filter(r=>r.pct<65);
-  const dangerListHtml = dangerRows.length
-    ? `<div class="g-rank-list">${dangerRows.map(r=>{
-        const tier = goalsTier(r.pct);
-        const c = tier.cls==="g-tier-bad" ? "var(--red)" : "var(--amber)";
-        return `<div class="g-rank-row" title="${escHtml(r.label)} · 달성률 ${r.pct.toFixed(1)}%">
+  const maxPct = ctx.rows.reduce((a,r)=>Math.max(a,r.pct),0);
+  const scaleMax = Math.min(150, Math.max(100, Math.ceil(maxPct/10)*10));   // 100% 넘는 매장도 막대 길이가 구분되게
+  const tierColor = pct=>{ const t=goalsTier(pct).cls;
+    return t==="g-tier-great"?"var(--green)":t==="g-tier-good"?"var(--info)":t==="g-tier-warn"?"var(--amber)":"var(--red)"; };
+  const rankRowHtml = r=>{
+    const w = Math.min(100, r.pct/scaleMax*100);
+    const title = `${r.label} · 달성률 ${r.pct.toFixed(1)}% (${goalsTier(r.pct).label}) · 실적 ${Math.round(r.actual).toLocaleString()}원 / 목표(일할) ${Math.round(r.proratedTarget).toLocaleString()}원`;
+    return `<div class="g-rank-row" title="${escHtml(title)}"><span class="g-rank-num">${r.rank}</span>
           <span class="g-rank-name">${escHtml(r.label)}</span>
-          <div class="mini-bar" style="flex:1;"><div class="mini-bar-fill" style="width:${Math.min(100,r.pct).toFixed(1)}%;background:${c}"></div></div>
-          <span class="g-rank-pct">${r.pct.toFixed(1)}%</span></div>`;
-      }).join("")}</div>`
-    : `<p class="g-note-p" style="color:var(--green);">위험군(달성률 65% 미만) 매장 없음</p>`;
+          <div class="g-rank-bar"><div class="fill" style="width:${w.toFixed(1)}%;background:${tierColor(r.pct)}"></div>
+            <div class="ref" style="left:${(65/scaleMax*100).toFixed(1)}%"></div><div class="ref r100" style="left:${(100/scaleMax*100).toFixed(1)}%"></div></div>
+          <span class="g-rank-pct" style="color:${tierColor(r.pct)}">${r.pct.toFixed(1)}%</span></div>`;
+  };
+  const safeRows = ctx.rows.filter(r=>r.pct>=65);
+  const dangerListHtml = ctx.rows.length
+    ? `<div class="g-rank-list">${dangerRows.map(rankRowHtml).join("")}
+        ${dangerRows.length && safeRows.length ? `<div class="g-rank-sep">위 ${dangerRows.length}곳 위험군 · 65% 기준선 · 아래 ${safeRows.length}곳</div>` : ""}
+        ${safeRows.map(rankRowHtml).join("")}</div>
+       ${dangerRows.length ? "" : `<p class="g-note-p" style="color:var(--green);">위험군(달성률 65% 미만) 매장 없음</p>`}`
+    : `<p class="g-note-p">목표가 등록된 대상 매장이 없습니다.</p>`;
 
   return `<div class="stat-row">
       ${statCard(`전사 달성률 · ${ctx.curMonth} (${ctx.elapsedDays}/${ctx.daysInMonth}일 경과)`, totalPct.toFixed(1)+"%", [
@@ -7362,7 +7381,7 @@ function goalsRender01(ctx){
     ${salesAuditHtml(ctx)}
     ${goalsForecastCardHtml(ctx)}
     ${donutHtml}
-    <div class="g-tbl-title">${cm} 목표매출 위험군 매장 (달성률 65% 미만 · 낮은 순)</div>
+    <div class="g-tbl-title">${cm} 매장별 목표 달성률 (대상 ${ctx.rows.length}곳 전체 · 낮은 순 · 점선 65% 위험군 기준 · 실선 100%)</div>
     ${dangerListHtml}`;
 }
 
