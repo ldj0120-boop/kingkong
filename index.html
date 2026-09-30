@@ -772,7 +772,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 65 · 2026-09-29</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 66 · 2026-09-30</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1866,7 +1866,10 @@ function mergeStoredCatMaps(){
 //   fresh 1     : 최초 로직 이후 변경 없음
 //   center 11   : (build 62, 2026-09-29) "직출건 출고내역서"(시트 "MMDD (n)", 마커 "출고지 :", A열 "1~9" 범위
 //                 표기) 인식 + 본 파일 "직 출" 블록과 날짜 단위 중복 제거(DIRECT_MAIN_D/DIRECT_FILE_D).
-const PARSE_LOGIC_VERSIONS = { center: 11, hq: 8, appliance: 7, fresh: 2 };
+//   center 12   : (build 66, 2026-09-30) LOT 요약 1줄 블록(A열 "1"/빈칸, B열 코드만 "XLS", REMARKS에 (NPLT) 없음)을
+//                 1PLT로 세던 오류 수정 → D열 매니페스트 "KPP n"을 수량으로 쓴다. (신고: 용인점·이천점 XLS 9월
+//                 각 18PLT인데 1PLT. 직출건 파일 XLS 약 250PLT·XLG 약 80PLT가 이렇게 빠지고 있었다)
+const PARSE_LOGIC_VERSIONS = { center: 12, hq: 8, appliance: 7, fresh: 2 };
 const PARSE_LOGIC_VERSION = 5; // (하위호환: 예전 상태에 통째로 저장돼 있던 값 비교용)
 function logicVer(src){ return PARSE_LOGIC_VERSIONS[src] || 1; }
 const PARSE_SRC_LABEL = { center:"출고내역서(센터)", hq:"출고계획서(본사)", appliance:"가전센터 출고내역서", fresh:"신선 출고내역서" };
@@ -4766,6 +4769,15 @@ function parseShipmentWorkbook(wb){
       //  · "(연장)" 행(CATE 빈칸)은 앞 CATE에 이어짐 → 위 카운트에 자연히 포함.
       const catQty = {};
       let lastCat = null, lastMode = null, lastCode = null, lastHint = 0, lastCnt = 0, lastRowCnt = 0, lastNoCnt = 0, firstCat = null;
+      // ★ build 66: LOT 요약 1줄 블록 판정용. 블록 안 CATE 줄 수를 먼저 센다.
+      let blockLineCount = 0;
+      for(let pr=r+2; pr<aoa.length; pr++){
+        const prow = aoa[pr] || [];
+        if(isShipBlockMarker(prow[0])) break;
+        if(/^no\.?$/i.test(String(prow[0]||"").trim()) || prow[1] === 0) continue;
+        if(prow[2]!=null && String(prow[2]).trim()!=="") blockLineCount++;
+      }
+      let lastIsLot = false, lastIndiv = 0, lastRange = false;
       // ★ 파레트 수량 산정 규칙 (2026-08-26 전면 재정립)
       // 원칙: **B열에 개별 PLT NO.가 찍힌 행은 실물 파레트 1장이다. 이 숫자는 어떤 이유로도 깎지 않는다.**
       //   예전에는 블록 합계가 D열 매니페스트를 넘으면 비례 축소했는데, 그 결과
@@ -4786,6 +4798,14 @@ function parseShipmentWorkbook(wb){
       //   ④ 그래도 근거가 없으면 1PLT
       const flushLine = ()=>{
         if(!lastCat) return;
+        // ★ build 66: "XLS LOT 출고" 같은 LOT 요약 한 줄(개별 PLT NO. 없음 · A열 범위 없음 · (NPLT) 없음)이
+        //   블록의 유일한 줄이면, 그 블록의 D열 매니페스트("KPP 18")가 곧 이 LOT의 파레트 수다.
+        //   (예: 0918 용인점 "KPP 18" / A=1 / B="XLS" → 예전 1PLT, 실제 18PLT)
+        if(lastIsLot && lastIndiv===0 && !lastRange && lastHint===0 && blockLineCount===1
+           && manifest.explicit && manifest.total > 1){
+          catQty[lastCat] = (catQty[lastCat]||0) + manifest.total;
+          return;
+        }
         // 이 CATE 구간에서 실제로 센 파레트 행 수.
         // 부분출고는 코드 일치 행이 우선이지만, 코드가 안 찍힌 파일(XLW 등)에서 0이 되면
         // B열에 값이 있는 행 수로 보완한다(예전에 이 경우 18행이 통째로 버려졌다).
@@ -4832,6 +4852,13 @@ function parseShipmentWorkbook(wb){
           lastCnt = 0;
           lastRowCnt = 0;
           lastNoCnt = 0;
+          lastIsLot = /LOT/i.test(String(cateRaw));
+          lastIndiv = 0;
+          lastRange = false;
+        }
+        if(lastCat){
+          if(rngM) lastRange = true;
+          if(pno!=="" && pno!=="0" && !/^XL[A-Z]$/.test(pno)) lastIndiv++;
         }
         // 파레트 카운트: 부분출고에서만, B열에 코드가 든 칸(코드 없으면 B열 값 있는 행)
         if(lastCat && lastMode==="part"){
