@@ -778,7 +778,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 69 · 2026-09-30</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 71 · 2026-09-30</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1238,6 +1238,8 @@ function stripStoreSuffix(t){
 function resolveShipmentStoreName(raw){
   let t = String(raw||"").replace(/\s+/g,'').trim();
   if(!t || t.includes("기부출고")) return null;
+  // build 70: "파주점_오도동(착불)"처럼 배송조건 꼬리표가 붙으면 별칭이 안 잡혔다 → 꼬리표만 뗀다.
+  t = t.replace(/[(\[](착불|선불|택배|직송|직출|퀵)[)\]]$/,'');
   let r = resolveStoreName(t);
   if(STORES.includes(r)) return r;
   const base = stripStoreSuffix(t);
@@ -1661,6 +1663,84 @@ function shipMonths(){
 }
 let unmatchedHQStores = [];
 let unmatchedApplianceStores = [];
+/* ===== build 71: 공급 PLT 날짜 단위 병합 =====
+   예전: 파일을 올리면 그 파일에 든 "달"을 통째로 교체(mergeMonthMap / mergeDayMapByMonth).
+   → 같은 달을 여러 파일이 나눠 담거나, 같은 달의 예전 버전 파일이 폴더에 함께 있으면 **마지막에 처리된 파일 하나만**
+     그 달에 남았다. 처리 순서(업로드 순서·폴더 순서·재계산 순서)에 따라 6~9월 숫자가 매번 달라진 원인.
+   지금: 날짜(시트) 단위로 모아 두고, 같은 날짜가 여러 파일에 있으면 **수정시각이 가장 최신인 파일**의 그 날짜를 쓴다.
+     월 값은 날짜 값의 합으로 다시 만든다 → 어떤 순서로 몇 번을 읽어도 결과가 같다. */
+let CENTER_D = {}, HQ_D = {}, APPLIANCE_D = {};                 // date -> store -> {cat: qty}
+let DAY_SRC = { center:{}, hq:{}, appliance:{}, dmain:{}, dfile:{} }; // date -> {t: 파일 수정시각(ms), f: 파일 경로}
+let UNMATCHED_WHERE = { center:{}, hq:{}, appliance:{} };       // 미매칭 이름 -> [{file, sheet, cell, raw}]
+function fileTimeOf(file){ return (file && +file.lastModified) || Date.now(); }
+function fileLabelOf(file){ return String((file && (file.webkitRelativePath || file.name)) || ""); }
+function mergeDaysNewest(target, srcMap, incoming, t, f){
+  if(!incoming) return;
+  Object.keys(incoming).forEach(d=>{
+    const cur = srcMap[d];
+    if(cur && (cur.t > t || (cur.t === t && String(cur.f||"") > String(f||"")))) return; // 이미 더 최신 파일의 날짜
+    target[d] = incoming[d]; srcMap[d] = { t, f };
+  });
+}
+function rebuildMonthsFromDays(M, D, months){
+  new Set(months).forEach(m=>{
+    let any = false; const o = {};
+    Object.keys(D).forEach(d=>{
+      if(d.slice(0,7) !== m) return; any = true;
+      Object.keys(D[d]||{}).forEach(s=>{ if(!o[s]) o[s] = {};
+        Object.keys(D[d][s]||{}).forEach(c=>{ o[s][c] = (o[s][c]||0) + num(D[d][s][c]); }); });
+    });
+    if(any) M[m] = o;
+  });
+}
+const _monthsOfDays = obj => Object.keys(obj||{}).map(d=>d.slice(0,7));
+// 파서 결과 하나를 날짜 단위로 반영한다. kind: center | center_direct | hq | appliance
+function applyDays(kind, r, t, f){
+  if(kind==="center"){
+    mergeDaysNewest(CENTER_D, DAY_SRC.center, r.byDay, t, f);
+    rebuildMonthsFromDays(CENTER_M, CENTER_D, [..._monthsOfDays(r.byDay), ...Object.keys(r.byMonth||{})]);
+    mergeDaysNewest(DIRECT_MAIN_D, DAY_SRC.dmain, r.byDayDirect, t, f);
+    rebuildCenterDirectM();
+  } else if(kind==="center_direct"){
+    mergeDaysNewest(DIRECT_FILE_D, DAY_SRC.dfile, r.byDayDirect, t, f);
+    rebuildCenterDirectM();
+  } else if(kind==="hq"){
+    mergeDaysNewest(HQ_D, DAY_SRC.hq, r.byDay, t, f);
+    rebuildMonthsFromDays(HQ_M, HQ_D, [..._monthsOfDays(r.byDay), ...Object.keys(r.byMonth||{})]);
+  } else if(kind==="appliance"){
+    mergeDaysNewest(APPLIANCE_D, DAY_SRC.appliance, r.byDay, t, f);
+    rebuildMonthsFromDays(APPLIANCE_M, APPLIANCE_D, [..._monthsOfDays(r.byDay), ...Object.keys(r.byMonth||{})]);
+  }
+}
+// ----- 미매칭 이름의 원본 위치 -----
+function cellAddr(wb, sheetName, r, c){
+  try{ const ref = wb.Sheets[sheetName]["!ref"]; const s = ref ? XLSX.utils.decode_range(ref).s : {r:0,c:0};
+       return XLSX.utils.encode_cell({ r: r + s.r, c: c + s.c }); }catch(_){ return `${r+1}행`; }
+}
+function umAdd(where, name, sheet, cell, raw){
+  if(!name) return;
+  if(!where[name]) where[name] = [];
+  if(where[name].length < 5 && !where[name].some(x=>x.sheet===sheet && x.cell===cell))
+    where[name].push({ sheet, cell, raw: String(raw==null ? "" : raw).replace(/\s+/g," ").trim().slice(0,40) });
+}
+function umStamp(where, file){ const o = {}; Object.keys(where||{}).forEach(n=>{ o[n] = where[n].map(x=>Object.assign({}, x, { file })); }); return o; }
+function umMerge(dst, src){ Object.keys(src||{}).forEach(n=>{ if(!dst[n]) dst[n] = []; src[n].forEach(x=>{ if(dst[n].length < 5) dst[n].push(x); }); }); return dst; }
+// 파일 하나를 (다시) 올렸을 때: 그 파일에서 나온 위치만 교체하고, 다른 파일의 미매칭은 그대로 둔다.
+// (예전: "마지막에 올린 파일" 기준으로 목록을 통째로 바꿔, 예전 파일을 나중에 올리면 경고가 사라졌다)
+function umReplaceFile(src, file, stamped){
+  const w = UNMATCHED_WHERE[src] || (UNMATCHED_WHERE[src] = {});
+  Object.keys(w).forEach(n=>{ w[n] = (w[n]||[]).filter(x=>x.file!==file); if(!w[n].length) delete w[n]; });
+  umMerge(w, stamped);
+  return Object.keys(w);
+}
+function umText(src, names){
+  const w = (UNMATCHED_WHERE && UNMATCHED_WHERE[src]) || {};
+  return names.map(n=>{
+    const locs = w[n];
+    if(!locs || !locs.length) return `${n} (위치 기록 없음 — build 71 이전에 기록된 경고. 해당 원본을 다시 읽으면 위치가 표시됩니다)`;
+    return `${n} → ` + locs.map(x=>`「${String(x.file||"").split("/").pop()}」 시트 ${x.sheet} · ${x.cell}${x.raw ? ` (원문 "${x.raw}")` : ""}`).join(" / ");
+  }).join(" ; ");
+}
 let SALES = {};                // store -> {대분류 카테고리: {qty, amount}} (SALES_HISTORY의 최신 스냅샷과 항상 동일)
 let SALES_HISTORY = [];        // [{date, byStoreCat}] 매출현황을 업로드할 때마다(파일명의 날짜 기준) 스냅샷이 쌓여 전일/전주/전월/작년 대비 비교에 쓰인다
 let unmatchedSalesStores = []; // 매출현황 파일에는 있지만 매장 목록에 없는 매장
@@ -1879,7 +1959,7 @@ function mergeStoredCatMaps(){
 //                 각 18PLT인데 1PLT. 직출건 파일 XLS 약 250PLT·XLG 약 80PLT가 이렇게 빠지고 있었다)
 //   center 13 · hq 9 : (build 67, 2026-09-30) 별칭 추가 — 의정부점→의정부가맹점, 파주점_오도동→파주가맹점.
 //                 파싱 로직은 그대로, 보관 원본으로 재계산해 빠졌던 XLA 9·XLB 9PLT를 채우기 위한 버전 올림.
-const PARSE_LOGIC_VERSIONS = { center: 13, hq: 9, appliance: 7, fresh: 2 }; // build 67: 별칭 추가 → 보관 원본으로 자동 재계산
+const PARSE_LOGIC_VERSIONS = { center: 14, hq: 10, appliance: 8, fresh: 2 }; // build 71: 날짜 단위 병합(최신 파일 우선) + 미매칭 위치 // build 67: 별칭 추가 → 보관 원본으로 자동 재계산
 const PARSE_LOGIC_VERSION = 5; // (하위호환: 예전 상태에 통째로 저장돼 있던 값 비교용)
 function logicVer(src){ return PARSE_LOGIC_VERSIONS[src] || 1; }
 const PARSE_SRC_LABEL = { center:"출고내역서(센터)", hq:"출고계획서(본사)", appliance:"가전센터 출고내역서", fresh:"신선 출고내역서" };
@@ -1929,13 +2009,17 @@ async function rawFileRead(entry){ try{ return entry ? await idbGet(entry.key) :
 function rawFileSave(src, file, buf){
   if(!IDB_AVAILABLE || !buf) return Promise.resolve();
   const name = (file && file.name) ? String(file.name) : (src + ".xlsx");
+  // build 70: 키가 "출처+파일명"뿐이라 폴더의 하위 폴더마다 같은 이름 파일이 있으면 서로 덮어써 마지막 하나만 남았다
+  // (→ build 67 자동 재계산이 거의 빈 결과를 낸 유력 원인). 경로+크기까지 키에 넣는다.
+  const path = (file && file.webkitRelativePath) ? String(file.webkitRelativePath) : name;
   return rawQueue(async()=>{
     try{
-      const key = rawFileKey(src, name);
+      const key = rawFileKey(src, path) + "|" + buf.byteLength;
       await idbSet(key, buf);                     // 내용은 자기 키에만 쓴다 — 다른 원본은 건드리지 않는다
       const idx = await rawIndexLoad();
-      const keep = idx.filter(e=> e.key !== key);
-      keep.push({ src, name, size: buf.byteLength, savedAt: new Date().toISOString(), key });
+      // 같은 파일(같은 키, 또는 예전 형식 키로 저장된 같은 이름·같은 크기)은 하나만 남긴다 → 재계산 때 두 번 세지 않게.
+      const keep = idx.filter(e=> e.key !== key && !(e.src===src && e.name===name && e.size===buf.byteLength));
+      keep.push({ src, name, path, size: buf.byteLength, lastModified: (file && +file.lastModified) || 0, savedAt: new Date().toISOString(), key });
       await idbSet(RAW_IDX_KEY, keep);
     }catch(_){ /* 보관 실패는 기능에 영향 없음 — 그때는 예전처럼 재업로드 안내가 뜬다 */ }
   });
@@ -1952,6 +2036,7 @@ function pruneUnmatchedStores(){
   unmatchedActualStores    = unmatchedActualStores.filter(n=>!gone(n));
   unmatchedHQStores        = unmatchedHQStores.filter(n=>!gone(n));
   unmatchedApplianceStores = unmatchedApplianceStores.filter(n=>!gone(n));
+  try{ ["center","hq","appliance"].forEach(k=>{ Object.keys(UNMATCHED_WHERE[k]||{}).forEach(n=>{ if(gone(n)) delete UNMATCHED_WHERE[k][n]; }); }); }catch(_){}
   return before - (unmatchedActualStores.length + unmatchedHQStores.length + unmatchedApplianceStores.length);
 }
 async function reparseStaleSources(){
@@ -1961,7 +2046,8 @@ async function reparseStaleSources(){
   if(!files.length) return [];
   const done = [];
   for(const src of stale){
-    const mine = files.filter(f=>f.src===src).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+    // build 70: 이름순 → 업로드 순서(savedAt)순. "같은 달은 마지막으로 올린 파일로 교체"라는 업로드 규칙과 결과가 같아진다.
+    const mine = files.filter(f=>f.src===src).sort((a,b)=> String(a.savedAt||"").localeCompare(String(b.savedAt||"")) || String(a.path||a.name).localeCompare(String(b.path||b.name)));
     if(!mine.length) continue;
     let snap = null;
     try{
@@ -1976,9 +2062,10 @@ async function reparseStaleSources(){
       // ★ build 69: 비우기 전에 지금 값을 떠 둔다. 보관 원본이 일부만 있거나 파싱이 중간에 실패하면 이걸로 되돌린다.
       //   (build 67에서 버전을 올리자 보관 원본에 없는 기간의 공급 PLT가 통째로 사라지고 클라우드까지 덮어써졌다)
       snap = reparseSnapshot(src);
-      if(src==="center"){ CENTER_M = {}; CENTER_DIRECT_M = {}; SUPPLY_HISTORY = []; DIRECT_MAIN_D = {}; DIRECT_FILE_D = {}; }
-      else if(src==="hq"){ HQ_M = {}; HQ_SUPPLY_HISTORY = []; }
-      else if(src==="appliance"){ APPLIANCE_M = {}; APPLIANCE_SUPPLY_HISTORY = []; }
+      const where = {};   // build 71: 미매칭 위치(보관된 파일 전체)
+      if(src==="center"){ CENTER_M = {}; CENTER_DIRECT_M = {}; SUPPLY_HISTORY = []; DIRECT_MAIN_D = {}; DIRECT_FILE_D = {}; CENTER_D = {}; DAY_SRC.center = {}; DAY_SRC.dmain = {}; DAY_SRC.dfile = {}; }
+      else if(src==="hq"){ HQ_M = {}; HQ_SUPPLY_HISTORY = []; HQ_D = {}; DAY_SRC.hq = {}; }
+      else if(src==="appliance"){ APPLIANCE_M = {}; APPLIANCE_SUPPLY_HISTORY = []; APPLIANCE_D = {}; DAY_SRC.appliance = {}; }
       else continue;
       const soak = (r, into)=>{
         const from = into===accDirect ? (r.byStoreCatDirect||{}) : (r.byStoreCat||{});
@@ -1992,28 +2079,30 @@ async function reparseStaleSources(){
         const buf = await rawFileRead(f);   // 필요한 파일만 그때 읽는다(전체를 메모리에 올리지 않는다)
         if(!buf) continue;
         const wb = XLSX.read(new Uint8Array(buf), {type:"array"});
+        const ft = (+f.lastModified) || Date.parse(f.savedAt||"") || 0, fl = String(f.path || f.name || "");   // build 71
         if(src==="center"){
           const r = parseShipmentWorkbook(wb);
+          umMerge(where, umStamp(r.unmatchedWhere, fl));
           if(r.kind === "direct_file"){
             (r.unmatched||[]).forEach(u=>unmatched.add(u));
-            mergeDayMapByMonth(DIRECT_FILE_D, r.byDayDirect);
+            applyDays("center_direct", r, ft, fl);
             SUPPLY_HISTORY = mergeSupplyDaysMissingOnly(SUPPLY_HISTORY, r.days);
           } else {
-            mergeMonthMap(CENTER_M, r.byMonth);
-            mergeMonthMap(CENTER_DIRECT_M, r.byMonthDirect);
-            mergeDayMapByMonth(DIRECT_MAIN_D, r.byDayDirect);
+            applyDays("center", r, ft, fl);
             SUPPLY_HISTORY = mergeSupplyDays(SUPPLY_HISTORY, r.days);
             soak(r, acc);
             soak(r, accDirect);
           }
         } else if(src==="hq"){
           const r = await parseHQPlanWorkbook(wb);
-          mergeMonthMap(HQ_M, r.byMonth);
+          umMerge(where, umStamp(r.unmatchedWhere, fl));
+          applyDays("hq", r, ft, fl);
           HQ_SUPPLY_HISTORY = mergeSupplyDays(HQ_SUPPLY_HISTORY, r.days);
           soak(r, acc);
         } else if(src==="appliance"){
           const r = parseApplianceWorkbook(wb);
-          mergeMonthMap(APPLIANCE_M, r.byMonth);
+          umMerge(where, umStamp(r.unmatchedWhere, fl));
+          applyDays("appliance", r, ft, fl);
           APPLIANCE_SUPPLY_HISTORY = mergeSupplyDays(APPLIANCE_SUPPLY_HISTORY, r.days);
           soak(r, acc);
         }
@@ -2032,14 +2121,14 @@ async function reparseStaleSources(){
         Object.keys(acc[st]).forEach(c=>{ ensureCategory(c, "출고내역서(하차지 블록)"); fresh[st][c] = acc[st][c]; }); });
       if(src==="center"){
         rebuildCenterDirectM();
-        ACTUAL = fresh; unmatchedActualStores = Array.from(unmatched);
+        ACTUAL = fresh; unmatchedActualStores = Array.from(unmatched); UNMATCHED_WHERE.center = where;
         const freshDirect = {}; STORES.forEach(st=> freshDirect[st] = freshCatMap());
         Object.keys(accDirect).forEach(st=>{ if(!freshDirect[st]) return;
           Object.keys(accDirect[st]).forEach(c=>{ ensureCategory(c, "출고내역서(하차지 블록·직출)"); freshDirect[st][c] = accDirect[st][c]; }); });
         CENTER_DIRECT_ACTUAL = freshDirect;
       }
-      else if(src==="hq"){ HQ_ACTUAL = fresh; unmatchedHQStores = Array.from(unmatched); }
-      else { APPLIANCE_ACTUAL = fresh; unmatchedApplianceStores = Array.from(unmatched); }
+      else if(src==="hq"){ HQ_ACTUAL = fresh; unmatchedHQStores = Array.from(unmatched); UNMATCHED_WHERE.hq = where; }
+      else { APPLIANCE_ACTUAL = fresh; unmatchedApplianceStores = Array.from(unmatched); UNMATCHED_WHERE.appliance = where; }
       markParsed(src);
       done.push(src);
     }catch(e){
@@ -2054,16 +2143,18 @@ async function reparseStaleSources(){
 // ===== build 69: 자동 재계산 안전장치 =====
 let REPARSE_SKIPPED = [];
 const _REPARSE_KEYS = {
-  center:    ["CENTER_M","CENTER_DIRECT_M","SUPPLY_HISTORY","DIRECT_MAIN_D","DIRECT_FILE_D"],
-  hq:        ["HQ_M","HQ_SUPPLY_HISTORY"],
-  appliance: ["APPLIANCE_M","APPLIANCE_SUPPLY_HISTORY"]
+  center:    ["CENTER_M","CENTER_DIRECT_M","SUPPLY_HISTORY","DIRECT_MAIN_D","DIRECT_FILE_D","CENTER_D","DS:center","DS:dmain","DS:dfile"],
+  hq:        ["HQ_M","HQ_SUPPLY_HISTORY","HQ_D","DS:hq"],
+  appliance: ["APPLIANCE_M","APPLIANCE_SUPPLY_HISTORY","APPLIANCE_D","DS:appliance"]
 };
-function _reparseGet(k){ switch(k){
+function _reparseGet(k){ if(k.startsWith("DS:")) return DAY_SRC[k.slice(3)]; switch(k){
+  case "CENTER_D": return CENTER_D; case "HQ_D": return HQ_D; case "APPLIANCE_D": return APPLIANCE_D;
   case "CENTER_M": return CENTER_M; case "CENTER_DIRECT_M": return CENTER_DIRECT_M; case "SUPPLY_HISTORY": return SUPPLY_HISTORY;
   case "DIRECT_MAIN_D": return DIRECT_MAIN_D; case "DIRECT_FILE_D": return DIRECT_FILE_D;
   case "HQ_M": return HQ_M; case "HQ_SUPPLY_HISTORY": return HQ_SUPPLY_HISTORY;
   case "APPLIANCE_M": return APPLIANCE_M; case "APPLIANCE_SUPPLY_HISTORY": return APPLIANCE_SUPPLY_HISTORY; } }
-function _reparseSet(k,v){ switch(k){
+function _reparseSet(k,v){ if(k.startsWith("DS:")){ DAY_SRC[k.slice(3)] = v || {}; return; } switch(k){
+  case "CENTER_D": CENTER_D=v||{}; break; case "HQ_D": HQ_D=v||{}; break; case "APPLIANCE_D": APPLIANCE_D=v||{}; break;
   case "CENTER_M": CENTER_M=v; break; case "CENTER_DIRECT_M": CENTER_DIRECT_M=v; break; case "SUPPLY_HISTORY": SUPPLY_HISTORY=v; break;
   case "DIRECT_MAIN_D": DIRECT_MAIN_D=v; break; case "DIRECT_FILE_D": DIRECT_FILE_D=v; break;
   case "HQ_M": HQ_M=v; break; case "HQ_SUPPLY_HISTORY": HQ_SUPPLY_HISTORY=v; break;
@@ -2109,7 +2200,7 @@ function buildStateObject(){
   return {
       PARSE_LOGIC_VERSION, _parseVerBySrc, shipMergePolicy, _shipMergeDefaultVer: SHIP_MERGE_DEFAULT_VERSION,
       STORES, STOCK, CATEGORIES, CATEGORY_ORIGIN, SHIP, ACTUAL,
-      HQ_ACTUAL, APPLIANCE_ACTUAL, CENTER_DIRECT_ACTUAL, FRESH_ACTUAL, CENTER_M, HQ_M, APPLIANCE_M, CENTER_DIRECT_M, DIRECT_MAIN_D, DIRECT_FILE_D, FRESH_M, LOTTE_M, shipScope, HQ_SUPPLY_HISTORY, APPLIANCE_SUPPLY_HISTORY, unmatchedHQStores, unmatchedApplianceStores,
+      HQ_ACTUAL, APPLIANCE_ACTUAL, CENTER_DIRECT_ACTUAL, FRESH_ACTUAL, CENTER_M, HQ_M, APPLIANCE_M, CENTER_DIRECT_M, DIRECT_MAIN_D, DIRECT_FILE_D, CENTER_D, HQ_D, APPLIANCE_D, DAY_SRC, UNMATCHED_WHERE, FRESH_M, LOTTE_M, shipScope, HQ_SUPPLY_HISTORY, APPLIANCE_SUPPLY_HISTORY, unmatchedHQStores, unmatchedApplianceStores,
       selected, SUPPLY_HISTORY, STOCK_HISTORY, unmatchedActualStores,
       SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodBStart, periodBEnd, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, SPECIAL_DAYS, goalsScope, selectedSalesMonth, selectedMonthlyStore, salesViewMode, EVENTS_COMMON, EVENTS_STORE, PROCESSED_FILES,
       basedateIdx: (typeof basedateEl!=="undefined" && basedateEl.value!=="") ? +basedateEl.value : STOCK_HISTORY.length-1
@@ -2257,6 +2348,11 @@ function applyStateObject(s){
     CENTER_DIRECT_M = (s.CENTER_DIRECT_M && typeof s.CENTER_DIRECT_M==="object") ? s.CENTER_DIRECT_M : {};
     DIRECT_MAIN_D = (s.DIRECT_MAIN_D && typeof s.DIRECT_MAIN_D==="object") ? s.DIRECT_MAIN_D : {};
     DIRECT_FILE_D = (s.DIRECT_FILE_D && typeof s.DIRECT_FILE_D==="object") ? s.DIRECT_FILE_D : {};
+    // build 71
+    const _o = v => (v && typeof v==="object") ? v : {};
+    CENTER_D = _o(s.CENTER_D); HQ_D = _o(s.HQ_D); APPLIANCE_D = _o(s.APPLIANCE_D);
+    DAY_SRC = Object.assign({ center:{}, hq:{}, appliance:{}, dmain:{}, dfile:{} }, _o(s.DAY_SRC));
+    UNMATCHED_WHERE = Object.assign({ center:{}, hq:{}, appliance:{} }, _o(s.UNMATCHED_WHERE));
     FRESH_M = (s.FRESH_M && typeof s.FRESH_M==="object") ? s.FRESH_M : {};
     LOTTE_M = (s.LOTTE_M && typeof s.LOTTE_M==="object") ? s.LOTTE_M : {};
     shipScope = s.shipScope || "all";
@@ -2367,13 +2463,13 @@ function renderDataQuality(){
     warnings.push(`매출현황의 매장명 ${unmatchedSalesStores.length}곳이 매장 목록과 매칭되지 않아 집계에서 제외되었습니다: ${unmatchedSalesStores.join(", ")}`);
   }
   if(unmatchedActualStores && unmatchedActualStores.length){
-    warnings.push(`출고내역서(센터)의 하차지 ${unmatchedActualStores.length}곳이 매장 목록과 매칭되지 않아 집계에서 제외되었습니다: ${unmatchedActualStores.join(", ")}`);
+    warnings.push(`출고내역서(센터)의 하차지 ${unmatchedActualStores.length}곳이 매장 목록과 매칭되지 않아 집계에서 제외되었습니다: ${umText("center", unmatchedActualStores)}`);
   }
   if(unmatchedHQStores && unmatchedHQStores.length){
-    warnings.push(`본사 출고계획서의 목적지 ${unmatchedHQStores.length}곳이 매장 목록과 매칭되지 않아 집계에서 제외되었습니다: ${unmatchedHQStores.join(", ")}`);
+    warnings.push(`본사 출고계획서의 목적지 ${unmatchedHQStores.length}곳이 매장 목록과 매칭되지 않아 집계에서 제외되었습니다: ${umText("hq", unmatchedHQStores)}`);
   }
   if(unmatchedApplianceStores && unmatchedApplianceStores.length){
-    warnings.push(`가전센터(방도리) 출고내역서의 출고지 ${unmatchedApplianceStores.length}곳이 매장 목록과 매칭되지 않아 집계에서 제외되었습니다: ${unmatchedApplianceStores.join(", ")}`);
+    warnings.push(`가전센터(방도리) 출고내역서의 출고지 ${unmatchedApplianceStores.length}곳이 매장 목록과 매칭되지 않아 집계에서 제외되었습니다: ${umText("appliance", unmatchedApplianceStores)}`);
   }
   if(LAST_SALES_UPLOAD){
     if(LAST_SALES_UPLOAD.skippedNoCat) warnings.push(`최근 매출현황 업로드("${LAST_SALES_UPLOAD.fileName}")에서 카테고리 값이 없어 제외된 행이 ${LAST_SALES_UPLOAD.skippedNoCat.toLocaleString()}건 있습니다.`);
@@ -4786,6 +4882,8 @@ function parseShipmentWorkbook(wb){
   const byDayDirect = {};      // date -> store -> {cat: qty} — 직출을 날짜 단위로(센터 본 파일 ↔ 직출건 파일 중복 제거용)
   const dayTotals = {};       // date -> {total, byCategory}  (창고 경유 + 직출 모두 합쳐 실제 출고 총량)
   const unmatched = new Set();
+  const byDay = {};            // build 71: date -> store -> {cat: qty} (창고 경유, 날짜 단위 병합용)
+  const unmatchedWhere = {};   // build 71: 미매칭 이름의 시트·셀 위치
   const sheets = findShipmentDaySheets(wb);
   sheets.forEach(sheetName=>{
     const aoa = sheetAoA(wb, sheetName);
@@ -4793,6 +4891,8 @@ function parseShipmentWorkbook(wb){
     // 날짜로 남아 있는 시트가 있어(260912 시트 A1=2026-01-28) 이름 → A1 순서를 지킨다).
     const date = sheetDateFromName(sheetName) || (isDirectFileSheetName(sheetName) ? sheetDateFromA1(aoa) : null);
     const month = date ? date.slice(0,7) : null;
+    // build 71: 날짜 시트가 있으면 비어 있어도 그 날짜를 기록 → "최신 파일에선 이 날 출고 0"이 예전 파일 값을 이긴다.
+    if(date && !isDirectFileSheetName(sheetName)){ if(!byDay[date]) byDay[date] = {}; if(!byDayDirect[date]) byDayDirect[date] = {}; }
     for(let r=0; r<aoa.length; r++){
       const row = aoa[r] || [];
       if(!isShipBlockMarker(row[0])) continue;
@@ -4805,7 +4905,7 @@ function parseShipmentWorkbook(wb){
       const isDirect = /직\s*출/.test(String(row[2]||""));
       const storeNames = resolveShipmentStoreNames(row[1]);
       const matched = storeNames.filter(s=>STORES.includes(s));
-      storeNames.filter(s=>!STORES.includes(s)).forEach(s=>unmatched.add(s));
+      storeNames.filter(s=>!STORES.includes(s)).forEach(s=>{ unmatched.add(s); umAdd(unmatchedWhere, s, sheetName, cellAddr(wb, sheetName, r, 1), row[1]); });
       // 이 블록 총 파레트 수 = D열 매니페스트 합계 (explicit = 개수가 실제로 적혀 있었는지)
       const manifest = parseManifestPalletsInfo(row[3]);
       const blockPallets = manifest.total;
@@ -4939,6 +5039,11 @@ function parseShipmentWorkbook(wb){
               if(!targetMonth[month][store]) targetMonth[month][store] = {};
               targetMonth[month][store][cat] = (targetMonth[month][store][cat]||0) + per;
             }
+            if(!isDirect && date){
+              if(!byDay[date]) byDay[date] = {};
+              if(!byDay[date][store]) byDay[date][store] = {};
+              byDay[date][store][cat] = (byDay[date][store][cat]||0) + per;
+            }
             if(isDirect && date){
               if(!byDayDirect[date]) byDayDirect[date] = {};
               if(!byDayDirect[date][store]) byDayDirect[date][store] = {};
@@ -4960,7 +5065,7 @@ function parseShipmentWorkbook(wb){
   const days = Object.keys(dayTotals).sort().map(date=>({date, total:dayTotals[date].total, byCategory:dayTotals[date].byCategory}));
   // 직출건 전용 파일 = 날짜 시트가 전부 "MMDD (n)" 형식
   const kind = (sheets.length && sheets.every(isDirectFileSheetName)) ? "direct_file" : "center";
-  return { byStoreCat, byMonth, byStoreCatDirect, byMonthDirect, byDayDirect, kind, days, unmatched: Array.from(unmatched), sheetCount: sheets.length };
+  return { byStoreCat, byMonth, byStoreCatDirect, byMonthDirect, byDayDirect, byDay, unmatchedWhere, kind, days, unmatched: Array.from(unmatched), sheetCount: sheets.length };
 }
 
 /* ================= 신선 출고내역서 업로드 (취합본) =================
@@ -5146,8 +5251,8 @@ function handleActualFile(file){
       rawFileSave("center", file, ev.target.result); // 원본 보관 → 다음에 로직이 바뀌면 자동 재계산
       if(isDirectFile){
         // 직출건 전용 파일: 창고 경유분(CENTER_M)·누계(ACTUAL)·일별 이력은 건드리지 않고 직출 날짜 맵만 교체.
-        mergeDayMapByMonth(DIRECT_FILE_D, result.byDayDirect);
-        rebuildCenterDirectM();
+        applyDays("center_direct", result, fileTimeOf(file), fileLabelOf(file));   // build 71: 날짜 단위·최신 파일 우선
+        unmatchedActualStores = umReplaceFile("center", fileLabelOf(file), umStamp(result.unmatchedWhere, fileLabelOf(file)));
         SUPPLY_HISTORY = mergeSupplyDaysMissingOnly(SUPPLY_HISTORY, result.days);
         // build 65: 매장 목록에 없는 출고지(예: "파주점_오도동" 9PLT)는 조용히 빠지지 않게 미매칭 경고에 합친다.
         unmatchedActualStores = Array.from(new Set([...(unmatchedActualStores||[]), ...(result.unmatched||[])]));
@@ -5157,10 +5262,7 @@ function handleActualFile(file){
         showNotice(`직출건 출고내역서 반영 — 시트 ${result.sheetCount}개, ${dts.length?dts[0]+" ~ "+dts[dts.length-1]:"날짜 없음"}, 직출 ${Math.round(tot).toLocaleString()}PLT (센터 본 파일과 겹치는 날짜는 한 번만 셉니다)${(result.unmatched||[]).length?`\n매장 목록에 없어 제외된 출고지: ${result.unmatched.join(", ")}`:""}`);
         return;
       }
-      mergeMonthMap(CENTER_M, result.byMonth);
-      mergeDayMapByMonth(DIRECT_MAIN_D, result.byDayDirect);
-      mergeMonthMap(CENTER_DIRECT_M, result.byMonthDirect);
-      rebuildCenterDirectM();
+      applyDays("center", result, fileTimeOf(file), fileLabelOf(file));   // build 71: 달 통째 교체 → 날짜 단위·최신 파일 우선
       markParsed("center"); // 새 로직으로 다시 계산됨 → 이 파일에 대한 경고 해제
 
       STORES.forEach(s=>ACTUAL[s]=freshCatMap());
@@ -5177,7 +5279,7 @@ function handleActualFile(file){
         });
       });
       SUPPLY_HISTORY = mergeSupplyDays(SUPPLY_HISTORY, result.days);
-      unmatchedActualStores = result.unmatched;
+      unmatchedActualStores = umReplaceFile("center", fileLabelOf(file), umStamp(result.unmatchedWhere, fileLabelOf(file)));   // build 71: 파일별 관리
       const newCatCount = CATEGORIES.length - beforeCats;
 
       afterChange();
@@ -5214,18 +5316,20 @@ function parseApplianceWorkbook(wb){
   const byMonth = {};
   const dayTotals = {};
   const unmatched = new Set();
+  const byDay = {}, unmatchedWhere = {};   // build 71
   const sheets = findApplianceDaySheets(wb);
   sheets.forEach(sheetName=>{
     const aoa = sheetAoA(wb, sheetName);
     const date = sheetDateFromA1(aoa);
     const month = date ? date.slice(0,7) : null;
+    if(date && !byDay[date]) byDay[date] = {};
     for(let r=0; r<aoa.length; r++){
       const row = aoa[r] || [];
       if(row[0] !== "출고지 :") continue;
       const storeRaw = row[1];
       const storeNames = resolveShipmentStoreNames(storeRaw);
       const matched = storeNames.filter(s=>STORES.includes(s));
-      storeNames.filter(s=>!STORES.includes(s)).forEach(s=>unmatched.add(s));
+      storeNames.filter(s=>!STORES.includes(s)).forEach(s=>{ unmatched.add(s); umAdd(unmatchedWhere, s, sheetName, cellAddr(wb, sheetName, r, 1), storeRaw); });
       const catCounts = {};
       // ★ HQ 출고계획서와 같은 병합 셀 보정(2026-09-01 정밀화): Cate 칸이 여러 행에 병합돼 있으면
       //   아래 행은 빈 칸으로 읽혀 그 행이 통째로 누락된다. 예전에는 "다른 칸(No. 등)에 뭐라도 있으면
@@ -5263,6 +5367,10 @@ function parseApplianceWorkbook(wb){
               if(!byMonth[month][store]) byMonth[month][store] = {};
               byMonth[month][store][cat] = (byMonth[month][store][cat]||0) + perStoreQty;
             }
+            if(date){
+              if(!byDay[date][store]) byDay[date][store] = {};
+              byDay[date][store][cat] = (byDay[date][store][cat]||0) + perStoreQty;
+            }
           });
         });
       }
@@ -5276,7 +5384,7 @@ function parseApplianceWorkbook(wb){
     }
   });
   const days = Object.keys(dayTotals).sort().map(date=>({date, total:dayTotals[date].total, byCategory:dayTotals[date].byCategory}));
-  return { byStoreCat, byMonth, days, unmatched: Array.from(unmatched), sheetCount: sheets.length };
+  return { byStoreCat, byMonth, byDay, unmatchedWhere, days, unmatched: Array.from(unmatched), sheetCount: sheets.length };
 }
 // 방도리 파일은 한 블록 안에 CATE가 여러 번 나올 수 있어, 첫 줄만이 아니라 블록 전체를 훑어 고유 CATE를 모은다.
 function collectUnknownApplianceCategories(wb){
@@ -5335,7 +5443,7 @@ function handleApplianceFile(file){
       if(!proceed){ showNotice("업로드를 취소했습니다. 새 카테고리를 확정하지 않아 가전센터 출고완료 데이터를 반영하지 않았습니다."); return; }
       const beforeCats = CATEGORIES.length;
       const result = parseApplianceWorkbook(wb);
-      mergeMonthMap(APPLIANCE_M, result.byMonth);
+      applyDays("appliance", result, fileTimeOf(file), fileLabelOf(file));   // build 71
       markParsed("appliance");
       rawFileSave("appliance", file, ev.target.result);
 
@@ -5347,7 +5455,7 @@ function handleApplianceFile(file){
         });
       });
       APPLIANCE_SUPPLY_HISTORY = mergeSupplyDays(APPLIANCE_SUPPLY_HISTORY, result.days);
-      unmatchedApplianceStores = result.unmatched;
+      unmatchedApplianceStores = umReplaceFile("appliance", fileLabelOf(file), umStamp(result.unmatchedWhere, fileLabelOf(file)));   // build 71: 파일별 관리
       const newCatCount = CATEGORIES.length - beforeCats;
 
       afterChange();
@@ -5406,12 +5514,14 @@ async function parseHQPlanWorkbook(wb, onProgress){
   const byMonth = {};
   const dayTotals = {};
   const unmatched = new Set();
+  const byDay = {}, unmatchedWhere = {};   // build 71
   const sheets = findHQDaySheets(wb);
   for(let si=0; si<sheets.length; si++){
     const sheetName = sheets[si];
     const aoa = sheetAoA(wb, sheetName);
     const date = hqDateFromSheet(aoa, sheetName);
     const month = date ? date.slice(0,7) : null;
+    if(date && !byDay[date]) byDay[date] = {};   // build 71
     for(let r=0; r<aoa.length; r++){
       const row = aoa[r] || [];
       const markerCol = findMarkerCol(row);
@@ -5466,7 +5576,9 @@ async function parseHQPlanWorkbook(wb, onProgress){
         const targets = rowMatched.length ? rowMatched : headerStoreNames;
         if(!targets.length) continue;
         const matched = targets.filter(s=>STORES.includes(s));
-        targets.filter(s=>!STORES.includes(s)).forEach(s=>unmatched.add(s));
+        targets.filter(s=>!STORES.includes(s)).forEach(s=>{ unmatched.add(s);
+          // build 71: 미매칭은 블록 헤더("출고지" 오른쪽 칸)에서 온다 → 그 칸 위치를 남긴다.
+          umAdd(unmatchedWhere, s, sheetName, cellAddr(wb, sheetName, r, markerCol+1), row[markerCol+1]); });
         if(!matched.length) continue;
         const perStoreQty = 1 / matched.length; // 1행 = 1PLT
         matched.forEach(store=>{
@@ -5476,6 +5588,10 @@ async function parseHQPlanWorkbook(wb, onProgress){
             if(!byMonth[month]) byMonth[month] = {};
             if(!byMonth[month][store]) byMonth[month][store] = {};
             byMonth[month][store][cat] = (byMonth[month][store][cat]||0) + perStoreQty;
+          }
+          if(date){
+            if(!byDay[date][store]) byDay[date][store] = {};
+            byDay[date][store][cat] = (byDay[date][store][cat]||0) + perStoreQty;
           }
         });
         if(date){
@@ -5489,7 +5605,7 @@ async function parseHQPlanWorkbook(wb, onProgress){
   }
   if(onProgress) onProgress(1);
   const days = Object.keys(dayTotals).sort().map(date=>({date, total:dayTotals[date].total, byCategory:dayTotals[date].byCategory}));
-  return { byStoreCat, byMonth, days, unmatched: Array.from(unmatched), sheetCount: sheets.length };
+  return { byStoreCat, byMonth, byDay, unmatchedWhere, days, unmatched: Array.from(unmatched), sheetCount: sheets.length };
 }
 async function collectUnknownHQCategories(wb){
   const unknown = new Map(); // 기본문구(base) -> 예시 매장
@@ -5555,7 +5671,7 @@ function handleHQFile(file){
       const beforeCats = CATEGORIES.length;
       const result = await parseHQPlanWorkbook(wb, (pct)=> showProgress(pct, `"${file.name}" 본사출고 분석 중`));
       hideProgress();
-      mergeMonthMap(HQ_M, result.byMonth);
+      applyDays("hq", result, fileTimeOf(file), fileLabelOf(file));   // build 71
       markParsed("hq");
       rawFileSave("hq", file, ev.target.result);
 
@@ -5567,7 +5683,7 @@ function handleHQFile(file){
         });
       });
       HQ_SUPPLY_HISTORY = mergeSupplyDays(HQ_SUPPLY_HISTORY, result.days);
-      unmatchedHQStores = result.unmatched;
+      unmatchedHQStores = umReplaceFile("hq", fileLabelOf(file), umStamp(result.unmatchedWhere, fileLabelOf(file)));   // build 71: 파일별 관리
       const newCatCount = CATEGORIES.length - beforeCats;
 
       afterChange();
@@ -9395,19 +9511,46 @@ async function handleFolderBatch(fileList){
   files.forEach(f=>{ const r=routeOf(pathOf(f)); if(r) buckets[r].push(f); else unrouted.push(f.name); });
   // 이미 처리한 파일은 건너뛴다(파일 지문 = 경로+크기+수정시각). 두 번째 불러오기부터 새/변경 파일만 처리 → 매우 빠름.
   const fpOf = f => `${pathOf(f)}|${f.size}|${f.lastModified||0}`;
-  let skipped = 0;
+  // build 70: "이미 반영됨" 지문만 보고 건너뛰면, 공급 데이터가 사라졌을 때 폴더를 다시 올려도 복구가 안 됐다
+  // ("새로 불러올 파일이 없습니다 — 371개 모두 반영"). 센터·가전·본사 파일은 **보관 원본이 없으면** 지문이 있어도 다시 읽는다
+  // (다시 읽으면 보관도 된다). 같은 달은 교체 방식이라 다시 읽어도 두 번 세지 않는다.
+  const ARCHIVED_SRC = { center:1, appliance:1, hq:1 };
+  let archived = new Set();
+  try{ (await rawFilesList()).forEach(e=> archived.add(`${e.src}|${e.name}|${e.size}`)); }catch(_){ archived = new Set(); }
+  const isArchived = (k,f)=> archived.has(`${k}|${f.name}|${f.size}`);
+  let skipped = 0, reread = 0;
+  const orig = {}; Object.keys(buckets).forEach(k=> orig[k] = buckets[k].slice());
   Object.keys(buckets).forEach(k=>{
-    buckets[k] = buckets[k].filter(f=>{ if(PROCESSED_FILES[fpOf(f)]){ skipped++; return false; } return true; });
+    buckets[k] = buckets[k].filter(f=>{
+      if(!PROCESSED_FILES[fpOf(f)]) return true;
+      if(ARCHIVED_SRC[k] && IDB_AVAILABLE && !isArchived(k,f)){ reread++; return true; }
+      skipped++; return false;
+    });
   });
-  const totalNew = Object.values(buckets).reduce((a,arr)=>a+arr.length,0);
+  // build 71: 공급 파일은 날짜 단위·최신 파일 우선으로 합치므로, 한 출처에서 한 파일이라도 다시 읽게 되면
+  // 그 출처 파일을 **전부** 읽는다(일부만 읽으면 날짜 맵이 그 파일들로만 채워져 달 값이 비는 문제 방지).
+  ["center","appliance","hq"].forEach(k=>{
+    if(buckets[k].length && buckets[k].length < orig[k].length){
+      const add = orig[k].length - buckets[k].length; reread += add; skipped -= add; buckets[k] = orig[k].slice();
+    }
+  });
+  let totalNew = Object.values(buckets).reduce((a,arr)=>a+arr.length,0);
   const done=[];
   if(totalNew===0){
     hideProgress();
-    showNotice(`새로 불러올 파일이 없습니다 — 폴더의 ${files.length}개 파일이 모두 이미 반영돼 있습니다(변경된 파일만 자동으로 다시 읽습니다).`);
-    afterChange();
-    return;
+    const SUPPLY_KEYS = ["center","appliance","hq","fresh","lotte"];
+    const supplyCnt = SUPPLY_KEYS.reduce((a,k)=>a+orig[k].length,0);
+    if(supplyCnt && confirm(`폴더의 ${files.length}개 파일이 모두 이미 반영된 것으로 기록돼 있습니다.\n\n공급(출고) 파일 ${supplyCnt}개(센터·직출·가전·본사·신선·롯데제타)를 강제로 다시 읽을까요?\n· 공급 PLT가 사라졌거나 이상할 때 쓰세요.\n· 같은 달은 교체 방식이라 두 번 세지 않습니다. 매출·재고 파일은 건드리지 않습니다.`)){
+      SUPPLY_KEYS.forEach(k=> buckets[k] = orig[k].slice());
+      reread = supplyCnt;
+      totalNew = supplyCnt;
+    } else {
+      showNotice(`새로 불러올 파일이 없습니다 — 폴더의 ${files.length}개 파일이 모두 이미 반영돼 있습니다(변경된 파일만 자동으로 다시 읽습니다).`);
+      afterChange();
+      return;
+    }
   }
-  showNotice(`폴더에서 ${files.length}개 중 새/변경된 ${totalNew}개만 처리합니다${skipped?` (${skipped}개는 이미 반영됨, 건너뜀)`:''}… 새 카테고리가 있으면 확인창이 뜰 수 있습니다.`);
+  showNotice(`폴더에서 ${files.length}개 중 ${totalNew}개를 처리합니다${reread?` (그중 ${reread}개는 보관 원본이 없거나 강제 재읽기라 다시 읽음)`:''}${skipped?` (${skipped}개는 이미 반영됨, 건너뜀)`:''}… 새 카테고리가 있으면 확인창이 뜰 수 있습니다.`);
   let progDone = 0;
   const step = (label)=>{ progDone++; showProgress(totalNew?progDone/totalNew:1, label); };
   const mark = f => { PROCESSED_FILES[fpOf(f)] = true; };
@@ -9432,6 +9575,7 @@ async function handleFolderBatch(fileList){
   saveStateNow();
   afterChange();
   let msg = `폴더 일괄 불러오기 완료 — ${done.length?done.join(", "):"불러온 항목 없음"}.`;
+  if(reread) msg += ` (공급 파일 ${reread}개 다시 읽음 · 보관 원본도 갱신)`;
   if(skipped) msg += ` (이미 반영된 ${skipped}개는 건너뜀 → 빠르게 완료)`;
   if(unrouted.length) msg += `\n분류하지 못한 파일 ${unrouted.length}개: ${unrouted.slice(0,5).join(", ")}${unrouted.length>5?" 외":""}`;
   showNotice(msg);
@@ -9448,6 +9592,7 @@ document.getElementById("resetBtn").onclick=()=>{
     SUPPLY_HISTORY = []; HQ_SUPPLY_HISTORY = []; APPLIANCE_SUPPLY_HISTORY = [];
     unmatchedActualStores = []; unmatchedHQStores = []; unmatchedApplianceStores = [];
     FRESH_ACTUAL = {}; CENTER_M = {}; HQ_M = {}; APPLIANCE_M = {}; CENTER_DIRECT_M = {}; DIRECT_MAIN_D = {}; DIRECT_FILE_D = {}; FRESH_M = {}; LOTTE_M = {}; shipScope = "all";
+    CENTER_D = {}; HQ_D = {}; APPLIANCE_D = {}; DAY_SRC = { center:{}, hq:{}, appliance:{}, dmain:{}, dfile:{} }; UNMATCHED_WHERE = { center:{}, hq:{}, appliance:{} };
     PROCESSED_FILES = {};
     afterChange();
   }
@@ -9494,6 +9639,7 @@ document.getElementById("resetAllBtn").onclick=()=>{
   SUPPLY_HISTORY = []; HQ_SUPPLY_HISTORY = []; APPLIANCE_SUPPLY_HISTORY = [];
   unmatchedActualStores = []; unmatchedHQStores = []; unmatchedApplianceStores = [];
   FRESH_ACTUAL = {}; CENTER_M = {}; HQ_M = {}; APPLIANCE_M = {}; CENTER_DIRECT_M = {}; DIRECT_MAIN_D = {}; DIRECT_FILE_D = {}; FRESH_M = {}; LOTTE_M = {}; shipScope = "all";
+    CENTER_D = {}; HQ_D = {}; APPLIANCE_D = {}; DAY_SRC = { center:{}, hq:{}, appliance:{}, dmain:{}, dfile:{} }; UNMATCHED_WHERE = { center:{}, hq:{}, appliance:{} };
   // 재고
   STORES.forEach(s=>{ STOCK[s] = new Array(STOCK_COLS+1).fill(null); });
   STOCK_HISTORY = [{ label:"재고 없음 (초기화됨)", date:"", total:0, stores:STORES.slice(), stock:JSON.parse(JSON.stringify(STOCK)) }];
