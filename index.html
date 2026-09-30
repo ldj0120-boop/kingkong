@@ -778,7 +778,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 68 · 2026-09-30</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 69 · 2026-09-30</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1963,6 +1963,7 @@ async function reparseStaleSources(){
   for(const src of stale){
     const mine = files.filter(f=>f.src===src).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
     if(!mine.length) continue;
+    let snap = null;
     try{
       // ★ 20차 수정: 예전에는 여기서 **월별 맵과 일별 이력만** 다시 만들고
       //   ① 매장×카테고리 누계(ACTUAL / HQ_ACTUAL / APPLIANCE_ACTUAL)와
@@ -1972,6 +1973,9 @@ async function reparseStaleSources(){
       const acc = {};                 // store -> {cat: qty}  (파일 여러 개를 누적)
       const accDirect = {};           // store -> {cat: qty}  (센터의 "직출" 블록만, src==="center"일 때만 사용)
       const unmatched = new Set();
+      // ★ build 69: 비우기 전에 지금 값을 떠 둔다. 보관 원본이 일부만 있거나 파싱이 중간에 실패하면 이걸로 되돌린다.
+      //   (build 67에서 버전을 올리자 보관 원본에 없는 기간의 공급 PLT가 통째로 사라지고 클라우드까지 덮어써졌다)
+      snap = reparseSnapshot(src);
       if(src==="center"){ CENTER_M = {}; CENTER_DIRECT_M = {}; SUPPLY_HISTORY = []; DIRECT_MAIN_D = {}; DIRECT_FILE_D = {}; }
       else if(src==="hq"){ HQ_M = {}; HQ_SUPPLY_HISTORY = []; }
       else if(src==="appliance"){ APPLIANCE_M = {}; APPLIANCE_SUPPLY_HISTORY = []; }
@@ -2014,6 +2018,14 @@ async function reparseStaleSources(){
           soak(r, acc);
         }
       }
+      // ★ build 69: 새 결과가 예전 결과의 날짜·월을 전부 덮는지 확인한다. 하나라도 빠지면(=보관 원본이 일부만 있음)
+      //   이 종류는 재계산하지 않고 예전 값으로 되돌린다. 버전도 올리지 않아, 원본을 다시 올리면 그때 정상 반영된다.
+      const lack = reparseCoverageLack(src, snap);
+      if(lack){
+        reparseRestore(src, snap);
+        REPARSE_SKIPPED.push({ src, ...lack });
+        continue;
+      }
       // 누계 맵과 미매칭 목록을 새 파싱 결과로 완전히 교체한다.
       const fresh = {}; STORES.forEach(st=> fresh[st] = freshCatMap());
       Object.keys(acc).forEach(st=>{ if(!fresh[st]) return;
@@ -2030,10 +2042,68 @@ async function reparseStaleSources(){
       else { APPLIANCE_ACTUAL = fresh; unmatchedApplianceStores = Array.from(unmatched); }
       markParsed(src);
       done.push(src);
-    }catch(e){ /* 이 종류만 실패 — 나머지는 계속하고, 실패분은 배너로 안내된다 */ }
+    }catch(e){
+      /* 이 종류만 실패 — 나머지는 계속하고, 실패분은 배너로 안내된다 */
+      // ★ build 69: 예전에는 여기서 이미 비워진 상태 그대로 남았다 → 떠 둔 값으로 되돌린다.
+      if(snap){ try{ reparseRestore(src, snap); }catch(_){} REPARSE_SKIPPED.push({ src, error:String(e&&e.message||e) }); }
+    }
   }
   if(done.length){ try{ saveStateNow(); }catch(_){} }
   return done;
+}
+// ===== build 69: 자동 재계산 안전장치 =====
+let REPARSE_SKIPPED = [];
+const _REPARSE_KEYS = {
+  center:    ["CENTER_M","CENTER_DIRECT_M","SUPPLY_HISTORY","DIRECT_MAIN_D","DIRECT_FILE_D"],
+  hq:        ["HQ_M","HQ_SUPPLY_HISTORY"],
+  appliance: ["APPLIANCE_M","APPLIANCE_SUPPLY_HISTORY"]
+};
+function _reparseGet(k){ switch(k){
+  case "CENTER_M": return CENTER_M; case "CENTER_DIRECT_M": return CENTER_DIRECT_M; case "SUPPLY_HISTORY": return SUPPLY_HISTORY;
+  case "DIRECT_MAIN_D": return DIRECT_MAIN_D; case "DIRECT_FILE_D": return DIRECT_FILE_D;
+  case "HQ_M": return HQ_M; case "HQ_SUPPLY_HISTORY": return HQ_SUPPLY_HISTORY;
+  case "APPLIANCE_M": return APPLIANCE_M; case "APPLIANCE_SUPPLY_HISTORY": return APPLIANCE_SUPPLY_HISTORY; } }
+function _reparseSet(k,v){ switch(k){
+  case "CENTER_M": CENTER_M=v; break; case "CENTER_DIRECT_M": CENTER_DIRECT_M=v; break; case "SUPPLY_HISTORY": SUPPLY_HISTORY=v; break;
+  case "DIRECT_MAIN_D": DIRECT_MAIN_D=v; break; case "DIRECT_FILE_D": DIRECT_FILE_D=v; break;
+  case "HQ_M": HQ_M=v; break; case "HQ_SUPPLY_HISTORY": HQ_SUPPLY_HISTORY=v; break;
+  case "APPLIANCE_M": APPLIANCE_M=v; break; case "APPLIANCE_SUPPLY_HISTORY": APPLIANCE_SUPPLY_HISTORY=v; break; } }
+function reparseSnapshot(src){
+  const o = {};
+  (_REPARSE_KEYS[src]||[]).forEach(k=>{ const v=_reparseGet(k); o[k] = (v==null) ? v : JSON.parse(JSON.stringify(v)); });
+  return o;
+}
+function reparseRestore(src, snap){ (_REPARSE_KEYS[src]||[]).forEach(k=>{ if(k in snap) _reparseSet(k, snap[k]); }); }
+// 월 맵(store->cat 합)이 실제로 수량을 가진 월만 센다.
+function _monthsWithQty(m){
+  return Object.keys(m||{}).filter(ym=> Object.values(m[ym]||{}).some(cats=> Object.values(cats||{}).some(v=> (+v||0)>0)));
+}
+function reparseCoverageLack(src, snap){
+  if(!snap) return null;
+  const histKey = src==="center" ? "SUPPLY_HISTORY" : src==="hq" ? "HQ_SUPPLY_HISTORY" : "APPLIANCE_SUPPLY_HISTORY";
+  const mapKey  = src==="center" ? "CENTER_M" : src==="hq" ? "HQ_M" : "APPLIANCE_M";
+  const oldDates = new Set((snap[histKey]||[]).map(x=>x&&x.date).filter(Boolean));
+  const newDates = new Set((_reparseGet(histKey)||[]).map(x=>x&&x.date).filter(Boolean));
+  const missDates = Array.from(oldDates).filter(d=>!newDates.has(d)).sort();
+  const newMonths = new Set(_monthsWithQty(_reparseGet(mapKey)));
+  const missMonths = _monthsWithQty(snap[mapKey]).filter(m=>!newMonths.has(m)).sort();
+  // 날짜 이력이 없는(예전 형식) 월 맵은 월 단위로만 비교. 월 합계가 절반 아래로 줄어도 원본 누락으로 본다.
+  const sumMonth = (m,ym)=> Object.values((m||{})[ym]||{}).reduce((a,cats)=>a+Object.values(cats||{}).reduce((b,v)=>b+(+v||0),0),0);
+  const shrunk = _monthsWithQty(snap[mapKey]).filter(ym=> newMonths.has(ym) && sumMonth(_reparseGet(mapKey),ym) < sumMonth(snap[mapKey],ym)*0.5).sort();
+  if(!missDates.length && !missMonths.length && !shrunk.length) return null;
+  return { missDates, missMonths, shrunk };
+}
+function reparseSkippedNoticeHtml(){
+  if(!REPARSE_SKIPPED.length) return "";
+  return REPARSE_SKIPPED.map(s=>{
+    const lbl = PARSE_SRC_LABEL[s.src]||s.src;
+    if(s.error) return `${lbl}: 재계산 중 오류 → 기존 값 유지`;
+    const parts=[];
+    if(s.missMonths && s.missMonths.length) parts.push(`${s.missMonths.map(m=>(+m.slice(5))+"월").join("·")} 원본 없음`);
+    if(s.missDates && s.missDates.length) parts.push(`${s.missDates.length}일치 원본 없음(${s.missDates[0]}~${s.missDates[s.missDates.length-1]})`);
+    if(s.shrunk && s.shrunk.length) parts.push(`${s.shrunk.map(m=>(+m.slice(5))+"월").join("·")} 원본 일부만`);
+    return `${lbl}: ${parts.join(" · ")} → 기존 값 유지`;
+  }).join(" / ");
 }
 function buildStateObject(){
   return {
@@ -9685,9 +9755,11 @@ idbGet("state").then(async st=>{
   document.getElementById("totalCount").textContent = grandTotal();
   try{ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }catch(_){}
   try{ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderSalesMonthly(); }catch(_){}
-  showNotice(reparsed.length
+  const skippedTxt = reparseSkippedNoticeHtml();   // build 69
+  showNotice((reparsed.length
     ? `저장된 전체 데이터를 불러왔습니다. 집계 로직이 업데이트되어 보관된 원본으로 ${reparsed.map(s=>PARSE_SRC_LABEL[s]||s).join(" · ")}를 자동으로 다시 계산했습니다 — 재업로드하실 필요 없습니다.`
-    : "저장된 전체 데이터를 불러왔습니다 (대용량 포함).");
+    : "저장된 전체 데이터를 불러왔습니다 (대용량 포함).")
+    + (skippedTxt ? ` ⚠ 자동 재계산을 건너뛴 항목 — ${skippedTxt}. 새 로직을 반영하려면 해당 원본 파일을 다시 올려주세요.` : ""));
 }).catch(()=>{});
 
 /* ================= 실시간 공유 (Firebase Realtime Database) ================= */
