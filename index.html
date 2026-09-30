@@ -705,6 +705,34 @@
   .g-kpi .k{color:var(--muted2);white-space:nowrap;}
   .g-kpi .v{font-family:"JetBrains Mono";color:var(--text);text-align:right;}
   /* build 73: 위 .g-kpi(큰 KPI 타일, 24px Oswald) 규칙이 04 매장 카드 숫자 줄까지 먹어 글자가 거대해졌다 → 카드 안은 작게 고정 */
+  /* build 75: 매장×카테고리 목표 대비 표 — 숫자 한 색 + 배경 2상태 */
+  .pq-legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:var(--muted2);margin:4px 0 10px;align-items:center;}
+  .pq-legend b{color:var(--text);}
+  .pq-sw{display:inline-block;width:14px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line);}
+  .pq-tbl th{font-size:12px;padding:8px 10px;white-space:nowrap;}
+  .pq-tbl .pq-sub{font-weight:400;font-size:10px;color:var(--muted2);margin-top:1px;}
+  .pq-tbl td.pq{text-align:center;padding:6px 10px;min-width:64px;}
+  .pq-tbl .pq-n b{font-family:"JetBrains Mono";font-size:14px;font-weight:600;color:var(--text);}
+  .pq-tbl .pq-n span{font-family:"JetBrains Mono";font-size:11.5px;color:var(--muted2);}
+  .pq-tbl .pq-p{font-size:11px;color:var(--muted2);margin-top:1px;}
+  .pq-tbl .pq-dash{color:var(--line);}
+  .pq-tbl td.pq-st, .pq-tbl th.pq-st{text-align:left;font-size:13px;white-space:nowrap;}
+  .pq-tbl td.pq-tot{border-left:1px solid var(--line);border-right:1px solid var(--line);}
+  .pq-tbl td.pq-out{font-family:"JetBrains Mono";font-size:12.5px;color:var(--muted2);}
+  .pq-tbl tbody tr:hover td{box-shadow:inset 0 0 0 999px rgba(255,255,255,.03);}
+  .pq-tbl .pq-n .pq-t{font-family:"JetBrains Mono";font-size:12px;color:var(--muted2);}
+  .pq-tbl .pq-n .pq-ar{font-size:10px;color:var(--muted2);margin:0 5px;opacity:.7;}
+  .pq-tbl .pq-p{font-size:12px;font-weight:700;}
+  .pq-tbl .s-g b, .pq-tbl .s-g .pq-p{color:#4fd18b;}
+  .pq-tbl .s-b b, .pq-tbl .s-b .pq-p{color:#7fb8ff;}
+  .pq-tbl .s-y b, .pq-tbl .s-y .pq-p{color:#e8b93f;}
+  .pq-tbl .s-r b, .pq-tbl .s-r .pq-p{color:#ff7b7b;}
+  .pq-sw.s-g{background:#4fd18b;} .pq-sw.s-b{background:#7fb8ff;} .pq-sw.s-y{background:#e8b93f;} .pq-sw.s-r{background:#ff7b7b;}
+  .pq-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.018);}
+  .pt-tbl td, .pt-tbl th{text-align:right;padding:7px 12px;font-family:"JetBrains Mono";font-size:12.5px;}
+  .pt-tbl td:first-child, .pt-tbl th:first-child{text-align:left;font-family:inherit;font-size:13px;}
+  .pt-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.018);}
+  .pt-tbl .up{color:#4fd18b;} .pt-tbl .dn{color:#ff7b7b;} .pt-tbl .mu{color:var(--muted2);}
   .g-kpi-grid .g-kpi{background:none;border:0;border-bottom:1px dashed var(--line-soft);border-radius:0;padding:3px 0;}
   .g-kpi-grid .g-kpi .k{font-size:11px;}
   .g-kpi-grid .g-kpi .v{font-family:"JetBrains Mono";font-size:12.5px;letter-spacing:0;line-height:1.5;}
@@ -782,7 +810,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 74 · 2026-09-30</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 76 · 2026-09-30</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -8875,16 +8903,16 @@ function goalsRender10Body(ctx){
   const catSub = pc => { const r = (SUPPLY_PLAN_CAT_MATCH[pc]||[]).join("·"); return r && r!==pc ? r : ""; };
   const fmt1 = v => (Math.round(v*10)/10).toLocaleString(undefined,{maximumFractionDigits:1});
   const paceCol = p => p==null ? "var(--muted2)" : p>=100 ? "var(--green)" : p>=80 ? "var(--info)" : p>=60 ? "var(--amber)" : "var(--red)";
+  // build 75: 가독성 — 막대·4색 글자 제거. 숫자는 한 색, 상태는 칸 배경 2가지(부족=연한 빨강, 초과=연한 파랑)만.
   const gCell = (act, planFull, planPace, title)=>{
     if(!(planFull>0)){
-      return act>0 ? `<td title="${escHtml(title+' · 계획 없음(계획 외 공급)')}"><span class="num" style="color:var(--muted2)">${fmt1(act)}</span><div style="font-size:9.5px;color:var(--muted2)">계획 없음</div></td>`
-                   : `<td style="color:var(--muted2)" title="${escHtml(title+' · 계획 없음')}">·</td>`;
+      return act>0 ? `<td class="pq s-none" title="${escHtml(title+' · 공급계획 없음')}"><div class="pq-n"><b>${fmt1(act)}</b></div><div class="pq-p">계획 없음</div></td>`
+                   : `<td class="pq s-none"><span class="pq-dash">–</span></td>`;
     }
-    const pctFull = act/planFull*100, pace = planPace>0 ? act/planPace*100 : null, col = paceCol(pace);
-    return `<td title="${escHtml(`${title}\n실제 ${fmt1(act)} / 월 목표 ${fmt1(planFull)} PLT (월 목표 대비 ${pctFull.toFixed(0)}%)`+(D.isOngoing?`\n경과일 기준 목표 ${fmt1(planPace)} PLT 대비 ${pace!=null?pace.toFixed(0):'-'}%`:""))}">
-      <span class="num" style="font-weight:700;color:${col}">${fmt1(act)}</span><span class="num" style="color:var(--muted2)"> / ${fmt1(planFull)}</span>
-      <div style="height:4px;background:var(--line);border-radius:2px;margin:3px 0 1px;overflow:hidden"><div style="height:100%;width:${Math.min(100,pctFull).toFixed(0)}%;background:${col}"></div></div>
-      <div style="font-size:9.5px;color:${col}">${pctFull.toFixed(0)}%</div></td>`;
+    const pctFull = act/planFull*100, pace = planPace>0 ? act/planPace*100 : null;
+    // build 76: 목표(왼쪽) → 실제(오른쪽) → 도달율%. 색 4단계(경과일 기준 페이스): 초록 100↑ · 파랑 80↑ · 노랑 50↑ · 빨강 50 미만. 막대 없음.
+    const st = pace==null ? "" : pace>=100 ? "s-g" : pace>=80 ? "s-b" : pace>=50 ? "s-y" : "s-r";
+    return `<td class="pq ${st}" title="${escHtml(`${title}\n월 목표 ${fmt1(planFull)} PLT → 실제 ${fmt1(act)} PLT (월 목표 대비 ${pctFull.toFixed(0)}%)`+(D.isOngoing?`\n경과일 기준 목표 ${fmt1(planPace)} PLT 대비 ${pace!=null?pace.toFixed(0):'-'}%`:""))}"><div class="pq-n"><span class="pq-t">${fmt1(planFull)}</span><span class="pq-ar">→</span><b>${fmt1(act)}</b></div><div class="pq-p">${pctFull.toFixed(0)}%</div></td>`;
   };
   // 이번 달 신선 출고내역서가 없으면 신선은 0이 아니라 "파일 없음"으로 보이고 합계·정렬에서도 뺀다.
   const freshMissing = !(FRESH_M[pm] && Object.keys(FRESH_M[pm]).length);
@@ -8892,28 +8920,29 @@ function goalsRender10Body(ctx){
   const stTot = x => { let a=0,f=0,pp=0; useCats.forEach(pc=>{ const c=x.cats.find(y=>y.cat===pc); if(c){ a+=c.actualPLT; f+=c.planPLTFull; pp+=c.planPLT; } }); return {a,f,pp,pct: pp>0?a/pp*100:null}; };
   const gRows = D.rows.slice().sort((a,b)=>{ const av=a.cats?stTot(a).pct:null, bv=b.cats?stTot(b).pct:null; return (av==null?1e9:av)-(bv==null?1e9:bv); }).map(x=>{
     if(!x.cats){
-      return `<tr><td>${escHtml(x.label)}</td><td class="total-col"><span class="num">${fmt1(x.actualPLTAll||0)}</span><div style="font-size:9.5px;color:var(--muted2)">공급계획 없음</div></td>${planCats.map(()=>`<td style="color:var(--muted2)">·</td>`).join("")}<td><span class="num">${fmt1(x.outsideTotal||0)}</span></td></tr>`;
+      return `<tr><td class="pq-st">${escHtml(x.label)}</td><td class="pq s-none pq-tot"><div class="pq-n"><b>${fmt1(x.actualPLTAll||0)}</b></div><div class="pq-p">공급계획 없음</div></td>${useCats.map(()=>`<td class="pq s-none"><span class="pq-dash">–</span></td>`).join("")}<td class="pq pq-out">${fmt1(x.outsideTotal||0)}</td></tr>`;
     }
-    const cells = planCats.map(pc=>{ const c = x.cats.find(y=>y.cat===pc);
-      if(freshMissing && pc==="신선") return (c && c.planPLTFull>0) ? `<td style="color:var(--muted2)" title="${escHtml(ctx.mLbl(pm)+' 신선 출고내역서 미업로드 — 목표 '+fmt1(c.planPLTFull)+' PLT')}"><span class="num">? / ${fmt1(c.planPLTFull)}</span><div style="font-size:9.5px">파일 없음</div></td>` : `<td style="color:var(--muted2)">·</td>`;
+    const cells = useCats.map(pc=>{ const c = x.cats.find(y=>y.cat===pc);
       return gCell(c?c.actualPLT:0, c?c.planPLTFull:0, c?c.planPLT:0, `${x.label} · ${pc}${catSub(pc)?' ('+catSub(pc)+')':''}`); }).join("");
     const outE = Object.entries(x.outside||{}).sort((a,b)=>b[1]-a[1]);
-    return `<tr><td>${escHtml(x.label)}</td>${(t=>gCell(t.a, t.f, t.pp, `${x.label} · 계획 카테고리 합계${freshMissing?' (신선 제외)':''}`))(stTot(x)).replace('<td','<td class="total-col"')}${cells}
-      <td title="${escHtml(outE.map(([c,v])=>c+' '+fmt1(v)).join(' · '))}"><span class="num">${fmt1(x.outsideTotal||0)}</span>${outE.length?`<div style="font-size:9.5px;color:var(--muted2)">${escHtml(outE.slice(0,2).map(([c,v])=>c+' '+Math.round(v)).join(' · '))}${outE.length>2?' 외':''}</div>`:""}</td></tr>`;
+    return `<tr><td class="pq-st">${escHtml(x.label)}</td>${(t=>gCell(t.a, t.f, t.pp, `${x.label} · 계획 카테고리 합계${freshMissing?' (신선 제외)':''}`))(stTot(x)).replace('class="pq','class="pq pq-tot')}${cells}
+      <td class="pq pq-out" title="${escHtml(outE.map(([c,v])=>c+' '+fmt1(v)).join(' · '))}">${fmt1(x.outsideTotal||0)}</td></tr>`;
   }).join("");
   const withPlan = D.rows.filter(x=>x.cats);
-  const gFoot = `<tfoot><tr><td>합계 (계획 있는 매장)</td>${gCell(withPlan.reduce((a,x)=>a+stTot(x).a,0), withPlan.reduce((a,x)=>a+stTot(x).f,0), withPlan.reduce((a,x)=>a+stTot(x).pp,0), "전사 · 계획 카테고리 합계").replace('<td','<td class="total-col"')}${
-      planCats.map(pc=>{ const t = D.catTotals.find(c=>c.cat===pc)||{}; const full = withPlan.reduce((a,x)=>{ const c=x.cats.find(y=>y.cat===pc); return a+(c?c.planPLTFull:0); },0);
-        if(freshMissing && pc==="신선") return `<td style="color:var(--muted2)"><span class="num">? / ${fmt1(full)}</span><div style="font-size:9.5px">파일 없음</div></td>`;
-        return gCell(t.actualPLT||0, full, t.planPLT||0, `전사 · ${pc}`); }).join("")}<td><span class="num">${fmt1(withPlan.reduce((a,x)=>a+(x.outsideTotal||0),0))}</span></td></tr></tfoot>`;
+  const gFoot = `<tfoot><tr><td class="pq-st">전사 합계</td>${gCell(withPlan.reduce((a,x)=>a+stTot(x).a,0), withPlan.reduce((a,x)=>a+stTot(x).f,0), withPlan.reduce((a,x)=>a+stTot(x).pp,0), "전사 · 계획 카테고리 합계").replace('class="pq','class="pq pq-tot')}${
+      useCats.map(pc=>{ const t = D.catTotals.find(c=>c.cat===pc)||{}; const full = withPlan.reduce((a,x)=>{ const c=x.cats.find(y=>y.cat===pc); return a+(c?c.planPLTFull:0); },0);
+        return gCell(t.actualPLT||0, full, t.planPLT||0, `전사 · ${pc}`); }).join("")}<td class="pq pq-out">${fmt1(withPlan.reduce((a,x)=>a+(x.outsideTotal||0),0))}</td></tr></tfoot>`;
   const pltQtyTable = D.rows.length ? `
     <div class="g-tbl-title" style="margin-top:18px">매장별 × 카테고리별 공급 PLT — 목표(공급계획) 대비 ${ctx.mLbl(pm)} 실제 공급</div>
-    <div class="g-tbl-sub">칸 = <b>실제 공급 PLT / 월 목표 PLT</b>, 막대·%는 월 목표 대비 채운 정도입니다. ${D.isOngoing
-      ? `${ctx.mLbl(pm)}은 진행 중(${D.elapsed}/${D.dim}일)이라 <b>색은 경과일 기준 목표 대비</b>입니다 — <span style="color:var(--green)">초록 100%↑</span> · <span style="color:var(--info)">파랑 80%↑</span> · <span style="color:var(--amber)">노랑 60%↑</span> · <span style="color:var(--red)">빨강 60% 미만</span>(마우스를 올리면 두 기준 수치가 모두 보입니다).`
-      : `색 = 월 목표 대비 — <span style="color:var(--green)">초록 100%↑</span> · <span style="color:var(--info)">파랑 80%↑</span> · <span style="color:var(--amber)">노랑 60%↑</span> · <span style="color:var(--red)">빨강 60% 미만</span>.`}
-      ${freshMissing?`<b style="color:var(--amber)">${ctx.mLbl(pm)} 신선 출고내역서가 아직 없어 신선은 "파일 없음"으로 두고 합계·정렬에서 뺐습니다.</b> `:""}"계획 외"는 공급계획에 없는 카테고리(FC파손·사입·임박 등)로 달성률에 넣지 않습니다. 매장은 달성률 낮은 순.</div>
-    <div class="tblbox agg-scroll"><table class="g-tbl">
-      <thead><tr><th>매장</th><th class="total-col">합계<br><span style="font-weight:400;font-size:9px">(계획 카테고리)</span></th>${planCats.map(pc=>`<th>${escHtml(pc)}${catSub(pc)?`<br><span style="font-weight:400;font-size:9px">${escHtml(catSub(pc))}</span>`:""}</th>`).join("")}<th>계획 외</th></tr></thead>
+    <div class="pq-legend">
+      <span>칸 = <b>월 목표 → 실제 공급</b> PLT · 아래 % = 월 목표 대비 도달율</span>
+      <span>${D.isOngoing?`색은 경과일(${D.elapsed}/${D.dim}일) 기준:`:"색:"}</span>
+      <span><i class="pq-sw s-g"></i>100%↑</span><span><i class="pq-sw s-b"></i>80~100%</span><span><i class="pq-sw s-y"></i>50~80%</span><span><i class="pq-sw s-r"></i>50% 미만</span>
+      <span>– 계획 없음 · 계획 외 = FC파손·사입·임박 등(달성률 미포함) · 매장은 합계 달성률 낮은 순</span>
+      ${freshMissing?`<span style="color:var(--amber)">${ctx.mLbl(pm)} 신선 출고내역서 미업로드 → 신선 열 숨김</span>`:""}
+    </div>
+    <div class="tblbox agg-scroll"><table class="g-tbl pq-tbl">
+      <thead><tr><th class="pq-st">매장</th><th class="pq-tot">합계</th>${useCats.map(pc=>`<th>${escHtml(pc)}${catSub(pc)?`<div class="pq-sub">${escHtml(catSub(pc))}</div>`:""}</th>`).join("")}<th>계획 외</th></tr></thead>
       <tbody>${gRows}</tbody>${gFoot}</table></div>` : "";
   const pTrendRows = pStores.map(st=>{
     const cs = Array.from(new Set(pMonths.flatMap(m=>Object.keys((qM[m]||{})[st]||{})))).sort((a,b)=> q(pm,st,b)-q(pm,st,a) || pMonths.reduce((t,m)=>t+q(m,st,b),0)-pMonths.reduce((t,m)=>t+q(m,st,a),0));
@@ -8923,9 +8952,25 @@ function goalsRender10Body(ctx){
       <div class="tblbox"><table class="g-tbl"><thead><tr><th>카테고리</th>${pMonths.map(m=>`<th>${ctx.mLbl(m)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody>
       <tfoot><tr><td>합계</td>${pMonths.map(m=>`<td><span class="num">${qSt(m,st)}</span></td>`).join("")}</tr></tfoot></table></div></details>`;
   }).join("");
+  // build 76: 월별 추이를 문장 목록 → 표로(매장 × 월 + 전월 대비). 이번 달 신선 파일이 없으면 모든 달을 신선 제외로 맞춰 비교.
+  const freshSt = (m,st)=> Object.keys(((FRESH_M||{})[m]||{})[st]||{}).reduce((a,c)=>a+_mv(FRESH_M,m,st,c),0);
+  const tv = (m,st)=> Math.round(qSt(m,st) - (freshMissing ? freshSt(m,st) : 0));
+  const tRows = pStores.slice().sort((a,b)=> tv(pm,b)-tv(pm,a)).map(st=>{
+    const cur = tv(pm,st), prv = pPrev ? tv(pPrev,st) : null;
+    const d = prv==null ? null : cur-prv, dp = (prv>0) ? (cur/prv-1)*100 : null;
+    return `<tr><td>${escHtml(st)}</td>${pMonths.map(m=>`<td${m===pm?' style="font-weight:700;color:var(--text)"':' class="mu"'}>${tv(m,st).toLocaleString()}</td>`).join("")}
+      <td class="${d==null?'mu':d>0?'up':d<0?'dn':'mu'}">${d==null?'-':(d>0?'+':'')+d.toLocaleString()}</td>
+      <td class="${dp==null?'mu':dp>0?'up':dp<0?'dn':'mu'}">${dp==null?'-':(dp>0?'+':'')+dp.toFixed(0)+'%'}</td></tr>`;
+  }).join("");
+  const tFoot = `<tfoot><tr><td>합계</td>${pMonths.map(m=>`<td>${pStores.reduce((a,st)=>a+tv(m,st),0).toLocaleString()}</td>`).join("")}<td></td><td></td></tr></tfoot>`;
   const pltTrendBlock = pStores.length ? `
-    <div class="g-tbl-title" style="margin-top:18px">매장별 카테고리 공급 PLT 월별 추이 (${pMonths.map(m=>ctx.mLbl(m)).join(" → ")}) — 매장을 누르면 펼쳐집니다</div>
-    <div class="g-store-list" style="margin-top:8px">${pTrendRows}</div>` : "";
+    <div class="g-tbl-title" style="margin-top:22px">매장별 공급 PLT 월별 추이 (${pMonths.map(m=>ctx.mLbl(m)).join(" → ")})</div>
+    <div class="pq-legend"><span>기준 달(${ctx.mLbl(pm)}) 공급 많은 순</span>${pm===ctx.curMonth?`<span>${ctx.mLbl(pm)}은 ${ctx.elapsedDays}/${ctx.daysInMonth}일 진행 중</span>`:""}${freshMissing?`<span style="color:var(--amber)">${ctx.mLbl(pm)} 신선 파일이 없어 모든 달을 신선 제외로 비교</span>`:""}</div>
+    <div class="tblbox agg-scroll"><table class="g-tbl pt-tbl">
+      <thead><tr><th>매장</th>${pMonths.map(m=>`<th>${ctx.mLbl(m)}</th>`).join("")}<th>전월 대비</th><th>증감률</th></tr></thead>
+      <tbody>${tRows}</tbody>${tFoot}</table></div>
+    <details class="g-store-more" style="margin-top:10px"><summary>매장별 카테고리 상세 월별 추이 보기 (매장을 누르면 펼쳐집니다)</summary>
+      <div class="g-store-list" style="margin-top:8px">${pTrendRows}</div></details>` : "";
 
   const sorted = have.slice().sort((a,b)=>{ const av=a.revPct==null?-1:a.revPct, bv=b.revPct==null?-1:b.revPct; return av-bv; });
   const body = sorted.map(x=>`<tr>
