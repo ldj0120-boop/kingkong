@@ -782,7 +782,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 73 · 2026-09-30</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 74 · 2026-09-30</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -8868,21 +8868,53 @@ function goalsRender10Body(ctx){
   const q = (m,st,c)=> Math.round(((qM[m]||{})[st]||{})[c]||0);
   const qSt = (m,st)=> Math.round(Object.values((qM[m]||{})[st]||{}).reduce((a,v)=>a+v,0));
   const qCat = (m,c)=> STORES.reduce((a,st)=>a+q(m,st,c),0);
-  const pCats = Array.from(new Set([pm, pPrev].filter(Boolean).flatMap(m=> Object.values(qM[m]||{}).flatMap(o=>Object.keys(o)))))
-      .sort((a,b)=> qCat(pm,b)-qCat(pm,a) || (pPrev?qCat(pPrev,b)-qCat(pPrev,a):0));
+  // build 74: 사용자 요청 — "매장 카테고리별 목표 공급 수량 대비 현재 공급 PLT로 알아볼 수 있게".
+  //   칸 = 실제 공급 PLT / 월 목표 PLT(공급계획) + 달성률. 색은 경과일 기준 페이스(진행 중인 달은 목표를 경과일 비례로 잘라 비교).
   const pStores = STORES.filter(st=> qSt(pm,st)>0 || (pPrev && qSt(pPrev,st)>0)).sort((a,b)=> qSt(pm,b)-qSt(pm,a));
-  const dTxt = (b,a)=> !pPrev ? "" : (b-a===0 ? `<div style="font-size:9.5px;color:var(--muted2)">－</div>` : `<div style="font-size:9.5px;color:${b-a>0?'var(--green)':'var(--red)'}">${b-a>0?'▲':'▼'}${Math.abs(b-a)}</div>`);
-  const pCell = (b,a,title)=> (b===0 && a===0) ? `<td style="color:var(--muted2)">·</td>`
-      : `<td title="${escHtml(title)}"><span class="num" style="font-weight:700">${b||0}</span>${dTxt(b,a)}</td>`;
-  const pBody = pStores.map(st=> `<tr><td>${escHtml(st)}</td>${pCell(qSt(pm,st), pPrev?qSt(pPrev,st):0, `${st} 합계 · ${ctx.mLbl(pm)} ${qSt(pm,st)}${pPrev?` / ${ctx.mLbl(pPrev)} ${qSt(pPrev,st)}`:""}`).replace('<td','<td class="total-col"')}${
-      pCats.map(c=> pCell(q(pm,st,c), pPrev?q(pPrev,st,c):0, `${st} · ${c} · ${pMonths.map(m=>ctx.mLbl(m)+" "+q(m,st,c)).join(" / ")}`)).join("")}</tr>`).join("");
-  const pFoot = `<tfoot><tr><td>합계</td>${pCell(pStores.reduce((a,st)=>a+qSt(pm,st),0), pPrev?pStores.reduce((a,st)=>a+qSt(pPrev,st),0):0, "").replace('<td','<td class="total-col"')}${pCats.map(c=>pCell(qCat(pm,c), pPrev?qCat(pPrev,c):0, `${c} · ${pMonths.map(m=>ctx.mLbl(m)+" "+qCat(m,c)).join(" / ")}`)).join("")}</tr></tfoot>`;
-  const pltQtyTable = pStores.length ? `
-    <div class="g-tbl-title" style="margin-top:18px">매장별 × 카테고리별 공급 PLT — ${ctx.mLbl(pm)}${pPrev?` (아래 작은 숫자 = ${ctx.mLbl(pPrev)} 대비 증감)`:""}</div>
-    <div class="g-tbl-sub">"매장별 재고/공급 현황" 탭의 매장별 출고현황 표와 같은 값입니다(본사↔센터 병합 + 센터 직출 + 가전센터 + 신선 + 롯데제타). 칸에 마우스를 올리면 ${pMonths.map(m=>ctx.mLbl(m)).join("·")} 월별 PLT가 모두 보입니다. 위 달 버튼으로 기준 달을 바꿀 수 있습니다.${pm===ctx.curMonth?` ${ctx.mLbl(pm)}은 진행 중인 달이라 전월(월 전체)보다 작게 보이는 게 정상입니다.`:""}</div>
+  const planCats = Object.keys(SUPPLY_PLAN_PARAMS);
+  const catSub = pc => { const r = (SUPPLY_PLAN_CAT_MATCH[pc]||[]).join("·"); return r && r!==pc ? r : ""; };
+  const fmt1 = v => (Math.round(v*10)/10).toLocaleString(undefined,{maximumFractionDigits:1});
+  const paceCol = p => p==null ? "var(--muted2)" : p>=100 ? "var(--green)" : p>=80 ? "var(--info)" : p>=60 ? "var(--amber)" : "var(--red)";
+  const gCell = (act, planFull, planPace, title)=>{
+    if(!(planFull>0)){
+      return act>0 ? `<td title="${escHtml(title+' · 계획 없음(계획 외 공급)')}"><span class="num" style="color:var(--muted2)">${fmt1(act)}</span><div style="font-size:9.5px;color:var(--muted2)">계획 없음</div></td>`
+                   : `<td style="color:var(--muted2)" title="${escHtml(title+' · 계획 없음')}">·</td>`;
+    }
+    const pctFull = act/planFull*100, pace = planPace>0 ? act/planPace*100 : null, col = paceCol(pace);
+    return `<td title="${escHtml(`${title}\n실제 ${fmt1(act)} / 월 목표 ${fmt1(planFull)} PLT (월 목표 대비 ${pctFull.toFixed(0)}%)`+(D.isOngoing?`\n경과일 기준 목표 ${fmt1(planPace)} PLT 대비 ${pace!=null?pace.toFixed(0):'-'}%`:""))}">
+      <span class="num" style="font-weight:700;color:${col}">${fmt1(act)}</span><span class="num" style="color:var(--muted2)"> / ${fmt1(planFull)}</span>
+      <div style="height:4px;background:var(--line);border-radius:2px;margin:3px 0 1px;overflow:hidden"><div style="height:100%;width:${Math.min(100,pctFull).toFixed(0)}%;background:${col}"></div></div>
+      <div style="font-size:9.5px;color:${col}">${pctFull.toFixed(0)}%</div></td>`;
+  };
+  // 이번 달 신선 출고내역서가 없으면 신선은 0이 아니라 "파일 없음"으로 보이고 합계·정렬에서도 뺀다.
+  const freshMissing = !(FRESH_M[pm] && Object.keys(FRESH_M[pm]).length);
+  const useCats = planCats.filter(pc=> !(freshMissing && pc==="신선"));
+  const stTot = x => { let a=0,f=0,pp=0; useCats.forEach(pc=>{ const c=x.cats.find(y=>y.cat===pc); if(c){ a+=c.actualPLT; f+=c.planPLTFull; pp+=c.planPLT; } }); return {a,f,pp,pct: pp>0?a/pp*100:null}; };
+  const gRows = D.rows.slice().sort((a,b)=>{ const av=a.cats?stTot(a).pct:null, bv=b.cats?stTot(b).pct:null; return (av==null?1e9:av)-(bv==null?1e9:bv); }).map(x=>{
+    if(!x.cats){
+      return `<tr><td>${escHtml(x.label)}</td><td class="total-col"><span class="num">${fmt1(x.actualPLTAll||0)}</span><div style="font-size:9.5px;color:var(--muted2)">공급계획 없음</div></td>${planCats.map(()=>`<td style="color:var(--muted2)">·</td>`).join("")}<td><span class="num">${fmt1(x.outsideTotal||0)}</span></td></tr>`;
+    }
+    const cells = planCats.map(pc=>{ const c = x.cats.find(y=>y.cat===pc);
+      if(freshMissing && pc==="신선") return (c && c.planPLTFull>0) ? `<td style="color:var(--muted2)" title="${escHtml(ctx.mLbl(pm)+' 신선 출고내역서 미업로드 — 목표 '+fmt1(c.planPLTFull)+' PLT')}"><span class="num">? / ${fmt1(c.planPLTFull)}</span><div style="font-size:9.5px">파일 없음</div></td>` : `<td style="color:var(--muted2)">·</td>`;
+      return gCell(c?c.actualPLT:0, c?c.planPLTFull:0, c?c.planPLT:0, `${x.label} · ${pc}${catSub(pc)?' ('+catSub(pc)+')':''}`); }).join("");
+    const outE = Object.entries(x.outside||{}).sort((a,b)=>b[1]-a[1]);
+    return `<tr><td>${escHtml(x.label)}</td>${(t=>gCell(t.a, t.f, t.pp, `${x.label} · 계획 카테고리 합계${freshMissing?' (신선 제외)':''}`))(stTot(x)).replace('<td','<td class="total-col"')}${cells}
+      <td title="${escHtml(outE.map(([c,v])=>c+' '+fmt1(v)).join(' · '))}"><span class="num">${fmt1(x.outsideTotal||0)}</span>${outE.length?`<div style="font-size:9.5px;color:var(--muted2)">${escHtml(outE.slice(0,2).map(([c,v])=>c+' '+Math.round(v)).join(' · '))}${outE.length>2?' 외':''}</div>`:""}</td></tr>`;
+  }).join("");
+  const withPlan = D.rows.filter(x=>x.cats);
+  const gFoot = `<tfoot><tr><td>합계 (계획 있는 매장)</td>${gCell(withPlan.reduce((a,x)=>a+stTot(x).a,0), withPlan.reduce((a,x)=>a+stTot(x).f,0), withPlan.reduce((a,x)=>a+stTot(x).pp,0), "전사 · 계획 카테고리 합계").replace('<td','<td class="total-col"')}${
+      planCats.map(pc=>{ const t = D.catTotals.find(c=>c.cat===pc)||{}; const full = withPlan.reduce((a,x)=>{ const c=x.cats.find(y=>y.cat===pc); return a+(c?c.planPLTFull:0); },0);
+        if(freshMissing && pc==="신선") return `<td style="color:var(--muted2)"><span class="num">? / ${fmt1(full)}</span><div style="font-size:9.5px">파일 없음</div></td>`;
+        return gCell(t.actualPLT||0, full, t.planPLT||0, `전사 · ${pc}`); }).join("")}<td><span class="num">${fmt1(withPlan.reduce((a,x)=>a+(x.outsideTotal||0),0))}</span></td></tr></tfoot>`;
+  const pltQtyTable = D.rows.length ? `
+    <div class="g-tbl-title" style="margin-top:18px">매장별 × 카테고리별 공급 PLT — 목표(공급계획) 대비 ${ctx.mLbl(pm)} 실제 공급</div>
+    <div class="g-tbl-sub">칸 = <b>실제 공급 PLT / 월 목표 PLT</b>, 막대·%는 월 목표 대비 채운 정도입니다. ${D.isOngoing
+      ? `${ctx.mLbl(pm)}은 진행 중(${D.elapsed}/${D.dim}일)이라 <b>색은 경과일 기준 목표 대비</b>입니다 — <span style="color:var(--green)">초록 100%↑</span> · <span style="color:var(--info)">파랑 80%↑</span> · <span style="color:var(--amber)">노랑 60%↑</span> · <span style="color:var(--red)">빨강 60% 미만</span>(마우스를 올리면 두 기준 수치가 모두 보입니다).`
+      : `색 = 월 목표 대비 — <span style="color:var(--green)">초록 100%↑</span> · <span style="color:var(--info)">파랑 80%↑</span> · <span style="color:var(--amber)">노랑 60%↑</span> · <span style="color:var(--red)">빨강 60% 미만</span>.`}
+      ${freshMissing?`<b style="color:var(--amber)">${ctx.mLbl(pm)} 신선 출고내역서가 아직 없어 신선은 "파일 없음"으로 두고 합계·정렬에서 뺐습니다.</b> `:""}"계획 외"는 공급계획에 없는 카테고리(FC파손·사입·임박 등)로 달성률에 넣지 않습니다. 매장은 달성률 낮은 순.</div>
     <div class="tblbox agg-scroll"><table class="g-tbl">
-      <thead><tr><th>매장</th><th class="total-col">합계</th>${pCats.map(c=>`<th>${escHtml(c)}</th>`).join("")}</tr></thead>
-      <tbody>${pBody}</tbody>${pFoot}</table></div>` : "";
+      <thead><tr><th>매장</th><th class="total-col">합계<br><span style="font-weight:400;font-size:9px">(계획 카테고리)</span></th>${planCats.map(pc=>`<th>${escHtml(pc)}${catSub(pc)?`<br><span style="font-weight:400;font-size:9px">${escHtml(catSub(pc))}</span>`:""}</th>`).join("")}<th>계획 외</th></tr></thead>
+      <tbody>${gRows}</tbody>${gFoot}</table></div>` : "";
   const pTrendRows = pStores.map(st=>{
     const cs = Array.from(new Set(pMonths.flatMap(m=>Object.keys((qM[m]||{})[st]||{})))).sort((a,b)=> q(pm,st,b)-q(pm,st,a) || pMonths.reduce((t,m)=>t+q(m,st,b),0)-pMonths.reduce((t,m)=>t+q(m,st,a),0));
     const rows = cs.map(c=>`<tr><td>${escHtml(c)}</td>${pMonths.map((m,i)=>{ const v=q(m,st,c), pv=i?q(pMonths[i-1],st,c):null;
@@ -8960,7 +8992,7 @@ function goalsRender10Body(ctx){
     <div class="g-tbl-title" style="margin-top:18px">매장별 계획 상세 — 카테고리별 계획 PLT 대비 ${cm} 실제, PLT·기대매출 도달율 함께 보기</div>
     <div class="g-store-list" style="margin-top:8px">${detailRows}</div>`;
 
-  return kpi + missNote + monthBar + pltQtyTable + pltTrendBlock + catTable + matrixTable + table + ref;   // build 73: PLT 수량표·월별 추이 추가
+  return kpi + missNote + monthBar + pltQtyTable + pltTrendBlock + catTable + table + ref;   // build 74: %만 있던 도달율 매트릭스는 위 목표 대비 표로 대체   // build 73: PLT 수량표·월별 추이 추가
 }
 
 /* ---------------- 서브탭 전환 ---------------- */
