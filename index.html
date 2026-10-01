@@ -848,7 +848,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 80 · 2026-09-30</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 81 · 2026-10-01</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -7714,6 +7714,12 @@ function goalsRender01(ctx){
   const totalTarget = ctx.rows.reduce((a,r)=>a+r.proratedTarget,0);
   const totalActual = ctx.rows.reduce((a,r)=>a+r.actual,0);
   const totalPct = totalTarget>0 ? totalActual/totalTarget*100 : 0;
+  // build 81: "금일까지 실적 매출"은 매장별 매출 탭 "매출 종합"과 같은 전 매장 합계로 표시한다.
+  // 달성률(totalPct)은 목표가 있는 ctx.rows 기준 그대로 — 차이(대소점 등 목표 0원 매장)는 카드에 따로 표기.
+  const allStoreActual = ctx.scopeMonths.reduce((a,m)=> a + Object.values((ctx.monthMaps[m]||{map:{}}).map).reduce((x,v)=>x+(v||0),0), 0);
+  const excludedActual = allStoreActual - totalActual;
+  const _inRows = new Set(ctx.rows.map(r=>r.store));
+  const excludedNote = [...new Set(ctx.scopeMonths.flatMap(m=> Object.entries((ctx.monthMaps[m]||{map:{}}).map).filter(([k,v])=>v && !_inRows.has(k)).map(([k])=>k)))].join("·");
   const achievedCnt = ctx.rows.filter(r=>r.pct>=100).length;
   const warnCnt = ctx.rows.filter(r=>r.dev<=-0.20).length;
   const dangerCnt = ctx.rows.filter(r=>r.pct<65).length;
@@ -7762,9 +7768,10 @@ function goalsRender01(ctx){
       ${statCard(`전사 달성률 · ${ctx.curMonth} (${ctx.elapsedDays}/${ctx.daysInMonth}일 경과)`, totalPct.toFixed(1)+"%", [
         goalsLine("목표(일할 환산) "+Math.round(totalTarget).toLocaleString()+"원"),
         goalsLine("실적 "+Math.round(totalActual).toLocaleString()+"원")])}
-      ${statCard(`금일까지 실적 매출 · ${cm} ${ctx.elapsedDays}일차`, (totalActual/100000000).toFixed(2)+"억", [
-        goalsLine(Math.round(totalActual).toLocaleString()+"원 · 대상 "+ctx.rows.length+"개 매장 합계"),
-        goalsLine("일할 목표 대비 "+totalPct.toFixed(1)+"%")])}
+      ${statCard(`금일까지 실적 매출 · ${cm} ${ctx.elapsedDays}일차`, (allStoreActual/100000000).toFixed(2)+"억", [
+        goalsLine(Math.round(allStoreActual).toLocaleString()+"원 · 전 매장 합계(매장별 매출 탭과 동일)"),
+        goalsLine("달성률 대상 "+ctx.rows.length+"곳 "+Math.round(totalActual).toLocaleString()+"원 · 일할 목표 대비 "+totalPct.toFixed(1)+"%"),
+        ...(excludedActual ? [goalsLine("목표 미설정 제외 "+excludedNote+" "+Math.round(excludedActual).toLocaleString()+"원")] : [])])}
       ${statCard("전사 월 목표매출", (ctx.rows.reduce((a,r)=>a+r.target,0)/100000000).toFixed(2)+"억", [
         goalsLine(ctx.rows.reduce((a,r)=>a+r.target,0).toLocaleString()+"원 · 대상 "+ctx.rows.length+"개 매장 합계"),
         goalsLine("경과일 기준 일할 환산 "+Math.round(totalTarget).toLocaleString()+"원")])}
