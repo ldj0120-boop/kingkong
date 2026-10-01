@@ -848,7 +848,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 82 · 2026-10-01</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 83 · 2026-10-02</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -5958,8 +5958,18 @@ function parseStoreSalesWorkbook(wb){
   return { byStore, total, noStoreTotal, byDate, unmatched: Array.from(unmatched), usedColLabel };
 }
 async function handleStoreSalesFiles(files){
-  const list = Array.from(files||[]).filter(Boolean);
+  let list = Array.from(files||[]).filter(Boolean);
   if(!list.length) return;
+  // build 83: 상품별(카테고리별) 매출 파일을 매장별 슬롯에 넣은 경우 카테고리 처리로 자동 전달
+  if(typeof sniffSalesFileKind==="function"){
+    const toCat = [];
+    for(const f of list){ if(await sniffSalesFileKind(f)==="cat") toCat.push(f); }
+    if(toCat.length){
+      list = list.filter(f=> !toCat.includes(f));
+      for(const f of toCat) await handleSalesFile(f);
+      if(!list.length) return;
+    }
+  }
   let ok=0; const problems=[]; let colLabel="";
   for(const file of list){
     try{
@@ -7346,14 +7356,27 @@ function goalsNarrative(r, ctx){
 // (예: 8월 9일 결측 → 8월 달성률 약 30% 과소). 계산은 바꾸지 않고, 빠진 날짜를 화면에 드러낸다.
 // source = 그 달 monthStoreTotals가 채택한 쪽(청구금액/실매출액) — 채택된 쪽의 날짜만 본다.
 let GOALS_SALES_GAPS = {};
+// build 83: 전 매장 휴무일(설·추석 당일). 이 날은 매출 파일 자체가 없거나(ERP 기간 추출에도 행 0건) 1~2곳만 영업하므로
+//   "파일 없음/일부 매장만" 경고에서 제외한다. (2026-09-25 추석 당일: 9/23~28 상품별 매출 추출본에 9/25 행이 0건으로 확인)
+const STORE_CLOSED_DAYS = {
+  "2026-02-17":"설날", "2026-09-25":"추석",
+  "2027-02-07":"설날", "2027-09-15":"추석"
+};
 function salesMonthGaps(ym, uptoDay, source){
   const hist = source==="실매출액" ? SALES_HISTORY : STORE_SALES_HISTORY;
   const have = new Set(hist.filter(x=>x && x.date && x.date.slice(0,7)===ym).map(x=>x.date));
   if(!have.size) return null;
-  const last = Math.min(uptoDay || goalsDaysInMonth(ym), goalsDaysInMonth(ym));
+  // build 83: 검사 범위 = 그 달에 매출 데이터가 있는 마지막 날(두 소스 중 늦은 쪽)까지, 그리고 오늘 이전까지만.
+  //   예전에는 선택 기간이 9월이면 10월을 "지난 달"로 보고 31일까지 검사해, 아직 오지 않은 10/2~31을 "파일 없음"으로 띄웠다.
+  let lastData = 0;
+  [SALES_HISTORY, STORE_SALES_HISTORY].forEach(h=> h.forEach(x=>{ if(x && x.date && x.date.slice(0,7)===ym) lastData = Math.max(lastData, +x.date.slice(8,10)); }));
+  const _t = new Date(); const todayStr = `${_t.getFullYear()}-${String(_t.getMonth()+1).padStart(2,'0')}-${String(_t.getDate()).padStart(2,'0')}`;
+  const todayCap = ym < todayStr.slice(0,7) ? goalsDaysInMonth(ym) : (ym===todayStr.slice(0,7) ? +todayStr.slice(8,10) : 0);
+  const last = Math.min(uptoDay || goalsDaysInMonth(ym), goalsDaysInMonth(ym), lastData, todayCap);
   const missing = [], partial = [];
   for(let d=1; d<=last; d++){
     const ds = `${ym}-${String(d).padStart(2,'0')}`;
+    if(STORE_CLOSED_DAYS[ds]) continue;
     if(!have.has(ds)){ missing.push(d); continue; }
     if(source!=="실매출액"){
       let info = null; try{ info = salesCoverageInfo(ds); }catch(_){ info = null; }
@@ -9601,7 +9624,7 @@ function handleSalesFile(file){
         const result = await parseSalesTransactionRows(aoa, header, (pct)=> showProgress(pct, `"${file.name}" 매출 분석 중`));
         hideProgress();
         if(!result){
-          alert('필요한 열("영업일자","매장명","수량","세일적용가")과 카테고리를 유추할 열("상품분류" 또는 "상품명") 중 하나를 찾지 못했습니다. 파일 형식을 확인해 주세요.');
+          alert(`"${file.name}"은(는) 카테고리별 매출 파일 형식이 아닙니다.\n\n카테고리별 매출은 '상품별 매출현황' 파일(열: 영업일자·상품분류·매장명·실매출액)이어야 합니다.\n이 파일의 첫 줄: ${header.filter(Boolean).slice(0,8).join(", ")}\n\n매장별 매출현황(청구금액) 파일이면 '매장별 매출' 칸에 올려 주세요.`);
           return;
         }
         const dates = Object.keys(result.byDate).sort();
@@ -9787,9 +9810,32 @@ function handleSalesFile(file){
   });
 }
 // 카테고리별 매출: 일자별 여러 파일 또는 합계 1개 파일 모두 지원. 여러 파일은 순서대로(카테고리 확인 모달 때문에) 처리하며 날짜별로 누적된다.
+// build 83: 파일 첫 줄(헤더)만 보고 "매장별 매출(청구금액)"인지 "상품별/카테고리별 매출(상품분류)"인지 판별한다.
+//   매장별 매출현황 파일을 카테고리 슬롯에 넣으면 '필요한 열("영업일자","매장명","수량","세일적용가")…' 알림만 뜨고
+//   아무것도 반영되지 않았다 → 이제는 알맞은 처리로 자동 전달한다.
+async function sniffSalesFileKind(file){
+  try{
+    const wb = XLSX.read(new Uint8Array(await file.arrayBuffer()), {type:"array", sheetRows:25});
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, raw:true, defval:null, blankrows:false});
+    const n = x => String(x==null?"":x).replace(/\s+/g,"");
+    for(let r=0; r<Math.min(aoa.length,20); r++){
+      const row = (aoa[r]||[]).map(n);
+      if(row.includes("상품분류") || (row.includes("상품명") && row.includes("세일적용가"))) return "cat";
+      if(row.some(c=>/청구금액/.test(c)) || (row.includes("매장") && row.includes("상품수량"))) return "store";
+    }
+  }catch(_){}
+  return "unknown";
+}
 async function handleCatSalesFiles(files){
-  const list = Array.from(files||[]).filter(Boolean);
+  let list = Array.from(files||[]).filter(Boolean);
   if(!list.length) return;
+  const toStore = [];
+  for(const f of list){ if(await sniffSalesFileKind(f)==="store") toStore.push(f); }
+  if(toStore.length){
+    list = list.filter(f=> !toStore.includes(f));
+    await handleStoreSalesFiles(toStore);
+    showNotice(`${toStore.map(f=>f.name).join(", ")} — 매장별 매출(청구금액) 파일이라 '매장별 매출'로 자동 반영했습니다.`);
+  }
   for(const f of list){ await handleSalesFile(f); }
   if(list.length>1) showNotice(`카테고리별 매출 ${list.length}개 파일을 순서대로 반영했습니다. 누적 매출 스냅샷: ${SALES_HISTORY.length}개. 금액은 M열 실매출액 기준입니다.`);
 }
