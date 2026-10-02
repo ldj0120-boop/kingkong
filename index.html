@@ -882,7 +882,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 89 · 2026-10-02</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 90 · 2026-10-02</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1719,6 +1719,7 @@ let HQ_M = {};        // month -> store -> {cat: qty}  (본사 출고계획서)
 let APPLIANCE_M = {}; // month -> store -> {cat: qty}  (가전센터)
 let CENTER_DIRECT_M = {}; // month -> store -> {cat: qty}  (센터 출고내역서 중 "직출"만 — 본사 파일엔 없어 항상 더함)
 let FRESH_M = {};     // month -> store -> {신선식품|수박: qty}
+let FRESH_SUMMARY_M = {};  // build 90: {YYYY-MM: 파일명} — 신규 양식(매장별분류 요약, D열 합계 PLT)으로 신선식품을 채운 달. 이 달은 구양식 취합본이 신선식품을 덮어쓰지 않는다.
 // ★ build 62 (2026-09-29): 직출을 날짜 단위로도 들고 있는다. 9월부터 센터가 직출만 따로 모은
 //   "직출건 출고내역서"를 주는데, 9/1~9/12처럼 센터 본 파일의 "직 출" 블록과 **같은 날짜가 겹친다**
 //   (실제 대조: 0902·0905 블록이 매장·수량까지 동일). 그냥 더하면 이중 계상, 한쪽만 쓰면 누락이라
@@ -2355,7 +2356,7 @@ function buildStateObject(){
   return {
       PARSE_LOGIC_VERSION, _parseVerBySrc, shipMergePolicy, _shipMergeDefaultVer: SHIP_MERGE_DEFAULT_VERSION,
       STORES, STOCK, CATEGORIES, CATEGORY_ORIGIN, SHIP, ACTUAL,
-      HQ_ACTUAL, APPLIANCE_ACTUAL, CENTER_DIRECT_ACTUAL, FRESH_ACTUAL, CENTER_M, HQ_M, APPLIANCE_M, CENTER_DIRECT_M, DIRECT_MAIN_D, DIRECT_FILE_D, CENTER_D, HQ_D, APPLIANCE_D, DAY_SRC, UNMATCHED_WHERE, FRESH_M, LOTTE_M, shipScope, HQ_SUPPLY_HISTORY, APPLIANCE_SUPPLY_HISTORY, unmatchedHQStores, unmatchedApplianceStores,
+      HQ_ACTUAL, APPLIANCE_ACTUAL, CENTER_DIRECT_ACTUAL, FRESH_ACTUAL, CENTER_M, HQ_M, APPLIANCE_M, CENTER_DIRECT_M, DIRECT_MAIN_D, DIRECT_FILE_D, CENTER_D, HQ_D, APPLIANCE_D, DAY_SRC, UNMATCHED_WHERE, FRESH_M, FRESH_SUMMARY_M, LOTTE_M, shipScope, HQ_SUPPLY_HISTORY, APPLIANCE_SUPPLY_HISTORY, unmatchedHQStores, unmatchedApplianceStores,
       selected, SUPPLY_HISTORY, STOCK_HISTORY, unmatchedActualStores,
       SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodBStart, periodBEnd, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, SPECIAL_DAYS, goalsScope, selectedSalesMonth, selectedMonthlyStore, salesViewMode, EVENTS_COMMON, EVENTS_STORE, PROCESSED_FILES,
       basedateIdx: (typeof basedateEl!=="undefined" && basedateEl.value!=="") ? +basedateEl.value : STOCK_HISTORY.length-1
@@ -2527,6 +2528,7 @@ function applyStateObject(s){
     DAY_SRC = Object.assign({ center:{}, hq:{}, appliance:{}, dmain:{}, dfile:{} }, _o(s.DAY_SRC));
     UNMATCHED_WHERE = Object.assign({ center:{}, hq:{}, appliance:{} }, _o(s.UNMATCHED_WHERE));
     FRESH_M = (s.FRESH_M && typeof s.FRESH_M==="object") ? s.FRESH_M : {};
+    FRESH_SUMMARY_M = (s.FRESH_SUMMARY_M && typeof s.FRESH_SUMMARY_M==="object") ? s.FRESH_SUMMARY_M : {};
     LOTTE_M = (s.LOTTE_M && typeof s.LOTTE_M==="object") ? s.LOTTE_M : {};
     shipScope = s.shipScope || "all";
     // 구버전 저장 호환: 신선(신선식품·수박)이 FRESH_ACTUAL에만 있고 FRESH_M(월별)에 없으면, 최신 출고 월로 이관해 출고현황에 뜨게 한다.
@@ -5362,7 +5364,49 @@ function parseFreshSheet(aoa){
   }
   return { byStore, unmatchedCols:Array.from(unmatchedCols) };
 }
-function parseFreshWorkbook(wb, fileName){
+/* build 90 (2026-10-02): 2026년 9월부터 신선 공급 PLT는 신규 양식으로 받는다.
+   파일 예: 신선출고내역서\2609\리퀴데이션_매장별분류_2026-09.xlsx — 시트 "매장 × 분류", 열 = 매장 | 신선 | 신선 벌크건수 | 합계 PLT | 벌크 건수.
+   매장 1행 = 그 달 매장별 합계 → **D열 "합계 PLT"** 를 그 달 신선식품 공급 PLT로 쓴다(열 위치가 바뀌어도 헤더 이름으로 찾음).
+   월은 파일명(2026-09 / 202609) → 없으면 폴더명(2609). 구양식(일자×매장 피벗 취합본·수박 월 시트)은 그대로 기존 로직. */
+function parseFreshSummarySheet(aoa){
+  const n = x => String(x==null?"":x).replace(/\s+/g,"");
+  for(let r=0; r<Math.min(aoa.length,15); r++){
+    const row = (aoa[r]||[]).map(n);
+    const cStore = row.findIndex(c=> c==="매장"||c==="매장명"||c==="점포");
+    const cTot = row.findIndex(c=> /^합계PLT$|^합계\(PLT\)$|^PLT합계$/i.test(c));
+    if(cStore<0 || cTot<0) continue;
+    const byStore = {}, unmatched = {};
+    for(let i=r+1; i<aoa.length; i++){
+      const rw = aoa[i]||[]; const raw = rw[cStore];
+      if(raw==null || String(raw).trim()==="") continue;
+      if(/합계|총계|소계|total/i.test(String(raw))) continue;
+      const v = typeof rw[cTot]==="number" ? rw[cTot] : parseFloat(String(rw[cTot]==null?"":rw[cTot]).replace(/,/g,""));
+      if(!(v>0)) continue;
+      const st = resolveShipmentStoreName(String(raw).trim());
+      if(st && STORES.includes(st)) byStore[st] = Math.round(((byStore[st]||0) + v)*10)/10;
+      else unmatched[String(raw).trim()] = Math.round(((unmatched[String(raw).trim()]||0)+v)*10)/10;
+    }
+    return { byStore, unmatched };
+  }
+  return null;
+}
+function freshMonthFromName(fileName, path){
+  let m = String(fileName||"").match(/(20\d{2})[-_.]?(0[1-9]|1[0-2])(?!\d)/);
+  if(m) return `${m[1]}-${m[2]}`;
+  m = String(path||"").match(/(?:^|[\/])(2\d)(0[1-9]|1[0-2])(?:[\/]|$)/);
+  if(m) return `20${m[1]}-${m[2]}`;
+  return null;
+}
+function parseFreshWorkbook(wb, fileName, filePath){
+  // build 90: 신규 요약 양식 먼저 확인
+  for(const sn of wb.SheetNames){
+    const sum = parseFreshSummarySheet(sheetAoA(wb, sn));
+    if(sum){
+      const month = freshMonthFromName(fileName, filePath);
+      const byMonthStore = month ? { [month]: sum.byStore } : {};
+      return { cat:"신선식품", byStore: sum.byStore, byMonthStore, unmatchedCols: Object.keys(sum.unmatched).map(k=>`${k}(${sum.unmatched[k]}PLT)`), month, summary:true, sheet:sn };
+    }
+  }
   const cat = /수박/.test(fileName) ? "수박" : "신선식품";
   const monthSheets = wb.SheetNames.filter(n=>/^\d{1,2}월$/.test(n));
   const unmatchedCols = new Set();
@@ -5462,7 +5506,24 @@ function handleFreshFile(file){
     reader.onload=(ev)=>{
       try{
         const wb=XLSX.read(new Uint8Array(ev.target.result),{type:"array"});
-        const {cat, byStore, byMonthStore, unmatchedCols, month}=parseFreshWorkbook(wb, file.name);
+        const parsedF = parseFreshWorkbook(wb, file.name, file.webkitRelativePath||"");
+        const {cat, byStore, unmatchedCols, month} = parsedF;
+        let byMonthStore = parsedF.byMonthStore || {};
+        if(parsedF.summary && !month){
+          alert(`"${file.name}" — 신규 신선 양식인데 몇 월 자료인지 알 수 없습니다. 파일명에 2026-09처럼 연월을 넣거나 2609 같은 월 폴더에 넣어 올려주세요.`);
+          return;
+        }
+        // build 90: 신규 요약 양식으로 채운 달은 구양식 취합본이 신선식품을 다시 덮어쓰지 않는다(수박 등 다른 카테고리는 그대로).
+        let skippedMonths = [];
+        if(!parsedF.summary && cat==="신선식품"){
+          skippedMonths = Object.keys(byMonthStore).filter(mk=> FRESH_SUMMARY_M[mk]);
+          if(skippedMonths.length){ const o={}; Object.keys(byMonthStore).forEach(mk=>{ if(!FRESH_SUMMARY_M[mk]) o[mk]=byMonthStore[mk]; }); byMonthStore=o; }
+          if(!Object.keys(byMonthStore).length && skippedMonths.length){
+            showNotice(`"${file.name}" — ${skippedMonths.join(", ")} 신선식품은 신규 양식(매장별분류 합계 PLT)으로 이미 반영돼 있어 이 구양식 파일은 건너뛰었습니다.`);
+            return;
+          }
+        }
+        if(parsedF.summary) FRESH_SUMMARY_M[month] = file.name;
         ensureCategory(cat, "신선 출고내역서");
         // 월 취합본 재업로드 → 해당 카테고리 통째 교체 (레거시 flat)
         STORES.forEach(s=>{ if(FRESH_ACTUAL[s]) delete FRESH_ACTUAL[s][cat]; });
@@ -5476,7 +5537,9 @@ function handleFreshFile(file){
         let added=0, total=0;
         Object.keys(byStore).forEach(s=>{ if(!FRESH_ACTUAL[s]) FRESH_ACTUAL[s]={}; FRESH_ACTUAL[s][cat]=byStore[s]; added++; total+=byStore[s]; });
         saveState(); afterChange();
-        let msg = added ? `신선 출고(${cat}) 반영: 매장 ${added}곳, 합계 ${Math.round(total).toLocaleString()} PLT (재업로드 시 교체).`
+        let msg = added ? (parsedF.summary
+                            ? `신선 공급(신규 양식 · D열 합계 PLT) ${month} 반영: 매장 ${added}곳, 합계 ${(Math.round(total*10)/10).toLocaleString()} PLT (같은 달 다시 올리면 교체).`
+                            : `신선 출고(${cat}) 반영: 매장 ${added}곳, 합계 ${Math.round(total).toLocaleString()} PLT (재업로드 시 교체).`)
                         : `"${file.name}"에서 매장명 열을 찾지 못했습니다. 센터/채널 코드만 있어 매장별 집계가 안 됩니다.`;
         if(unmatchedCols.length) msg += `\n매장으로 인식 못한 열: ${unmatchedCols.slice(0,12).join(", ")}${unmatchedCols.length>12?" 외":""}`;
         showNotice(msg);
@@ -10156,6 +10219,12 @@ async function handleFolderBatch(fileList){
         const d = _dateOfName(f);
         if(d && !_have[k].has(d) && !buckets[k].includes(f)){ buckets[k].push(f); reread++; skipped--; }
       });
+    });
+    // build 90: 신선 출고내역서 — 파일명/월 폴더로 알 수 있는 달의 신선 데이터가 FRESH_M에 없으면 다시 읽는다
+    //   (신규 양식이 예전 코드에서 '처리됨'만 찍히고 반영되지 않았던 경우 복구).
+    orig.fresh.forEach(f=>{
+      const mk = freshMonthFromName(f.name, f.webkitRelativePath||"");
+      if(mk && !(FRESH_M[mk] && Object.keys(FRESH_M[mk]).length) && !buckets.fresh.includes(f)){ buckets.fresh.push(f); reread++; skipped--; }
     });
   }
   let totalNew = Object.values(buckets).reduce((a,arr)=>a+arr.length,0);
