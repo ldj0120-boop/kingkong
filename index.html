@@ -610,7 +610,7 @@
   .g-month-cell:hover,.g-month-cell:focus{background:var(--panel2);outline:none;}
   /* build 88: 월별 달성률 막대 — 카드 전체 폭 + 말풍선 */
   .g-month-wide{margin-top:12px;padding:10px 12px 8px;border:1px solid var(--line-soft);border-radius:10px;background:rgba(255,255,255,.015);}
-  .g-month-wide .g-month-title{font-size:12px;color:var(--text);font-weight:700;margin-bottom:8px;}
+  .g-month-wide .g-month-title{font-size:12px;color:var(--text);font-weight:700;margin-bottom:10px;line-height:1.6;text-transform:none;font-family:inherit;letter-spacing:0;}
   .g-month-wide .g-month-meta{font-weight:400;font-size:10.5px;color:var(--muted2);margin-left:6px;}
   .g-month-wide .g-month-meta b{color:var(--pale);}
   .g-month-wide .g-month-cell .mm{font-size:10.5px;}
@@ -803,7 +803,23 @@
   .g-kpi-grid .g-kpi{background:none;border:0;border-bottom:1px dashed var(--line-soft);border-radius:0;padding:3px 0;}
   .g-kpi-grid .g-kpi .k{font-size:11px;}
   .g-kpi-grid .g-kpi .v{font-family:"JetBrains Mono";font-size:12.5px;letter-spacing:0;line-height:1.5;}
-  .g-store-split{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px;align-items:start;}
+  .g-store-split{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start;}   /* build 92: 위아래 배치(3개월 실적 → 카테고리 구성 → 월별 이력) */
+  .g-sec-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;letter-spacing:0;font-family:inherit;text-transform:none;}
+  .g-r3-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+  .g-r3{background:var(--ink);border:1px solid var(--line-soft);border-radius:10px;padding:9px 11px;min-width:0;}
+  .g-r3.cur{border-color:rgba(245,178,17,.45);}
+  .g-r3 .r3-m{font-size:11px;color:var(--muted2);font-weight:600;}
+  .g-r3.cur .r3-m{color:var(--amber);}
+  .g-r3 .r3-m span{font-size:9.5px;border:1px solid var(--amber);border-radius:8px;padding:0 5px;margin-left:3px;}
+  .g-r3 .r3-v{font-family:"JetBrains Mono";font-size:15px;font-weight:700;color:var(--text);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .g-r3 .r3-v small{font-size:10px;color:var(--muted2);margin-left:2px;font-weight:400;}
+  .g-r3 .r3-p{font-size:10.5px;color:var(--muted2);margin-top:2px;}
+  .g-r3 .r3-bar{height:4px;background:var(--line-soft);border-radius:2px;margin-top:6px;overflow:hidden;}
+  .g-r3 .r3-bar i{display:block;height:100%;border-radius:2px;}
+  .g-catgrid{display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;align-items:center;}
+  .g-catgrid .pie-donut-only{padding:0;}
+  .g-catgrid .g-store-catbars{margin-top:0;}
+  @media (max-width:560px){ .g-catgrid{grid-template-columns:1fr;} .g-r3-row{grid-template-columns:1fr;} }
   @media (max-width:900px){ .g-store-split{grid-template-columns:1fr;} }
   .g-store-leftcol{min-width:0;display:flex;flex-direction:column;gap:8px;}
   .g-store-catcol{min-width:0;background:var(--ink);border:1px solid var(--line-soft);border-radius:10px;padding:10px;}
@@ -882,7 +898,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 91 · 2026-10-02</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 92 · 2026-10-02</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -7363,8 +7379,10 @@ function goalsCatColInner(store, ym, scopeData, scopeLabel){
   if(!data || !data.length) return `<div class="g-store-catempty">${escHtml(lbl)} 카테고리 매출 데이터 없음</div>`;
   const tot = data.reduce((a,d)=>a+d.value,0);
   return `<div class="g-store-catlbl">${escHtml(lbl)} · 합계 ${Math.round(tot).toLocaleString()}원</div>
-    <div class="pie-donut-only">${buildDonutSVG(data, 124)}</div>
-    <div class="g-store-catbars">${buildSharePercentBars(data.slice(0,8), {compact:true})}</div>`;
+    <div class="g-catgrid">
+      <div class="pie-donut-only">${buildDonutSVG(data, 132)}</div>
+      <div class="g-store-catbars">${buildSharePercentBars(data.slice(0,8), {compact:true})}</div>
+    </div>`;
 }
 function goalsCatColHtml(r, ctx){
   const store = r.store;
@@ -7376,7 +7394,7 @@ function goalsCatColHtml(r, ctx){
   const opts = `<option value="__scope__"${sel==="__scope__"?' selected':''}>분석 기간 (${escHtml(ctx.scopeLabel)})</option>`
     + months.slice().reverse().map(m=>`<option value="${m}"${m===sel?' selected':''}>${+m.slice(5)}월 (${m.slice(0,4)})</option>`).join("");
   return `<div class="g-store-catcol" data-catcol-store="${escHtml(store)}" data-scope-label="${escHtml(ctx.scopeLabel)}">
-    <div class="g-store-catt"><span>카테고리 구성 (실매출액)</span>
+    <div class="g-store-catt"><span class="g-sec-title" style="margin:0">카테고리 구성 (실매출액)</span>
       <select class="g-catmonth" data-catmonth-store="${escHtml(store)}" title="이 매장의 카테고리 점유율을 볼 달">${opts}</select></div>
     <div class="g-store-catbody">${goalsCatColInner(store, sel, scopeData, ctx.scopeLabel)}</div>
   </div>`;
@@ -7462,7 +7480,7 @@ function goalsMonthStripHtml(hist, curMonth, store){
     </div>`;
   }).join("");
   return `<div class="g-month-wrap g-month-wide">
-    <div class="g-month-title">월별 달성률 이력 <span class="g-month-meta">데이터 있는 ${hist.points.length}개월 · 전체 평균 <b>${hist.avg!=null?hist.avg.toFixed(1)+'%':'-'}</b> · 최근 3개월 평균 <b>${hist.recent3!=null?hist.recent3.toFixed(1)+'%':'-'}</b>${hist.recentCount!=null&&hist.recentCount<3?` (결측 제외 ${hist.recentCount}개월)`:''} · *진행중(일할 환산) · ⚠매출 파일 빠진 날 있음 · 막대에 마우스를 올리면 매출건수 · 클릭하면 그 달 카테고리 구성</span></div>
+    <div class="g-month-title"><span class="g-sec-title" style="margin:0;display:inline">월별 달성률 이력</span> <span class="g-month-meta">데이터 있는 ${hist.points.length}개월 · 전체 평균 <b>${hist.avg!=null?hist.avg.toFixed(1)+'%':'-'}</b> · 최근 3개월 평균 <b>${hist.recent3!=null?hist.recent3.toFixed(1)+'%':'-'}</b>${hist.recentCount!=null&&hist.recentCount<3?` (결측 제외 ${hist.recentCount}개월)`:''} · *진행중(일할 환산) · ⚠매출 파일 빠진 날 있음 · 막대에 마우스를 올리면 매출건수 · 클릭하면 그 달 카테고리 구성</span></div>
     <div class="g-month-strip" style="grid-template-columns:repeat(${hist.points.length},minmax(0,1fr))">${cells}</div>
   </div>`;
 }
@@ -7557,24 +7575,27 @@ function goalsNarrative(r, ctx){
   const cells = months.map(m=>{
     const st = storeActiveDays(r.store, m, m===ctx.curMonth ? ctx.elapsedDays : null);
     const isCur = m===ctx.curMonth;
+    // build 92: 3칸 가로 타일(왼쪽 좁은 열에 세로로 쌓여 빈 공간이 크던 문제)
     if(st.days<=0){
-      return `<div class="g-month-cell"><div class="mm">${m.slice(5)}월</div><div class="mv" style="color:var(--muted2)">${st.state==="before"?"미오픈":"폐점"}</div></div>`;
+      return `<div class="g-r3"><div class="r3-m">${+m.slice(5)}월</div><div class="r3-v" style="color:var(--muted2)">${st.state==="before"?"미오픈":"폐점"}</div></div>`;
     }
     const actual = ctx.monthMaps[m] ? (ctx.monthMaps[m].map[r.store]||0) : 0;
     if(actual<=0 && !isCur){
-      return `<div class="g-month-cell"><div class="mm">${m.slice(5)}월</div><div class="mv" style="color:var(--muted2)">결측</div></div>`;
+      return `<div class="g-r3"><div class="r3-m">${+m.slice(5)}월</div><div class="r3-v" style="color:var(--muted2)">결측</div></div>`;
     }
     const t = r.target*(st.days/st.dim);
     const pct = t>0 ? actual/t*100 : null;
-    return `<div class="g-month-cell${isCur?' cur':''}">
-      <div class="mm">${m.slice(5)}월${isCur?' (진행중)':''}</div>
-      <div class="mv">${won(actual)}원</div>
-      <div style="font-size:9px;color:var(--muted2);margin-top:1px;">${pct!=null?'목표 대비 '+pct.toFixed(1)+'%':''}</div>
+    const col = pct==null ? "var(--muted2)" : pct>=100 ? "var(--green)" : pct>=80 ? "var(--info)" : pct>=60 ? "var(--amber)" : "var(--red)";
+    return `<div class="g-r3${isCur?' cur':''}">
+      <div class="r3-m">${+m.slice(5)}월${isCur?' <span>진행중</span>':''}</div>
+      <div class="r3-v">${won(actual)}<small>원</small></div>
+      <div class="r3-p">${pct!=null?`목표 대비 <b style="color:${col}">${pct.toFixed(1)}%</b>`:''}</div>
+      ${pct!=null?`<div class="r3-bar"><i style="width:${Math.min(100,pct).toFixed(1)}%;background:${col}"></i></div>`:''}
     </div>`;
   }).join("");
   return `<div class="g-narr">
-    <div class="g-month-title" style="margin-bottom:6px;">최근 3개월 실적 (해석·추천 없이 실제 매출 금액만)</div>
-    <div class="g-month-strip" style="overflow-x:visible;">${cells}</div>
+    <div class="g-sec-title">최근 3개월 실적</div>
+    <div class="g-r3-row">${cells}</div>
   </div>`;
 }
 
