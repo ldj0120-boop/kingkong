@@ -925,7 +925,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 93 · 2026-10-02</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 95 · 2026-10-02</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1126,7 +1126,9 @@
       </div>
     </div>
 
-    <div class="agg-card" id="salesCalendarCard">
+    <!-- build 94: "매출 달력"·"매장별 매출 상세"는 목표매출 달성 방안 매장 카드의 드릴다운(달→일자별 · 카테고리→월별 · 둘 다→카테고리 일자별)으로
+         통일하기 위해 화면에서 숨김(사용자 요청 "다른 페이지 동일 기능은 삭제하고 이것으로 통일"). 요소는 남겨둬서 기존 스크립트 참조가 깨지지 않게 함. -->
+    <div class="agg-card" id="salesCalendarCard" hidden style="display:none">
       <div class="p-hd">
         <span class="store-name">매출 달력</span>
         <span class="meta">빨간날 표시 · 날짜를 클릭하면 아래 매장별 매출 상세가 그 날짜로 바뀝니다</span>
@@ -1134,7 +1136,7 @@
       <div id="salesCalendarWrap" style="padding:10px 14px 16px;"></div>
     </div>
 
-    <div class="agg-card">
+    <div class="agg-card" id="salesDetailCardB94" hidden style="display:none">
       <div class="p-hd">
         <span class="store-name">매장별 매출 상세</span>
         <span class="meta" id="salesDetailMeta">매장을 선택하면 전일/전주/전월/작년 대비와 카테고리별 매출 그래프가 표시됩니다</span>
@@ -2498,6 +2500,20 @@ function applySalesSeedB86(){
   }
   return added;
 }
+// build 95: 2026-09 신선 공급(신규 양식 리퀴데이션_매장별분류_2026-09.xlsx D열 합계 PLT, 파주점→파주가맹점) 보정.
+//   build 90 배포 뒤에도 폴더 불러오기를 다시 하지 않아 9월 신선이 비어 "신선 열 숨김"이 뜨던 문제 — 그 달이 **비어 있을 때만** 채운다.
+//   같은 달 파일을 다시 올리면 그 값이 우선(덮어쓰기 안 함). 합계 2,262.2PLT.
+var FRESH_SEED_B95 = { month:"2026-09", file:"리퀴데이션_매장별분류_2026-09.xlsx", byStore:{"용인점": 333, "인천점": 323, "이천점": 309, "기흥점": 292, "김포점": 197.6, "수원점": 153, "경안점": 115.8, "평택점": 115, "청주점": 100, "안중점": 81, "김해점": 79, "양주점": 67.2, "아산점": 61, "남양주점": 17.2, "파주가맹점": 12, "제주점": 6.4} };
+function applyFreshSeedB95(){
+  const m = FRESH_SEED_B95.month;
+  if(FRESH_M[m] && Object.keys(FRESH_M[m]).some(st=> FRESH_M[m][st] && FRESH_M[m][st]["신선식품"]>0)) return 0;
+  if(!FRESH_M[m]) FRESH_M[m] = {};
+  Object.keys(FRESH_SEED_B95.byStore).forEach(st=>{ if(!FRESH_M[m][st]) FRESH_M[m][st] = {}; FRESH_M[m][st]["신선식품"] = FRESH_SEED_B95.byStore[st]; });
+  if(typeof FRESH_SUMMARY_M==="object" && FRESH_SUMMARY_M) FRESH_SUMMARY_M[m] = FRESH_SEED_B95.file;
+  try{ ensureCategory("신선식품", "신선 출고내역서"); }catch(_){}
+  setTimeout(()=>{ try{ saveState(); }catch(_){} try{ if(typeof afterChange==="function") afterChange(); }catch(_){} }, 2500);
+  return 1;
+}
 function applyStateObject(s){
   try{
     if(!s || !Array.isArray(s.STORES) || !s.STORES.length) return null;
@@ -2608,7 +2624,8 @@ function applyStateObject(s){
     //   → 상태를 적용한 직후마다 정리한다(10차 카테고리 지정과 완전히 같은 처방).
     pruneUnmatchedStores();
     STORES.forEach(st=>{ if(!SHIP[st]) SHIP[st]=freshCatMap(); if(!ACTUAL[st]) ACTUAL[st]=freshCatMap(); });
-    try{ applySalesSeedB86(); }catch(_){}   // build 86: 9/30·10/1 카테고리 매출 보정(없을 때만)
+    try{ applySalesSeedB86(); }catch(_){}
+    try{ applyFreshSeedB95(); }catch(_){}   // build 95: 9월 신선(신규 양식) 보정   // build 86: 9/30·10/1 카테고리 매출 보정(없을 때만)
     return { basedateIdx: s.basedateIdx };
   }catch(e){ return null; }
 }
