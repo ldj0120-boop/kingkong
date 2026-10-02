@@ -742,6 +742,21 @@
   @media (max-width:1200px){ .g-store-list{grid-template-columns:1fr;} }
   .g-store-card.v2{display:flex;flex-direction:column;gap:9px;}
   .g-store-card.v2 .g-store-hd{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  /* build 96: 매장명 크게 + 매장 바로가기 */
+  .g-store-card.v2 .g-store-name{font-size:21px;font-weight:800;letter-spacing:-.01em;line-height:1.25;}
+  .g-store-card.v2 .g-store-name .g-store-rank{display:block;margin-left:0;margin-top:2px;font-size:11px;}
+  .g-store-card{scroll-margin-top:90px;}
+  .g-store-card.g-flash{animation:gFlash 1.6s ease-out;}
+  @keyframes gFlash{0%{box-shadow:0 0 0 3px var(--amber);}100%{box-shadow:0 0 0 0 rgba(245,178,17,0);}}
+  .g-store-nav.pinned{position:fixed;top:0;margin:0;z-index:60;border-radius:0 0 10px 10px;box-shadow:0 6px 18px rgba(0,0,0,.45);padding-right:190px;}
+  .g-store-nav{position:relative;z-index:20;display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:12px 0 4px;padding:10px 12px;
+    background:rgba(13,17,23,.94);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:10px;}
+  .g-store-nav-t{font-size:12px;font-weight:700;color:var(--amber);margin-right:4px;}
+  .g-store-nav-b{display:inline-flex;align-items:baseline;gap:5px;background:var(--panel2);border:1px solid var(--line);border-radius:16px;
+    padding:4px 11px;cursor:pointer;color:var(--text);font-size:13px;font-weight:600;}
+  .g-store-nav-b .pc{font-family:"JetBrains Mono";font-size:11px;font-weight:700;}
+  .g-store-nav-b:hover{border-color:var(--amber);}
+  .g-store-nav-b.on{background:var(--raise);border-color:var(--amber);}
   .g-store-gauge{display:flex;align-items:center;gap:8px;flex:1 1 160px;min-width:140px;}
   .g-store-gauge .gg-track{flex:1;height:8px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden;}
   .g-store-gauge .gg-fill{display:block;height:100%;border-radius:99px;}
@@ -925,7 +940,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 95 · 2026-10-02</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 96 · 2026-10-02</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -7499,6 +7514,41 @@ function wireGoalsCatMonth(){
    상태 GOALS_DRILL[매장] = {month, cat}. month만 → 그 달 일자별 총매출(매장별 매출·청구금액, 없으면 카테고리 합)
    cat만 → 그 카테고리 월별 매출(실매출액) · 둘 다 → 그 달 그 카테고리 일자별. 카드 맨 아래 패널에 막대그래프로 표시. */
 let GOALS_DRILL = {};
+// build 96: 매장 바로가기 바 — 매장명 버튼(달성률 색)을 누르면 그 매장 카드로 스크롤 + 잠깐 강조. 화면 위에 붙어 따라다님(sticky).
+function goalsStoreNavHtml(rows, scopeId){
+  if(!rows || !rows.length) return "";
+  const col = p => p>=100 ? "var(--green)" : p>=80 ? "var(--info)" : p>=65 ? "var(--amber)" : "var(--red)";
+  const sorted = rows.slice().sort((a,b)=> String(a.label||a.store).localeCompare(String(b.label||b.store), "ko"));
+  return `<div class="g-store-nav-wrap"><div class="g-store-nav" data-nav-scope="${scopeId}">
+    <span class="g-store-nav-t">매장 바로가기</span>
+    ${sorted.map(r=>`<button class="g-store-nav-b" data-goto-store="${escHtml(r.store)}" title="${escHtml(r.label||r.store)} · 달성률 ${r.pct.toFixed(1)}%"><span class="nm">${escHtml(r.store)}</span><span class="pc" style="color:${col(r.pct)}">${r.pct.toFixed(0)}%</span></button>`).join("")}
+  </div></div>`;
+}
+try{
+  if(typeof document!=="undefined") document.addEventListener("click", e=>{
+    const b = e.target && e.target.closest ? e.target.closest("[data-goto-store]") : null;
+    if(!b) return;
+    const nav = b.closest(".g-store-nav"); const wrapEl = nav ? nav.closest(".g-store-nav-wrap") : null; const scope = wrapEl ? wrapEl.parentElement : document;
+    const card = [...scope.querySelectorAll(".g-store-card[data-store-anchor]")].find(c=> c.dataset.storeAnchor===b.dataset.gotoStore && c.offsetParent!==null);
+    if(!card) return;
+    const navH = nav ? nav.offsetHeight + 14 : 12;
+    window.scrollTo({ top: window.scrollY + card.getBoundingClientRect().top - navH, behavior:"smooth" });
+    card.classList.remove("g-flash"); void card.offsetWidth; card.classList.add("g-flash");
+    if(nav) nav.querySelectorAll(".g-store-nav-b").forEach(x=> x.classList.toggle("on", x===b));
+  });
+  // 상위 카드가 overflow:hidden이라 CSS sticky가 안 먹는다 → 스크롤 시 JS로 화면 위에 고정
+  const pinNavs = ()=>{
+    document.querySelectorAll(".g-store-nav-wrap").forEach(w=>{
+      const nav = w.firstElementChild; if(!nav) return;
+      if(w.offsetParent===null){ nav.classList.remove("pinned"); return; }
+      const r = w.getBoundingClientRect(); const host = w.parentElement.getBoundingClientRect();
+      const pin = r.top < 0 && host.bottom > nav.offsetHeight + 40;
+      if(pin){ w.style.height = nav.offsetHeight + "px"; nav.classList.add("pinned"); nav.style.left = r.left + "px"; nav.style.width = r.width + "px"; }
+      else if(nav.classList.contains("pinned")){ nav.classList.remove("pinned"); nav.style.left = ""; nav.style.width = ""; w.style.height = ""; }
+    });
+  };
+  if(typeof window!=="undefined"){ window.addEventListener("scroll", pinNavs, {passive:true}); window.addEventListener("resize", pinNavs); }
+}catch(_){}
 function goalsDrillSeries(store, month, cat){
   const members = new Set(storeGroupMembers(store));
   const inGroup = k => members.has(k) || members.has(storeSalesGroup(resolveStoreName(k)));
@@ -8779,7 +8829,7 @@ function goalsRender06(ctx){
     {key:"t4", title:`④ 목표 달성 우수군 (${cm} 달성률 95% 이상)`,               test:r=>r.pct>=95},
   ];
   const won = v => Math.round(v).toLocaleString();
-  return tiers.map(t=>{
+  return goalsStoreNavHtml(ctx.rows, "06") + tiers.map(t=>{
     const list = ctx.rows.filter(t.test);
     if(!list.length) return `<div class="g-tier-group"><div class="g-tier-hd ${t.key}">${escHtml(t.title)}<span class="cnt">해당 매장 없음</span></div></div>`;
     const cards = list.map(r=>{
@@ -8807,7 +8857,7 @@ function goalsRender06(ctx){
         ? `<span class="g-store-tag ${r.fresh?'':'off'}" title="식품 운영 매장 현황(20260707 기준)">${escHtml(r.freshLabel)}</span>` : "";
       const stateTag = r.stateBadge ? `<span class="g-store-tag warn">${escHtml(r.stateBadge)}</span>` : "";
       const memberTag = r.members.length>1 ? `<span class="g-store-tag">${escHtml(r.members.slice(1).join("·"))} 합산</span>` : "";
-      return `<div class="g-store-card v2 ${tier.cls}">
+      return `<div class="g-store-card v2 ${tier.cls}" data-store-anchor="${escHtml(r.store)}">
         <div class="g-store-hd">
           <span class="g-store-name">${escHtml(r.label)}
             <span class="g-store-rank">월 목표 ${(r.target/100000000).toFixed(2)}억 · ${ctx.rows.length}개 중 ${r.rank}위(낮은 순)</span>
@@ -9258,7 +9308,7 @@ function goalsRender09Body(ctx){
       ? `<span class="g-store-tag ${r.fresh?'':'off'}" title="식품 운영 매장 현황(20260707 기준)">${escHtml(r.freshLabel)}</span>` : "";
     const stateTag = r.stateBadge ? `<span class="g-store-tag warn">${escHtml(r.stateBadge)}</span>` : "";
     const memberTag = r.members.length>1 ? `<span class="g-store-tag">${escHtml(r.members.slice(1).join("·"))} 합산</span>` : "";
-    return `<div class="g-store-card v2 ${tier.cls}">
+    return `<div class="g-store-card v2 ${tier.cls}" data-store-anchor="${escHtml(r.store)}">
       <div class="g-store-hd">
         <span class="g-store-name">${escHtml(r.label)}
           <span class="g-store-rank">월 목표 ${(r.target/100000000).toFixed(2)}억 · 전사 ${ctx.rows.length}개 매장 중 ${r.rank}위(낮은 순)</span>
@@ -9285,7 +9335,7 @@ function goalsRender09Body(ctx){
       </details>
     </div>`;
   }).join("");
-  return kpi + missNoteAll + `<div class="g-store-list" style="margin-top:14px">${cards}</div>`;
+  return kpi + missNoteAll + goalsStoreNavHtml(ctx.rows, "01") + `<div class="g-store-list" style="margin-top:14px">${cards}</div>`;
 }
 
 /* ---------------- 10 공급계획(PLT) 대비 진단 ---------------- */
