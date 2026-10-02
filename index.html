@@ -626,7 +626,34 @@
   .g-month-cell:last-child .gm-tip,.g-month-cell:nth-last-child(2) .gm-tip{left:auto;right:0;transform:none;}
   .gm-tip .t-hd{font-size:11.5px;font-weight:700;color:var(--amber);margin-bottom:5px;}
   .gm-tip .t-row{display:flex;justify-content:space-between;gap:12px;font-size:11.5px;color:var(--muted);line-height:1.65;}
-  .gm-tip .t-row b{font-family:"JetBrains Mono";color:var(--text);font-weight:700;white-space:nowrap;}
+  .gm-tip .t-row span{white-space:nowrap;flex:0 0 auto;}
+  .gm-tip .t-row b{font-family:"JetBrains Mono";color:var(--text);font-weight:700;white-space:nowrap;text-align:right;}
+  .gm-tip .t-note{font-size:10px;color:var(--muted2);margin-top:3px;white-space:normal;}
+  /* build 93: 드릴다운 패널 */
+  .g-drill{margin-top:4px;}
+  .g-drill-hint{font-size:11px;color:var(--muted2);padding:8px 10px;border:1px dashed var(--line-soft);border-radius:8px;}
+  .g-drill-hint b{color:var(--pale);font-weight:600;}
+  .g-drill-box{border:1px solid rgba(245,178,17,.35);border-radius:10px;padding:10px 12px;background:var(--ink);}
+  .g-drill-hd{display:flex;align-items:center;gap:8px;}
+  .g-drill-chips{display:flex;gap:4px;flex:1;}
+  .g-drill-chips .chip{font-size:10.5px;border:1px solid var(--amber);color:var(--amber);border-radius:10px;padding:0 7px;}
+  .g-drill-x{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:6px;cursor:pointer;padding:1px 7px;font-size:12px;}
+  .g-drill-x:hover{color:var(--text);border-color:var(--amber);}
+  .g-drill-sum{font-size:11px;color:var(--muted2);margin:6px 0 4px;line-height:1.6;}
+  .g-drill-sum b{color:var(--text);font-family:"JetBrains Mono";}
+  .g-drill-sum .basis{margin-left:6px;opacity:.8;}
+  .g-drill-svg{width:100%;height:auto;display:block;}
+  .g-drill-svg rect{fill:var(--info);opacity:.85;}
+  .g-drill-svg rect.mx{fill:var(--amber);opacity:1;}
+  .g-drill-svg rect.dn{fill:var(--line-soft);}
+  .g-drill-svg .db:hover rect{opacity:1;fill:#7fb8f0;}
+  .g-drill-svg text{font-family:"JetBrains Mono";font-size:9px;fill:var(--muted2);}
+  .g-drill-svg text.dv{fill:var(--pale);}
+  .g-drill-svg text.dv.mx{fill:var(--amber);font-weight:700;}
+  .g-drill-foot{font-size:10px;color:var(--muted2);margin-top:2px;}
+  .g-store-catcol .share-row{cursor:pointer;border-radius:6px;}
+  .g-store-catcol .share-row:hover{background:var(--panel2);}
+  .g-store-catcol .share-row.sel{background:var(--raise);box-shadow:inset 0 0 0 1px var(--amber);}
   .gm-tip .t-warn{font-size:10.5px;color:var(--amber);margin-top:4px;}
   .g-month-cell .mm{font-size:9px;color:var(--muted2);font-family:"Oswald";}
   .g-month-cell .mv{font-family:"JetBrains Mono";font-size:10.5px;font-weight:700;margin-top:2px;color:var(--text);}
@@ -898,7 +925,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 92 · 2026-10-02</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 93 · 2026-10-02</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -7405,6 +7432,7 @@ function wireGoalsCatMonth(){
   if(_goalsCatMonthWired) return; _goalsCatMonthWired = true;
   const apply = (store, ym, root)=>{
     GOALS_CAT_MONTH[store] = ym;
+    { const d = GOALS_DRILL[store] || (GOALS_DRILL[store] = {month:null, cat:null}); d.month = (ym && ym!=="__scope__") ? ym : null; }
     document.querySelectorAll('.g-store-catcol').forEach(col=>{
       if(col.dataset.catcolStore!==store) return;
       const ctxSel = col.querySelector('select.g-catmonth'); if(ctxSel && ctxSel.value!==ym){ if([...ctxSel.options].some(o=>o.value===ym)) ctxSel.value = ym; }
@@ -7418,6 +7446,7 @@ function wireGoalsCatMonth(){
       if(c.dataset.store!==store) return;
       c.classList.toggle('sel', c.dataset.month===ym);
     });
+    goalsDrillRender(store);
   };
   document.addEventListener('change', e=>{
     const sel = e.target && e.target.closest ? e.target.closest('select.g-catmonth') : null;
@@ -7428,6 +7457,114 @@ function wireGoalsCatMonth(){
     if(!cell) return;
     const store = cell.dataset.store, ym = cell.dataset.month;
     apply(store, GOALS_CAT_MONTH[store]===ym ? "__scope__" : ym);   // 같은 달을 다시 누르면 분석 기간으로 복귀
+  });
+  // build 93: 카테고리 줄 클릭 → 그 카테고리 매출 추이(월 선택 중이면 그 달 일자별, 아니면 월별)
+  document.addEventListener('click', e=>{
+    const row = e.target && e.target.closest ? e.target.closest('.g-store-catcol .share-row') : null;
+    if(!row) return;
+    const col = row.closest('.g-store-catcol'); const store = col && col.dataset.catcolStore;
+    const nm = row.querySelector('.share-name'); if(!store || !nm) return;
+    const cat = nm.textContent.trim();
+    const d = GOALS_DRILL[store] || (GOALS_DRILL[store] = {month:null, cat:null});
+    d.cat = d.cat===cat ? null : cat;
+    goalsDrillRender(store);
+  });
+  document.addEventListener('click', e=>{
+    const x = e.target && e.target.closest ? e.target.closest('[data-drill-close]') : null;
+    if(!x) return;
+    const store = x.dataset.drillClose;
+    GOALS_DRILL[store] = {month:null, cat:null};
+    apply(store, "__scope__");
+  });
+}
+/* build 93: 매장 카드 드릴다운 — 사용자 요청 "달 클릭 → 일자별 매출 추이 / 카테고리 클릭 → 월별 매출 추이 /
+   (카테고리 고른 채) 달 클릭 → 그 카테고리의 일자별 추이".
+   상태 GOALS_DRILL[매장] = {month, cat}. month만 → 그 달 일자별 총매출(매장별 매출·청구금액, 없으면 카테고리 합)
+   cat만 → 그 카테고리 월별 매출(실매출액) · 둘 다 → 그 달 그 카테고리 일자별. 카드 맨 아래 패널에 막대그래프로 표시. */
+let GOALS_DRILL = {};
+function goalsDrillSeries(store, month, cat){
+  const members = new Set(storeGroupMembers(store));
+  const inGroup = k => members.has(k) || members.has(storeSalesGroup(resolveStoreName(k)));
+  const catAmt = (h)=>{ const g = goalsGroupCat(mergeByStoreCat([h]), store); return cat ? ((g[cat]||{}).amount||0) : Object.values(g).reduce((a,v)=>a+(v.amount||0),0); };
+  if(month){
+    const dim = goalsDaysInMonth(month);
+    const pts = [];
+    if(!cat){
+      const snaps = STORE_SALES_HISTORY.filter(h=> h && h.date && h.date.slice(0,7)===month);
+      if(snaps.length){
+        for(let d=1; d<=dim; d++){
+          const ds = `${month}-${String(d).padStart(2,'0')}`; const h = snaps.find(x=>x.date===ds);
+          if(!h){ pts.push({label:String(d), value:null, ds}); continue; }
+          let v=0, c=0; Object.keys(h.byStore||{}).forEach(k=>{ if(inGroup(k)) v += h.byStore[k]||0; });
+          if(h.cnt) Object.keys(h.cnt).forEach(k=>{ if(inGroup(k)) c += h.cnt[k]||0; });
+          pts.push({label:String(d), value:v, cnt: h.cnt ? c : null, ds});
+        }
+        return { pts, basis:"매장별 매출(청구금액)", unit:"일" };
+      }
+    }
+    const hs = SALES_HISTORY.filter(h=> h && h.date && h.date.slice(0,7)===month);
+    for(let d=1; d<=dim; d++){
+      const ds = `${month}-${String(d).padStart(2,'0')}`; const h = hs.find(x=>x.date===ds);
+      pts.push({label:String(d), value: h ? catAmt(h) : null, ds});
+    }
+    return { pts, basis: cat ? `카테고리별 매출(실매출액) · ${cat}` : "카테고리별 매출(실매출액) 합계", unit:"일" };
+  }
+  const months = Array.from(new Set(SALES_HISTORY.map(h=>h && h.date ? h.date.slice(0,7) : null).filter(Boolean))).sort();
+  const pts = months.map(m=>{
+    const hs = SALES_HISTORY.filter(h=> h.date.slice(0,7)===m);
+    return { label:`${+m.slice(5)}월`, value: hs.reduce((a,h)=>a+catAmt(h),0), ds:m, days: hs.length };
+  });
+  return { pts, basis:`카테고리별 매출(실매출액) · ${cat}`, unit:"월" };
+}
+function goalsDrillBarsSVG(pts){
+  const W = 640, H = 170, padL = 6, padR = 6, padT = 18, padB = 22;
+  const vals = pts.map(p=>p.value).filter(v=>v!=null);
+  const max = Math.max(1, ...vals);
+  const n = pts.length, slot = (W-padL-padR)/n, bw = Math.max(3, Math.min(42, slot*0.68));
+  const short = v => v>=1e8 ? (v/1e8).toFixed(2)+"억" : v>=1e4 ? Math.round(v/1e4).toLocaleString()+"만" : Math.round(v).toLocaleString();
+  const vMax = vals.length ? Math.max(...vals) : null;
+  const showEvery = n<=16 ? 1 : 5;
+  const bars = pts.map((p,i)=>{
+    const x = padL + slot*i + (slot-bw)/2;
+    const lblShow = showEvery===1 || i===0 || (i+1)%showEvery===0 || i===n-1;
+    const lbl = lblShow ? `<text x="${(x+bw/2).toFixed(1)}" y="${H-6}" text-anchor="middle" class="dl">${escHtml(p.label)}</text>` : "";
+    if(p.value==null) return `<g><rect x="${x.toFixed(1)}" y="${H-padB-2}" width="${bw.toFixed(1)}" height="2" class="dn"><title>${escHtml(p.ds||p.label)} 데이터 없음</title></rect>${lbl}</g>`;
+    const h = Math.max(2, (p.value/max)*(H-padT-padB));
+    const y = H-padB-h;
+    const isMax = p.value===vMax && vMax>0;
+    const tip = `${p.ds||p.label} · ${Math.round(p.value).toLocaleString()}원${p.cnt!=null?` · ${p.cnt.toLocaleString()}건 · 객단가 ${p.cnt>0?Math.round(p.value/p.cnt).toLocaleString():'-'}원`:''}${p.days!=null?` · 데이터 ${p.days}일`:''}`;
+    const top = (n<=16 || isMax) ? `<text x="${(x+bw/2).toFixed(1)}" y="${(y-4).toFixed(1)}" text-anchor="middle" class="dv${isMax?' mx':''}">${short(p.value)}</text>` : "";
+    return `<g class="db"><rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" class="${isMax?'mx':''}"><title>${escHtml(tip)}</title></rect>${top}${lbl}</g>`;
+  }).join("");
+  return `<svg class="g-drill-svg" viewBox="0 0 ${W} ${H}" role="img">${bars}</svg>`;
+}
+function goalsDrillHtml(store){
+  const d = GOALS_DRILL[store];
+  if(!d || (!d.month && !d.cat)) return `<div class="g-drill-hint">달(막대)을 누르면 <b>일자별 매출 추이</b>, 카테고리 줄을 누르면 <b>월별 매출 추이</b>, 카테고리를 고른 채 달을 누르면 <b>그 카테고리의 일자별 추이</b>가 여기에 나옵니다.</div>`;
+  const S = goalsDrillSeries(store, d.month, d.cat);
+  const vals = S.pts.map(p=>p.value).filter(v=>v!=null && v>0);
+  const tot = vals.reduce((a,v)=>a+v,0), avg = vals.length ? tot/vals.length : 0;
+  const mxV = vals.length ? Math.max(...vals) : null;
+  const mx = mxV!=null ? S.pts.find(p=>p.value===mxV) : null;
+  const title = d.month && d.cat ? `${+d.month.slice(5)}월 · ${d.cat} — 일자별 매출 추이`
+              : d.month ? `${+d.month.slice(5)}월 — 일자별 매출 추이`
+              : `${d.cat} — 월별 매출 추이`;
+  const cntTot = S.pts.reduce((a,p)=>a+(p.cnt||0),0);
+  return `<div class="g-drill-box">
+    <div class="g-drill-hd"><span class="g-sec-title" style="margin:0">${escHtml(title)}</span>
+      <span class="g-drill-chips">${d.month?`<span class="chip">${+d.month.slice(5)}월</span>`:''}${d.cat?`<span class="chip">${escHtml(d.cat)}</span>`:''}</span>
+      <button class="g-drill-x" data-drill-close="${escHtml(store)}" title="닫기">✕</button></div>
+    <div class="g-drill-sum">합계 <b>${Math.round(tot).toLocaleString()}원</b> · ${S.unit} 평균 <b>${Math.round(avg).toLocaleString()}원</b>${mx?` · 최고 <b>${escHtml(mx.ds||mx.label)}</b> ${Math.round(mx.value).toLocaleString()}원`:''}${cntTot?` · 매출건수 <b>${cntTot.toLocaleString()}건</b>`:''} <span class="basis">기준: ${escHtml(S.basis)}</span></div>
+    ${vals.length ? goalsDrillBarsSVG(S.pts) : `<div class="g-drill-hint">이 조건의 매출 데이터가 없습니다.</div>`}
+    <div class="g-drill-foot">막대에 마우스를 올리면 금액${d.month&&!d.cat?'·건수·객단가':''}가 보입니다 · 같은 달/카테고리를 다시 누르면 해제</div>
+  </div>`;
+}
+function goalsDrillRender(store){
+  document.querySelectorAll('.g-drill[data-drill-store]').forEach(el=>{ if(el.dataset.drillStore===store) el.innerHTML = goalsDrillHtml(store); });
+  const d = GOALS_DRILL[store] || {};
+  document.querySelectorAll('.g-store-catcol').forEach(col=>{
+    if(col.dataset.catcolStore!==store) return;
+    col.querySelectorAll('.share-row').forEach(r=>{ const nm=r.querySelector('.share-name'); r.classList.toggle('sel', !!(d.cat && nm && nm.textContent.trim()===d.cat)); });
   });
 }
 try{ if(typeof document!=="undefined") wireGoalsCatMonth(); }catch(_){}
@@ -7459,7 +7596,7 @@ function goalsMonthStripHtml(hist, curMonth, store){
     const isCur = p.month===curMonth;
     const gap = (typeof GOALS_SALES_GAPS!=="undefined" && GOALS_SALES_GAPS) ? GOALS_SALES_GAPS[p.month] : null; // build 67
     let rc = null; try{ rc = store ? goalsMonthReceiptCount(store, p.month) : null; }catch(_){ rc = null; }
-    const cntTxt = rc ? `${rc.n.toLocaleString()}건${rc.partial?` (${rc.daysWith}/${rc.days}일분만 집계)`:''}` : "집계 전 — 폴더 불러오기를 한 번 다시 하면 채워집니다";
+    const cntTxt = rc ? `${rc.n.toLocaleString()}건${rc.partial?` (${rc.daysWith}/${rc.days}일분)`:''}` : "집계 전*";
     const avgTxt = rc && rc.n>0 && !rc.partial ? `${Math.round(p.actual/rc.n).toLocaleString()}원` : "-";
     const tip = `<div class="gm-tip">
         <div class="t-hd">${p.month.replace('-','년 ')}월${isCur?' (진행중 · 일할 환산)':''}</div>
@@ -7468,6 +7605,7 @@ function goalsMonthStripHtml(hist, curMonth, store){
         <div class="t-row"><span>달성률</span><b style="color:${color}">${p.pct.toFixed(1)}%</b></div>
         <div class="t-row"><span>매출건수</span><b>${cntTxt}</b></div>
         <div class="t-row"><span>객단가</span><b>${avgTxt}</b></div>
+        ${rc?'':'<div class="t-note">* 폴더 불러오기를 한 번 다시 하면 채워집니다</div>'}
         ${gap?`<div class="t-warn">⚠ 매출 결측: ${escHtml(salesGapText(gap))} (달성률 과소 가능)</div>`:''}
       </div>`;
     const isSel = store && typeof GOALS_CAT_MONTH!=="undefined" && GOALS_CAT_MONTH[store]===p.month;
@@ -8672,6 +8810,7 @@ function goalsRender06(ctx){
           ${catVisual}
         </div>
         ${goalsMonthStripHtml(r.hist, ctx.curMonth, r.store)}
+        <div class="g-drill" data-drill-store="${escHtml(r.store)}">${goalsDrillHtml(r.store)}</div>
         <details class="g-store-more">
           <summary>카테고리 구성비 전체 — 전사 평균 대비 격차 ${r.diag?`(${r.diag.diffs.length}개)`:""}</summary>
           ${goalsDiagTableHtml(r.diag)}
@@ -9122,6 +9261,7 @@ function goalsRender09Body(ctx){
         ${catVisual}
       </div>
       ${goalsMonthStripHtml(r.hist, ctx.curMonth, r.store)}
+      <div class="g-drill" data-drill-store="${escHtml(r.store)}">${goalsDrillHtml(r.store)}</div>
       <details class="g-store-more">
         <summary>카테고리 구성비 전체 — 전사 평균 대비 격차 ${r.diag?`(${r.diag.diffs.length}개)`:""}</summary>
         ${goalsDiagTableHtml(r.diag)}
