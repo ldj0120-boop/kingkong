@@ -605,8 +605,29 @@
   .g-diag-delta.neg{color:var(--red);}
   .g-month-wrap{margin-top:10px;padding-top:10px;border-top:1px solid var(--line-soft);}
   .g-month-title{font-size:10.5px;color:var(--muted2);font-family:"Oswald";letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;}
-  .g-month-strip{display:flex;gap:5px;overflow-x:auto;padding-bottom:2px;}
-  .g-month-cell{flex:0 0 auto;min-width:42px;text-align:center;}
+  .g-month-strip{display:grid;gap:6px;padding-bottom:2px;}
+  .g-month-cell{min-width:0;text-align:center;position:relative;cursor:default;border-radius:6px;padding:4px 2px 5px;transition:background .12s;}
+  .g-month-cell:hover,.g-month-cell:focus{background:var(--panel2);outline:none;}
+  /* build 88: 월별 달성률 막대 — 카드 전체 폭 + 말풍선 */
+  .g-month-wide{margin-top:12px;padding:10px 12px 8px;border:1px solid var(--line-soft);border-radius:10px;background:rgba(255,255,255,.015);}
+  .g-month-wide .g-month-title{font-size:12px;color:var(--text);font-weight:700;margin-bottom:8px;}
+  .g-month-wide .g-month-meta{font-weight:400;font-size:10.5px;color:var(--muted2);margin-left:6px;}
+  .g-month-wide .g-month-meta b{color:var(--pale);}
+  .g-month-wide .g-month-cell .mm{font-size:10.5px;}
+  .g-month-wide .g-month-cell .mb{height:64px;border-radius:4px;}
+  .g-month-wide .g-month-cell .mb-fill{border-radius:4px 4px 2px 2px;}
+  .g-month-wide .g-month-cell .mv{font-size:12px;}
+  .g-month-cell .ma{font-family:"JetBrains Mono";font-size:9.5px;color:var(--muted2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .g-month-cell .mb-over{position:absolute;top:1px;left:0;right:0;font-size:8px;color:#fff;opacity:.85;}
+  .gm-tip{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);z-index:30;min-width:210px;
+    background:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;box-shadow:0 8px 24px rgba(0,0,0,.45);text-align:left;pointer-events:none;}
+  .g-month-cell:hover .gm-tip,.g-month-cell:focus .gm-tip{display:block;}
+  .g-month-cell:first-child .gm-tip,.g-month-cell:nth-child(2) .gm-tip{left:0;transform:none;}
+  .g-month-cell:last-child .gm-tip,.g-month-cell:nth-last-child(2) .gm-tip{left:auto;right:0;transform:none;}
+  .gm-tip .t-hd{font-size:11.5px;font-weight:700;color:var(--amber);margin-bottom:5px;}
+  .gm-tip .t-row{display:flex;justify-content:space-between;gap:12px;font-size:11.5px;color:var(--muted);line-height:1.65;}
+  .gm-tip .t-row b{font-family:"JetBrains Mono";color:var(--text);font-weight:700;white-space:nowrap;}
+  .gm-tip .t-warn{font-size:10.5px;color:var(--amber);margin-top:4px;}
   .g-month-cell .mm{font-size:9px;color:var(--muted2);font-family:"Oswald";}
   .g-month-cell .mv{font-family:"JetBrains Mono";font-size:10.5px;font-weight:700;margin-top:2px;color:var(--text);}
   .g-month-cell .mb{width:100%;height:30px;background:var(--line-soft);border-radius:2px;margin-top:3px;position:relative;overflow:hidden;}
@@ -786,7 +807,12 @@
   @media (max-width:900px){ .g-store-split{grid-template-columns:1fr;} }
   .g-store-leftcol{min-width:0;display:flex;flex-direction:column;gap:8px;}
   .g-store-catcol{min-width:0;background:var(--ink);border:1px solid var(--line-soft);border-radius:10px;padding:10px;}
-  .g-store-catt{font-size:11px;color:var(--muted2);font-family:"Oswald";letter-spacing:.03em;margin-bottom:6px;}
+  .g-store-catt{font-size:11px;color:var(--muted2);font-family:"Oswald";letter-spacing:.03em;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+  .g-store-catt .g-catmonth{font-size:11.5px;padding:3px 6px;max-width:170px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;font-family:inherit;}
+  .g-store-catlbl{font-size:11px;color:var(--amber);text-align:center;margin-bottom:4px;font-family:"JetBrains Mono";}
+  .g-store-catempty{font-size:12px;color:var(--muted2);text-align:center;padding:30px 6px;}
+  .g-month-cell[data-store]{cursor:pointer;}
+  .g-month-cell.sel{background:var(--raise);box-shadow:inset 0 0 0 1px var(--amber);}
   .g-store-catcol .pie-donut-only{display:flex;justify-content:center;}
   .g-store-catbars{margin-top:8px;}
   .g-store-more{margin-top:2px;border-top:1px dashed var(--line-soft);padding-top:6px;}
@@ -856,7 +882,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 87 · 2026-10-02</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 89 · 2026-10-02</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -5949,13 +5975,14 @@ function handleHQFile(file){
    금액은 "청구금액" 열(없으면 G열=7번째)을 매장별로 합산한다. 이 값이 매장별 매출 금액의 기준이다. */
 function parseStoreSalesWorkbook(wb){
   const byStore = {}; const unmatched = new Set(); let total = 0; let usedColLabel = ""; let noStoreTotal = 0;
-  const byDate = {}; // 영업일자별: {date: {byStore:{}, noStore:0}}
+  const byDate = {}; // 영업일자별: {date: {byStore:{}, noStore:0, cnt:{}}}
+  const cntByStore = {}; // build 88: 매출건수(전표 1행 = 1건, 청구금액>0 행만). "전표건수" 열이 있으면 그 값을 쓴다.
   const norm = x => String(x==null?"":x).replace(/\s+/g,"");
   const num = v => { const n = parseFloat(String(v==null?"":v).replace(/[,\s₩원]/g,"")); return isNaN(n)?0:n; };
   wb.SheetNames.forEach(sn=>{
     const aoa = sheetAoA(wb, sn);
     if(!aoa.length) return;
-    let hr=-1, colBill=-1, colStore=-1, colDate=-1;
+    let hr=-1, colBill=-1, colStore=-1, colDate=-1, colCnt=-1;
     for(let r=0;r<Math.min(aoa.length,8);r++){
       const row = aoa[r]||[];
       const bill = row.findIndex(c=>/청구금액/.test(norm(c)));
@@ -5963,6 +5990,7 @@ function parseStoreSalesWorkbook(wb){
       if(bill>=0 || store>=0){
         hr=r; colBill = bill>=0?bill:6; colStore = store>=0?store:-1;
         colDate = row.findIndex(c=> /영업일자|판매일자|매출일자|일자/.test(norm(c)));
+        colCnt = row.findIndex(c=> /전표건수|영수증건수|거래건수/.test(norm(c)));
         usedColLabel = bill>=0?String(row[bill]).trim():"G열(청구금액)"; break;
       }
     }
@@ -5976,17 +6004,19 @@ function parseStoreSalesWorkbook(wb){
       if(colStore>=0){ store = resolveSalesStoreName(row[colStore]); }
       else { for(const c of row){ const cand = resolveSalesStoreName(c); if(STORES.includes(cand)){ store=cand; break; } } }
       const matched = store && STORES.includes(store);
-      if(dstr){ if(!byDate[dstr]) byDate[dstr]={byStore:{}, noStore:0}; }
+      if(dstr){ if(!byDate[dstr]) byDate[dstr]={byStore:{}, noStore:0, cnt:{}}; }
+      const cntAdd = colCnt>=0 ? num(row[colCnt]) : (bill>0 ? 1 : 0);
       if(!matched){
         if(colStore<0){ noStoreTotal += bill; if(dstr) byDate[dstr].noStore += bill; }
         else if(store) unmatched.add(store);
         continue;
       }
       byStore[store] = (byStore[store]||0) + bill; total += bill;
-      if(dstr) byDate[dstr].byStore[store] = (byDate[dstr].byStore[store]||0) + bill;
+      cntByStore[store] = (cntByStore[store]||0) + cntAdd;
+      if(dstr){ byDate[dstr].byStore[store] = (byDate[dstr].byStore[store]||0) + bill; byDate[dstr].cnt[store] = (byDate[dstr].cnt[store]||0) + cntAdd; }
     }
   });
-  return { byStore, total, noStoreTotal, byDate, unmatched: Array.from(unmatched), usedColLabel };
+  return { byStore, total, noStoreTotal, byDate, cntByStore, unmatched: Array.from(unmatched), usedColLabel };
 }
 async function handleStoreSalesFiles(files){
   let list = Array.from(files||[]).filter(Boolean);
@@ -6016,12 +6046,12 @@ async function handleStoreSalesFiles(files){
         dateKeys.forEach(dk=>{
           const bd = parsed.byDate[dk];
           const t = Object.values(bd.byStore).reduce((a,v)=>a+v,0) + (bd.noStore||0);
-          const snap = { date: dk, byStore: bd.byStore, total: t, noStore: bd.noStore||0, file: file.name };
+          const snap = { date: dk, byStore: bd.byStore, cnt: bd.cnt||{}, total: t, noStore: bd.noStore||0, file: file.name };
           const idx = STORE_SALES_HISTORY.findIndex(h=>h.date===dk);
           if(idx>=0) STORE_SALES_HISTORY[idx]=snap; else STORE_SALES_HISTORY.push(snap);
         });
       } else {
-        const snap = { date, byStore: parsed.byStore, total: parsed.total, noStore: parsed.noStoreTotal||0, file: file.name };
+        const snap = { date, byStore: parsed.byStore, cnt: parsed.cntByStore||{}, total: parsed.total, noStore: parsed.noStoreTotal||0, file: file.name };
         const idx = STORE_SALES_HISTORY.findIndex(h=>h.date===date);
         if(idx>=0) STORE_SALES_HISTORY[idx]=snap; else STORE_SALES_HISTORY.push(snap);
       }
@@ -7251,27 +7281,126 @@ function goalsDiagTableHtml(diag){
     ${rows}
   </div>`;
 }
+// build 89: 매장 카드의 "카테고리 구성(실매출액)"을 매장마다 월을 골라 볼 수 있게 한다.
+//   기본값 = 위 "분석 기간"(예전과 동일). 드롭다운에서 달을 고르거나, 아래 월별 달성률 막대를 클릭하면
+//   그 매장 카드만 그 달 카테고리 점유율로 바뀐다(다른 매장·다른 화면은 그대로). 선택은 이 브라우저 세션 동안 유지.
+let GOALS_CAT_MONTH = {};   // {대표매장: "YYYY-MM" | "__scope__"}
+function goalsStoreCatData(store, ym){
+  const sales = ym && ym!=="__scope__" ? SALES_HISTORY.filter(h=> h && h.date && h.date.slice(0,7)===ym) : null;
+  if(sales && !sales.length) return null;
+  const merged = mergeByStoreCat(sales || (goalsBuildContext._lastScoped || SALES_HISTORY));
+  const storeCat = goalsGroupCat(merged, store);
+  const chartData = Object.keys(storeCat).map(c=>({label:c, value:storeCat[c].amount, qty:storeCat[c].qty}))
+    .filter(d=> d.value>0).sort((a,b)=>b.value-a.value);
+  return chartData.length ? chartData : null;
+}
+function goalsCatColInner(store, ym, scopeData, scopeLabel){
+  const data = (!ym || ym==="__scope__") ? scopeData : goalsStoreCatData(store, ym);
+  const lbl = (!ym || ym==="__scope__") ? scopeLabel : `${+ym.slice(5)}월 (${ym.slice(0,4)})`;
+  if(!data || !data.length) return `<div class="g-store-catempty">${escHtml(lbl)} 카테고리 매출 데이터 없음</div>`;
+  const tot = data.reduce((a,d)=>a+d.value,0);
+  return `<div class="g-store-catlbl">${escHtml(lbl)} · 합계 ${Math.round(tot).toLocaleString()}원</div>
+    <div class="pie-donut-only">${buildDonutSVG(data, 124)}</div>
+    <div class="g-store-catbars">${buildSharePercentBars(data.slice(0,8), {compact:true})}</div>`;
+}
+function goalsCatColHtml(r, ctx){
+  const store = r.store;
+  const scopeData = (r.diag && r.diag.chartData && r.diag.chartData.length) ? r.diag.chartData : null;
+  const have = new Set(SALES_HISTORY.map(h=> h && h.date ? h.date.slice(0,7) : null));
+  const months = ctx.months.filter(m=> have.has(m));
+  let sel = GOALS_CAT_MONTH[store] || "__scope__";
+  if(sel!=="__scope__" && !months.includes(sel)) sel = "__scope__";
+  const opts = `<option value="__scope__"${sel==="__scope__"?' selected':''}>분석 기간 (${escHtml(ctx.scopeLabel)})</option>`
+    + months.slice().reverse().map(m=>`<option value="${m}"${m===sel?' selected':''}>${+m.slice(5)}월 (${m.slice(0,4)})</option>`).join("");
+  return `<div class="g-store-catcol" data-catcol-store="${escHtml(store)}" data-scope-label="${escHtml(ctx.scopeLabel)}">
+    <div class="g-store-catt"><span>카테고리 구성 (실매출액)</span>
+      <select class="g-catmonth" data-catmonth-store="${escHtml(store)}" title="이 매장의 카테고리 점유율을 볼 달">${opts}</select></div>
+    <div class="g-store-catbody">${goalsCatColInner(store, sel, scopeData, ctx.scopeLabel)}</div>
+  </div>`;
+}
+// 드롭다운 변경 · 월별 막대 클릭 → 그 매장 카드의 카테고리 구성만 다시 그린다(이벤트 위임, 한 번만 연결).
+let _goalsCatMonthWired = false;
+function wireGoalsCatMonth(){
+  if(_goalsCatMonthWired) return; _goalsCatMonthWired = true;
+  const apply = (store, ym, root)=>{
+    GOALS_CAT_MONTH[store] = ym;
+    document.querySelectorAll('.g-store-catcol').forEach(col=>{
+      if(col.dataset.catcolStore!==store) return;
+      const ctxSel = col.querySelector('select.g-catmonth'); if(ctxSel && ctxSel.value!==ym){ if([...ctxSel.options].some(o=>o.value===ym)) ctxSel.value = ym; }
+      // 분석 기간 데이터는 렌더 때 계산된 것을 다시 계산(같은 함수)해 쓴다
+      let scopeData = null;
+      try{ const ctx = goalsBuildContext(); const row = ctx && ctx.rows ? ctx.rows.find(x=>x.store===store) : null; scopeData = row && row.diag ? row.diag.chartData : null; }catch(_){}
+      const body = col.querySelector('.g-store-catbody');
+      if(body) body.innerHTML = goalsCatColInner(store, ym, scopeData, col.dataset.scopeLabel||"분석 기간");
+    });
+    document.querySelectorAll(`.g-month-cell[data-store]`).forEach(c=>{
+      if(c.dataset.store!==store) return;
+      c.classList.toggle('sel', c.dataset.month===ym);
+    });
+  };
+  document.addEventListener('change', e=>{
+    const sel = e.target && e.target.closest ? e.target.closest('select.g-catmonth') : null;
+    if(sel) apply(sel.dataset.catmonthStore, sel.value);
+  });
+  document.addEventListener('click', e=>{
+    const cell = e.target && e.target.closest ? e.target.closest('.g-month-cell[data-store][data-month]') : null;
+    if(!cell) return;
+    const store = cell.dataset.store, ym = cell.dataset.month;
+    apply(store, GOALS_CAT_MONTH[store]===ym ? "__scope__" : ym);   // 같은 달을 다시 누르면 분석 기간으로 복귀
+  });
+}
+try{ if(typeof document!=="undefined") wireGoalsCatMonth(); }catch(_){}
+// build 88: 대표 매장(합산 매장 포함)의 그 달 매출건수. 매장별 매출(청구금액) 파일의 전표 행 수.
+//   cnt가 없는 날(build 88 이전에 올린 파일)이 섞이면 partial=true.
+function goalsMonthReceiptCount(store, ym){
+  const members = new Set(storeGroupMembers(store));
+  let n = 0, days = 0, daysWith = 0;
+  STORE_SALES_HISTORY.forEach(h=>{
+    if(!h || !h.date || h.date.slice(0,7)!==ym) return;
+    days++;
+    if(!h.cnt) return;
+    daysWith++;
+    Object.keys(h.cnt).forEach(k=>{ if(members.has(storeSalesGroup(resolveStoreName(k))) || members.has(k)) n += h.cnt[k]||0; });
+  });
+  if(!daysWith) return null;
+  return { n, partial: daysWith < days, days, daysWith };
+}
 // 매장 카드 안 월별 달성률 이력 전체(엑셀 v2 07시트와 동일 — 추세 한 줄 문구뿐 아니라 있는 달 전부를 막대로 표시).
-function goalsMonthStripHtml(hist, curMonth){
+function goalsMonthStripHtml(hist, curMonth, store){
   if(!hist || !hist.points.length) return "";
+  // build 88: 옆으로 스크롤되던 좁은 막대 → 카드 전체 폭을 쓰는 격자(달 수만큼 균등 분할, 스크롤 없음).
+  //   막대 아래에 달성률과 실적(억/만원)을 함께 쓰고, 마우스를 올리면 실적·목표·달성률·매출건수 말풍선을 띄운다.
+  const short = v => v>=1e8 ? (v/1e8).toFixed(2)+"억" : Math.round(v/1e4).toLocaleString()+"만";
   const cells = hist.points.map(p=>{
     const tier = goalsTier(p.pct);
     const color = tier.cls==="g-tier-great" ? "var(--green)" : tier.cls==="g-tier-good" ? "var(--info)" : tier.cls==="g-tier-warn" ? "var(--amber)" : "var(--red)";
     const h = Math.max(4, Math.min(100, p.pct));
     const isCur = p.month===curMonth;
-    // 2026-09-23 build 61: 마우스를 올렸을 때 달성률만 나오고 실제 매출액이 안 보인다는 지적 —
-    // 실적·목표 금액도 함께 보여준다.
     const gap = (typeof GOALS_SALES_GAPS!=="undefined" && GOALS_SALES_GAPS) ? GOALS_SALES_GAPS[p.month] : null; // build 67
-    const title = `${p.month} 실적 ${Math.round(p.actual).toLocaleString()}원 · 목표 ${Math.round(p.target).toLocaleString()}원 · 달성률 ${p.pct.toFixed(1)}%${p.partial?' (일할 환산)':''}${gap?` · ⚠ 매출 결측: ${salesGapText(gap)} (달성률 과소 가능)`:''}`;
-    return `<div class="g-month-cell${isCur?' cur':''}" title="${escHtml(title)}">
+    let rc = null; try{ rc = store ? goalsMonthReceiptCount(store, p.month) : null; }catch(_){ rc = null; }
+    const cntTxt = rc ? `${rc.n.toLocaleString()}건${rc.partial?` (${rc.daysWith}/${rc.days}일분만 집계)`:''}` : "집계 전 — 폴더 불러오기를 한 번 다시 하면 채워집니다";
+    const avgTxt = rc && rc.n>0 && !rc.partial ? `${Math.round(p.actual/rc.n).toLocaleString()}원` : "-";
+    const tip = `<div class="gm-tip">
+        <div class="t-hd">${p.month.replace('-','년 ')}월${isCur?' (진행중 · 일할 환산)':''}</div>
+        <div class="t-row"><span>실적</span><b>${Math.round(p.actual).toLocaleString()}원</b></div>
+        <div class="t-row"><span>목표</span><b>${Math.round(p.target).toLocaleString()}원</b></div>
+        <div class="t-row"><span>달성률</span><b style="color:${color}">${p.pct.toFixed(1)}%</b></div>
+        <div class="t-row"><span>매출건수</span><b>${cntTxt}</b></div>
+        <div class="t-row"><span>객단가</span><b>${avgTxt}</b></div>
+        ${gap?`<div class="t-warn">⚠ 매출 결측: ${escHtml(salesGapText(gap))} (달성률 과소 가능)</div>`:''}
+      </div>`;
+    const isSel = store && typeof GOALS_CAT_MONTH!=="undefined" && GOALS_CAT_MONTH[store]===p.month;
+    return `<div class="g-month-cell${isCur?' cur':''}${isSel?' sel':''}" tabindex="0"${store?` data-store="${escHtml(store)}" data-month="${p.month}" title=""`:''}>
       <div class="mm">${p.month.slice(5)}월${isCur?'*':''}</div>
-      <div class="mb"><div class="mb-fill" style="height:${h}%;background:${color}"></div></div>
-      <div class="mv">${p.pct.toFixed(0)}%${gap?'<span style="color:var(--amber)" title="매출 파일이 빠진 날이 있는 달">⚠</span>':''}</div>
+      <div class="mb"><div class="mb-fill" style="height:${h}%;background:${color}"></div>${p.pct>100?'<div class="mb-over">▲</div>':''}</div>
+      <div class="mv" style="color:${color}">${p.pct.toFixed(0)}%${gap?'<span style="color:var(--amber)">⚠</span>':''}</div>
+      <div class="ma">${short(p.actual)}</div>
+      ${tip}
     </div>`;
   }).join("");
-  return `<div class="g-month-wrap">
-    <div class="g-month-title">월별 달성률 이력 (데이터 있는 ${hist.points.length}개월 · 전체 평균 ${hist.avg!=null?hist.avg.toFixed(1)+'%':'-'} · 최근 3개월 평균 ${hist.recent3!=null?hist.recent3.toFixed(1)+'%':'-'}${hist.recentCount!=null&&hist.recentCount<3?` (결측 제외 ${hist.recentCount}개월)`:''} · *는 진행중인 달로 일할 환산치 · ⚠는 매출 파일이 빠진 날이 있는 달)</div>
-    <div class="g-month-strip">${cells}</div>
+  return `<div class="g-month-wrap g-month-wide">
+    <div class="g-month-title">월별 달성률 이력 <span class="g-month-meta">데이터 있는 ${hist.points.length}개월 · 전체 평균 <b>${hist.avg!=null?hist.avg.toFixed(1)+'%':'-'}</b> · 최근 3개월 평균 <b>${hist.recent3!=null?hist.recent3.toFixed(1)+'%':'-'}</b>${hist.recentCount!=null&&hist.recentCount<3?` (결측 제외 ${hist.recentCount}개월)`:''} · *진행중(일할 환산) · ⚠매출 파일 빠진 날 있음 · 막대에 마우스를 올리면 매출건수 · 클릭하면 그 달 카테고리 구성</span></div>
+    <div class="g-month-strip" style="grid-template-columns:repeat(${hist.points.length},minmax(0,1fr))">${cells}</div>
   </div>`;
 }
 // 전사 카테고리별 매출·PLT당 효율 표(엑셀 v2 05시트와 동일한 정보를 사이트에도 그대로 표시).
@@ -8434,13 +8563,7 @@ function goalsRender06(ctx){
         {k:`누적 실적 / 목표 (${ctx.months.length}개월)`, v:cumTxt, wide:true},
         {k:"누적 격차",       v:cumDelta, wide:true},
       ].map(x=>`<div class="g-kpi${x.wide?' wide':''}"><span class="k">${x.k}</span><span class="v">${x.v}</span></div>`).join("");
-      const catVisual = (r.diag && r.diag.chartData.length)
-        ? `<div class="g-store-catcol">
-             <div class="g-store-catt">카테고리 구성 (실매출액)</div>
-             <div class="pie-donut-only">${buildDonutSVG(r.diag.chartData, 124)}</div>
-             <div class="g-store-catbars">${buildSharePercentBars(r.diag.chartData.slice(0,6), {compact:true})}</div>
-           </div>`
-        : `<div class="g-store-catcol"><div class="g-store-catt">카테고리 매출 데이터 없음</div></div>`;
+      const catVisual = goalsCatColHtml(r, ctx);   // build 89: 월 선택 가능한 카테고리 구성
       const freshTag = r.freshLabel
         ? `<span class="g-store-tag ${r.fresh?'':'off'}" title="식품 운영 매장 현황(20260707 기준)">${escHtml(r.freshLabel)}</span>` : "";
       const stateTag = r.stateBadge ? `<span class="g-store-tag warn">${escHtml(r.stateBadge)}</span>` : "";
@@ -8461,10 +8584,10 @@ function goalsRender06(ctx){
         <div class="g-store-split">
           <div class="g-store-leftcol">
             ${goalsNarrative(r, ctx)}
-            ${goalsMonthStripHtml(r.hist, ctx.curMonth)}
           </div>
           ${catVisual}
         </div>
+        ${goalsMonthStripHtml(r.hist, ctx.curMonth, r.store)}
         <details class="g-store-more">
           <summary>카테고리 구성비 전체 — 전사 평균 대비 격차 ${r.diag?`(${r.diag.diffs.length}개)`:""}</summary>
           ${goalsDiagTableHtml(r.diag)}
@@ -8890,13 +9013,7 @@ function goalsRender09Body(ctx){
       {k:`누적 실적 / 목표 (${ctx.months.length}개월)`, v:cumTxt, wide:true},
       {k:"누적 격차",       v:cumDelta, wide:true},
     ].map(x=>`<div class="g-kpi${x.wide?' wide':''}"><span class="k">${x.k}</span><span class="v">${x.v}</span></div>`).join("");
-    const catVisual = (r.diag && r.diag.chartData.length)
-      ? `<div class="g-store-catcol">
-           <div class="g-store-catt">카테고리 구성 (실매출액)</div>
-           <div class="pie-donut-only">${buildDonutSVG(r.diag.chartData, 124)}</div>
-           <div class="g-store-catbars">${buildSharePercentBars(r.diag.chartData.slice(0,6), {compact:true})}</div>
-         </div>`
-      : `<div class="g-store-catcol"><div class="g-store-catt">카테고리 매출 데이터 없음</div></div>`;
+    const catVisual = goalsCatColHtml(r, ctx);   // build 89: 월 선택 가능한 카테고리 구성
     const freshTag = r.freshLabel
       ? `<span class="g-store-tag ${r.fresh?'':'off'}" title="식품 운영 매장 현황(20260707 기준)">${escHtml(r.freshLabel)}</span>` : "";
     const stateTag = r.stateBadge ? `<span class="g-store-tag warn">${escHtml(r.stateBadge)}</span>` : "";
@@ -8917,10 +9034,10 @@ function goalsRender09Body(ctx){
       <div class="g-store-split">
         <div class="g-store-leftcol">
           ${goalsNarrative(r, ctx)}
-          ${goalsMonthStripHtml(r.hist, ctx.curMonth)}
         </div>
         ${catVisual}
       </div>
+      ${goalsMonthStripHtml(r.hist, ctx.curMonth, r.store)}
       <details class="g-store-more">
         <summary>카테고리 구성비 전체 — 전사 평균 대비 격차 ${r.diag?`(${r.diag.diffs.length}개)`:""}</summary>
         ${goalsDiagTableHtml(r.diag)}
@@ -10032,7 +10149,8 @@ async function handleFolderBatch(fileList){
   //    계속 건너뛰어 청구금액↔실매출액 차이 79,576,294원이 남던 문제 — 반영 실패한 파일이 영구히 스킵되지 않게 한다)
   {
     const _dateOfName = f=>{ const m = String(f.name).match(/(20\d{2})-?(\d{2})-?(\d{2})/); return m ? `${m[1]}-${m[2]}-${m[3]}` : null; };
-    const _have = { cat: new Set(SALES_HISTORY.map(h=>h.date)), store: new Set(STORE_SALES_HISTORY.map(h=>h.date)) };
+    // build 88: 매출건수(cnt)가 없는 예전 매장별 매출 스냅샷도 "없는 날짜"로 보고 한 번 다시 읽는다(건수 채우기).
+    const _have = { cat: new Set(SALES_HISTORY.map(h=>h.date)), store: new Set(STORE_SALES_HISTORY.filter(h=>h && h.cnt).map(h=>h.date)) };
     ["cat","store"].forEach(k=>{
       orig[k].forEach(f=>{
         const d = _dateOfName(f);
