@@ -797,6 +797,8 @@
   table.pq-tbl td.pq3.p.mu{color:var(--muted2);font-weight:400;font-size:11px;}
   table.pq-tbl .g1{background:rgba(255,255,255,.035);}
   table.pq-tbl .gT{background:rgba(232,185,63,.06);}
+  table.pq-tbl .gE{background:rgba(127,184,255,.06);border-left:2px solid var(--line);}   /* build 97: FC파손·사입 */
+  table.pq-tbl th.gE{text-align:center;}
   table.pq-tbl td.p.s-g{color:#4fd18b;} table.pq-tbl td.p.s-b{color:#7fb8ff;} table.pq-tbl td.p.s-y{color:#e8b93f;} table.pq-tbl td.p.s-r{color:#ff7b7b;}
   table.pq-tbl td.pq-out, table.pq-tbl th.pq-out{font-family:"JetBrains Mono";font-size:12.5px;color:var(--muted2);text-align:right;padding:7px 12px;border-left:2px solid var(--line);}
   table.pq-tbl tbody tr{border-bottom:1px solid var(--line-soft);}
@@ -940,7 +942,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 96 · 2026-10-02</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 97 · 2026-10-02</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -9489,21 +9491,29 @@ function goalsRender10Body(ctx){
   // 이번 달 신선 출고내역서가 없으면 신선은 0이 아니라 "파일 없음"으로 보이고 합계·정렬에서도 뺀다.
   const freshMissing = !(FRESH_M[pm] && Object.keys(FRESH_M[pm]).length);
   const useCats = planCats.filter(pc=> !(freshMissing && pc==="신선"));
-  const stTot = x => { let a=0,f=0,pp=0; useCats.forEach(pc=>{ const c=x.cats.find(y=>y.cat===pc); if(c){ a+=c.actualPLT; f+=c.planPLTFull; pp+=c.planPLT; } }); return {a,f,pp,pct: pp>0?a/pp*100:null}; };
+  // build 97: 사용자 요청 — FC파손·사입도 집계에 넣는다. 공급계획(목표)이 없는 카테고리라 각자 "실제" 열로 따로 보여주고,
+  //   매장 합계의 "실제"와 달성률에 더한다(목표는 계획 카테고리 합계 그대로). "계획 외"에서는 뺀다.
+  const PQ_EXTRA = [ {key:"FC파손", cats:["FC파손"]}, {key:"사입", cats:["사입","FC_사입"]} ];
+  const extraAct = (x,key)=>{ const e = PQ_EXTRA.find(z=>z.key===key); return e.cats.reduce((a,c)=>a+((x.outside||{})[c]||0),0); };
+  const extraSum = x => PQ_EXTRA.reduce((a,e)=>a+extraAct(x,e.key),0);
+  const outRest = x => Math.max(0, (x.outsideTotal||0) - extraSum(x));
+  const exCells = x => PQ_EXTRA.map(e=>{ const v = extraAct(x,e.key); return `<td class="pq3 gE a" title="${escHtml((x.label||'')+' · '+e.key+(e.cats.length>1?' ('+e.cats.join('+')+')':'')+' 실제 PLT (공급계획 없음)')}">${v>0?fmt1(v):''}</td>`; }).join("");
+  const stTot = x => { let a=0,f=0,pp=0; useCats.forEach(pc=>{ const c=x.cats.find(y=>y.cat===pc); if(c){ a+=c.actualPLT; f+=c.planPLTFull; pp+=c.planPLT; } }); a += extraSum(x); return {a,f,pp,pct: pp>0?a/pp*100:null}; };
   const gRows = D.rows.slice().sort((a,b)=>{ const av=a.cats?stTot(a).pct:null, bv=b.cats?stTot(b).pct:null; return (av==null?1e9:av)-(bv==null?1e9:bv); }).map(x=>{
     if(!x.cats){
-      return `<tr><td class="pq-st">${escHtml(x.label)}</td><td class="pq3 gT t">–</td><td class="pq3 gT a">${fmt1(x.actualPLTAll||0)}</td><td class="pq3 gT p mu">계획 없음</td>${useCats.map((_,i)=>`<td class="pq3 g${i%2}"></td><td class="pq3 g${i%2}"></td><td class="pq3 g${i%2}"></td>`).join("")}<td class="pq-out">${fmt1(x.outsideTotal||0)}</td></tr>`;
+      return `<tr><td class="pq-st">${escHtml(x.label)}</td><td class="pq3 gT t">–</td><td class="pq3 gT a">${fmt1(x.actualPLTAll||0)}</td><td class="pq3 gT p mu">계획 없음</td>${useCats.map((_,i)=>`<td class="pq3 g${i%2}"></td><td class="pq3 g${i%2}"></td><td class="pq3 g${i%2}"></td>`).join("")}${exCells(x)}<td class="pq-out">${fmt1(outRest(x))}</td></tr>`;
     }
     const cells = useCats.map((pc,i)=>{ const c = x.cats.find(y=>y.cat===pc);
       return gCell(c?c.actualPLT:0, c?c.planPLTFull:0, c?c.planPLT:0, `${x.label} · ${pc}${catSub(pc)?' ('+catSub(pc)+')':''}`, i%2); }).join("");
-    const outE = Object.entries(x.outside||{}).sort((a,b)=>b[1]-a[1]);
-    return `<tr><td class="pq-st">${escHtml(x.label)}</td>${(t=>gCell(t.a, t.f, t.pp, `${x.label} · 계획 카테고리 합계${freshMissing?' (신선 제외)':''}`, "T"))(stTot(x))}${cells}
-      <td class="pq-out" title="${escHtml(outE.map(([c,v])=>c+' '+fmt1(v)).join(' · '))}">${fmt1(x.outsideTotal||0)}</td></tr>`;
+    const _exSet = new Set(PQ_EXTRA.flatMap(e=>e.cats));
+    const outE = Object.entries(x.outside||{}).filter(([c])=>!_exSet.has(c)).sort((a,b)=>b[1]-a[1]);
+    return `<tr><td class="pq-st">${escHtml(x.label)}</td>${(t=>gCell(t.a, t.f, t.pp, `${x.label} · 계획 카테고리 합계 + FC파손·사입${freshMissing?' (신선 제외)':''}`, "T"))(stTot(x))}${cells}${exCells(x)}
+      <td class="pq-out" title="${escHtml(outE.map(([c,v])=>c+' '+fmt1(v)).join(' · '))}">${fmt1(outRest(x))}</td></tr>`;
   }).join("");
   const withPlan = D.rows.filter(x=>x.cats);
   const gFoot = `<tfoot><tr><td class="pq-st">전사 합계</td>${gCell(withPlan.reduce((a,x)=>a+stTot(x).a,0), withPlan.reduce((a,x)=>a+stTot(x).f,0), withPlan.reduce((a,x)=>a+stTot(x).pp,0), "전사 · 계획 카테고리 합계", "T")}${
       useCats.map((pc,i)=>{ const t = D.catTotals.find(c=>c.cat===pc)||{}; const full = withPlan.reduce((a,x)=>{ const c=x.cats.find(y=>y.cat===pc); return a+(c?c.planPLTFull:0); },0);
-        return gCell(t.actualPLT||0, full, t.planPLT||0, `전사 · ${pc}`, i%2); }).join("")}<td class="pq-out">${fmt1(withPlan.reduce((a,x)=>a+(x.outsideTotal||0),0))}</td></tr></tfoot>`;
+        return gCell(t.actualPLT||0, full, t.planPLT||0, `전사 · ${pc}`, i%2); }).join("")}${PQ_EXTRA.map(e=>`<td class="pq3 gE a">${fmt1(D.rows.reduce((a,x)=>a+extraAct(x,e.key),0))}</td>`).join("")}<td class="pq-out">${fmt1(D.rows.reduce((a,x)=>a+outRest(x),0))}</td></tr></tfoot>`;
   // ── build 79: 출고 배정용 요약 — "카테고리별로 목표 대비 부족한 매장" (사용자: 매일 매입분을 전 매장에 분배할 때 쓰려고)
   //   남은 PLT = 월 목표 − 현재 공급(0보다 클 때만). 많이 남은 매장 순. 칩 색 = 경과일 기준 페이스(빨강 50% 미만 · 노랑 80% 미만 · 회색 그 이상).
   const alRows = useCats.map(pc=>{
@@ -9544,11 +9554,11 @@ function goalsRender10Body(ctx){
       <span>카테고리마다 <b>목표</b>(월 공급계획 PLT) · <b>실제</b>(${ctx.mLbl(pm)} 공급 PLT) · <b>달성</b>(월 목표 대비 %)</span>
       <span>${D.isOngoing?`달성 색은 경과일(${D.elapsed}/${D.dim}일) 기준:`:"달성 색:"}</span>
       <span><i class="pq-sw s-g"></i>100%↑</span><span><i class="pq-sw s-b"></i>80~100%</span><span><i class="pq-sw s-y"></i>50~80%</span><span><i class="pq-sw s-r"></i>50% 미만</span>
-      <span>– 계획 없음 · 계획 외 = FC파손·사입·임박 등(달성률 미포함) · 매장은 합계 달성률 낮은 순</span>
+      <span>– 계획 없음 · <b>FC파손·사입</b>은 공급계획이 없어 실제만 표시하고 합계 실제·달성률에 포함 · 계획 외 = 임박·생산재고 등(미포함) · 매장은 합계 달성률 낮은 순</span>
       ${freshMissing?`<span style="color:var(--amber)">${ctx.mLbl(pm)} 신선 출고내역서 미업로드 → 신선 열 숨김</span>`:""}
     </div>
     <div class="tblbox agg-scroll"><table class="g-tbl pq-tbl">
-      <thead><tr><th class="pq-st" rowspan="2">매장</th><th colspan="3" class="gh gT">합계</th>${useCats.map((pc,i)=>`<th colspan="3" class="gh g${i%2}">${escHtml(pc)}${catSub(pc)?` <span class="pq-sub">${escHtml(catSub(pc))}</span>`:""}</th>`).join("")}<th rowspan="2" class="pq-out">계획 외</th></tr>
+      <thead><tr><th class="pq-st" rowspan="2">매장</th><th colspan="3" class="gh gT">합계</th>${useCats.map((pc,i)=>`<th colspan="3" class="gh g${i%2}">${escHtml(pc)}${catSub(pc)?` <span class="pq-sub">${escHtml(catSub(pc))}</span>`:""}</th>`).join("")}${PQ_EXTRA.map(e=>`<th rowspan="2" class="gh gE">${escHtml(e.key)}<br><span class="pq-sub">실제${e.cats.length>1?' ('+e.cats.join('+')+')':''}</span></th>`).join("")}<th rowspan="2" class="pq-out">계획 외</th></tr>
         <tr>${["T",...useCats.map((_,i)=>i%2)].map(g=>`<th class="sh g${g}">목표</th><th class="sh g${g}">실제</th><th class="sh g${g}">달성</th>`).join("")}</tr></thead>
       <tbody>${gRows}</tbody>${gFoot}</table></div></details>` : "";
   const pTrendRows = pStores.map(st=>{
