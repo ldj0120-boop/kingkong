@@ -791,7 +791,12 @@
   table.pq-tbl th.sh{font-size:10.5px;font-weight:400;color:var(--muted2);padding:2px 8px 6px;text-align:right;min-width:0 !important;}
   table.pq-tbl td.pq3{font-family:"JetBrains Mono";font-size:13px;padding:7px 8px;text-align:right;white-space:nowrap;}
   table.pq-tbl td.pq3.t{color:var(--muted2);border-left:2px solid var(--line);}
-  table.pq-tbl th.sh:nth-child(3n+1){border-left:2px solid var(--line);}
+  table.pq-tbl th.sh:nth-child(4n+1){border-left:2px solid var(--line);}   /* build 100: 카테고리당 4칸 */
+  table.pq-tbl td.pq3.s{color:#8fd3c8;}   /* build 100: 매장재고 */
+  table.pq-tbl td.pq3.s .mu{color:var(--muted2);font-weight:400;}
+  table.pq-tbl td.pq-memo, table.pq-tbl th.pq-memo{font-size:11.5px;color:var(--pale);text-align:left;padding:7px 10px;border-left:2px solid var(--line);min-width:220px;max-width:340px;white-space:pre-line;line-height:1.45;vertical-align:top;}
+  table.pq-tbl th.pq-memo{color:var(--pale);text-align:center;white-space:nowrap;}
+  table.pq-tbl .pq-memo-in{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
   table.pq-tbl td.pq3.a{color:var(--text);font-weight:600;}
   table.pq-tbl td.pq3.p{font-weight:700;font-size:12.5px;}
   table.pq-tbl td.pq3.p.mu{color:var(--muted2);font-weight:400;font-size:11px;}
@@ -942,7 +947,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 99 · 2026-10-06</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 100 · 2026-10-06</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1708,7 +1713,7 @@ const STOCK_HDR_MATCH = [
   ["XLA-111", /^XLA/i], ["XLB", /^XLB/i], ["XLC", /^XLC/i], ["XLE", /^XLE/i], ["XLG", /^XLG/i],
   ["임박식품", /임박/], ["생산재고(혼합)", /생산.*혼합|혼합.*생산/], ["생산재고(가전)", /생산.*가전|가전.*생산/],
   ["대형가구", /대형가구/], ["대형가전", /대형가전/], ["홈쇼핑", /홈쇼핑/], ["데드우드(XTLO)", /데드우드|XTLO/i],
-  ["사입PLT", /사입/], ["기타", /^기타/], ["FC파손", /파손/], ["창고 보관가능 PLT", /보관가능/], ["창고외 야적 PLT", /야적/],
+  ["사입PLT", /사입/], ["기타", /^기타/], ["FC파손", /파손/], ["창고 보관가능 PLT", /보관\s*가능/], ["창고외 야적 PLT", /야적/],
   ["생수/탄산수", /생수|탄산수|^XLS/i]
 ];
 
@@ -5111,6 +5116,23 @@ function handleStockFile(file){
       }
       // 시트에서 기준일을 폭넓게 찾는다: YYYY-MM-DD / YYYY.MM.DD / YYYY/MM/DD / "26년 7월 31일" / 엑셀 날짜셀
       const detectStockDate = (aoa, parsed, sheetName)=>{
+        // build 100: "매장PLT_전체요약_재고_2026-10" 양식 — 매장마다 "최종입력일"이 있으면 그 중 가장 늦은 날을 기준일로.
+        if(parsed && parsed.headerRow!=null){
+          const hr = aoa[parsed.headerRow]||[];
+          const dc = hr.findIndex(c=> /최종\s*입력일/.test(String(c==null?"":c)));
+          if(dc>=0){
+            let best = null;
+            for(let i=parsed.headerRow+1;i<aoa.length;i++){
+              const v = (aoa[i]||[])[dc]; if(v==null) continue;
+              let d = null;
+              if(v instanceof Date) d = `${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,'0')}-${String(v.getDate()).padStart(2,'0')}`;
+              else if(typeof v==="number" && v>30000 && v<80000) d = new Date(Math.round((v-25569)*86400000)).toISOString().slice(0,10);
+              else { const m = String(v).match(/(20\d{2})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/); if(m) d = `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`; }
+              if(d && (!best || d>best)) best = d;
+            }
+            if(best) return best;
+          }
+        }
         const scan = [];
         if(parsed && parsed.headerRow!=null && aoa[parsed.headerRow]) scan.push(aoa[parsed.headerRow]);
         for(let i=0;i<Math.min(aoa.length,6);i++) if(aoa[i]) scan.push(aoa[i]);
@@ -9531,16 +9553,27 @@ function goalsRender10Body(ctx){
   // build 75: 가독성 — 막대·4색 글자 제거. 숫자는 한 색, 상태는 칸 배경 2가지(부족=연한 빨강, 초과=연한 파랑)만.
   // build 78: 한 칸에 숫자 3개를 겹쳐 쓰던 방식 → 카테고리마다 [목표 | 실제 | 달성] 3칸으로 나눠 세로줄이 맞게(엑셀처럼).
   //   색은 "달성" 칸 글자에만(경과일 기준 페이스 4단계). 카테고리 묶음은 배경을 번갈아 구분.
-  const gCell = (act, planFull, planPace, title, gi)=>{
+  // build 100: 카테고리마다 [목표 | 매장재고 | 이번달 공급 | 달성] 4칸. 매장재고 = 매장재고현황 스냅샷(조회 월 말일 이전 가장 최근 날짜).
+  const PQ_STOCK_IDX = { "상온":[3], "XLA":[0], "XLB":[1], "XLC":[2], "XLG":[4], "XLS":[17], "XLK":[9], "XLW":[8] };   // AGG_HDR 위치. 신선은 매장재고 항목 없음
+  const PQ_STOCK_TOTAL_IDX = AGG_HDR.map((_,i)=>i).filter(i=> !/보관가능|야적/.test(AGG_HDR[i]));   // 합계 = 창고보관가능·야적 칸 제외 전부
+  const _pmEnd = `${pm}-${String(goalsDaysInMonth(pm)).padStart(2,'0')}`;
+  const pqSnap = (STOCK_HISTORY||[]).filter(sn=> sn && sn.date && sn.date<=_pmEnd && !/기본값|초기화|없음/.test(sn.label||"")).sort((a,b)=>a.date.localeCompare(b.date)).pop() || null;
+  const pqMembers = x => (x.r && x.r.members && x.r.members.length) ? x.r.members : [x.store];
+  const pqStock = (x, idxs)=>{ if(!pqSnap || !idxs) return null; let tot=0, any=false;
+    pqMembers(x).forEach(st=>{ const arr = (pqSnap.stock||{})[st]; if(!arr) return; idxs.forEach(i=>{ const v=arr[i]; if(v!=null && v!=="" && !isNaN(+v)){ tot+=+v; any=true; } }); });
+    return any ? tot : null; };
+  const pqMemo = x => { if(!pqSnap) return ""; return pqMembers(x).map(st=>{ const arr=(pqSnap.stock||{})[st]; const mm = arr && arr[STOCK_COLS]; return mm ? String(mm).trim() : ""; }).filter(Boolean).join(" / "); };
+  const stkTd = (v, g, title)=> `<td class="${g} s" title="${escHtml(title+(pqSnap?` · 매장재고 ${pqSnap.date} 기준`:" · 매장재고 데이터 없음"))}">${v==null?'<span class="mu">-</span>':fmt1(v)}</td>`;
+  const gCell = (act, planFull, planPace, title, gi, stk)=>{
     const g = `pq3 g${gi}`;
     if(!(planFull>0)){
-      return act>0 ? `<td class="${g} t">–</td><td class="${g} a" title="${escHtml(title+' · 공급계획 없음')}">${fmt1(act)}</td><td class="${g} p mu">계획 없음</td>`
-                   : `<td class="${g}"></td><td class="${g}"></td><td class="${g}"></td>`;
+      return act>0 ? `<td class="${g} t">–</td>${stkTd(stk,g,title)}<td class="${g} a" title="${escHtml(title+' · 공급계획 없음')}">${fmt1(act)}</td><td class="${g} p mu">계획 없음</td>`
+                   : `<td class="${g} t"></td>${stk!=null?stkTd(stk,g,title):`<td class="${g} s"></td>`}<td class="${g}"></td><td class="${g}"></td>`;
     }
     const pctFull = act/planFull*100, pace = planPace>0 ? act/planPace*100 : null;
     const st = pace==null ? "" : pace>=100 ? "s-g" : pace>=80 ? "s-b" : pace>=50 ? "s-y" : "s-r";
-    const tt = escHtml(`${title}\n월 목표 ${fmt1(planFull)} PLT → 실제 ${fmt1(act)} PLT (월 목표 대비 ${pctFull.toFixed(0)}%)`+(D.isOngoing?`\n경과일 기준 목표 ${fmt1(planPace)} PLT 대비 ${pace!=null?pace.toFixed(0):'-'}%`:""));
-    return `<td class="${g} t" title="${tt}">${fmt1(planFull)}</td><td class="${g} a" title="${tt}">${fmt1(act)}</td><td class="${g} p ${st}" title="${tt}">${pctFull.toFixed(0)}%</td>`;
+    const tt = escHtml(`${title}\n월 목표 ${fmt1(planFull)} PLT → 이번달 공급 ${fmt1(act)} PLT (월 목표 대비 ${pctFull.toFixed(0)}%)`+(stk!=null?`\n매장재고 ${fmt1(stk)} PLT (${pqSnap?pqSnap.date:''} 기준)`:"")+(D.isOngoing?`\n경과일 기준 목표 ${fmt1(planPace)} PLT 대비 ${pace!=null?pace.toFixed(0):'-'}%`:""));
+    return `<td class="${g} t" title="${tt}">${fmt1(planFull)}</td>${stkTd(stk,g,title)}<td class="${g} a" title="${tt}">${fmt1(act)}</td><td class="${g} p ${st}" title="${tt}">${pctFull.toFixed(0)}%</td>`;
   };
   // 이번 달 신선 출고내역서가 없으면 신선은 0이 아니라 "파일 없음"으로 보이고 합계·정렬에서도 뺀다.
   const freshMissing = !(FRESH_M[pm] && Object.keys(FRESH_M[pm]).length);
@@ -9552,22 +9585,24 @@ function goalsRender10Body(ctx){
   const extraSum = x => PQ_EXTRA.reduce((a,e)=>a+extraAct(x,e.key),0);
   const outRest = x => Math.max(0, (x.outsideTotal||0) - extraSum(x));
   const exCells = x => PQ_EXTRA.map(e=>{ const v = extraAct(x,e.key); return `<td class="pq3 gE a" title="${escHtml((x.label||'')+' · '+e.key+(e.cats.length>1?' ('+e.cats.join('+')+')':'')+' 실제 PLT (공급계획 없음)')}">${v>0?fmt1(v):''}</td>`; }).join("");
+  const memoTd = x => { const mm = pqMemo(x); return `<td class="pq-memo" title="${escHtml(mm)}">${mm?`<div class="pq-memo-in">${escHtml(mm)}</div>`:''}</td>`; };   // 길면 3줄까지만, 마우스 올리면 전체
   const stTot = x => { let a=0,f=0,pp=0; useCats.forEach(pc=>{ const c=x.cats.find(y=>y.cat===pc); if(c){ a+=c.actualPLT; f+=c.planPLTFull; pp+=c.planPLT; } }); a += extraSum(x); return {a,f,pp,pct: pp>0?a/pp*100:null}; };
   const gRows = D.rows.slice().sort((a,b)=>{ const av=a.cats?stTot(a).pct:null, bv=b.cats?stTot(b).pct:null; return (av==null?1e9:av)-(bv==null?1e9:bv); }).map(x=>{
     if(!x.cats){
-      return `<tr><td class="pq-st">${escHtml(x.label)}</td><td class="pq3 gT t">–</td><td class="pq3 gT a">${fmt1(x.actualPLTAll||0)}</td><td class="pq3 gT p mu">계획 없음</td>${useCats.map((_,i)=>`<td class="pq3 g${i%2}"></td><td class="pq3 g${i%2}"></td><td class="pq3 g${i%2}"></td>`).join("")}${exCells(x)}<td class="pq-out">${fmt1(outRest(x))}</td></tr>`;
+      return `<tr><td class="pq-st">${escHtml(x.label)}</td><td class="pq3 gT t">–</td>${stkTd(pqStock(x,PQ_STOCK_TOTAL_IDX),"pq3 gT",x.label+' · 합계')}<td class="pq3 gT a">${fmt1(x.actualPLTAll||0)}</td><td class="pq3 gT p mu">계획 없음</td>${useCats.map((pc,i)=>`<td class="pq3 g${i%2} t"></td>${stkTd(pqStock(x,PQ_STOCK_IDX[pc]),"pq3 g"+(i%2),x.label+' · '+pc)}<td class="pq3 g${i%2}"></td><td class="pq3 g${i%2}"></td>`).join("")}${exCells(x)}<td class="pq-out">${fmt1(outRest(x))}</td>${memoTd(x)}</tr>`;
     }
     const cells = useCats.map((pc,i)=>{ const c = x.cats.find(y=>y.cat===pc);
-      return gCell(c?c.actualPLT:0, c?c.planPLTFull:0, c?c.planPLT:0, `${x.label} · ${pc}${catSub(pc)?' ('+catSub(pc)+')':''}`, i%2); }).join("");
+      return gCell(c?c.actualPLT:0, c?c.planPLTFull:0, c?c.planPLT:0, `${x.label} · ${pc}${catSub(pc)?' ('+catSub(pc)+')':''}`, i%2, pqStock(x, PQ_STOCK_IDX[pc])); }).join("");
     const _exSet = new Set(PQ_EXTRA.flatMap(e=>e.cats));
     const outE = Object.entries(x.outside||{}).filter(([c])=>!_exSet.has(c)).sort((a,b)=>b[1]-a[1]);
-    return `<tr><td class="pq-st">${escHtml(x.label)}</td>${(t=>gCell(t.a, t.f, t.pp, `${x.label} · 계획 카테고리 합계 + FC파손·사입${freshMissing?' (신선 제외)':''}`, "T"))(stTot(x))}${cells}${exCells(x)}
-      <td class="pq-out" title="${escHtml(outE.map(([c,v])=>c+' '+fmt1(v)).join(' · '))}">${fmt1(outRest(x))}</td></tr>`;
+    return `<tr><td class="pq-st">${escHtml(x.label)}</td>${(t=>gCell(t.a, t.f, t.pp, `${x.label} · 계획 카테고리 합계 + FC파손·사입${freshMissing?' (신선 제외)':''}`, "T", pqStock(x, PQ_STOCK_TOTAL_IDX)))(stTot(x))}${cells}${exCells(x)}
+      <td class="pq-out" title="${escHtml(outE.map(([c,v])=>c+' '+fmt1(v)).join(' · '))}">${fmt1(outRest(x))}</td>${memoTd(x)}</tr>`;
   }).join("");
   const withPlan = D.rows.filter(x=>x.cats);
-  const gFoot = `<tfoot><tr><td class="pq-st">전사 합계</td>${gCell(withPlan.reduce((a,x)=>a+stTot(x).a,0), withPlan.reduce((a,x)=>a+stTot(x).f,0), withPlan.reduce((a,x)=>a+stTot(x).pp,0), "전사 · 계획 카테고리 합계", "T")}${
+  const sumStk = idxs => { if(!pqSnap || !idxs) return null; let t=0, any=false; D.rows.forEach(x=>{ const v=pqStock(x,idxs); if(v!=null){ t+=v; any=true; } }); return any?t:null; };
+  const gFoot = `<tfoot><tr><td class="pq-st">전사 합계</td>${gCell(withPlan.reduce((a,x)=>a+stTot(x).a,0), withPlan.reduce((a,x)=>a+stTot(x).f,0), withPlan.reduce((a,x)=>a+stTot(x).pp,0), "전사 · 계획 카테고리 합계", "T", sumStk(PQ_STOCK_TOTAL_IDX))}${
       useCats.map((pc,i)=>{ const t = D.catTotals.find(c=>c.cat===pc)||{}; const full = withPlan.reduce((a,x)=>{ const c=x.cats.find(y=>y.cat===pc); return a+(c?c.planPLTFull:0); },0);
-        return gCell(t.actualPLT||0, full, t.planPLT||0, `전사 · ${pc}`, i%2); }).join("")}${PQ_EXTRA.map(e=>`<td class="pq3 gE a">${fmt1(D.rows.reduce((a,x)=>a+extraAct(x,e.key),0))}</td>`).join("")}<td class="pq-out">${fmt1(D.rows.reduce((a,x)=>a+outRest(x),0))}</td></tr></tfoot>`;
+        return gCell(t.actualPLT||0, full, t.planPLT||0, `전사 · ${pc}`, i%2, sumStk(PQ_STOCK_IDX[pc])); }).join("")}${PQ_EXTRA.map(e=>`<td class="pq3 gE a">${fmt1(D.rows.reduce((a,x)=>a+extraAct(x,e.key),0))}</td>`).join("")}<td class="pq-out">${fmt1(D.rows.reduce((a,x)=>a+outRest(x),0))}</td><td class="pq-memo"></td></tr></tfoot>`;
   // ── build 79: 출고 배정용 요약 — "카테고리별로 목표 대비 부족한 매장" (사용자: 매일 매입분을 전 매장에 분배할 때 쓰려고)
   //   남은 PLT = 월 목표 − 현재 공급(0보다 클 때만). 많이 남은 매장 순. 칩 색 = 경과일 기준 페이스(빨강 50% 미만 · 노랑 80% 미만 · 회색 그 이상).
   const alRows = useCats.map(pc=>{
@@ -9597,7 +9632,7 @@ function goalsRender10Body(ctx){
           return `<td class="n">${fmt1(F)}</td><td class="n"><b>${fmt1(A)}</b></td><td class="n" style="font-weight:700;color:${paceCol(P>0?A/P*100:null)}">${F>0?(A/F*100).toFixed(0)+'%':'-'}</td>`; })()}<td class="n">${new Set(alRows.flatMap(r=>r.list.map(v=>v.label))).size}곳</td><td class="n"><b>${fmt1(alRows.reduce((a,r)=>a+r.needSum,0))}</b></td><td></td></tr></tfoot>
     </table></div>` : "";
   const pltQtyTable = D.rows.length ? `
-    <details class="g-store-more" open style="margin-top:14px"><summary>매장별 × 카테고리별 전체 상세표 (목표 · 실제 · 달성률) — 접기/펼치기</summary>
+    <details class="g-store-more" open style="margin-top:14px"><summary>매장별 × 카테고리별 전체 상세표 (목표 · 매장재고 · 이번달 공급 · 달성) — 접기/펼치기</summary>
     <div class="g-tbl-title" style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <span>매장별 × 카테고리별 공급 PLT — 목표(공급계획) 대비 ${ctx.mLbl(pm)} 실제 공급</span>
       <label style="font-size:12px;font-weight:400;color:var(--muted2);display:inline-flex;align-items:center;gap:6px;">월 선택
@@ -9605,15 +9640,15 @@ function goalsRender10Body(ctx){
       </label>
     </div>
     <div class="pq-legend">
-      <span>카테고리마다 <b>목표</b>(월 공급계획 PLT) · <b>실제</b>(${ctx.mLbl(pm)} 공급 PLT) · <b>달성</b>(월 목표 대비 %)</span>
+      <span>카테고리마다 <b>목표</b>(월 공급계획 PLT) · <b>매장재고</b>(${pqSnap?`매장재고현황 ${pqSnap.date} 기준 PLT`:'매장재고 파일 없음'}) · <b>이번달 공급</b>(${ctx.mLbl(pm)} 공급 PLT) · <b>달성</b>(이번달 공급 ÷ 월 목표 %)</span>
       <span>${D.isOngoing?`달성 색은 경과일(${D.elapsed}/${D.dim}일) 기준:`:"달성 색:"}</span>
       <span><i class="pq-sw s-g"></i>100%↑</span><span><i class="pq-sw s-b"></i>80~100%</span><span><i class="pq-sw s-y"></i>50~80%</span><span><i class="pq-sw s-r"></i>50% 미만</span>
       <span>– 계획 없음 · <b>FC파손·사입</b>은 공급계획이 없어 실제만 표시하고 합계 실제·달성률에 포함 · 계획 외 = 임박·생산재고 등(미포함) · 매장은 합계 달성률 낮은 순</span>
       ${freshMissing?`<span style="color:var(--amber)">${ctx.mLbl(pm)} 신선 출고내역서 미업로드 → 신선 열 숨김</span>`:""}
     </div>
     <div class="tblbox agg-scroll"><table class="g-tbl pq-tbl">
-      <thead><tr><th class="pq-st" rowspan="2">매장</th><th colspan="3" class="gh gT">합계</th>${useCats.map((pc,i)=>`<th colspan="3" class="gh g${i%2}">${escHtml(pc)}${catSub(pc)?` <span class="pq-sub">${escHtml(catSub(pc))}</span>`:""}</th>`).join("")}${PQ_EXTRA.map(e=>`<th rowspan="2" class="gh gE">${escHtml(e.key)}<br><span class="pq-sub">실제${e.cats.length>1?' ('+e.cats.join('+')+')':''}</span></th>`).join("")}<th rowspan="2" class="pq-out">계획 외</th></tr>
-        <tr>${["T",...useCats.map((_,i)=>i%2)].map(g=>`<th class="sh g${g}">목표</th><th class="sh g${g}">실제</th><th class="sh g${g}">달성</th>`).join("")}</tr></thead>
+      <thead><tr><th class="pq-st" rowspan="2">매장</th><th colspan="4" class="gh gT">합계</th>${useCats.map((pc,i)=>`<th colspan="4" class="gh g${i%2}">${escHtml(pc)}${catSub(pc)?` <span class="pq-sub">${escHtml(catSub(pc))}</span>`:""}</th>`).join("")}${PQ_EXTRA.map(e=>`<th rowspan="2" class="gh gE">${escHtml(e.key)}<br><span class="pq-sub">실제${e.cats.length>1?' ('+e.cats.join('+')+')':''}</span></th>`).join("")}<th rowspan="2" class="pq-out">계획 외</th><th rowspan="2" class="pq-memo">기타<br><span class="pq-sub">매장 코멘트(재고 비고)</span></th></tr>
+        <tr>${["T",...useCats.map((_,i)=>i%2)].map(g=>`<th class="sh g${g}">목표</th><th class="sh g${g}">매장재고</th><th class="sh g${g}">이번달 공급</th><th class="sh g${g}">달성</th>`).join("")}</tr></thead>
       <tbody>${gRows}</tbody>${gFoot}</table></div></details>` : "";
   const pTrendRows = pStores.map(st=>{
     const cs = Array.from(new Set(pMonths.flatMap(m=>Object.keys((qM[m]||{})[st]||{})))).sort((a,b)=> q(pm,st,b)-q(pm,st,a) || pMonths.reduce((t,m)=>t+q(m,st,b),0)-pMonths.reduce((t,m)=>t+q(m,st,a),0));
