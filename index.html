@@ -942,7 +942,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 98 · 2026-10-06</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 99 · 2026-10-06</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -7077,7 +7077,7 @@ function goalsSupplyDetail(ctx, month){
       const actualPLT = pltInfo.byCat[pc] || 0;
       return { cat:pc, planPLTFull, planPLT, planRevFull: plan.target[pc],
                actualPLT, matched: !!SUPPLY_PLAN_CAT_MATCH[pc],
-               pltPct: planPLT>0 ? actualPLT/planPLT*100 : null };
+               pltPct: planPLTFull>0 ? actualPLT/planPLTFull*100 : null };   // build 99: 공급 도달율 = 월 계획 전체 대비(경과일 비례 X)
     });
     const planPLTFullTotal = Object.values(plan.plt).reduce((a,v)=>a+v,0);
     const planPLTTotal = planPLTFullTotal*prorate;
@@ -7087,22 +7087,22 @@ function goalsSupplyDetail(ctx, month){
     return { store:r.store, label:r.label, r, plan, cats, actualPLTAll: pltInfo.total, outside: pltInfo.outside, outsideTotal: pltInfo.outsideTotal,
              planPLTFullTotal, planPLTTotal, planRevFull: plan.opTotal, planRevTotal,
              actualPLT, actualRevenue,
-             pltPct: planPLTTotal>0 ? actualPLT/planPLTTotal*100 : null,
+             pltPct: planPLTFullTotal>0 ? actualPLT/planPLTFullTotal*100 : null,   // build 99: 월 기준
              revPct: planRevTotal>0 ? actualRevenue/planRevTotal*100 : null,
              companyPct: r.pct };
   });
   // 전사 카테고리별 합계(계획이 있는 매장만) — PLT만 실제와 대조하고, 매출은 "계획" 참고값만 낸다.
   const catKeys = Object.keys(SUPPLY_PLAN_PARAMS);
   const catTotals = catKeys.map(pc=>{
-    let planPLT=0, actualPLT=0, planRevFull=0;
+    let planPLT=0, planPLTFull=0, actualPLT=0, planRevFull=0;
     rows.forEach(x=>{ if(!x.cats) return; const c = x.cats.find(y=>y.cat===pc); if(!c) return;
-      planPLT += c.planPLT; actualPLT += c.actualPLT; planRevFull += c.planRevFull; });
+      planPLT += c.planPLT; planPLTFull += c.planPLTFull; actualPLT += c.actualPLT; planRevFull += c.planRevFull; });
     // 출처별 분해(계획 있는 매장만, 실제 원장 카테고리 기준) — 표에서 마우스를 올려 검수할 수 있게
     const parts = {hq:0, center:0, merged:0, direct:0, appliance:0, fresh:0, lotte:0};
     const realCats = SUPPLY_PLAN_CAT_MATCH[pc] || [];
     rows.forEach(x=>{ if(!x.cats || !x.cats.find(y=>y.cat===pc)) return;
       (x.r.members||[x.store]).forEach(st=> realCats.forEach(rc=>{ const q = diagQtyParts(st, rc, m); Object.keys(parts).forEach(k=> parts[k]+=q[k]); })); });
-    return { cat:pc, planPLT, actualPLT, planRevFull, parts, pltPct: planPLT>0 ? actualPLT/planPLT*100 : null };
+    return { cat:pc, planPLT, planPLTFull, actualPLT, planRevFull, parts, pltPct: planPLTFull>0 ? actualPLT/planPLTFull*100 : null };   // build 99: 월 기준
   });
   // 계획 외 출고(전사, 계획 있는 매장 기준) — 카테고리별 합계
   const outsideTotals = {};
@@ -9418,7 +9418,7 @@ function goalsRender10Body(ctx){
 
   const have = D.rows.filter(x=>x.plan);
   const missing = D.rows.filter(x=>!x.plan);
-  const sumPlanPLT = have.reduce((a,x)=>a+x.planPLTTotal,0);
+  const sumPlanPLT = have.reduce((a,x)=>a+x.planPLTFullTotal,0);   // build 99: 공급 도달율 월 기준
   const sumActualPLT = have.reduce((a,x)=>a+x.actualPLT,0);
   const sumPlanRev = have.reduce((a,x)=>a+x.planRevTotal,0);
   const sumActualRev = have.reduce((a,x)=>a+x.actualRevenue,0);
@@ -9440,7 +9440,7 @@ function goalsRender10Body(ctx){
   // 전사 카테고리별 세분화 — PLT는 실제와 대조하고, 매출은 계획(참고)만 낸다(위 함수 주석 참고).
   const catRows = D.catTotals.map(c=>`<tr>
       <td>${escHtml(c.cat)}${c.cat==="상온"?' <span style="color:var(--muted2)">(XLE)</span>':""}</td>
-      <td><span class="num">${c.planPLT.toLocaleString(undefined,{maximumFractionDigits:1})}</span></td>
+      <td><span class="num">${c.planPLTFull.toLocaleString(undefined,{maximumFractionDigits:1})}</span></td>
       <td title="${c.parts?escHtml(`본사↔센터 병합 ${Math.round(c.parts.merged)} (본사 ${Math.round(c.parts.hq)} / 센터 창고경유 ${Math.round(c.parts.center)}, ${SHIP_MERGE_LABEL[shipMergePolicy]||shipMergePolicy}) + 센터 직출 ${Math.round(c.parts.direct)} + 가전센터 ${Math.round(c.parts.appliance)} + 신선 ${Math.round(c.parts.fresh)}${c.parts.lotte?` + 롯데제타 ${Math.round(c.parts.lotte)}`:""}`):""}"><span class="num">${c.actualPLT.toLocaleString(undefined,{maximumFractionDigits:1})}</span>${c.parts?`<div style="font-size:10.5px;color:var(--muted2)">본사·센터 ${Math.round(c.parts.merged)} · 직출 ${Math.round(c.parts.direct)}${c.parts.appliance?` · 가전센터 ${Math.round(c.parts.appliance)}`:""}${c.parts.fresh?` · 신선 ${Math.round(c.parts.fresh)}`:""}</div>`:""}</td>
       <td style="color:${pctColor(c.pltPct)}"><span class="num">${pctTxt(c.pltPct)}</span></td>
       <td><span class="num">${won(c.planRevFull)}</span></td>
@@ -9450,7 +9450,7 @@ function goalsRender10Body(ctx){
   // build 78: 합계 행 — 계획 카테고리 합계(신선 파일 없는 달은 신선 제외) + 계획 외 + 총 출고
   const _fm = !(FRESH_M[D.month] && Object.keys(FRESH_M[D.month]).length);
   const _ct = D.catTotals.filter(c=> !(_fm && c.cat==="신선"));
-  const _cP = _ct.reduce((a,c)=>a+c.planPLT,0), _cA = _ct.reduce((a,c)=>a+c.actualPLT,0), _cR = _ct.reduce((a,c)=>a+c.planRevFull,0);
+  const _cP = _ct.reduce((a,c)=>a+c.planPLTFull,0), _cA = _ct.reduce((a,c)=>a+c.actualPLT,0), _cR = _ct.reduce((a,c)=>a+c.planRevFull,0);
   const _cPct = _cP>0 ? _cA/_cP*100 : null;
   const catSumRow = `<tr style="border-top:2px solid var(--line)"><td><b>계획 카테고리 합계</b>${_fm?' <span style="color:var(--muted2);font-size:11px">(신선 제외 — 파일 없음)</span>':''}</td>
       <td><span class="num"><b>${_cP.toLocaleString(undefined,{maximumFractionDigits:1})}</b></span></td>
@@ -9660,7 +9660,7 @@ function goalsRender10Body(ctx){
     </tr>`).join("");
   const table = `
     <div class="g-tbl-title">매장별 공급계획(PLT) 대비 ${cm} 도달 현황 — 기대매출 도달율 낮은 순</div>
-    <div class="g-tbl-sub">계획 PLT·기대매출은 "매장별 운영 종합계획" 엑셀에서 온 값입니다. ${prorateNote}</div>
+    <div class="g-tbl-sub">계획 PLT·기대매출은 "매장별 운영 종합계획" 엑셀에서 온 값입니다. <b>공급 도달율 = 실제 출고 PLT ÷ 월 계획 PLT 전체</b>(경과일과 무관). ${D.isOngoing?`기대매출 도달율은 ${cm}이 진행 중이라 기대매출을 경과일 비례(${D.elapsed}/${D.dim}일 = ${(D.prorate*100).toFixed(0)}%)로 잘라 비교합니다.`:`${cm}은 끝난 달이라 기대매출도 월 총량 그대로 비교합니다.`}</div>
     <div class="tblbox"><table class="g-tbl">
       <thead><tr>
         <th>매장</th><th>계획 총PLT(월)</th><th>실제 출고PLT(${cm})</th><th>공급 도달율</th>
@@ -9698,7 +9698,7 @@ function goalsRender10Body(ctx){
     return `<details class="g-store-more">
       <summary>${escHtml(x.label)} — ${cm} 공급PLT 도달율 ${x.pltPct!=null?x.pltPct.toFixed(1)+'%':'-'} · 기대매출 도달율 ${x.revPct!=null?x.revPct.toFixed(1)+'%':'-'}</summary>
       <div class="g-kpis" style="margin:10px 0">
-        <div class="g-kpi"><div class="v" style="color:${pctColor(x.pltPct)}">${pctTxt(x.pltPct)}</div><div class="l">PLT 공급 도달율 · ${Math.round(x.actualPLT).toLocaleString()} / ${Math.round(x.planPLTTotal).toLocaleString()} PLT</div></div>
+        <div class="g-kpi"><div class="v" style="color:${pctColor(x.pltPct)}">${pctTxt(x.pltPct)}</div><div class="l">PLT 공급 도달율(월 기준) · ${Math.round(x.actualPLT).toLocaleString()} / ${Math.round(x.planPLTFullTotal).toLocaleString()} PLT</div></div>
         <div class="g-kpi"><div class="v" style="color:${pctColor(x.revPct)}">${pctTxt(x.revPct)}</div><div class="l">기대매출 도달율 · ${won(x.actualRevenue)} / ${won(x.planRevTotal)}원</div></div>
       </div>
       <div class="tblbox"><table class="g-tbl"><thead><tr><th>카테고리</th><th>계획 PLT(월)</th><th>실제 PLT(${cm})</th><th>PLT 도달율</th></tr></thead><tbody>${cells}</tbody></table></div>
