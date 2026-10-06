@@ -743,7 +743,7 @@
   .g-store-card.v2{display:flex;flex-direction:column;gap:9px;}
   .g-store-card.v2 .g-store-hd{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
   /* build 96: 매장명 크게 + 매장 바로가기 */
-  .g-store-card.v2 .g-store-name{font-size:21px;font-weight:800;letter-spacing:-.01em;line-height:1.25;}
+  .g-store-card.v2 .g-store-name{font-size:25px;font-weight:800;letter-spacing:-.01em;line-height:1.25;}
   .g-store-card.v2 .g-store-name .g-store-rank{display:block;margin-left:0;margin-top:2px;font-size:11px;}
   .g-store-card{scroll-margin-top:90px;}
   .g-store-card.g-flash{animation:gFlash 1.6s ease-out;}
@@ -865,7 +865,14 @@
   .g-r3 .r3-p{font-size:10.5px;color:var(--muted2);margin-top:2px;}
   .g-r3 .r3-bar{height:4px;background:var(--line-soft);border-radius:2px;margin-top:6px;overflow:hidden;}
   .g-r3 .r3-bar i{display:block;height:100%;border-radius:2px;}
-  .g-catgrid{display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;align-items:center;}
+  .g-catgrid{display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;align-items:start;}
+  .g-cat-leftcol{display:flex;flex-direction:column;gap:10px;align-items:stretch;}   /* build 101: 원형그래프 위 + 매출 많은 시간대 */
+  .g-peakhr{background:var(--panel2);border:1px solid var(--line-soft);border-radius:8px;padding:7px 8px;cursor:help;}
+  .g-peakhr-t{font-size:10.5px;color:var(--muted2);font-family:"Oswald";letter-spacing:.03em;margin-bottom:4px;}
+  .g-peakhr-r{display:flex;justify-content:space-between;gap:6px;font-size:11px;line-height:1.6;font-family:"JetBrains Mono";color:var(--text);}
+  .g-peakhr-r .v{color:var(--muted2);}
+  .g-peakhr-r.top .h{color:var(--amber);font-weight:700;}
+  .g-peakhr-e{font-size:11px;color:var(--muted2);}
   .g-catgrid .pie-donut-only{padding:0;}
   .g-catgrid .g-store-catbars{margin-top:0;}
   @media (max-width:560px){ .g-catgrid{grid-template-columns:1fr;} .g-r3-row{grid-template-columns:1fr;} }
@@ -947,7 +954,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 100 · 2026-10-06</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 101 · 2026-10-06</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -4722,7 +4729,14 @@ function renderSalesCatRank(){
   }).filter(r=>r.value>0).sort((a,b)=>b.value-a.value);
   const dayLabel = (selectedCatRankDay && selectedCatRankDay!=="__all__") ? `${selectedCatRankDay} 하루 기준`
     : (selectedCatRankMonth && selectedCatRankMonth!=="__active__") ? `${selectedCatRankMonth} 기준` : salesModeLabel();
-  body.innerHTML = `<div style="font-size:11px;color:var(--muted2);margin-bottom:10px;">${escHtml(dayLabel)} · <b>${escHtml(selectedSalesCategory)}</b> 매출 많은 매장 순</div>` + buildCategoryBarList(rows);
+  // build 101: 우측 상단에 선택 카테고리 총매출(전 매장 합계) · 판매수량 · 매장 수
+  const totAmt = rows.reduce((a,r)=>a+r.value,0), totQty = rows.reduce((a,r)=>a+(r.qty||0),0);
+  body.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+      <div style="font-size:11px;color:var(--muted2);">${escHtml(dayLabel)} · <b>${escHtml(selectedSalesCategory)}</b> 매출 많은 매장 순</div>
+      <div style="text-align:right;line-height:1.3;"><div style="font-size:11px;color:var(--muted2);">${escHtml(selectedSalesCategory)} 총매출 (${rows.length}개 매장)</div>
+        <div style="font-family:'JetBrains Mono';font-size:20px;font-weight:700;color:var(--text);">${Math.round(totAmt).toLocaleString()}원</div>
+        <div style="font-size:11px;color:var(--muted2);">판매수량 ${Math.round(totQty).toLocaleString()}</div></div>
+    </div>` + buildCategoryBarList(rows);
 }
 
 /* ================= build 73: 매장별 출고현황 표와 같은 규칙의 날짜별 공급 PLT =================
@@ -7453,7 +7467,7 @@ function goalsMonthlyHistory(store, months, curMonth){
     const v = goalsGroupMap(m).map[store] || 0;
     if(v<=0) return;
     const t = target*(a.days/a.dim);
-    points.push({ month:m, pct: t>0 ? v/t*100 : 0, partial: a.state==="partial", actual: v, target: t });
+    points.push({ month:m, pct: t>0 ? v/t*100 : 0, partial: a.state==="partial", actual: v, target: t, monthTarget: target, days: a.days, dim: a.dim });   // build 101: monthTarget(월 목표 전액)·일수 — 07표 말풍선용
   });
   if(!points.length) return { points, inactive, avg:null, recent3:null };
   const avg = points.reduce((a,p)=>a+p.pct,0)/points.length;
@@ -7515,11 +7529,32 @@ function goalsCatColInner(store, ym, scopeData, scopeLabel){
   const lbl = (!ym || ym==="__scope__") ? scopeLabel : `${+ym.slice(5)}월 (${ym.slice(0,4)})`;
   if(!data || !data.length) return `<div class="g-store-catempty">${escHtml(lbl)} 카테고리 매출 데이터 없음</div>`;
   const tot = data.reduce((a,d)=>a+d.value,0);
+  // build 101: 왼쪽 칸 = 원형그래프(위) + 그 아래 "매출 많은 시간대" 칸
+  const months = (!ym || ym==="__scope__") ? (typeof goalsScopeMonths==="function" ? goalsScopeMonths() : []) : [ym];
   return `<div class="g-store-catlbl">${escHtml(lbl)} · 합계 ${Math.round(tot).toLocaleString()}원</div>
     <div class="g-catgrid">
-      <div class="pie-donut-only">${buildDonutSVG(data, 132)}</div>
+      <div class="g-cat-leftcol">
+        <div class="pie-donut-only">${buildDonutSVG(data, 132)}</div>
+        ${goalsPeakHoursHtml(store, months)}
+      </div>
       <div class="g-store-catbars">${buildSharePercentBars(data.slice(0,8), {compact:true})}</div>
     </div>`;
+}
+// build 101: 매장(합산 매장 포함)의 시간대별 매출(카테고리별 매출 파일의 시간대 집계, 청구 기준) 상위 3개
+function goalsPeakHoursHtml(store, months){
+  const ms = new Set(months||[]); const members = storeGroupMembers(store); const hr = {};
+  SALES_HISTORY.forEach(h=>{ if(!h || !h.date || !ms.has(h.date.slice(0,7)) || !h.byStoreHour) return;
+    members.forEach(st=>{ const sh = h.byStoreHour[st]; if(!sh) return;
+      Object.keys(sh).forEach(k=>{ const o = hr[k] || (hr[k] = {amount:0, count:0}); o.amount += +sh[k].amount||0; o.count += +sh[k].count||0; }); }); });
+  const arr = Object.keys(hr).map(k=>({h:+k, a:hr[k].amount, c:hr[k].count})).filter(x=>x.a>0);
+  if(!arr.length) return `<div class="g-peakhr"><div class="g-peakhr-t">매출 많은 시간대</div><div class="g-peakhr-e">시간대 데이터 없음</div></div>`;
+  const tot = arr.reduce((x,v)=>x+v.a,0);
+  const top = arr.sort((a,b)=>b.a-a.a).slice(0,3);
+  const fmtW = v => v>=1e8 ? (v/1e8).toFixed(2)+"억" : v>=1e4 ? Math.round(v/1e4).toLocaleString()+"만" : Math.round(v).toLocaleString();
+  return `<div class="g-peakhr" title="${escHtml(arr.sort((a,b)=>a.h-b.h).map(x=>`${x.h}~${x.h+1}시 ${Math.round(x.a).toLocaleString()}원 · ${x.c}건`).join('\n'))}">
+    <div class="g-peakhr-t">매출 많은 시간대</div>
+    ${top.map((x,i)=>`<div class="g-peakhr-r${i===0?' top':''}"><span class="h">${x.h}~${x.h+1}시</span><span class="v">${fmtW(x.a)} · ${(x.a/tot*100).toFixed(0)}%</span></div>`).join("")}
+  </div>`;
 }
 function goalsCatColHtml(r, ctx){
   const store = r.store;
@@ -8972,21 +9007,36 @@ function goalsRender06(ctx){
 /* ---------------- 07_매장별월별추이 ---------------- */
 function goalsRender07(ctx){
   const pctMap = {};   // store -> {month: pct}
-  ctx.rows.forEach(r=>{ pctMap[r.store] = {}; (r.hist && r.hist.points || []).forEach(p=> pctMap[r.store][p.month] = p.pct); });
+  const ptMap = {};    // build 101: store -> {month: point} — 마우스 올리면 목표매출·당월 매출 표시
+  ctx.rows.forEach(r=>{ pctMap[r.store] = {}; ptMap[r.store] = {}; (r.hist && r.hist.points || []).forEach(p=>{ pctMap[r.store][p.month] = p.pct; ptMap[r.store][p.month] = p; }); });
+  const wonT = v => `${Math.round(v||0).toLocaleString()}원`;
+  const isPart = (p)=> p && p.days!=null && p.dim!=null && p.days<p.dim;
+  const cellTip = (label, m, p)=>{
+    const lines = [`${label} · ${ctx.mLbl(m)}`, `월 목표매출: ${wonT(p.monthTarget!=null?p.monthTarget:p.target)}`];
+    if(isPart(p)) lines.push(`${m===ctx.curMonth?'경과':'영업'} ${p.days}/${p.dim}일 환산 목표: ${wonT(p.target)}`);
+    lines.push(`${m===ctx.curMonth?'당월 매출(현재까지)':'당월 매출'}: ${wonT(p.actual)}`, `달성률: ${p.pct.toFixed(1)}%`);
+    return lines.join("\n");
+  };
   const hdr = ctx.months.map(m=> m===ctx.curMonth
     ? `<th>${ctx.mLbl(m)}<br>(~${m.slice(5,7)}/${ctx.elapsedDays})</th>`
     : `<th>${ctx.mLbl(m)}</th>`).join("");
   const body = ctx.rows.map(r=>`<tr><td>${escHtml(r.label)}</td>${
       ctx.months.map(m=>{ const p = pctMap[r.store][m];
         if(p==null) return `<td title="${m} 데이터 없음"><span class="num" style="color:var(--muted2)">결측</span></td>`;
-        return `<td style="${goalsHeatBg((p/100)/1.2)}"><span class="num">${p.toFixed(1)}%</span></td>`; }).join("")
+        return `<td style="${goalsHeatBg((p/100)/1.2)};cursor:help" title="${escHtml(cellTip(r.label, m, ptMap[r.store][m]))}"><span class="num">${p.toFixed(1)}%</span></td>`; }).join("")
     }<td class="total-col"><span class="num">${r.hist && r.hist.avg!=null ? r.hist.avg.toFixed(1)+'%' : '-'}</span></td>
       <td class="total-col"><span class="num">${r.hist && r.hist.recent3!=null ? r.hist.recent3.toFixed(1)+'%' : '-'}</span></td></tr>`).join("");
   const avgFoot = ctx.months.map(m=>{
     const vals = ctx.rows.map(r=>pctMap[r.store][m]).filter(v=>v!=null);
     if(!vals.length) return `<td></td>`;
     const avg = vals.reduce((a,v)=>a+v,0)/vals.length;
-    return `<td style="${goalsHeatBg((avg/100)/1.2)}"><span class="num">${avg.toFixed(1)}%</span></td>`;
+    // build 101: 전사 합계 말풍선 — 전체 목표매출(월 전액 합) · 전체 당월 매출 합 · 합계 기준 달성률
+    const pts = ctx.rows.map(r=>ptMap[r.store][m]).filter(Boolean);
+    const sumFull = pts.reduce((a,p)=>a+(p.monthTarget!=null?p.monthTarget:p.target),0), sumT = pts.reduce((a,p)=>a+p.target,0), sumA = pts.reduce((a,p)=>a+p.actual,0);
+    const tip = [`전사 · ${ctx.mLbl(m)} (${pts.length}개 매장)`, `전체 목표매출: ${wonT(sumFull)}`]
+      .concat(Math.round(sumT)!==Math.round(sumFull) ? [`${m===ctx.curMonth?`경과 ${ctx.elapsedDays}일 환산`:'영업일 환산'} 목표: ${wonT(sumT)}`] : [])
+      .concat([`전체 ${m===ctx.curMonth?'당월 매출(현재까지)':'당월 매출 마감'}: ${wonT(sumA)}`, `합계 기준 달성률: ${sumT>0?(sumA/sumT*100).toFixed(1):'-'}%`, `표의 값(${avg.toFixed(1)}%)은 매장 달성률의 단순 평균`]).join("\n");
+    return `<td style="${goalsHeatBg((avg/100)/1.2)};cursor:help" title="${escHtml(tip)}"><span class="num">${avg.toFixed(1)}%</span></td>`;
   }).join("");
   return `<div class="g-tbl-title">매장별 월 목표 달성률 추이 (${ctx.months[0]} ~ ${ctx.curMonth}, ${ctx.mLbl(ctx.curMonth)}은 ${ctx.elapsedDays}일 환산 목표 대비)</div>
     <div class="g-tbl-sub">일별/주별 데이터는 이 사이트가 월 단위로만 집계·저장하고 있어 제공 불가 — 월 단위로 대신 제공합니다. '결측'은 그 달 매출 원본이 업로드되지 않은 경우로, 0%가 아니라 데이터 없음을 뜻합니다.</div>
@@ -9197,6 +9247,75 @@ function diagActions(d, ctx, D){
   return out;
 }
 
+// build 101: 판정 칩에 마우스를 올리면 "어느 카테고리가 왜" 그 판정인지 보여 주는 설명(카테고리 단위 근거).
+//   매출 카테고리는 가전(XLB+대형가전) 묶음 기준으로 PLT와 맞춘다. 전사 비교값 = ctx.effMap(분석 기간 카테고리별 PLT당 매출).
+const _diagStoreCatCache = {};
+function diagStoreCatMonth(members, m){
+  const k = m+"|"+members.join(",");
+  if(_diagStoreCatCache[k] && _diagStoreCatCache[k].n===SALES_HISTORY.length) return _diagStoreCatCache[k].v;
+  const merged = mergeByStoreCat(SALES_HISTORY.filter(h=>h.date.slice(0,7)===m)); const out = {};
+  members.forEach(st=> Object.keys(merged[st]||{}).forEach(c=>{ const g = salesCatGroup(c); out[g] = (out[g]||0) + ((merged[st][c]&&merged[st][c].amount)||0); }));
+  _diagStoreCatCache[k] = {n:SALES_HISTORY.length, v:out}; return out;
+}
+function diagTagTips(d, ctx, D){
+  const mem = d.r.members || [d.r.store];
+  const man = v => v==null ? "-" : (Math.abs(v)>=1e8 ? (v/1e8).toFixed(2)+"억" : Math.round(v/1e4).toLocaleString()+"만");
+  const rev = diagStoreCatMonth(mem, D.cur);
+  const plt = {}; Object.keys(d.plt||{}).forEach(c=>{ const g = salesCatGroup(c); plt[g] = (plt[g]||0) + d.plt[c]; });
+  const comp = g => (ctx.effMap && ctx.effMap[g] && ctx.effMap[g].perPlt) || null;
+  const cats = Array.from(new Set([...Object.keys(rev), ...Object.keys(plt)])).filter(g=> g!=="재사용봉투" && g!=="미분류");
+  const line = g => { const r = rev[g]||0, p = plt[g]||0, pp = p>0 ? r/p : null, cp = comp(g);
+    return `· ${g}: 매출 ${man(r)}원 / 공급 ${Math.round(p*10)/10} PLT${pp!=null?` → PLT당 ${man(pp)}원`:""}${cp?` (전사 ${man(cp)}원${pp!=null?`, ${Math.round(pp/cp*100)}%`:""})`:""}`; };
+  const L = ctx.mLbl(D.cur), tips = {};
+  // ① 공급기아
+  {
+    const c = cats.filter(g=> (rev[g]||0)>0 && comp(g) && ((plt[g]||0)<=0.5 || (rev[g]/plt[g]) >= comp(g)*1.25))
+                  .sort((a,b)=> (rev[b]||0)-(rev[a]||0)).slice(0,4);
+    tips["공급기아"] = [`공급기아 — 물량 대비 잘 팔리는데 받은 물량이 적음 (${L})`,
+      `매장 전체: 유효 PLT당 매출 ${man(d.perPlt)}원 = 전사 중앙값 ${man(D.medPerPlt)}원의 ${D.medPerPlt?(d.perPlt/D.medPerPlt).toFixed(1):"-"}배 · 이번달 공급 ${d.t} PLT(전사 중앙값 ${Math.round(D.medPlt||0)} PLT 이하)`,
+      c.length ? `더 줘야 할 카테고리(PLT당 매출이 전사보다 25%↑ 또는 공급 없이 판매 중):` : `카테고리별로 두드러진 항목 없음`, ...c.map(line)].join("\n");
+  }
+  // ② 전환실패
+  {
+    const low = cats.filter(g=> (plt[g]||0)>=3 && comp(g) && (rev[g]||0)/plt[g] <= comp(g)*0.75).sort((a,b)=>(plt[b]||0)-(plt[a]||0)).slice(0,4);
+    const nr = Object.keys(d.plt||{}).filter(c=>D.noRev.has(c)).sort((a,b)=>d.plt[b]-d.plt[a]).slice(0,4);
+    const why = [];
+    if(nr.length) why.push(`매출이 안 잡히는 카테고리로 출고: ${nr.map(c=>`${c} ${Math.round(d.plt[c]*10)/10}PLT`).join(", ")} (총 ${d.nr}PLT, ${d.nrPct!=null?d.nrPct.toFixed(0):"-"}%)`);
+    if(d.stuck && d.stuck.length) why.push(`매장 재고 정체: ${d.stuck.map(x=>`${x.cat} ${x.v}PLT`).join(", ")} — 입고분이 진열 전 재고로 쌓였을 가능성`);
+    if(d.yard>0) why.push(`야적 ${d.yard}PLT`);
+    if(d.memo) why.push(`현장 메모: ${d.memo}`);
+    tips["전환실패"] = [`전환실패 — 물량은 많이 받았는데 매출로 안 바뀜 (${L})`,
+      `매장 전체: ${d.t} PLT 받고 유효 PLT당 매출 ${man(d.perPlt)}원 = 전사 중앙값 ${man(D.medPerPlt)}원의 ${D.medPerPlt?Math.round(d.perPlt/D.medPerPlt*100):"-"}%`,
+      low.length ? `안 팔리는 카테고리(PLT당 매출이 전사의 75% 이하):` : `카테고리별로 두드러진 항목 없음`, ...low.map(line),
+      ...(why.length ? ["원인 후보:", ...why.map(x=>"· "+x)] : [])].join("\n");
+  }
+  // ③ 창고봉쇄
+  tips["창고봉쇄"] = [`창고봉쇄 — 매장 공간이 막혀 신규 입고가 어려움`,
+    `야적 ${d.yard||0}PLT · 창고 보관가능 ${d.room==null?"미보고":d.room+"PLT"}${d.room===0?" (여유 없음)":""} · 매장재고 ${d.stockTot||0}PLT`,
+    d.stuck && d.stuck.length ? `재고 많은 카테고리: ${d.stuck.map(x=>`${x.cat} ${x.v}PLT`).join(", ")}` : "",
+    d.memo ? `현장 메모: ${d.memo}` : ""].filter(Boolean).join("\n");
+  // ④ 배정오류
+  {
+    const nr = Object.keys(d.plt||{}).filter(c=>D.noRev.has(c)).sort((a,b)=>d.plt[b]-d.plt[a]);
+    tips["배정오류"] = [`배정오류 — 받은 물량의 ${d.nrPct!=null?d.nrPct.toFixed(0):"-"}%가 매출 0 카테고리 (${L})`, ...nr.map(c=>`· ${c} ${Math.round(d.plt[c]*10)/10} PLT`)].join("\n");
+  }
+  // ⑤ 하락경보 — 카테고리별 일평균 매출 전반기 → 후반기
+  {
+    const dayAvg = ms => { const o = {}; let n = 0; ms.forEach(m=>{ const a = storeActiveDays(d.r.store, m, m===ctx.curMonth?ctx.elapsedDays:null); if(a.days<=0) return; n++;
+        const rv = diagStoreCatMonth(mem, m); Object.keys(rv).forEach(g=> o[g] = (o[g]||0) + rv[g]/a.days); }); Object.keys(o).forEach(g=> o[g] = n? o[g]/n : 0); return o; };
+    const A = dayAvg(D.early), B = dayAvg(D.late);
+    const ch = Array.from(new Set([...Object.keys(A), ...Object.keys(B)])).filter(g=>g!=="재사용봉투"&&g!=="미분류")
+      .map(g=>({g, a:A[g]||0, b:B[g]||0, diff:(B[g]||0)-(A[g]||0)})).sort((x,y)=>x.diff-y.diff);
+    const down = ch.filter(x=>x.diff<=-5000).slice(0,4), up = ch.filter(x=>x.diff>=5000).sort((x,y)=>y.diff-x.diff).slice(0,2);   // 하루 5천원 미만 변화는 생략
+    const rng = ms => ms.length ? `${ctx.mLbl(ms[0])}~${ctx.mLbl(ms[ms.length-1])}` : "-";
+    tips["하락경보"] = [`하락경보 — 일평균 매출 ${d.trend!=null?d.trend.toFixed(1):"-"}% (${rng(D.early)} → ${rng(D.late)})`,
+      `매장 전체: 하루 ${man(d.dA)}원 → ${man(d.dB)}원`,
+      down.length ? `많이 빠진 카테고리(하루 평균):` : "", ...down.map(x=>`· ${x.g}: ${man(x.a)}원 → ${man(x.b)}원 (${x.diff<0?"−":"+"}${man(Math.abs(x.diff))}원/일${x.a>0?`, ${((x.b/x.a-1)*100).toFixed(0)}%`:""})`),
+      up.length ? `늘어난 카테고리: ${up.map(x=>`${x.g} +${man(x.diff)}원/일`).join(", ")}` : ""].filter(Boolean).join("\n");
+  }
+  return tips;
+}
+
 function goalsRender08(ctx){
   try{ return goalsRender08Body(ctx); }
   catch(e){ return `<div class="g-tbl-sub" style="color:var(--red)">08 진단을 만드는 중 오류가 났습니다: ${escHtml(String(e&&e.message||e))}<br>다른 탭은 정상 동작합니다 — 이 메시지를 그대로 알려주시면 고치겠습니다.</div>`; }
@@ -9283,7 +9402,7 @@ function goalsRender08Body(ctx){
       <td><span class="num">${d.stockTot||"-"}</span></td>
       <td><span class="num ${d.yard>=15?'neg':''}">${d.yard||"-"}</span></td>
       <td>${r.fresh?escHtml(r.freshLabel||"취급"):'<span class="g-chip">미취급</span>'}</td>
-      <td>${d.tags.length?d.tags.map(t=>`<span class="g-chip ${t==="공급기아"?"good":"warn"}">${t}</span>`).join(""):'<span class="g-chip">정상</span>'}</td>
+      <td>${d.tags.length?(tp=>d.tags.map(t=>`<span class="g-chip ${t==="공급기아"?"good":"warn"}" style="cursor:help" title="${escHtml(tp[t]||t)}">${t}</span>`).join(""))(diagTagTips(d, ctx, D)):'<span class="g-chip">정상</span>'}</td>
     </tr>`;
   }).join("");
   const storeTbl = `
