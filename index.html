@@ -942,7 +942,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 97 · 2026-10-02</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 98 · 2026-10-06</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -5467,6 +5467,47 @@ function parseFreshSummarySheet(aoa){
   }
   return null;
 }
+/* build 98 (2026-10-06): 2026년 10월부터 신선 공급 파일이 "일자 × 매장" 양식으로 바뀌었다.
+   파일 예: 신선출고내역서\2610\리퀴데이션_일자별매장_2026-10.xlsx — 시트 "일자 × 매장", 행 = 일자(2026-10-01…), 열 = 일자 | 이천점 | 인천점 | … | 기흥센터 | 합계 PLT | 벌크 건수.
+   여기서 "합계 PLT"는 그날 전 매장 합계(가로 합)라 매장별 값이 아니다 → 매장 열을 세로로 합산해 그 달 매장별 신선식품 공급 PLT로 쓴다.
+   "합계 PLT"·"벌크 건수"·매장 목록에 없는 열은 집계에서 뺀다. 월 = 파일명/월 폴더 → 없으면 일자 열의 날짜. */
+function parseFreshDailySheet(aoa){
+  const n = x => String(x==null?"":x).replace(/\s+/g,"");
+  const dateOf = v=>{
+    if(typeof v==="number" && v>30000 && v<80000){ const d=new Date(Math.round((v-25569)*86400000)); return d.toISOString().slice(0,10); }
+    const m = String(v==null?"":v).match(/(20\d{2})[-.\/년\s]*(\d{1,2})[-.\/월\s]*(\d{1,2})/);
+    return m ? `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}` : null;
+  };
+  for(let r=0; r<Math.min(aoa.length,15); r++){
+    const row = aoa[r]||[];
+    const cDate = row.findIndex(c=> /^(일자|날짜|출고일|출고일자)$/.test(n(c)));
+    if(cDate<0) continue;
+    const storeCols = {}, skipCols = [], unmatched = {};
+    row.forEach((c,i)=>{
+      if(i===cDate || c==null || String(c).trim()==="") return;
+      const t = n(c);
+      if(/합계|총계|소계|PLT|벌크|건수|total/i.test(t)){ skipCols.push(i); return; }
+      const st = resolveShipmentStoreName(String(c).trim());
+      if(st && STORES.includes(st)) storeCols[i] = st; else unmatched[i] = String(c).trim();
+    });
+    if(Object.keys(storeCols).length < 3) continue;   // 매장 열이 몇 개 이상 있어야 일자×매장 양식으로 본다
+    const byStore = {}, byDate = {}, unmatchedTot = {}, months = {};
+    for(let i=r+1; i<aoa.length; i++){
+      const rw = aoa[i]||[];
+      const d = dateOf(rw[cDate]);
+      if(!d) continue;                                  // 합계 행·빈 행 제외
+      months[d.slice(0,7)] = (months[d.slice(0,7)]||0) + 1;
+      const add = (key, obj, v)=>{ obj[key] = Math.round(((obj[key]||0)+v)*10)/10; };
+      const num = v => typeof v==="number" ? v : parseFloat(String(v==null?"":v).replace(/,/g,""));
+      Object.keys(storeCols).forEach(c=>{ const v=num(rw[c]); if(v>0){ add(storeCols[c], byStore, v); if(!byDate[d]) byDate[d]={}; add(storeCols[c], byDate[d], v); } });
+      Object.keys(unmatched).forEach(c=>{ const v=num(rw[c]); if(v>0) add(unmatched[c], unmatchedTot, v); });
+    }
+    const dates = Object.keys(byDate).sort();
+    const monthFromDates = Object.keys(months).sort((a,b)=>months[b]-months[a])[0] || null;
+    return { byStore, byDate, unmatched: unmatchedTot, monthFromDates, first: dates[0]||null, last: dates[dates.length-1]||null, days: Object.keys(months).length ? Object.values(months).reduce((a,v)=>a+v,0) : 0 };
+  }
+  return null;
+}
 function freshMonthFromName(fileName, path){
   let m = String(fileName||"").match(/(20\d{2})[-_.]?(0[1-9]|1[0-2])(?!\d)/);
   if(m) return `${m[1]}-${m[2]}`;
@@ -5484,13 +5525,24 @@ function parseFreshWorkbook(wb, fileName, filePath){
       return { cat:"신선식품", byStore: sum.byStore, byMonthStore, unmatchedCols: Object.keys(sum.unmatched).map(k=>`${k}(${sum.unmatched[k]}PLT)`), month, summary:true, sheet:sn };
     }
   }
+  // build 98: 일자 × 매장 양식(2026-10~) — 매장 열 세로 합산. 구양식 취합본(채널 시트+통합본)·수박 파일은 기존 로직 그대로.
+  if(!/수박|취합본|통합/.test(fileName)){
+    for(const sn of wb.SheetNames){
+      const dl = parseFreshDailySheet(sheetAoA(wb, sn));
+      if(dl && Object.keys(dl.byStore).length){
+        const month = freshMonthFromName(fileName, filePath) || dl.monthFromDates;
+        const byMonthStore = month ? { [month]: dl.byStore } : {};
+        return { cat:"신선식품", byStore: dl.byStore, byMonthStore, unmatchedCols: Object.keys(dl.unmatched).map(k=>`${k}(${dl.unmatched[k]}PLT)`), month, summary:true, daily:dl, sheet:sn };
+      }
+    }
+  }
   const cat = /수박/.test(fileName) ? "수박" : "신선식품";
   const monthSheets = wb.SheetNames.filter(n=>/^\d{1,2}월$/.test(n));
   const unmatchedCols = new Set();
   const yearMatch = (fileName.match(/(20\d{2})(\d{2})/)||[]);
   const fileYear = yearMatch[1] || String(new Date().getFullYear());
   const byMonthStore = {};   // {YYYY-MM: {store: qty}} — 각 월 데이터를 그 달에 각각
-  let byStore = {}, month = yearMatch[1] ? `${yearMatch[1]}-${yearMatch[2]}` : null;
+  let byStore = {}, month = yearMatch[1] ? `${yearMatch[1]}-${yearMatch[2]}` : (freshMonthFromName(fileName, filePath) || null);   // build 98: 2026-10처럼 하이픈 든 파일명도 월 인식
   if(monthSheets.length){
     // 수박처럼 6·7·8월 시트가 있으면 각 월을 그 달에 넣는다(한 달로 뭉치지 않게).
     monthSheets.forEach(n=>{
@@ -5615,7 +5667,9 @@ function handleFreshFile(file){
         Object.keys(byStore).forEach(s=>{ if(!FRESH_ACTUAL[s]) FRESH_ACTUAL[s]={}; FRESH_ACTUAL[s][cat]=byStore[s]; added++; total+=byStore[s]; });
         saveState(); afterChange();
         let msg = added ? (parsedF.summary
-                            ? `신선 공급(신규 양식 · D열 합계 PLT) ${month} 반영: 매장 ${added}곳, 합계 ${(Math.round(total*10)/10).toLocaleString()} PLT (같은 달 다시 올리면 교체).`
+                            ? (parsedF.daily
+                                ? `신선 공급(일자×매장 양식) ${month} 반영: ${parsedF.daily.first||""}~${parsedF.daily.last||""} ${parsedF.daily.days}일치, 매장 ${added}곳, 합계 ${(Math.round(total*10)/10).toLocaleString()} PLT (매장 열 세로 합산 · 날짜 추가 후 다시 올리면 교체).`
+                                : `신선 공급(신규 양식 · D열 합계 PLT) ${month} 반영: 매장 ${added}곳, 합계 ${(Math.round(total*10)/10).toLocaleString()} PLT (같은 달 다시 올리면 교체).`)
                             : `신선 출고(${cat}) 반영: 매장 ${added}곳, 합계 ${Math.round(total).toLocaleString()} PLT (재업로드 시 교체).`)
                         : `"${file.name}"에서 매장명 열을 찾지 못했습니다. 센터/채널 코드만 있어 매장별 집계가 안 됩니다.`;
         if(unmatchedCols.length) msg += `\n매장으로 인식 못한 열: ${unmatchedCols.slice(0,12).join(", ")}${unmatchedCols.length>12?" 외":""}`;
