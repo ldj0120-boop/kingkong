@@ -682,9 +682,25 @@
   .g-kpi .v{font-family:"Oswald";font-size:24px;letter-spacing:-.01em;color:var(--pale);}
   .g-kpi .v.neg{color:var(--red);} .g-kpi .v.pos{color:var(--green);}
   /* build 103: 07 매장 분석 */
-  .g11-pick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;margin:2px 0 14px;font-size:13px;}
-  .g11-pick-note{color:var(--muted2);font-size:11px;}
-  .g11-chips{flex-basis:100%;display:flex;flex-wrap:wrap;gap:5px;}
+  .g11-layout{display:grid;grid-template-columns:190px minmax(0,1fr);gap:16px;align-items:start;}
+  .g11-main{min-width:0;}
+  .g11-side{position:sticky;top:8px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;max-height:calc(100vh - 24px);display:flex;flex-direction:column;gap:7px;}
+  .g11-side-hd{font-weight:800;font-size:14px;color:var(--text);}
+  .g11-seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;height:30px;flex:0 0 auto;}
+  .g11-seg button{flex:1;height:100%;line-height:28px;margin:0;min-height:0;background:transparent;border:0;color:var(--muted);padding:5px 0;font-size:12px;cursor:pointer;font-family:inherit;}
+  .g11-seg button.act{background:var(--amber);color:var(--amber-ink);font-weight:700;}
+  .g11-side-note{font-size:10.5px;color:var(--muted2);line-height:1.5;}
+  .g11-side-acts{display:flex;gap:5px;}
+  .g11-side-acts button{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--pale);border-radius:6px;font-size:11px;padding:3px 0;cursor:pointer;font-family:inherit;}
+  .g11-side-acts button:hover{border-color:var(--amber);}
+  .g11-side-list{overflow-y:auto;display:flex;flex-direction:column;gap:2px;min-height:0;}
+  .g11-st{display:flex;align-items:center;gap:6px;width:100%;text-align:left;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--pale);padding:5px 7px;font-size:12.5px;cursor:pointer;font-family:inherit;}
+  .g11-st:hover{background:var(--panel);border-color:var(--line);}
+  .g11-st.on{background:var(--amber-dim);border-color:var(--amber);color:var(--text);font-weight:700;}
+  .g11-st .ck{width:14px;color:var(--amber);font-size:12px;}
+  .g11-st .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .g11-st .pc{font-size:10.5px;font-family:"JetBrains Mono",monospace;}
+  @media (max-width:760px){ .g11-layout{grid-template-columns:1fr;} .g11-side{position:static;max-height:none;} .g11-side-list{flex-direction:row;flex-wrap:wrap;} .g11-st{width:auto;} }
   .g11-empty{padding:28px 18px;text-align:center;color:var(--muted);font-size:13px;line-height:1.8;border:1px dashed var(--line);border-radius:10px;}
   .g11-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;margin:4px 0 6px;}
   .g11-title{font-size:24px;font-weight:800;color:var(--text);letter-spacing:-.01em;}
@@ -709,7 +725,6 @@
   .g11-notes{display:grid;gap:6px;font-size:12.5px;}
   .g11-notes > div{display:grid;grid-template-columns:130px 1fr;gap:10px;padding:7px 10px;background:var(--panel2);border-radius:8px;}
   .g11-notes .k{color:var(--muted);} .g11-notes .v{color:var(--text);line-height:1.6;}
-  #gsub-11 .sf-seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;}
   .g-kpi .l{font-size:10.5px;color:var(--muted2);margin-top:3px;line-height:1.5;}
   .g-chip{display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:999px;
           padding:1px 8px;font-size:10.5px;color:var(--muted2);margin:0 3px 3px 0;white-space:nowrap;}
@@ -983,7 +998,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 103 · 2026-10-07</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 104 · 2026-10-07</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -9938,7 +9953,7 @@ function wireGoalsSubTabs(){
 }
 
 /* ================= build 103: 07 매장 분석 — 고른 매장(단수/복수)의 공급·매출·재고·진단을 한 페이지에 =================
-   매장 선택은 화면 위 "매장 선택" 줄(build 102)과 같은 상태를 쓴다(여기서 골라도, 위에서 골라도 같다).
+   매장 선택은 이 탭 왼쪽 매장 목록(build 104, 단수/복수)에서만 한다.
    복수 선택이면 숫자는 고른 매장들의 합계이고, 아래에 매장별 비교 표가 붙는다.
    - 월별 추이: 매출(monthStoreTotals — 그 달 더 완전한 소스) · 월 목표(영업일 비례, 진행 중인 달은 경과일 환산) · 공급 PLT(diagQty: 본사/센터 병합+가전+직출+신선+롯데)
    - 조회 달(아래 버튼): 카테고리 공급계획 대비 · 카테고리 효율(PLT당 매출, 전사 대비) · 일별 매출 · 매장재고 · 시간대 · 진단 · 메모 */
@@ -9955,9 +9970,14 @@ function g11CatNames(m){ const c = g11Cache(); return c.cats[m] || (c.cats[m] = 
 function g11Merged(m){ const c = g11Cache(); return c.merged[m] || (c.merged[m] = mergeByStoreCat(SALES_HISTORY.filter(h=>h && h.date && h.date.slice(0,7)===m))); }
 function g11StorePlt(m, s){ const out = {}; g11CatNames(m).forEach(c=>{ const v = diagQty(s,c,m); if(v>0) out[c] = v; }); return out; }
 function g11CompPlt(m){ const c = g11Cache(); if(!c.compPlt[m]){ const o = {}; STORES.forEach(s=>{ const p = g11StorePlt(m,s); Object.keys(p).forEach(k=> o[k]=(o[k]||0)+p[k]); }); c.compPlt[m] = o; } return c.compPlt[m]; }
+// build 104: 07 매장 분석 전용 선택 상태(왼쪽 매장 목록). 이 브라우저에만 저장.
+const G11_KEY = "kk_g11_sel_v1";
+let G11_SEL = { mode:"single", sel:[] };
+try{ const o = JSON.parse(localStorage.getItem(G11_KEY)||"null"); if(o && (o.mode==="single"||o.mode==="multi")) G11_SEL = { mode:o.mode, sel: Array.isArray(o.sel)?o.sel:[] }; }catch(_){}
+try{ localStorage.removeItem("kk_store_filter_v1"); }catch(_){}   // build 102 전역 필터 잔여값 정리
+function g11Save(){ try{ localStorage.setItem(G11_KEY, JSON.stringify(G11_SEL)); }catch(_){} }
 function g11Selected(){
-  const st = (typeof window.storeFilterState === "function") ? window.storeFilterState() : {sel:[], mode:"multi"};
-  return { mode: st.mode, sel: (st.sel||[]).filter(s=> STORES.includes(s)) };
+  return { mode: G11_SEL.mode, sel: (G11_SEL.sel||[]).filter(s=> STORES.includes(s)) };
 }
 function g11Num(v){ const n = typeof v==="number" ? v : parseFloat(String(v==null?"":v).replace(/,/g,"")); return isFinite(n) ? n : 0; }
 // 막대그래프 하나(단일 계열 · 한 축). 마우스를 올리면 값.
@@ -9995,15 +10015,22 @@ function goalsRender11Body(ctx){
   const { mode, sel } = g11Selected();
   const allStores = STORES.slice();
   const h = escHtml;
-  const picker = `<div class="g11-pick" data-sf-skip="1">
-      <span class="sf-lbl">분석할 매장</span>
-      <span class="sf-seg"><button type="button" data-g11-mode="single" class="${mode==="single"?"act":""}">단수</button><button type="button" data-g11-mode="multi" class="${mode==="multi"?"act":""}">복수</button></span>
-      ${sel.length?`<button type="button" class="sf-btn" data-g11-act="clear">선택 해제</button>`:""}
-      <span class="g11-pick-note">화면 위 "매장 선택"과 같은 선택입니다 · ${mode==="single"?"단수: 누른 매장 하나만":"복수: 눌러서 켜고 끄기 — 숫자는 고른 매장 합계"}</span>
-      <div class="g11-chips">${allStores.map(s=>`<button type="button" class="sf-chip${sel.includes(s)?" act":""}" data-g11-store="${h(s)}">${h(s)}</button>`).join("")}</div>
-    </div>`;
+  // build 104: 왼쪽 매장 목록 — 단수(하나만)/복수(눌러서 켜고 끄기). 매장 옆 숫자 = 분석 기간 목표 달성률.
+  const pctMap = {}; (ctx.rows||[]).forEach(r=>{ pctMap[r.store] = r.pct; });
+  const sideList = allStores.map(s=>{ const p = pctMap[s]; const on = sel.includes(s);
+    return `<button type="button" class="g11-st${on?" on":""}" data-g11-store="${h(s)}" title="${h(s)}${p!=null?` · ${ctx.scopeLabel} 달성률 ${p.toFixed(1)}%`:""}">
+      <span class="ck">${mode==="multi"?(on?"☑":"☐"):(on?"●":"○")}</span><span class="nm">${h(s)}</span>${p!=null?`<span class="pc" style="color:${pctColor(p)}">${p.toFixed(0)}%</span>`:""}</button>`; }).join("");
+  const side = `<aside class="g11-side">
+      <div class="g11-side-hd">매장 목록</div>
+      <div class="g11-seg"><button type="button" data-g11-mode="single" class="${mode==="single"?"act":""}">단수</button><button type="button" data-g11-mode="multi" class="${mode==="multi"?"act":""}">복수</button></div>
+      <div class="g11-side-note">${mode==="single"?"매장 하나를 누르면 그 매장만 봅니다":"여러 매장을 눌러 켜고 끕니다 — 오른쪽 숫자는 고른 매장 합계"}</div>
+      ${mode==="multi"?`<div class="g11-side-acts"><button type="button" data-g11-act="all">전체 선택</button><button type="button" data-g11-act="clear">선택 해제</button></div>`:(sel.length?`<div class="g11-side-acts"><button type="button" data-g11-act="clear">선택 해제</button></div>`:"")}
+      <div class="g11-side-list">${sideList}</div>
+      <div class="g11-side-note">오른쪽 % = ${h(ctx.scopeLabel)} 목표 달성률</div>
+    </aside>`;
+  const wrapLayout = inner => `<div class="g11-layout">${side}<div class="g11-main">${inner}</div></div>`;
   if(!sel.length){
-    return picker + `<div class="g11-empty">위에서 매장을 고르면 그 매장(들)의 <b>월별 공급 PLT · 월별 매출 · 목표 달성률 · 카테고리별 공급/매출 · 일별 매출 · 매장재고 · 시간대 · 진단 · 메모</b>를 이 한 페이지에 모아 보여 줍니다. 여러 매장을 고르면 합계와 매장별 비교가 함께 나옵니다.</div>`;
+    return wrapLayout(`<div class="g11-empty">왼쪽 매장 목록에서 매장을 누르면 그 매장(들)의 <b>월별 공급 PLT · 월별 매출 · 목표 달성률 · 카테고리별 공급/매출 · 일별 매출 · 매장재고 · 시간대 · 진단 · 메모</b>를 이 한 페이지에 모아 보여 줍니다.<br><b>단수</b>는 한 매장만, <b>복수</b>는 여러 매장을 골라 합계와 매장별 비교를 봅니다.</div>`);
   }
   // ---------- 달 목록 ----------
   const salesMonths = goalsAllMonths();
@@ -10271,9 +10298,9 @@ function goalsRender11Body(ctx){
       <div><span class="k">매장 정보</span><span class="v">${prof.length?prof.map(h).join("<br>"):'<span class="g11-mute">-</span>'}</span></div>
     </div>`;
 
-  return picker + head + kpis + trend + compare
+  return wrapLayout(head + kpis + trend + compare
     + `<div class="g11-grid2">${stockBlock}${hourBlock}</div>`
-    + dailyBlock + planTbl + effTbl + pltCatTbl + salesCatTbl + diagBlock + notes;
+    + dailyBlock + planTbl + effTbl + pltCatTbl + salesCatTbl + diagBlock + notes);
 }
 // 07 매장 분석: 매장/모드/달 버튼(이벤트 위임) · 위 "매장 선택" 줄이 바뀌면 이 탭만 다시 그림
 let _g11Wired = false;
@@ -10293,12 +10320,12 @@ function wireGoals11(){
     if(b.dataset.g11Month){ GOALS11_MONTH = b.dataset.g11Month; g11Rerender(); return; }
     if(b.dataset.g11Mode){ mode = b.dataset.g11Mode; if(mode==="single" && sel.length>1) sel = sel.slice(0,1); }
     else if(b.dataset.g11Act==="clear"){ sel = []; }
+    else if(b.dataset.g11Act==="all"){ sel = STORES.slice(); }
     else if(b.dataset.g11Store){ const s = b.dataset.g11Store;
       if(mode==="single") sel = (sel.length===1 && sel[0]===s) ? [] : [s];
       else sel = sel.includes(s) ? sel.filter(x=>x!==s) : sel.concat([s]); }
-    if(typeof window.storeFilterSet === "function") window.storeFilterSet(sel, mode);   // → storefilterchange 이벤트로 다시 그림
+    G11_SEL = { mode, sel }; g11Save(); g11Rerender();
   });
-  window.addEventListener("storefilterchange", g11Rerender);
 }
 
 /* ---------------- 진입점 ---------------- */
@@ -11698,270 +11725,7 @@ function pltLiveInit(){
   }
 }
 
-/* ================= build 102: 매장 선택 필터(단수/복수) — 모든 탭의 매장별 표·카드·목록에 공통 적용 =================
-   화면 맨 위 탭 바로 아래 "매장 선택" 줄에서 매장을 고르면, 세 탭(재고/공급 · 매출 · 목표매출)의 모든 매장별 자료에서
-   고른 매장만 남기고 나머지 매장 행·카드·칩을 숨긴다. 렌더 함수들을 하나하나 고치지 않고, 그려진 화면(DOM)을 보고
-   매장 이름으로 시작하는 표 행(tr)·반복 항목(카드/목록 행/칩)을 찾아 숨기는 방식이라 새 표가 생겨도 그대로 적용된다.
-   - 단수: 매장 하나만(다른 매장을 누르면 그 매장으로 바뀜, 같은 매장을 다시 누르면 전체). 복수: 눌러서 켜고 끄기.
-   - 표의 합계 행: 매장 행을 더한 값과 맞아떨어지는 열(단순 합 열)은 선택 매장 합으로 다시 계산해 보여 주고,
-     평균·달성률 같은 나머지 열은 흐리게 "전체 매장 기준"으로 표시한다.
-   - 선택은 이 브라우저에만 저장된다(공유 데이터에 안 들어감). 그래프(캔버스/SVG) 안의 매장 막대는 대상 아님. */
-(function(){
-  const SF_KEY = "kk_store_filter_v1";
-  let sfMode = "multi";           // "single" | "multi"
-  let sfSel = new Set();          // 비어 있으면 = 전체
-  let sfOpen = false;
-  try{
-    const o = JSON.parse(localStorage.getItem(SF_KEY) || "null");
-    if(o){ if(o.mode==="single"||o.mode==="multi") sfMode = o.mode; if(Array.isArray(o.sel)) sfSel = new Set(o.sel); if(o.open) sfOpen = true; }
-  }catch(_){}
-  function sfSave(){ try{ localStorage.setItem(SF_KEY, JSON.stringify({mode:sfMode, sel:[...sfSel], open:sfOpen})); }catch(_){} }
-  const sfActive = () => sfSel.size > 0;
-
-  const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  let _names = null, _nameRe = null, _nameKey = "";
-  function sfNames(){
-    const list = (typeof STORES !== "undefined" && Array.isArray(STORES)) ? STORES : [];
-    const key = list.join("|");
-    if(key !== _nameKey){
-      _nameKey = key;
-      _names = list.slice().sort((a,b)=>b.length-a.length);
-      _nameRe = _names.length ? new RegExp("^(?:" + _names.map(escRe).join("|") + ")") : null;
-    }
-    return _names;
-  }
-  // 문자열이 매장 이름으로 시작하면 그 매장(가장 긴 이름 우선: 파주가맹점2 > 파주가맹점)
-  function storeAt(text){
-    sfNames(); if(!_nameRe) return null;
-    const t = String(text||"").replace(/^[\s\d.#▸▶·•★☆\-]+/, "").trim();
-    const m = _nameRe.exec(t);
-    return m ? m[0] : null;
-  }
-  const isTotalLabel = t => /^\s*(합\s*계|총\s*합|총계|전체|전사|평균|소계|Total)/i.test(String(t||""));
-
-  /* ---------- UI ---------- */
-  const css = `
-  .sf-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0 12px;padding:9px 12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);font-size:13px;}
-  .sf-bar.on{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber-dim) inset;}
-  .sf-lbl{font-weight:700;color:var(--text);}
-  .sf-seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;}
-  .sf-seg button{background:transparent;border:0;color:var(--muted);padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit;}
-  .sf-seg button.act{background:var(--amber);color:var(--amber-ink);font-weight:700;}
-  .sf-btn{background:var(--panel2);border:1px solid var(--line);color:var(--pale);padding:4px 10px;border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit;}
-  .sf-btn:hover{border-color:var(--amber);color:var(--text);}
-  .sf-cur{display:inline-flex;flex-wrap:wrap;gap:5px;align-items:center;}
-  .sf-cur .sf-tag{background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber);border-radius:999px;padding:2px 9px;font-size:12px;cursor:pointer;}
-  .sf-cur .sf-all-txt{color:var(--muted);font-size:12px;}
-  .sf-note{color:var(--muted2);font-size:11px;margin-left:auto;}
-  .sf-grid{flex-basis:100%;display:flex;flex-wrap:wrap;gap:5px;padding-top:6px;border-top:1px dashed var(--line-soft);}
-  .sf-grid[hidden]{display:none;}
-  .sf-chip{background:var(--panel2);border:1px solid var(--line);color:var(--pale);border-radius:999px;padding:3px 11px;font-size:12px;cursor:pointer;font-family:inherit;}
-  .sf-chip:hover{border-color:var(--muted);}
-  .sf-chip.act{background:var(--amber);border-color:var(--amber);color:var(--amber-ink);font-weight:700;}
-  .sf-hide{display:none !important;}
-  tr[data-sf-total] > :first-child::after{content:" · 선택 매장 합";color:var(--amber);font-size:10px;font-weight:600;white-space:nowrap;}
-  tr[data-sf-total="all"] > :first-child::after{content:" · 전체 매장 기준";color:var(--muted2);}
-  .sf-dim{opacity:.38;}
-  `;
-  function sfInjectUi(){
-    if(document.getElementById("storeFilterBar")) return;
-    const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
-    const bar = document.createElement("div");
-    bar.id = "storeFilterBar"; bar.className = "sf-bar"; bar.setAttribute("data-sf-skip","1");
-    const tabs = document.querySelector(".tabs[role=tablist]");
-    if(tabs && tabs.parentNode) tabs.parentNode.insertBefore(bar, tabs.nextSibling);
-    else document.body.insertBefore(bar, document.body.firstChild);
-    bar.addEventListener("click", e=>{
-      const b = e.target.closest("button,[data-sf-store]"); if(!b) return;
-      if(b.dataset.sfMode){
-        sfMode = b.dataset.sfMode;
-        if(sfMode==="single" && sfSel.size>1){ const first=[...sfSel][0]; sfSel = new Set([first]); }
-      } else if(b.dataset.sfStore){
-        const s = b.dataset.sfStore;
-        if(sfMode==="single"){ sfSel = (sfSel.size===1 && sfSel.has(s)) ? new Set() : new Set([s]); }
-        else { sfSel.has(s) ? sfSel.delete(s) : sfSel.add(s); }
-      } else if(b.dataset.sfAct==="all"){ sfSel = new Set(); }
-      else if(b.dataset.sfAct==="toggle"){ sfOpen = !sfOpen; }
-      else if(b.dataset.sfAct==="invert"){ const n = sfNames(); const all = (typeof STORES!=="undefined"?STORES:n); sfSel = new Set(all.filter(s=>!sfSel.has(s))); if(sfSel.size===all.length) sfSel = new Set(); }
-      else return;
-      sfSave(); sfRenderBar(); sfApply();
-      try{ window.dispatchEvent(new Event("storefilterchange")); }catch(_){}
-    });
-  }
-  function sfRenderBar(){
-    const bar = document.getElementById("storeFilterBar"); if(!bar) return;
-    const all = (typeof STORES!=="undefined" && Array.isArray(STORES)) ? STORES : [];
-    // 목록에서 사라진 매장 이름은 선택에서 정리
-    [...sfSel].forEach(s=>{ if(!all.includes(s)) sfSel.delete(s); });
-    const h = s => String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-    const cur = sfActive()
-      ? [...sfSel].map(s=>`<span class="sf-tag" data-sf-store="${h(s)}" title="눌러서 선택 해제">${h(s)} ✕</span>`).join("")
-      : `<span class="sf-all-txt">전체 매장 (${all.length}곳)</span>`;
-    bar.classList.toggle("on", sfActive());
-    bar.innerHTML =
-      `<span class="sf-lbl">매장 선택</span>`
-      + `<span class="sf-seg" title="단수: 한 매장만 / 복수: 여러 매장을 눌러서 켜고 끄기">`
-      +   `<button type="button" data-sf-mode="single" class="${sfMode==="single"?"act":""}">단수</button>`
-      +   `<button type="button" data-sf-mode="multi" class="${sfMode==="multi"?"act":""}">복수</button>`
-      + `</span>`
-      + `<button type="button" class="sf-btn" data-sf-act="toggle">${sfOpen?"매장 목록 접기 ▴":"매장 목록 펼치기 ▾"}</button>`
-      + `<span class="sf-cur">${cur}</span>`
-      + (sfActive() ? `<button type="button" class="sf-btn" data-sf-act="all">전체 보기</button>` : "")
-      + (sfActive() && sfMode==="multi" ? `<button type="button" class="sf-btn" data-sf-act="invert" title="선택한 매장을 빼고 나머지를 고릅니다">선택 반전</button>` : "")
-      + `<span class="sf-note">${sfActive() ? `선택 ${sfSel.size}곳 · 모든 탭의 매장별 표·카드에 적용 · 합계 행은 합 열만 선택 매장 기준` : "모든 탭의 매장별 표·카드에 함께 적용됩니다"}</span>`
-      + `<div class="sf-grid"${sfOpen?"":" hidden"}>`
-      +   all.map(s=>`<button type="button" class="sf-chip${sfSel.has(s)?" act":""}" data-sf-store="${h(s)}">${h(s)}</button>`).join("")
-      + `</div>`;
-  }
-
-  /* ---------- 적용 ---------- */
-  const STOP_SEL = ".agg-card, .card, section, .gsub-panel, .gsub-tabs, header, body, [role=tabpanel]";
-  const SKIP_SEL = "[data-sf-skip], select, option, svg, canvas, script, style, textarea";
-  function sfReset(root){
-    root.querySelectorAll(".sf-hide").forEach(el=>el.classList.remove("sf-hide"));
-    root.querySelectorAll(".sf-dim").forEach(el=>el.classList.remove("sf-dim"));
-    root.querySelectorAll("[data-sf-total]").forEach(el=>el.removeAttribute("data-sf-total"));
-    root.querySelectorAll("[data-sf-orig]").forEach(el=>{ const f = numNode(el); if(f) f.nodeValue = el.getAttribute("data-sf-orig"); else el.textContent = el.getAttribute("data-sf-orig"); el.removeAttribute("data-sf-orig"); });
-  }
-  // "1,234" "4.9" "57원" "-" → {v, dec, comma, suffix} / 아니면 null (%, 텍스트는 제외)
-  function parseNum(t){
-    t = String(t||"").trim();
-    if(t==="-"||t==="—"||t==="") return {v:0, dec:0, comma:false, suffix:"", dash:true};
-    const m = /^(-?[\d,]+(?:\.(\d+))?)\s*(원|PLT|plt|건|개|곳|일)?$/.exec(t);
-    if(!m) return null;
-    return { v: parseFloat(m[1].replace(/,/g,"")), dec: m[2]?m[2].length:0, comma: m[1].includes(","), suffix: m[3]||"", dash:false };
-  }
-  // 칸의 숫자 글자 노드: 자식 요소가 없으면 유일한 글자 노드, 있으면 맨 앞 글자 노드(예: "4,360,822,360<span>전월 ▼6%</span>")
-  function numNode(cell){
-    const w = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT, null);
-    let n; while((n = w.nextNode())){ if(n.nodeValue.trim()) return n; }
-    return null;
-  }
-  function fmtNum(v, like){
-    const r = Math.round(v * Math.pow(10, like.dec)) / Math.pow(10, like.dec);
-    const s = (like.comma || Math.abs(r)>=1000) ? r.toLocaleString("ko-KR", {minimumFractionDigits:like.dec, maximumFractionDigits:like.dec}) : r.toFixed(like.dec);
-    return s + like.suffix;
-  }
-  function sfApplyTable(tbl){
-    const rows = [...tbl.rows];
-    if(!rows.length) return;
-    const storeRows = [], totalRows = [];
-    let carry = 0, carryStore = null;
-    rows.forEach(tr=>{
-      if(tr.closest("table") !== tbl) return;
-      if(tr.parentElement && tr.parentElement.tagName==="THEAD"){ return; }
-      if(carry>0){ carry--; storeRows.push({tr, s:carryStore, cont:true}); if(!sfSel.has(carryStore)) tr.classList.add("sf-hide"); return; }
-      const cells = tr.cells; if(!cells.length) return;
-      let s = null, cell = null;
-      for(let i=0;i<Math.min(2,cells.length);i++){
-        const tx = cells[i].textContent;
-        s = storeAt(tx);
-        if(s){ cell = cells[i]; break; }
-        if(String(tx).trim().length > 4) break;   // 첫 칸이 순위 번호 같은 짧은 값일 때만 두 번째 칸을 본다
-      }
-      if(s){
-        storeRows.push({tr, s});
-        if(!sfSel.has(s)) tr.classList.add("sf-hide");
-        if(cell.rowSpan > 1){ carry = cell.rowSpan-1; carryStore = s; }
-        return;
-      }
-      if(cells[0] && isTotalLabel(cells[0].textContent)) totalRows.push(tr);
-    });
-    if(storeRows.length < 2 || !totalRows.length) return;
-    const hasSpan = rows.some(tr=>[...tr.cells].some(c=>c.rowSpan>1 || c.colSpan>1) && !(tr.parentElement && tr.parentElement.tagName==="THEAD"));
-    const main = storeRows.filter(r=>!r.cont);
-    totalRows.forEach(tr=>{
-      let any = false;
-      [...tr.cells].forEach((cell, ci)=>{
-        if(ci===0) return;
-        const tn = numNode(cell);
-        const tv = tn ? parseNum(tn.nodeValue) : null;
-        if(!tv || tv.dash || hasSpan){ if(cell.textContent.trim() && cell.textContent.trim()!=="-") cell.classList.add("sf-dim"); return; }
-        let sumAll = 0, sumSel = 0, ok = true, unit = Math.pow(10, -tv.dec);
-        main.forEach(r=>{
-          const c = r.tr.cells[ci]; if(!c){ ok=false; return; }
-          const cn = numNode(c); const p = cn ? parseNum(cn.nodeValue) : (c.textContent.trim()===""||c.textContent.trim()==="-" ? {v:0,dec:0} : null); if(!p){ ok=false; return; }
-          sumAll += p.v; if(sfSel.has(r.s)) sumSel += p.v;
-          unit = Math.max(unit, Math.pow(10, -p.dec));
-        });
-        const tol = Math.max(main.length * unit * 0.6, Math.abs(tv.v) * 0.003, 0.01);
-        if(ok && Math.abs(sumAll - tv.v) <= tol){
-          cell.setAttribute("data-sf-orig", tn.nodeValue);
-          tn.nodeValue = fmtNum(sumSel, tv);
-          // 같은 칸의 부가 표시(전월 대비 ▲▼ 등)는 전체 매장 기준이라 흐리게
-          [...cell.children].forEach(ch=>{ if(!ch.contains(tn)) ch.classList.add("sf-dim"); });
-          any = true;
-        } else {
-          cell.classList.add("sf-dim");
-        }
-      });
-      tr.setAttribute("data-sf-total", any ? "sum" : "all");
-    });
-  }
-  function sfApplyItems(root){
-    sfNames(); if(!_nameRe) return;
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
-    const seen = new Set();
-    let n;
-    while((n = walker.nextNode())){
-      const raw = n.nodeValue; if(!raw) continue;
-      const t = raw.trim(); if(!t || t.length > 120) continue;
-      const s = storeAt(t); if(!s) continue;
-      // 긴 글이면 매장명 바로 뒤가 구분 기호여야 "매장 항목 제목"으로 본다("인천점 — 6월 …", "용인점 (…)").
-      if(t.length > 24){ const rest = t.replace(/^[\s\d.#▸▶·•★☆\-]+/, "").slice(s.length); if(!/^\s*[—–\-:·(|\[]/.test(rest)) continue; }
-      const pe = n.parentElement; if(!pe) continue;
-      if(pe.closest("table") || pe.closest(SKIP_SEL)) continue;
-      // 반복 항목(형제 중에 같은 태그·클래스가 있는 요소)까지 올라간다. 카드 묶음(.agg-card 등)에 닿으면 포기.
-      let el = pe, item = null;
-      for(let d=0; d<8 && el; d++){
-        if(el.matches(STOP_SEL)) break;
-        const p = el.parentElement; if(!p) break;
-        const sigOf = x => x.tagName + "|" + String(x.className||"").replace(/\s*\bsf-(hide|dim)\b/g,"").trim();
-        const sig = sigOf(el);
-        let same = 0;
-        for(const c of p.children){ if(c!==el && sigOf(c)===sig) { same++; if(same>=1) break; } }
-        if(same>=1){ item = el; break; }
-        el = p;
-      }
-      if(!item || seen.has(item)) continue;
-      // 항목의 앞부분(30자 안)에 그 매장 이름이 있어야 "그 매장의 항목"으로 본다(설명 문장 속 매장명은 제외)
-      const it = (item.textContent||"").replace(/\s+/g," ").trim();
-      const pos = it.indexOf(s);
-      if(pos < 0 || pos > 30) continue;
-      seen.add(item);
-      if(!sfSel.has(s)) item.classList.add("sf-hide");
-    }
-  }
-  let _applying = false;
-  function sfApply(){
-    const views = ["view-agg","view-sales","view-goals"].map(id=>document.getElementById(id)).filter(Boolean);
-    _applying = true;
-    try{
-      views.forEach(v=>{
-        sfReset(v);
-        if(!sfActive()) return;
-        v.querySelectorAll("table").forEach(tbl=>{ if(!tbl.closest(SKIP_SEL)) sfApplyTable(tbl); });
-        sfApplyItems(v);
-      });
-    }catch(e){ console.warn("store filter", e); }
-    finally{ if(_obs) _obs.takeRecords(); _applying = false; }
-  }
-  let _obs = null, _timer = null;
-  function sfSchedule(){ if(_applying) return; clearTimeout(_timer); _timer = setTimeout(sfApply, 40); }
-  function sfInit(){
-    sfInjectUi(); sfRenderBar();
-    _obs = new MutationObserver(muts=>{
-      if(_applying) return;
-      if(muts.some(m=>m.type==="childList")) sfSchedule();
-    });
-    ["view-agg","view-sales","view-goals"].forEach(id=>{ const v=document.getElementById(id); if(v) _obs.observe(v, {childList:true, subtree:true}); });
-    sfApply();
-  }
-  window.storeFilterApply = sfApply;
-  window.storeFilterState = () => ({ mode:sfMode, sel:[...sfSel] });
-  window.storeFilterSet = (arr, mode) => { if(mode) sfMode = mode; sfSel = new Set(arr||[]); sfSave(); sfRenderBar(); sfApply(); try{ window.dispatchEvent(new Event("storefilterchange")); }catch(_){} };
-  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", sfInit); else sfInit();
-})();
+/* build 104: build 102의 전역 "매장 선택" 줄(모든 탭 매장 숨김)은 사용자 요청으로 삭제 — 매장 선택은 07 매장 분석 왼쪽 매장 목록에서만 한다. */
 
 cloudInit();
 pltLiveInit();
