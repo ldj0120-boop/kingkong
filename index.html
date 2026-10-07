@@ -998,7 +998,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 105 · 2026-10-07</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 106 · 2026-10-07</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -3437,7 +3437,7 @@ function renderSalesMonthly(){
               <div class="mini-bar" style="flex:1;"><div class="mini-bar-fill" style="width:${Math.min(100,r.pct).toFixed(1)}%;background:${c}"></div></div>
               <span class="g-rank-pct">${r.pct.toFixed(1)}%</span></div>`;
           }).join("")}</div>` : "";
-        C = `<div style="padding:16px 4px 4px;font-family:'Oswald';font-size:12px;letter-spacing:.06em;color:var(--muted2);">${escHtml(cm)} 목표매출 대비 달성률 · 인센티브 구간 (달성률은 ${ctx.elapsedDays}/${ctx.daysInMonth}일 경과 일할 환산 기준 · 달성률 낮은 순)</div>
+        C = `<div style="padding:16px 4px 4px;font-family:'Oswald';font-size:12px;letter-spacing:.06em;color:var(--muted2);">${escHtml(cm)} 목표매출 대비 달성률 · 인센티브 구간 (달성률은 ${ctx.daysInMonth}일 중 ${ctx.elapsedDays}일 경과 일할 환산 기준 · 달성률 낮은 순)</div>
           ${goalsSalesGapNoteHtml(ctx)}
           <div class="tblbox"><table class="g-tbl"><thead><tr><th>매장</th><th class="tgt-col">월 목표매출<br><span style="font-weight:400;color:var(--muted2);font-size:9px;">(그 달 전체)</span></th><th class="tgt-col">목표(일할)<br><span style="font-weight:400;color:var(--muted2);font-size:9px;">(${ctx.elapsedDays}/${ctx.daysInMonth}일 환산)</span></th><th>실적</th><th class="total-col">달성률</th><th>인센티브 구간</th></tr></thead>
           <tbody>${body2}</tbody>
@@ -8411,7 +8411,7 @@ function goalsRender01(ctx){
     : `<p class="g-note-p">목표가 등록된 대상 매장이 없습니다.</p>`;
 
   return `<div class="stat-row">
-      ${statCard(`전사 달성률 · ${ctx.curMonth} (${ctx.elapsedDays}/${ctx.daysInMonth}일 경과)`, totalPct.toFixed(1)+"%", [
+      ${statCard(`전사 달성률 · ${ctx.curMonth} (${ctx.daysInMonth}일 중 ${ctx.elapsedDays}일 경과)`, totalPct.toFixed(1)+"%", [
         goalsLine("목표(일할 환산) "+Math.round(totalTarget).toLocaleString()+"원"),
         goalsLine("실적 "+Math.round(totalActual).toLocaleString()+"원")])}
       ${statCard(`금일까지 실적 매출 · ${cm} ${ctx.elapsedDays}일차`, (allStoreActual/100000000).toFixed(2)+"억", [
@@ -9610,7 +9610,7 @@ function goalsRender10Body(ctx){
     <div class="g-tbl-sub" style="margin:2px 0 6px">조회할 달 — 위 "분석 기간"과는 별개입니다(계획은 월 총량 고정값이라 다른 달과도 그대로 비교할 수 있어, 이 탭 안에서만 따로 고를 수 있게 했습니다)</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">${monthBtns}</div>`;
   const prorateNote = D.isOngoing
-    ? `${cm}은 아직 진행 중인 달이라 계획을 경과일 비례로 잘라서(${D.elapsed}/${D.dim}일 = ${(D.prorate*100).toFixed(0)}%) 비교합니다.`
+    ? `${cm}은 아직 진행 중인 달이라 계획을 경과일 비례로 잘라서(${D.dim}일 중 ${D.elapsed}일 = ${(D.prorate*100).toFixed(0)}%) 비교합니다.`
     : `${cm}은 이미 끝난 달이라 계획(월 총량)을 그대로 비교합니다.`;
 
   const have = D.rows.filter(x=>x.plan);
@@ -9816,7 +9816,7 @@ function goalsRender10Body(ctx){
     </div>
     <div class="pq-legend">
       <span>카테고리마다 <b>목표</b>(월 공급계획 PLT) · <b>매장재고</b>(${pqSnap?`매장재고현황 ${pqSnap.date} 기준 PLT`:'매장재고 파일 없음'}) · <b>이번달 공급</b>(${ctx.mLbl(pm)} 공급 PLT) · <b>달성</b>(이번달 공급 ÷ 월 목표 %)</span>
-      <span>${D.isOngoing?`달성 색은 경과일(${D.elapsed}/${D.dim}일) 기준:`:"달성 색:"}</span>
+      <span>${D.isOngoing?`달성 색은 ${D.dim}일 중 ${D.elapsed}일 경과 기준:`:"달성 색:"}</span>
       <span><i class="pq-sw s-g"></i>100%↑</span><span><i class="pq-sw s-b"></i>80~100%</span><span><i class="pq-sw s-y"></i>50~80%</span><span><i class="pq-sw s-r"></i>50% 미만</span>
       <span>– 계획 없음 · <b>FC파손·사입</b>은 공급계획이 없어 실제만 표시하고 합계 실제·달성률에 포함 · 계획 외 = 임박·생산재고 등(미포함) · 매장은 합계 달성률 낮은 순</span>
       ${freshMissing?`<span style="color:var(--amber)">${ctx.mLbl(pm)} 신선 출고내역서 미업로드 → 신선 열 숨김</span>`:""}
@@ -9849,7 +9849,7 @@ function goalsRender10Body(ctx){
     <tr><td>매장 평균 (${pStores.length}곳)</td>${pMonths.map(m=>`<td class="mu">${(_tm(m)/(pStores.length||1)).toFixed(1)}</td>`).join("")}<td></td><td></td></tr></tfoot>`;
   const pltTrendBlock = pStores.length ? `
     <div class="g-tbl-title" style="margin-top:22px">매장별 공급 PLT 월별 추이 (${pMonths.map(m=>ctx.mLbl(m)).join(" → ")})</div>
-    <div class="pq-legend"><span>기준 달(${ctx.mLbl(pm)}) 공급 많은 순</span>${pm===ctx.curMonth?`<span>${ctx.mLbl(pm)}은 ${ctx.elapsedDays}/${ctx.daysInMonth}일 진행 중</span>`:""}${freshMissing?`<span style="color:var(--amber)">${ctx.mLbl(pm)} 신선 파일이 없어 모든 달을 신선 제외로 비교</span>`:""}</div>
+    <div class="pq-legend"><span>기준 달(${ctx.mLbl(pm)}) 공급 많은 순</span>${pm===ctx.curMonth?`<span>${ctx.mLbl(pm)}은 ${ctx.daysInMonth}일 중 ${ctx.elapsedDays}일 진행</span>`:""}${freshMissing?`<span style="color:var(--amber)">${ctx.mLbl(pm)} 신선 파일이 없어 모든 달을 신선 제외로 비교</span>`:""}</div>
     <div class="tblbox agg-scroll"><table class="g-tbl pt-tbl">
       <thead><tr><th>매장</th>${pMonths.map(m=>`<th>${ctx.mLbl(m)}</th>`).join("")}<th>전월 대비</th><th>증감률</th></tr></thead>
       <tbody>${tRows}</tbody>${tFoot}</table></div>
@@ -10074,7 +10074,7 @@ function goalsRender11Body(ctx){
   // ================= 1) 헤더 + KPI =================
   const monthBtns = M.map(m=>`<button class="gsub-tab${m===D?' active':''}" data-g11-month="${m}" style="padding:3px 10px;font-size:12px;">${mLY(m)}${isCur(m)?' (진행중)':''}</button>`).join("");
   const kpi = (v, l, cls, tip) => `<div class="g-kpi"${tip?` title="${h(tip)}"`:""}><div class="v"${cls?` style="color:${cls}"`:""}>${v}</div><div class="l">${l}</div></div>`;
-  const dLbl = mL(D) + (isCur(D)?` (${elapsed}/${goalsDaysInMonth(D)}일 경과)`:"");
+  const dLbl = mL(D) + (isCur(D)?` (${goalsDaysInMonth(D)}일 중 ${elapsed}일 경과)`:"");
   const salesDelta = pPrev && pPrev.sales>0 && pD.sales>0 ? (isCur(D) ? null : (pD.sales/pPrev.sales-1)*100) : null;
   const kpis = `<div class="g-kpis">
       ${kpi(eok(pD.sales)+"원", `${dLbl} 매출 · ${h(pD.src||"-")}${salesDelta!=null?` · 전월 대비 ${salesDelta>=0?"+":""}${salesDelta.toFixed(1)}%`:""}`, null, `${won(pD.sales)}원`)}
@@ -10098,7 +10098,7 @@ function goalsRender11Body(ctx){
     const d = (pv && pv.sales>0 && x.sales>0 && !isCur(x.m)) ? (x.sales/pv.sales-1)*100 : null;
     const dp = (pv && pv.plt>0 && x.plt>0 && !isCur(x.m)) ? (x.plt/pv.plt-1)*100 : null;
     return `<tr class="${x.m===D?'g11-sel':''}">
-      <td>${mLY(x.m)}${isCur(x.m)?` <span class="g11-mute">(${elapsed}일)</span>`:""}</td>
+      <td>${mLY(x.m)}${isCur(x.m)?` <span class="g11-mute">(${elapsed}일까지)</span>`:""}</td>
       <td><span class="num">${x.tFull?won(x.tFull):"-"}</span></td>
       <td><span class="num">${x.sales?won(x.sales):"-"}</span></td>
       <td style="color:${pctColor(x.pct)}"><span class="num">${x.pct!=null?x.pct.toFixed(1)+"%":"-"}</span></td>
@@ -10201,7 +10201,7 @@ function goalsRender11Body(ctx){
     planTbl = `<div class="g-tbl-title">공급계획 대비 ${h(dLbl)} 공급 — 계획 카테고리별</div>
       <div class="tblbox"><table class="g-tbl g11-tbl"><thead><tr><th>계획 카테고리</th><th>월 계획 PLT</th><th>${mL(D)} 공급 PLT</th><th>도달률</th><th>계획 기대매출(월)</th></tr></thead>
       <tbody>${rows}</tbody><tfoot><tr><td>합계</td><td><span class="num">${f1(pP)}</span></td><td><span class="num">${f1(pi.matched)}</span></td><td style="color:${pctColor(pP>0?(isCur(D)?pi.matched/pP*100/(elapsed/goalsDaysInMonth(D)):pi.matched/pP*100):null)}"><span class="num">${pP>0?(pi.matched/pP*100).toFixed(0)+"%":"-"}</span></td><td><span class="num">${won(planStores.reduce((a,s)=>a+g11Num(SUPPLY_PLAN[s].opTotal),0))}</span></td></tr></tfoot></table></div>
-      <div class="g-tbl-sub">도달률 = 공급 ÷ 월 계획 전체${isCur(D)?` (색은 경과일 ${elapsed}/${goalsDaysInMonth(D)}일 기준으로 판정)`:""}. 계획 외 출고: ${outE.length?outE.map(([c,v])=>`${h(c)} ${f1(v)}`).join(" · ")+" PLT":"없음"}${planStores.length<sel.length?` · 공급계획 없는 매장: ${h(sel.filter(s=>!SUPPLY_PLAN[s]).join(", "))}`:""}</div>`;
+      <div class="g-tbl-sub">도달률 = 공급 ÷ 월 계획 전체${isCur(D)?` (색은 ${goalsDaysInMonth(D)}일 중 ${elapsed}일 경과 기준으로 판정)`:""}. 계획 외 출고: ${outE.length?outE.map(([c,v])=>`${h(c)} ${f1(v)}`).join(" · ")+" PLT":"없음"}${planStores.length<sel.length?` · 공급계획 없는 매장: ${h(sel.filter(s=>!SUPPLY_PLAN[s]).join(", "))}`:""}</div>`;
   }
 
   // ================= 7) 카테고리 효율 (조회 달) =================
@@ -10363,8 +10363,8 @@ function renderGoals(){
     return;
   }
   const period = ctx.isRange
-    ? `집계 기간 ${ctx.scopeLabel} · 마지막 달 ${ctx.curMonth}은 ${ctx.elapsedDays}/${ctx.daysInMonth}일까지`
-    : `기준월 ${ctx.curMonth} (${ctx.elapsedDays}/${ctx.daysInMonth}일 경과)`;
+    ? `집계 기간 ${ctx.scopeLabel} · 마지막 달 ${ctx.curMonth}은 ${ctx.daysInMonth}일 중 ${ctx.elapsedDays}일까지`
+    : `기준월 ${ctx.curMonth} (${ctx.daysInMonth}일 중 ${ctx.elapsedDays}일 경과)`;
   const base = `${period} · 데이터 소스 ${ctx.curTot.source} · 목표는 코드(STORE_MONTHLY_TARGETS)의 월 목표 기준(연간 아님)`;
   panels["01"].innerHTML = goalsRender01(ctx);
   panels["04"].innerHTML = goalsRender04(ctx);
