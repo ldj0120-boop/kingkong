@@ -998,7 +998,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 104 · 2026-10-07</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 105 · 2026-10-07</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -9732,7 +9732,7 @@ function goalsRender10Body(ctx){
   const PQ_STOCK_IDX = { "상온":[3], "XLA":[0], "XLB":[1], "XLC":[2], "XLG":[4], "XLS":[17], "XLK":[9], "XLW":[8] };   // AGG_HDR 위치. 신선은 매장재고 항목 없음
   const PQ_STOCK_TOTAL_IDX = AGG_HDR.map((_,i)=>i).filter(i=> !/보관가능|야적/.test(AGG_HDR[i]));   // 합계 = 창고보관가능·야적 칸 제외 전부
   const _pmEnd = `${pm}-${String(goalsDaysInMonth(pm)).padStart(2,'0')}`;
-  const pqSnap = (STOCK_HISTORY||[]).filter(sn=> sn && sn.date && sn.date<=_pmEnd && !/기본값|초기화|없음/.test(sn.label||"")).sort((a,b)=>a.date.localeCompare(b.date)).pop() || null;
+  const pqSnap = (STOCK_HISTORY||[]).filter(sn=> sn && sn.date && !/기본값|초기화|없음/.test(sn.label||""))   /* build 105: 조회 달과 무관하게 항상 최신 매장재고(예: 2610 폴더 10-06) */.sort((a,b)=>a.date.localeCompare(b.date)).pop() || null;
   const pqMembers = x => (x.r && x.r.members && x.r.members.length) ? x.r.members : [x.store];
   const pqStock = (x, idxs)=>{ if(!pqSnap || !idxs) return null; let tot=0, any=false;
     pqMembers(x).forEach(st=>{ const arr = (pqSnap.stock||{})[st]; if(!arr) return; idxs.forEach(i=>{ const v=arr[i]; if(v!=null && v!=="" && !isNaN(+v)){ tot+=+v; any=true; } }); });
@@ -10058,7 +10058,7 @@ function goalsRender11Body(ctx){
   // ---------- 매장재고 (조회 달 말일 이전 가장 최근 스냅샷) ----------
   const dEnd = `${D}-${String(goalsDaysInMonth(D)).padStart(2,"0")}`;
   const snaps = (STOCK_HISTORY||[]).filter(sn=> sn && sn.date && !/기본값|초기화|없음/.test(sn.label||"")).sort((a,b)=>a.date.localeCompare(b.date));
-  const snap = snaps.filter(sn=> sn.date<=dEnd).pop() || null;
+  const snap = snaps[snaps.length-1] || null;   // build 105: 매장재고는 조회 달과 무관하게 항상 가장 최근 스냅샷
   const iRoom = AGG_HDR.indexOf("창고 보관가능 PLT"), iYard = AGG_HDR.indexOf("창고외 야적 PLT");
   const stockOf = (sn, s) => { const arr = sn && sn.stock ? sn.stock[s] : null; if(!arr) return null;
     const cat = {}; let tot = 0; AGG_HDR.forEach((hd,i)=>{ if(i===iRoom || i===iYard) return; const v = g11Num(arr[i]); if(v){ cat[hd]=v; tot+=v; } });
@@ -10248,13 +10248,13 @@ function goalsRender11Body(ctx){
 
   // ================= 9) 매장재고 · 재고 추이 · 시간대 =================
   const stkCats = Object.keys(stkCat).sort((a,b)=>stkCat[b]-stkCat[a]);
-  const stkTrend = snaps.filter(sn=> sn.date<=dEnd).slice(-8).map(sn=>{ let t=null, y=0; sel.forEach(s=>{ const o = stockOf(sn,s); if(o){ t=(t||0)+o.tot; y+=o.yard; } }); return {d:sn.date, t, y}; }).filter(x=>x.t!=null);
+  const stkTrend = snaps.slice(-8).map(sn=>{ let t=null, y=0; sel.forEach(s=>{ const o = stockOf(sn,s); if(o){ t=(t||0)+o.tot; y+=o.yard; } }); return {d:sn.date, t, y}; }).filter(x=>x.t!=null);
   const stockBlock = `<div class="g11-col">
       <div class="g-tbl-title">매장재고 ${snap?`(${h(snap.date)} 기준)`:""}</div>
       ${snap && stkTot!=null ? `<div class="tblbox"><table class="g-tbl g11-tbl"><thead><tr><th>항목</th><th>PLT</th><th>비중</th></tr></thead>
         <tbody>${stkCats.map(c=>`<tr><td>${h(c)}</td><td><span class="num">${f1(stkCat[c])}</span></td><td><span class="num">${stkTot>0?(stkCat[c]/stkTot*100).toFixed(0)+"%":"-"}</span></td></tr>`).join("")}</tbody>
         <tfoot><tr><td>합계</td><td><span class="num">${f1(stkTot)}</span></td><td></td></tr><tr><td>창고외 야적</td><td><span class="num">${f1(stkYard)}</span></td><td></td></tr><tr><td>창고 보관가능</td><td><span class="num">${stkRoom!=null?f1(stkRoom):"미보고"}</span></td><td></td></tr></tfoot></table></div>`
-        : `<div class="g11-mute">조회 달 이전 매장재고 스냅샷 없음</div>`}
+        : `<div class="g11-mute">매장재고 스냅샷 없음</div>`}
       ${stkTrend.length>1 ? `<div class="g11-mini">재고 추이 (최근 ${stkTrend.length}회 스냅샷)</div>${g11Bars(stkTrend.map(x=>({l:x.d.slice(5), v:Math.round(x.t*10)/10, hl:x.d===(snap&&snap.date), tip:`${x.d} 재고 ${f1(x.t)} PLT · 야적 ${f1(x.y)}`})), {w:360, h:120, color:"var(--info)", hlAny:true, showVals:true, short:v=>f1(v), label:"재고 추이"})}` : ""}
     </div>`;
   const hr = {}; const dSet = new Set([D]);
