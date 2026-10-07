@@ -681,6 +681,35 @@
   .g-kpi{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;}
   .g-kpi .v{font-family:"Oswald";font-size:24px;letter-spacing:-.01em;color:var(--pale);}
   .g-kpi .v.neg{color:var(--red);} .g-kpi .v.pos{color:var(--green);}
+  /* build 103: 07 매장 분석 */
+  .g11-pick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;margin:2px 0 14px;font-size:13px;}
+  .g11-pick-note{color:var(--muted2);font-size:11px;}
+  .g11-chips{flex-basis:100%;display:flex;flex-wrap:wrap;gap:5px;}
+  .g11-empty{padding:28px 18px;text-align:center;color:var(--muted);font-size:13px;line-height:1.8;border:1px dashed var(--line);border-radius:10px;}
+  .g11-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;margin:4px 0 6px;}
+  .g11-title{font-size:24px;font-weight:800;color:var(--text);letter-spacing:-.01em;}
+  .g11-sub{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:5px;align-items:center;}
+  .g11-tag{display:inline-block;background:var(--red-dim);color:var(--red);border:1px solid rgba(239,111,111,.45);border-radius:999px;padding:1px 9px;font-size:11.5px;font-weight:700;margin-right:4px;cursor:help;}
+  .g11-tag.sm{font-size:10.5px;padding:0 7px;}
+  .g11-mute{color:var(--muted2);font-size:11.5px;}
+  .g11-charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-bottom:10px;}
+  .g11-chart{background:var(--panel2);border:1px solid var(--line-soft);border-radius:10px;padding:10px 12px;}
+  .g11-chart.wide{margin-bottom:6px;}
+  .g11-chart rect:hover{opacity:1 !important;}
+  .g11-ct{font-size:11.5px;color:var(--muted);margin-bottom:4px;}
+  .g11-mini{font-size:11.5px;color:var(--muted);margin:10px 0 4px;}
+  table.g11-tbl tr.g11-sel td{background:rgba(245,178,17,.08);}
+  table.g11-tbl td.g11-selc{background:rgba(245,178,17,.08);}
+  table.g11-tbl td.g11-up{color:var(--green);} table.g11-tbl td.g11-dn{color:var(--red);}
+  .g11-grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;}
+  .g11-facts{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:11.5px;color:var(--muted);margin:6px 0 4px;}
+  .g11-diag{background:var(--panel2);border:1px solid var(--line-soft);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
+  .g11-diag-hd{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;}
+  .g11-acts{margin:8px 0 0;padding-left:18px;font-size:12px;line-height:1.7;color:var(--pale);}
+  .g11-notes{display:grid;gap:6px;font-size:12.5px;}
+  .g11-notes > div{display:grid;grid-template-columns:130px 1fr;gap:10px;padding:7px 10px;background:var(--panel2);border-radius:8px;}
+  .g11-notes .k{color:var(--muted);} .g11-notes .v{color:var(--text);line-height:1.6;}
+  #gsub-11 .sf-seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;}
   .g-kpi .l{font-size:10.5px;color:var(--muted2);margin-top:3px;line-height:1.5;}
   .g-chip{display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:999px;
           padding:1px 8px;font-size:10.5px;color:var(--muted2);margin:0 3px 3px 0;white-space:nowrap;}
@@ -954,7 +983,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 101 · 2026-10-06</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 103 · 2026-10-07</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1244,6 +1273,7 @@
       <!-- build 73: "05 매장별 월별 추이"는 04 안으로 합침, "07 관리매장 매출요약"은 사용자 요청으로 삭제 -->
       <button class="gsub-tab" data-gsub="08" role="tab">05 매장 진단 (공급×매출)</button>
       <button class="gsub-tab" data-gsub="10" role="tab">06 공급계획(PLT) 진단</button>
+      <button class="gsub-tab" data-gsub="11" role="tab">07 매장 분석</button>
     </div>
 
     <div class="gsub-panel" id="gsub-01">
@@ -1323,6 +1353,17 @@
           <span class="meta" id="goals10Meta"></span>
         </div>
         <div class="agg-scroll" id="goals10Wrap"></div>
+      </div>
+    </div>
+
+    <!-- build 103: 07 매장 분석 — 고른 매장(단수/복수)의 공급·매출·재고·진단 통합 페이지 -->
+    <div class="gsub-panel" id="gsub-11" hidden>
+      <div class="agg-card">
+        <div class="p-hd">
+          <span class="store-name">07 매장 분석</span>
+          <span class="meta" id="goals11Meta"></span>
+        </div>
+        <div id="goals11Wrap"></div>
       </div>
     </div>
   </section>
@@ -9870,7 +9911,7 @@ function goalsRender10Body(ctx){
 
 /* ---------------- 서브탭 전환 ---------------- */
 let goalsSubTab = "01";
-const GOALS_SUB_KEYS = ["01","04","05","06","08","10"]; // build 73: 07(월별 추이→06 안으로)·09(관리매장) 제외 // 02·03은 2026-09-23 삭제(아래 참고)
+const GOALS_SUB_KEYS = ["01","04","05","06","08","10","11"]; // build 73: 07(월별 추이→06 안으로)·09(관리매장) 제외 // 02·03은 2026-09-23 삭제(아래 참고)
 function selectGoalsSub(key){
   if(GOALS_SUB_KEYS.indexOf(key) < 0) return;
   goalsSubTab = key;
@@ -9881,6 +9922,7 @@ function selectGoalsSub(key){
     if(b.setAttribute) b.setAttribute("aria-selected", on ? "true" : "false");
   });
   GOALS_SUB_KEYS.forEach(k=>{ const p = document.getElementById("gsub-"+k); if(p) p.hidden = (k!==key); });
+  if(key==="11" && typeof g11Rerender==="function") g11Rerender();   // build 103: 07 매장 분석은 열 때 그린다
 }
 let _goalsSubWired = false;
 function wireGoalsSubTabs(){
@@ -9893,6 +9935,370 @@ function wireGoalsSubTabs(){
     const btn = e.target && e.target.closest ? e.target.closest(".gsub-tab") : null;
     if(btn && btn.dataset) selectGoalsSub(btn.dataset.gsub);
   });
+}
+
+/* ================= build 103: 07 매장 분석 — 고른 매장(단수/복수)의 공급·매출·재고·진단을 한 페이지에 =================
+   매장 선택은 화면 위 "매장 선택" 줄(build 102)과 같은 상태를 쓴다(여기서 골라도, 위에서 골라도 같다).
+   복수 선택이면 숫자는 고른 매장들의 합계이고, 아래에 매장별 비교 표가 붙는다.
+   - 월별 추이: 매출(monthStoreTotals — 그 달 더 완전한 소스) · 월 목표(영업일 비례, 진행 중인 달은 경과일 환산) · 공급 PLT(diagQty: 본사/센터 병합+가전+직출+신선+롯데)
+   - 조회 달(아래 버튼): 카테고리 공급계획 대비 · 카테고리 효율(PLT당 매출, 전사 대비) · 일별 매출 · 매장재고 · 시간대 · 진단 · 메모 */
+let GOALS11_MONTH = null;
+const _g11Cache = { key:"", mt:{}, cats:{}, merged:{}, compPlt:{} };
+function g11Cache(){
+  const key = [SALES_HISTORY.length, STORE_SALES_HISTORY.length, Object.keys(CENTER_M).length, Object.keys(HQ_M).length,
+               Object.keys(FRESH_M).length, Object.keys(APPLIANCE_M).length, shipMergePolicy, (STOCK_HISTORY||[]).length].join("|");
+  if(_g11Cache.key !== key){ _g11Cache.key = key; _g11Cache.mt = {}; _g11Cache.cats = {}; _g11Cache.merged = {}; _g11Cache.compPlt = {}; }
+  return _g11Cache;
+}
+function g11MonthTotals(m){ const c = g11Cache(); return c.mt[m] || (c.mt[m] = monthStoreTotals(m)); }
+function g11CatNames(m){ const c = g11Cache(); return c.cats[m] || (c.cats[m] = diagMonthCatNames(m)); }
+function g11Merged(m){ const c = g11Cache(); return c.merged[m] || (c.merged[m] = mergeByStoreCat(SALES_HISTORY.filter(h=>h && h.date && h.date.slice(0,7)===m))); }
+function g11StorePlt(m, s){ const out = {}; g11CatNames(m).forEach(c=>{ const v = diagQty(s,c,m); if(v>0) out[c] = v; }); return out; }
+function g11CompPlt(m){ const c = g11Cache(); if(!c.compPlt[m]){ const o = {}; STORES.forEach(s=>{ const p = g11StorePlt(m,s); Object.keys(p).forEach(k=> o[k]=(o[k]||0)+p[k]); }); c.compPlt[m] = o; } return c.compPlt[m]; }
+function g11Selected(){
+  const st = (typeof window.storeFilterState === "function") ? window.storeFilterState() : {sel:[], mode:"multi"};
+  return { mode: st.mode, sel: (st.sel||[]).filter(s=> STORES.includes(s)) };
+}
+function g11Num(v){ const n = typeof v==="number" ? v : parseFloat(String(v==null?"":v).replace(/,/g,"")); return isFinite(n) ? n : 0; }
+// 막대그래프 하나(단일 계열 · 한 축). 마우스를 올리면 값.
+function g11Bars(items, opts){
+  opts = opts || {};
+  const W = opts.w || 520, H = opts.h || 150, padL = 6, padR = 6, padT = 18, padB = 22;
+  const max = Math.max(1e-9, ...items.map(d=>d.v||0));
+  const n = items.length || 1, gap = 3;
+  const bw = Math.max(3, (W-padL-padR)/n - gap);
+  const color = opts.color || "var(--amber)";
+  const bars = items.map((d,i)=>{
+    const h = Math.max(d.v>0?2:0, (d.v||0)/max*(H-padT-padB));
+    const x = padL + i*((W-padL-padR)/n) + gap/2, y = H-padB-h;
+    const fill = d.hl ? color : (d.dim ? "var(--line)" : color);
+    const op = d.hl ? 1 : (opts.hlAny ? .45 : .85);
+    const lbl = (opts.showVals && (d.v||0)>0 && bw>=22) ? `<text x="${x+bw/2}" y="${y-4}" text-anchor="middle" font-size="10" fill="var(--muted)">${escHtml(opts.short ? opts.short(d.v) : d.v)}</text>` : "";
+    const xl = (opts.every && i % opts.every) ? "" : `<text x="${x+bw/2}" y="${H-7}" text-anchor="middle" font-size="10" fill="var(--muted2)">${escHtml(d.l)}</text>`;
+    return `<g><title>${escHtml(d.tip || (d.l+" · "+d.v))}</title><rect x="${x-gap/2}" y="${padT}" width="${bw+gap}" height="${H-padT-padB}" fill="transparent"></rect>
+      <rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="3" fill="${fill}" opacity="${op}"></rect>${lbl}${xl}</g>`;
+  }).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block" role="img" aria-label="${escHtml(opts.label||"")}">
+    <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="var(--line)" stroke-width="1"></line>${bars}</svg>`;
+}
+function goalsRender11(ctx){
+  try{ return goalsRender11Body(ctx); }
+  catch(e){ console.error(e); return `<div class="g-tbl-sub" style="color:var(--red)">07 매장 분석을 만드는 중 오류: ${escHtml(String(e&&e.message||e))}</div>`; }
+}
+function goalsRender11Body(ctx){
+  const won = v => Math.round(v||0).toLocaleString();
+  const eok = v => (Math.abs(v||0)>=1e8 ? ((v||0)/1e8).toFixed(2)+"억" : Math.round((v||0)/1e4).toLocaleString()+"만");
+  const f1 = v => (Math.round((v||0)*10)/10).toLocaleString(undefined,{maximumFractionDigits:1});
+  const pctColor = p => p==null ? "var(--muted2)" : p>=100 ? "var(--green)" : p>=80 ? "var(--info)" : p>=60 ? "var(--amber)" : "var(--red)";
+  const mL = m => `${+m.slice(5)}월`;
+  const mLY = m => `${m.slice(2,4)}.${m.slice(5)}`;
+  const { mode, sel } = g11Selected();
+  const allStores = STORES.slice();
+  const h = escHtml;
+  const picker = `<div class="g11-pick" data-sf-skip="1">
+      <span class="sf-lbl">분석할 매장</span>
+      <span class="sf-seg"><button type="button" data-g11-mode="single" class="${mode==="single"?"act":""}">단수</button><button type="button" data-g11-mode="multi" class="${mode==="multi"?"act":""}">복수</button></span>
+      ${sel.length?`<button type="button" class="sf-btn" data-g11-act="clear">선택 해제</button>`:""}
+      <span class="g11-pick-note">화면 위 "매장 선택"과 같은 선택입니다 · ${mode==="single"?"단수: 누른 매장 하나만":"복수: 눌러서 켜고 끄기 — 숫자는 고른 매장 합계"}</span>
+      <div class="g11-chips">${allStores.map(s=>`<button type="button" class="sf-chip${sel.includes(s)?" act":""}" data-g11-store="${h(s)}">${h(s)}</button>`).join("")}</div>
+    </div>`;
+  if(!sel.length){
+    return picker + `<div class="g11-empty">위에서 매장을 고르면 그 매장(들)의 <b>월별 공급 PLT · 월별 매출 · 목표 달성률 · 카테고리별 공급/매출 · 일별 매출 · 매장재고 · 시간대 · 진단 · 메모</b>를 이 한 페이지에 모아 보여 줍니다. 여러 매장을 고르면 합계와 매장별 비교가 함께 나옵니다.</div>`;
+  }
+  // ---------- 달 목록 ----------
+  const salesMonths = goalsAllMonths();
+  const allM = Array.from(new Set([...salesMonths, ...shipMonths()])).filter(m=>/^\d{4}-\d{2}$/.test(m)).sort();
+  const M = allM.slice(-12);
+  const curM = salesMonths.length ? salesMonths[salesMonths.length-1] : M[M.length-1];
+  const elapsed = curM ? goalsElapsedDays(curM) : null;
+  const D = (GOALS11_MONTH && M.includes(GOALS11_MONTH)) ? GOALS11_MONTH : (M.includes(curM) ? curM : M[M.length-1]);
+  const isCur = m => m===curM;
+  const title = sel.length===1 ? sel[0] : `${sel.length}개 매장 합계 (${sel.join(" · ")})`;
+  // ---------- 월별 수치 ----------
+  const salesOf = (m,s) => g11Num(g11MonthTotals(m).map[s]);
+  const tgtOf = (m,s) => { const T = groupMonthlyTarget(s); if(!T) return {full:0, pace:0, days:0, dim:goalsDaysInMonth(m)};
+    const full = storeMonthTarget(s, m, T, null); const pace = storeMonthTarget(s, m, T, isCur(m)?elapsed:null);
+    return { full: full.target, pace: pace.target, days: pace.days, dim: pace.dim }; };
+  const pltOf = (m,s) => Object.values(g11StorePlt(m,s)).reduce((a,v)=>a+v,0);
+  const per = M.map(m=>{
+    let sales=0, tFull=0, tPace=0, plt=0; const byS = {};
+    sel.forEach(s=>{ const sv = salesOf(m,s), t = tgtOf(m,s), p = pltOf(m,s); sales+=sv; tFull+=t.full; tPace+=t.pace; plt+=p; byS[s] = {sales:sv, t, plt:p}; });
+    return { m, sales, tFull, tPace, plt, byS, src: g11MonthTotals(m).source,
+             pct: tPace>0 && sales>0 ? sales/tPace*100 : null, perPlt: plt>0 && sales>0 ? sales/plt : null };
+  });
+  const pD = per.find(x=>x.m===D) || per[per.length-1];
+  const iD = per.indexOf(pD), pPrev = iD>0 ? per[iD-1] : null;
+  // ---------- 매장재고 (조회 달 말일 이전 가장 최근 스냅샷) ----------
+  const dEnd = `${D}-${String(goalsDaysInMonth(D)).padStart(2,"0")}`;
+  const snaps = (STOCK_HISTORY||[]).filter(sn=> sn && sn.date && !/기본값|초기화|없음/.test(sn.label||"")).sort((a,b)=>a.date.localeCompare(b.date));
+  const snap = snaps.filter(sn=> sn.date<=dEnd).pop() || null;
+  const iRoom = AGG_HDR.indexOf("창고 보관가능 PLT"), iYard = AGG_HDR.indexOf("창고외 야적 PLT");
+  const stockOf = (sn, s) => { const arr = sn && sn.stock ? sn.stock[s] : null; if(!arr) return null;
+    const cat = {}; let tot = 0; AGG_HDR.forEach((hd,i)=>{ if(i===iRoom || i===iYard) return; const v = g11Num(arr[i]); if(v){ cat[hd]=v; tot+=v; } });
+    return { cat, tot, room: arr[iRoom]==null||arr[iRoom]==="" ? null : g11Num(arr[iRoom]), yard: g11Num(arr[iYard]), memo: arr[STOCK_COLS] ? String(arr[STOCK_COLS]).trim() : "" }; };
+  const stk = {}; let stkTot = null, stkYard = 0, stkRoom = null; const stkCat = {}; const memos = [];
+  sel.forEach(s=>{ const o = stockOf(snap, s); stk[s] = o; if(!o) return; stkTot = (stkTot||0) + o.tot; stkYard += o.yard; if(o.room!=null) stkRoom = (stkRoom||0)+o.room;
+    Object.keys(o.cat).forEach(k=> stkCat[k]=(stkCat[k]||0)+o.cat[k]); if(o.memo) memos.push(sel.length>1 ? `${s}: ${o.memo}` : o.memo); });
+  // ---------- 진단 (분석 기간 기준월) ----------
+  let diagRows = [], diagD = null;
+  try{ diagD = diagBuild(ctx); diagRows = (diagD.stores||[]).filter(d=> sel.includes(d.r.store)); }catch(_){}
+  const tags = Array.from(new Set(diagRows.flatMap(d=>d.tags||[])));
+
+  // ================= 1) 헤더 + KPI =================
+  const monthBtns = M.map(m=>`<button class="gsub-tab${m===D?' active':''}" data-g11-month="${m}" style="padding:3px 10px;font-size:12px;">${mLY(m)}${isCur(m)?' (진행중)':''}</button>`).join("");
+  const kpi = (v, l, cls, tip) => `<div class="g-kpi"${tip?` title="${h(tip)}"`:""}><div class="v"${cls?` style="color:${cls}"`:""}>${v}</div><div class="l">${l}</div></div>`;
+  const dLbl = mL(D) + (isCur(D)?` (${elapsed}/${goalsDaysInMonth(D)}일 경과)`:"");
+  const salesDelta = pPrev && pPrev.sales>0 && pD.sales>0 ? (isCur(D) ? null : (pD.sales/pPrev.sales-1)*100) : null;
+  const kpis = `<div class="g-kpis">
+      ${kpi(eok(pD.sales)+"원", `${dLbl} 매출 · ${h(pD.src||"-")}${salesDelta!=null?` · 전월 대비 ${salesDelta>=0?"+":""}${salesDelta.toFixed(1)}%`:""}`, null, `${won(pD.sales)}원`)}
+      ${kpi(eok(pD.tFull)+"원", `월 목표매출(전액)${isCur(D)?` · 경과 환산 ${eok(pD.tPace)}원`:""}`, null, `${won(pD.tFull)}원`)}
+      ${kpi(pD.pct!=null?pD.pct.toFixed(1)+"%":"-", `목표 달성률${isCur(D)?" (경과일 환산 목표 대비)":""}`, pctColor(pD.pct))}
+      ${kpi(f1(pD.plt)+" PLT", `${mL(D)} 공급 PLT (출고 전체)${pPrev?` · 전월 ${f1(pPrev.plt)}`:""}`)}
+      ${kpi(pD.perPlt!=null?eok(pD.perPlt)+"원":"-", `PLT당 매출 (${mL(D)} 매출 ÷ 공급 PLT)`)}
+      ${kpi(stkTot!=null?f1(stkTot)+" PLT":"-", snap?`매장재고 (${h(snap.date)} 기준) · 야적 ${f1(stkYard)}${stkRoom!=null?` · 창고 여유 ${f1(stkRoom)}`:""}`:"매장재고 파일 없음")}
+    </div>`;
+  const tagHtml = tags.length ? tags.map(t=>`<span class="g11-tag">${h(t)}</span>`).join("") : `<span class="g11-mute">판정 신호 없음</span>`;
+  const head = `<div class="g11-head">
+      <div class="g11-title">${h(title)}</div>
+      <div class="g11-sub">진단(${ctx.mLbl(ctx.curMonth)} 기준): ${tagHtml}</div>
+    </div>
+    <div class="g-tbl-sub" style="margin:4px 0 6px">조회 달 — 아래 KPI·카테고리·일별·재고·시간대 칸이 이 달 기준으로 바뀝니다(월별 추이 표는 전체 달)</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">${monthBtns}</div>`;
+
+  // ================= 2) 월별 추이 =================
+  const trendRows = per.map((x,i)=>{
+    const pv = i>0 ? per[i-1] : null;
+    const d = (pv && pv.sales>0 && x.sales>0 && !isCur(x.m)) ? (x.sales/pv.sales-1)*100 : null;
+    const dp = (pv && pv.plt>0 && x.plt>0 && !isCur(x.m)) ? (x.plt/pv.plt-1)*100 : null;
+    return `<tr class="${x.m===D?'g11-sel':''}">
+      <td>${mLY(x.m)}${isCur(x.m)?` <span class="g11-mute">(${elapsed}일)</span>`:""}</td>
+      <td><span class="num">${x.tFull?won(x.tFull):"-"}</span></td>
+      <td><span class="num">${x.sales?won(x.sales):"-"}</span></td>
+      <td style="color:${pctColor(x.pct)}"><span class="num">${x.pct!=null?x.pct.toFixed(1)+"%":"-"}</span></td>
+      <td class="${d==null?'':d>=0?'g11-up':'g11-dn'}"><span class="num">${d==null?"-":(d>=0?"+":"")+d.toFixed(1)+"%"}</span></td>
+      <td><span class="num">${x.plt?f1(x.plt):"-"}</span></td>
+      <td class="${dp==null?'':dp>=0?'g11-up':'g11-dn'}"><span class="num">${dp==null?"-":(dp>=0?"+":"")+dp.toFixed(0)+"%"}</span></td>
+      <td><span class="num">${x.perPlt!=null?won(x.perPlt):"-"}</span></td>
+    </tr>`;
+  }).join("");
+  const sTot = per.reduce((a,x)=>a+x.sales,0), pTot = per.reduce((a,x)=>a+x.plt,0), tTot = per.reduce((a,x)=>a+x.tPace,0);
+  const salesItems = per.map(x=>({ l:mL(x.m), v:x.sales, hl:x.m===D, tip:`${mLY(x.m)} 매출 ${won(x.sales)}원${x.tFull?` · 목표 ${won(x.tFull)}원`:""}${x.pct!=null?` · 달성 ${x.pct.toFixed(1)}%`:""}` }));
+  const pltItems = per.map(x=>({ l:mL(x.m), v:Math.round(x.plt*10)/10, hl:x.m===D, tip:`${mLY(x.m)} 공급 ${f1(x.plt)} PLT` }));
+  const trend = `<div class="g-tbl-title">월별 추이 — 매출 · 목표 · 공급 PLT (${mLY(M[0])} ~ ${mLY(M[M.length-1])})</div>
+    <div class="g11-charts">
+      <div class="g11-chart"><div class="g11-ct">월별 매출 (원)</div>${g11Bars(salesItems, {color:"var(--amber)", hlAny:true, showVals:true, short:eok, label:"월별 매출"})}</div>
+      <div class="g11-chart"><div class="g11-ct">월별 공급 PLT</div>${g11Bars(pltItems, {color:"var(--info)", hlAny:true, showVals:true, short:v=>f1(v), label:"월별 공급 PLT"})}</div>
+    </div>
+    <div class="tblbox"><table class="g-tbl g11-tbl">
+      <thead><tr><th>월</th><th>월 목표매출</th><th>매출</th><th>달성률</th><th>매출 전월비</th><th>공급 PLT</th><th>PLT 전월비</th><th>PLT당 매출</th></tr></thead>
+      <tbody>${trendRows}</tbody>
+      <tfoot><tr><td>${M.length}개월 합계</td><td></td><td><span class="num">${won(sTot)}</span></td><td style="color:${pctColor(tTot>0?sTot/tTot*100:null)}"><span class="num">${tTot>0?(sTot/tTot*100).toFixed(1)+"%":"-"}</span></td><td></td><td><span class="num">${f1(pTot)}</span></td><td></td><td><span class="num">${pTot>0?won(sTot/pTot):"-"}</span></td></tr></tfoot>
+    </table></div>
+    <div class="g-tbl-sub">달성률 = 매출 ÷ 그 달 목표(영업일 비례, 진행 중인 달은 경과일 환산). 공급 PLT = 그 달 출고 전체(본사/센터·가전·직출·신선·롯데, 임박·FC파손 등 포함). 진행 중인 달은 전월비를 내지 않습니다.</div>`;
+
+  // ================= 3) 매장별 비교 (복수) =================
+  let compare = "";
+  if(sel.length>1){
+    const cRows = sel.map(s=>{
+      const b = pD.byS[s] || {sales:0,t:{full:0,pace:0},plt:0};
+      const pct = b.t.pace>0 && b.sales>0 ? b.sales/b.t.pace*100 : null;
+      const o = stk[s]; const dr = diagRows.find(d=>d.r.store===s);
+      return { s, b, pct, o, tags: dr ? dr.tags : [] };
+    }).sort((a,b)=> (a.pct==null?1e9:a.pct)-(b.pct==null?1e9:b.pct));
+    const cBody = cRows.map(x=>`<tr><td>${h(x.s)}</td>
+        <td><span class="num">${x.b.t.full?won(x.b.t.full):"-"}</span></td>
+        <td><span class="num">${x.b.sales?won(x.b.sales):"-"}</span></td>
+        <td style="color:${pctColor(x.pct)}"><span class="num">${x.pct!=null?x.pct.toFixed(1)+"%":"-"}</span></td>
+        <td><span class="num">${x.b.plt?f1(x.b.plt):"-"}</span></td>
+        <td><span class="num">${x.b.plt>0&&x.b.sales>0?won(x.b.sales/x.b.plt):"-"}</span></td>
+        <td><span class="num">${x.o?f1(x.o.tot):"-"}</span></td>
+        <td><span class="num">${x.o?f1(x.o.yard):"-"}</span></td>
+        <td>${x.tags.length?x.tags.map(t=>`<span class="g11-tag sm">${h(t)}</span>`).join(""):'<span class="g11-mute">-</span>'}</td></tr>`).join("");
+    const mHead = M.map(m=>`<th>${mLY(m)}</th>`).join("");
+    const mxSales = sel.map(s=>`<tr><td>${h(s)}</td>${per.map(x=>`<td${x.m===D?' class="g11-selc"':''}><span class="num">${x.byS[s].sales?eok(x.byS[s].sales):"-"}</span></td>`).join("")}</tr>`).join("");
+    const mxPlt = sel.map(s=>`<tr><td>${h(s)}</td>${per.map(x=>`<td${x.m===D?' class="g11-selc"':''}><span class="num">${x.byS[s].plt?f1(x.byS[s].plt):"-"}</span></td>`).join("")}</tr>`).join("");
+    const mxPct = sel.map(s=>`<tr><td>${h(s)}</td>${per.map(x=>{ const b=x.byS[s]; const p = b.t.pace>0&&b.sales>0 ? b.sales/b.t.pace*100 : null; return `<td${x.m===D?' class="g11-selc"':''} style="color:${pctColor(p)}"><span class="num">${p!=null?p.toFixed(0)+"%":"-"}</span></td>`; }).join("")}</tr>`).join("");
+    compare = `<div class="g-tbl-title">매장별 비교 — ${h(dLbl)} (달성률 낮은 순)</div>
+      <div class="tblbox"><table class="g-tbl g11-tbl">
+        <thead><tr><th>매장</th><th>월 목표</th><th>매출</th><th>달성률</th><th>공급 PLT</th><th>PLT당 매출</th><th>매장재고</th><th>야적</th><th>진단(${ctx.mLbl(ctx.curMonth)})</th></tr></thead>
+        <tbody>${cBody}</tbody>
+        <tfoot><tr><td>합계</td><td><span class="num">${won(pD.tFull)}</span></td><td><span class="num">${won(pD.sales)}</span></td><td style="color:${pctColor(pD.pct)}"><span class="num">${pD.pct!=null?pD.pct.toFixed(1)+"%":"-"}</span></td><td><span class="num">${f1(pD.plt)}</span></td><td><span class="num">${pD.perPlt!=null?won(pD.perPlt):"-"}</span></td><td><span class="num">${stkTot!=null?f1(stkTot):"-"}</span></td><td><span class="num">${f1(stkYard)}</span></td><td></td></tr></tfoot>
+      </table></div>
+      <details class="g-store-more" open><summary>매장 × 월 — 매출 · 공급 PLT · 달성률</summary>
+        <div class="g11-mini">월별 매출</div><div class="tblbox"><table class="g-tbl g11-tbl"><thead><tr><th>매장</th>${mHead}</tr></thead><tbody>${mxSales}</tbody></table></div>
+        <div class="g11-mini">월별 공급 PLT</div><div class="tblbox"><table class="g-tbl g11-tbl"><thead><tr><th>매장</th>${mHead}</tr></thead><tbody>${mxPlt}</tbody></table></div>
+        <div class="g11-mini">월별 목표 달성률</div><div class="tblbox"><table class="g-tbl g11-tbl"><thead><tr><th>매장</th>${mHead}</tr></thead><tbody>${mxPct}</tbody></table></div>
+      </details>`;
+  }
+
+  // ================= 4) 카테고리 × 월 공급 PLT =================
+  const pltByCatM = {}; // cat -> m -> v
+  M.forEach(m=> sel.forEach(s=>{ const p = g11StorePlt(m,s); Object.keys(p).forEach(c=>{ (pltByCatM[c]=pltByCatM[c]||{})[m] = (pltByCatM[c][m]||0) + p[c]; }); }));
+  const pltCats = Object.keys(pltByCatM).sort((a,b)=> (pltByCatM[b][D]||0)-(pltByCatM[a][D]||0) || M.reduce((t,m)=>t+(pltByCatM[b][m]||0),0)-M.reduce((t,m)=>t+(pltByCatM[a][m]||0),0));
+  const cellCls = m => m===D ? ' class="g11-selc"' : '';
+  const pltCatTbl = pltCats.length ? `<div class="g-tbl-title">카테고리별 공급 PLT — 월별</div>
+    <div class="tblbox"><table class="g-tbl g11-tbl"><thead><tr><th>카테고리</th>${M.map(m=>`<th>${mLY(m)}</th>`).join("")}<th>합계</th></tr></thead>
+    <tbody>${pltCats.map(c=>`<tr><td>${h(c)}</td>${M.map(m=>`<td${cellCls(m)}><span class="num">${pltByCatM[c][m]?f1(pltByCatM[c][m]):"·"}</span></td>`).join("")}<td><span class="num">${f1(M.reduce((t,m)=>t+(pltByCatM[c][m]||0),0))}</span></td></tr>`).join("")}</tbody>
+    <tfoot><tr><td>합계</td>${per.map(x=>`<td${cellCls(x.m)}><span class="num">${x.plt?f1(x.plt):"-"}</span></td>`).join("")}<td><span class="num">${f1(pTot)}</span></td></tr></tfoot></table></div>` : `<div class="g-tbl-title">카테고리별 공급 PLT — 월별</div><div class="g11-mute">출고 데이터 없음</div>`;
+
+  // ================= 5) 카테고리 × 월 매출 =================
+  const salesByCatM = {}, qtyByCatM = {};
+  M.forEach(m=>{ const mg = g11Merged(m); sel.forEach(s=> Object.keys(mg[s]||{}).forEach(c=>{ const g = salesCatGroup(c); const a = (mg[s][c]&&mg[s][c].amount)||0;
+    (salesByCatM[g]=salesByCatM[g]||{})[m] = (salesByCatM[g][m]||0) + a; (qtyByCatM[g]=qtyByCatM[g]||{})[m] = (qtyByCatM[g][m]||0) + ((mg[s][c]&&mg[s][c].qty)||0); })); });
+  const salesCats = Object.keys(salesByCatM).filter(c=> M.some(m=>(salesByCatM[c][m]||0)>0)).sort((a,b)=> (salesByCatM[b][D]||0)-(salesByCatM[a][D]||0) || M.reduce((t,m)=>t+(salesByCatM[b][m]||0),0)-M.reduce((t,m)=>t+(salesByCatM[a][m]||0),0));
+  const catMonthTot = m => salesCats.reduce((t,c)=>t+(salesByCatM[c][m]||0),0);
+  const dCatTot = catMonthTot(D);
+  const salesCatTbl = salesCats.length ? `<div class="g-tbl-title">카테고리별 매출 — 월별 (실매출액, 카테고리별 매출 파일)</div>
+    <div class="tblbox"><table class="g-tbl g11-tbl"><thead><tr><th>카테고리</th>${M.map(m=>`<th>${mLY(m)}</th>`).join("")}<th>${mL(D)} 비중</th></tr></thead>
+    <tbody>${salesCats.map(c=>`<tr><td>${h(c)}</td>${M.map(m=>{ const v = salesByCatM[c][m]||0; return `<td${cellCls(m)} title="${h(`${c} · ${mLY(m)} ${won(v)}원 · ${Math.round((qtyByCatM[c]||{})[m]||0).toLocaleString()}개`)}"><span class="num">${v?eok(v):"·"}</span></td>`; }).join("")}<td><span class="num">${dCatTot>0&&salesByCatM[c][D]?((salesByCatM[c][D]||0)/dCatTot*100).toFixed(1)+"%":"-"}</span></td></tr>`).join("")}</tbody>
+    <tfoot><tr><td>합계</td>${M.map(m=>`<td${cellCls(m)}><span class="num">${catMonthTot(m)?eok(catMonthTot(m)):"-"}</span></td>`).join("")}<td></td></tr></tfoot></table></div>
+    <div class="g-tbl-sub">위 월별 추이의 매출(청구금액이 더 완전한 달은 청구금액)과 금액이 조금 다를 수 있습니다 — 이 표는 카테고리 구분이 있는 실매출액 기준입니다. 칸에 마우스를 올리면 원 단위·판매수량.</div>` : "";
+
+  // ================= 6) 공급계획 대비 (조회 달) =================
+  let planTbl = "";
+  const planStores = sel.filter(s=> SUPPLY_PLAN[s]);
+  if(planStores.length){
+    const pi = goalsPlanCatPLT(planStores, D);
+    const planCats = Object.keys(SUPPLY_PLAN_PARAMS);
+    const rows = planCats.map(pc=>{
+      const planP = planStores.reduce((a,s)=>a+g11Num((SUPPLY_PLAN[s].plt||{})[pc]),0);
+      const planR = planStores.reduce((a,s)=>a+g11Num((SUPPLY_PLAN[s].target||{})[pc]),0);
+      const act = pi.byCat[pc]||0;
+      if(!planP && !act) return null;
+      const p = planP>0 ? act/planP*100 : null;
+      return `<tr><td>${h(pc)}</td><td><span class="num">${planP?f1(planP):"-"}</span></td><td><span class="num">${act?f1(act):"-"}</span></td>
+        <td style="color:${pctColor(p==null?null:(isCur(D)?p/(elapsed/goalsDaysInMonth(D)):p))}"><span class="num">${p!=null?p.toFixed(0)+"%":"-"}</span></td><td><span class="num">${planR?won(planR):"-"}</span></td></tr>`;
+    }).filter(Boolean).join("");
+    const outE = Object.entries(pi.outside||{}).sort((a,b)=>b[1]-a[1]);
+    const pP = planStores.reduce((a,s)=>a+Object.values(SUPPLY_PLAN[s].plt||{}).reduce((x,v)=>x+g11Num(v),0),0);
+    planTbl = `<div class="g-tbl-title">공급계획 대비 ${h(dLbl)} 공급 — 계획 카테고리별</div>
+      <div class="tblbox"><table class="g-tbl g11-tbl"><thead><tr><th>계획 카테고리</th><th>월 계획 PLT</th><th>${mL(D)} 공급 PLT</th><th>도달률</th><th>계획 기대매출(월)</th></tr></thead>
+      <tbody>${rows}</tbody><tfoot><tr><td>합계</td><td><span class="num">${f1(pP)}</span></td><td><span class="num">${f1(pi.matched)}</span></td><td style="color:${pctColor(pP>0?(isCur(D)?pi.matched/pP*100/(elapsed/goalsDaysInMonth(D)):pi.matched/pP*100):null)}"><span class="num">${pP>0?(pi.matched/pP*100).toFixed(0)+"%":"-"}</span></td><td><span class="num">${won(planStores.reduce((a,s)=>a+g11Num(SUPPLY_PLAN[s].opTotal),0))}</span></td></tr></tfoot></table></div>
+      <div class="g-tbl-sub">도달률 = 공급 ÷ 월 계획 전체${isCur(D)?` (색은 경과일 ${elapsed}/${goalsDaysInMonth(D)}일 기준으로 판정)`:""}. 계획 외 출고: ${outE.length?outE.map(([c,v])=>`${h(c)} ${f1(v)}`).join(" · ")+" PLT":"없음"}${planStores.length<sel.length?` · 공급계획 없는 매장: ${h(sel.filter(s=>!SUPPLY_PLAN[s]).join(", "))}`:""}</div>`;
+  }
+
+  // ================= 7) 카테고리 효율 (조회 달) =================
+  const compMg = g11Merged(D), compSales = {}, compPltG = {}, selPltG = {}, selSalesG = {};
+  Object.keys(compMg).forEach(s=> Object.keys(compMg[s]||{}).forEach(c=>{ const g = salesCatGroup(c); compSales[g] = (compSales[g]||0) + ((compMg[s][c]&&compMg[s][c].amount)||0); }));
+  const cp = g11CompPlt(D); Object.keys(cp).forEach(c=>{ const g = salesCatGroup(c); compPltG[g] = (compPltG[g]||0)+cp[c]; });
+  sel.forEach(s=>{ const p = g11StorePlt(D,s); Object.keys(p).forEach(c=>{ const g = salesCatGroup(c); selPltG[g] = (selPltG[g]||0)+p[c]; });
+    Object.keys(compMg[s]||{}).forEach(c=>{ const g = salesCatGroup(c); selSalesG[g] = (selSalesG[g]||0) + ((compMg[s][c]&&compMg[s][c].amount)||0); }); });
+  const effCats = Array.from(new Set([...Object.keys(selPltG), ...Object.keys(selSalesG)])).filter(g=> (selPltG[g]||0)>0 || (selSalesG[g]||0)>0)
+    .sort((a,b)=> (selSalesG[b]||0)-(selSalesG[a]||0));
+  const effTbl = effCats.length ? `<div class="g-tbl-title">카테고리 효율 — ${h(dLbl)} 공급 PLT · 매출 · PLT당 매출 (전사 대비)</div>
+    <div class="tblbox"><table class="g-tbl g11-tbl"><thead><tr><th>카테고리</th><th>공급 PLT</th><th>매출</th><th>PLT당 매출</th><th>전사 PLT당 매출</th><th>전사 대비</th><th>판정</th></tr></thead>
+    <tbody>${effCats.map(g=>{
+      const p = selPltG[g]||0, r = selSalesG[g]||0, pp = p>0 && r>0 ? r/p : null;
+      const cpp = (compPltG[g]||0)>0 && (compSales[g]||0)>0 ? compSales[g]/compPltG[g] : null;
+      const ratio = pp!=null && cpp ? pp/cpp*100 : null;
+      const verdict = p>=0.5 && r<=0 ? '<span style="color:var(--red)">공급만 있고 매출 0</span>'
+        : p<0.5 && r>0 ? '<span style="color:var(--info)">공급 없이 판매(재고·이월분)</span>'
+        : ratio==null ? '<span class="g11-mute">-</span>'
+        : ratio>=125 ? '<span style="color:var(--green)">잘 팔림 → 공급 확대 후보</span>'
+        : ratio<=75 ? '<span style="color:var(--amber)">덜 팔림 → 진열·구성 점검</span>' : '<span class="g11-mute">전사 수준</span>';
+      return `<tr><td>${h(g)}</td><td><span class="num">${p?f1(p):"-"}</span></td><td><span class="num">${r?won(r):"-"}</span></td><td><span class="num">${pp!=null?won(pp):"-"}</span></td><td><span class="num">${cpp!=null?won(cpp):"-"}</span></td>
+        <td style="color:${ratio==null?'var(--muted2)':ratio>=100?'var(--green)':ratio>=75?'var(--pale)':'var(--red)'}"><span class="num">${ratio!=null?ratio.toFixed(0)+"%":"-"}</span></td><td>${verdict}</td></tr>`; }).join("")}</tbody></table></div>
+    <div class="g-tbl-sub">카테고리 이름은 매출 기준으로 묶었습니다(XLB·대형가전 → 가전). PLT당 매출 = 그 달 카테고리 매출 ÷ 그 달 공급 PLT(이월 재고 판매가 섞이므로 참고용).</div>` : "";
+
+  // ================= 8) 일별 매출 (조회 달) =================
+  const dim = goalsDaysInMonth(D);
+  const bill = {}, real = {};
+  STORE_SALES_HISTORY.filter(x=>x && x.date && x.date.slice(0,7)===D).forEach(x=>{ const d = +x.date.slice(8,10); sel.forEach(s=>{ const v = g11Num((x.byStore||{})[s]); if(v) bill[d] = (bill[d]||0)+v; }); });
+  SALES_HISTORY.filter(x=>x && x.date && x.date.slice(0,7)===D).forEach(x=>{ const d = +x.date.slice(8,10); sel.forEach(s=>{ const cs = (x.byStoreCat||{})[s]; if(!cs) return; const v = Object.values(cs).reduce((a,o)=>a+((o&&o.amount)||0),0); if(v) real[d] = (real[d]||0)+v; }); });
+  const useBill = Object.keys(bill).length >= Object.keys(real).length;
+  const daily = useBill ? bill : real;
+  const WD = ["일","월","화","수","목","금","토"];
+  const dItems = []; for(let d=1; d<=dim; d++){ const ds = `${D}-${String(d).padStart(2,"0")}`; const wd = new Date(ds+"T00:00:00").getDay(); const hol = (typeof holidayName==="function") ? holidayName(ds) : "";
+    dItems.push({ l:String(d), v:daily[d]||0, hl:true, tip:`${ds} (${WD[wd]})${hol?" · "+hol:""} · ${daily[d]?won(daily[d])+"원":"데이터 없음"}` }); }
+  const dVals = Object.values(daily).filter(v=>v>0);
+  const dAvg = dVals.length ? dVals.reduce((a,v)=>a+v,0)/dVals.length : 0;
+  const wdAgg = [0,0,0,0,0,0,0].map(()=>({s:0,n:0})); Object.keys(daily).forEach(d=>{ const wd = new Date(`${D}-${String(d).padStart(2,"0")}T00:00:00`).getDay(); if(daily[d]>0){ wdAgg[wd].s+=daily[d]; wdAgg[wd].n++; } });
+  const best = dVals.length ? Object.keys(daily).sort((a,b)=>daily[b]-daily[a])[0] : null;
+  const dailyBlock = `<div class="g-tbl-title">일별 매출 — ${h(dLbl)} (${useBill?"청구금액":"실매출액"})</div>
+    ${dVals.length ? `<div class="g11-chart wide">${g11Bars(dItems, {w:760, h:150, color:"var(--amber)", label:"일별 매출"})}</div>
+    <div class="g11-facts"><span>영업일 데이터 ${dVals.length}일</span><span>하루 평균 ${eok(dAvg)}원</span>${best?`<span>최고 ${+best}일 ${eok(daily[best])}원</span>`:""}
+      <span>요일 평균: ${[1,2,3,4,5,6,0].map(i=>`${WD[i]} ${wdAgg[i].n?eok(wdAgg[i].s/wdAgg[i].n):"-"}`).join(" · ")}</span></div>` : `<div class="g11-mute">이 달 일별 매출 데이터 없음</div>`}`;
+
+  // ================= 9) 매장재고 · 재고 추이 · 시간대 =================
+  const stkCats = Object.keys(stkCat).sort((a,b)=>stkCat[b]-stkCat[a]);
+  const stkTrend = snaps.filter(sn=> sn.date<=dEnd).slice(-8).map(sn=>{ let t=null, y=0; sel.forEach(s=>{ const o = stockOf(sn,s); if(o){ t=(t||0)+o.tot; y+=o.yard; } }); return {d:sn.date, t, y}; }).filter(x=>x.t!=null);
+  const stockBlock = `<div class="g11-col">
+      <div class="g-tbl-title">매장재고 ${snap?`(${h(snap.date)} 기준)`:""}</div>
+      ${snap && stkTot!=null ? `<div class="tblbox"><table class="g-tbl g11-tbl"><thead><tr><th>항목</th><th>PLT</th><th>비중</th></tr></thead>
+        <tbody>${stkCats.map(c=>`<tr><td>${h(c)}</td><td><span class="num">${f1(stkCat[c])}</span></td><td><span class="num">${stkTot>0?(stkCat[c]/stkTot*100).toFixed(0)+"%":"-"}</span></td></tr>`).join("")}</tbody>
+        <tfoot><tr><td>합계</td><td><span class="num">${f1(stkTot)}</span></td><td></td></tr><tr><td>창고외 야적</td><td><span class="num">${f1(stkYard)}</span></td><td></td></tr><tr><td>창고 보관가능</td><td><span class="num">${stkRoom!=null?f1(stkRoom):"미보고"}</span></td><td></td></tr></tfoot></table></div>`
+        : `<div class="g11-mute">조회 달 이전 매장재고 스냅샷 없음</div>`}
+      ${stkTrend.length>1 ? `<div class="g11-mini">재고 추이 (최근 ${stkTrend.length}회 스냅샷)</div>${g11Bars(stkTrend.map(x=>({l:x.d.slice(5), v:Math.round(x.t*10)/10, hl:x.d===(snap&&snap.date), tip:`${x.d} 재고 ${f1(x.t)} PLT · 야적 ${f1(x.y)}`})), {w:360, h:120, color:"var(--info)", hlAny:true, showVals:true, short:v=>f1(v), label:"재고 추이"})}` : ""}
+    </div>`;
+  const hr = {}; const dSet = new Set([D]);
+  SALES_HISTORY.forEach(x=>{ if(!x || !x.date || !dSet.has(x.date.slice(0,7)) || !x.byStoreHour) return;
+    sel.forEach(s=>{ const sh = x.byStoreHour[s]; if(!sh) return; Object.keys(sh).forEach(k=>{ const o = hr[k] || (hr[k]={a:0,c:0}); o.a += +sh[k].amount||0; o.c += +sh[k].count||0; }); }); });
+  const hrArr = Object.keys(hr).map(k=>({h:+k, a:hr[k].a, c:hr[k].c})).filter(x=>x.a>0).sort((a,b)=>a.h-b.h);
+  const hrTot = hrArr.reduce((a,x)=>a+x.a,0);
+  const hrTop = hrArr.slice().sort((a,b)=>b.a-a.a).slice(0,3).map(x=>x.h);
+  const hourBlock = `<div class="g11-col">
+      <div class="g-tbl-title">시간대별 매출 — ${h(mL(D))}</div>
+      ${hrArr.length ? `${g11Bars(hrArr.map(x=>({l:String(x.h), v:x.a, hl:hrTop.includes(x.h), tip:`${x.h}~${x.h+1}시 ${won(x.a)}원 · ${x.c.toLocaleString()}건 · ${(x.a/hrTot*100).toFixed(1)}%`})), {w:360, h:140, color:"var(--amber)", hlAny:true, label:"시간대별 매출"})}
+        <div class="g11-facts">${hrTop.map(hh=>{ const x = hrArr.find(y=>y.h===hh); return `<span><b>${hh}~${hh+1}시</b> ${eok(x.a)}원 (${(x.a/hrTot*100).toFixed(0)}%)</span>`; }).join("")}</div>`
+        : `<div class="g11-mute">시간대 데이터 없음(카테고리별 매출 파일에 시간대가 있어야 합니다)</div>`}
+    </div>`;
+
+  // ================= 10) 진단 · 제안 · 메모 =================
+  let diagBlock = "";
+  if(diagRows.length && diagD){
+    const items = diagRows.map(d=>{
+      let acts = []; try{ acts = diagActions(d, ctx, diagD) || []; }catch(_){}
+      let tips = {}; try{ tips = diagTagTips(d, ctx, diagD) || {}; }catch(_){}
+      return `<div class="g11-diag">
+        <div class="g11-diag-hd">${sel.length>1?`<b>${h(d.r.store)}</b> `:""}${(d.tags||[]).length?(d.tags.map(t=>`<span class="g11-tag" title="${h(tips[t]||"")}">${h(t)}</span>`).join("")):'<span class="g11-mute">판정 신호 없음</span>'}
+          <span class="g11-mute">${ctx.mLbl(diagD.cur)} 공급 ${f1(d.t)} PLT · 유효 PLT당 매출 ${d.perPlt!=null?eok(d.perPlt)+"원":"-"} (전사 중앙값 ${diagD.medPerPlt?eok(diagD.medPerPlt)+"원":"-"})${d.trend!=null?` · 일평균 추세 ${d.trend>=0?"+":""}${d.trend.toFixed(1)}%`:""}</span></div>
+        <ul class="g11-acts">${acts.map(a=>`<li>${a}</li>`).join("")}</ul>
+      </div>`;
+    }).join("");
+    diagBlock = `<div class="g-tbl-title">진단 · 실행 제안 (05 매장 진단과 같은 계산 · ${ctx.mLbl(ctx.curMonth)} 기준, 판정 칩에 마우스를 올리면 근거)</div>${items}`;
+  } else {
+    diagBlock = `<div class="g-tbl-title">진단 · 실행 제안</div><div class="g11-mute">고른 매장이 진단 대상(목표가 있고 기준월에 영업한 매장)이 아닙니다.</div>`;
+  }
+  const evCommon = (typeof EVENTS_COMMON!=="undefined" && EVENTS_COMMON[D]) ? String(EVENTS_COMMON[D]).trim() : "";
+  const evStores = sel.map(s=>{ const v = (typeof EVENTS_STORE!=="undefined") ? (EVENTS_STORE[eventStoreKey(s, D)]||"").trim() : ""; return v ? (sel.length>1?`${s}: ${v}`:v) : ""; }).filter(Boolean);
+  const prof = sel.map(s=>{ const p = storeProfile(s); const bits = []; if(p.open) bits.push(`오픈 ${p.open}`); if(p.close) bits.push(`폐점 ${p.close}`); const fl = storeFreshLabel(s); if(fl) bits.push(fl);
+    return bits.length ? (sel.length>1?`${s}: `:"")+bits.join(" · ") : ""; }).filter(Boolean);
+  const notes = `<div class="g-tbl-title">메모 · 기타</div>
+    <div class="g11-notes">
+      <div><span class="k">재고표 비고</span><span class="v">${memos.length?memos.map(h).join("<br>"):'<span class="g11-mute">없음</span>'}</span></div>
+      <div><span class="k">${mL(D)} 매장 행사</span><span class="v">${evStores.length?evStores.map(h).join("<br>"):'<span class="g11-mute">없음 (매장별 매출 탭에서 입력)</span>'}</span></div>
+      <div><span class="k">${mL(D)} 공통 행사</span><span class="v">${evCommon?h(evCommon):'<span class="g11-mute">없음</span>'}</span></div>
+      <div><span class="k">매장 정보</span><span class="v">${prof.length?prof.map(h).join("<br>"):'<span class="g11-mute">-</span>'}</span></div>
+    </div>`;
+
+  return picker + head + kpis + trend + compare
+    + `<div class="g11-grid2">${stockBlock}${hourBlock}</div>`
+    + dailyBlock + planTbl + effTbl + pltCatTbl + salesCatTbl + diagBlock + notes;
+}
+// 07 매장 분석: 매장/모드/달 버튼(이벤트 위임) · 위 "매장 선택" 줄이 바뀌면 이 탭만 다시 그림
+let _g11Wired = false;
+function g11Rerender(){
+  const wrap = document.getElementById("goals11Wrap"); if(!wrap) return;
+  const v = document.getElementById("view-goals"); if(v && v.hidden) return;
+  if(goalsSubTab !== "11") return;
+  const ctx = goalsBuildContext(); if(!ctx) return;
+  wrap.innerHTML = goalsRender11(ctx);
+}
+function wireGoals11(){
+  if(_g11Wired) return; _g11Wired = true;
+  const wrap = document.getElementById("gsub-11"); if(!wrap) return;
+  wrap.addEventListener("click", e=>{
+    const b = e.target.closest ? e.target.closest("[data-g11-store],[data-g11-mode],[data-g11-act],[data-g11-month]") : null; if(!b) return;
+    const st = g11Selected(); let sel = st.sel.slice(), mode = st.mode;
+    if(b.dataset.g11Month){ GOALS11_MONTH = b.dataset.g11Month; g11Rerender(); return; }
+    if(b.dataset.g11Mode){ mode = b.dataset.g11Mode; if(mode==="single" && sel.length>1) sel = sel.slice(0,1); }
+    else if(b.dataset.g11Act==="clear"){ sel = []; }
+    else if(b.dataset.g11Store){ const s = b.dataset.g11Store;
+      if(mode==="single") sel = (sel.length===1 && sel[0]===s) ? [] : [s];
+      else sel = sel.includes(s) ? sel.filter(x=>x!==s) : sel.concat([s]); }
+    if(typeof window.storeFilterSet === "function") window.storeFilterSet(sel, mode);   // → storefilterchange 이벤트로 다시 그림
+  });
+  window.addEventListener("storefilterchange", g11Rerender);
 }
 
 /* ---------------- 진입점 ---------------- */
@@ -9940,6 +10346,8 @@ function renderGoals(){
   panels["08"].innerHTML = goalsRender08(ctx);
   // build 73: 07 관리매장 매출요약 탭 삭제(사용자 요청 — 개별 매장 관리 안 함)
   panels["10"].innerHTML = goalsRender10(ctx);
+  { const m11 = document.getElementById("goals11Meta"); if(m11) m11.textContent = "고른 매장(단수·복수 합계)의 월별 공급 PLT·매출·목표 달성 · 카테고리 · 일별 · 재고 · 시간대 · 진단 · 메모"; }
+  wireGoals11();
   if(metas["01"]) metas["01"].textContent = base;
   if(metas["04"]) metas["04"].textContent = `집계 기간 ${ctx.scopeLabel} · 강점/기회는 전사 평균 구성비 대비 격차가 가장 큰/작은 카테고리`;
   if(metas["05"]) metas["05"].textContent = `집계 기간 ${ctx.scopeLabel} · PLT당 매출 = 카테고리 매출 ÷ 출고 PLT (판매수량 아님)`;
@@ -11289,6 +11697,271 @@ function pltLiveInit(){
     pltLiveStatus = { state:"error", at:new Date(), error:(e&&e.message)||String(e), storeCount:0 };
   }
 }
+
+/* ================= build 102: 매장 선택 필터(단수/복수) — 모든 탭의 매장별 표·카드·목록에 공통 적용 =================
+   화면 맨 위 탭 바로 아래 "매장 선택" 줄에서 매장을 고르면, 세 탭(재고/공급 · 매출 · 목표매출)의 모든 매장별 자료에서
+   고른 매장만 남기고 나머지 매장 행·카드·칩을 숨긴다. 렌더 함수들을 하나하나 고치지 않고, 그려진 화면(DOM)을 보고
+   매장 이름으로 시작하는 표 행(tr)·반복 항목(카드/목록 행/칩)을 찾아 숨기는 방식이라 새 표가 생겨도 그대로 적용된다.
+   - 단수: 매장 하나만(다른 매장을 누르면 그 매장으로 바뀜, 같은 매장을 다시 누르면 전체). 복수: 눌러서 켜고 끄기.
+   - 표의 합계 행: 매장 행을 더한 값과 맞아떨어지는 열(단순 합 열)은 선택 매장 합으로 다시 계산해 보여 주고,
+     평균·달성률 같은 나머지 열은 흐리게 "전체 매장 기준"으로 표시한다.
+   - 선택은 이 브라우저에만 저장된다(공유 데이터에 안 들어감). 그래프(캔버스/SVG) 안의 매장 막대는 대상 아님. */
+(function(){
+  const SF_KEY = "kk_store_filter_v1";
+  let sfMode = "multi";           // "single" | "multi"
+  let sfSel = new Set();          // 비어 있으면 = 전체
+  let sfOpen = false;
+  try{
+    const o = JSON.parse(localStorage.getItem(SF_KEY) || "null");
+    if(o){ if(o.mode==="single"||o.mode==="multi") sfMode = o.mode; if(Array.isArray(o.sel)) sfSel = new Set(o.sel); if(o.open) sfOpen = true; }
+  }catch(_){}
+  function sfSave(){ try{ localStorage.setItem(SF_KEY, JSON.stringify({mode:sfMode, sel:[...sfSel], open:sfOpen})); }catch(_){} }
+  const sfActive = () => sfSel.size > 0;
+
+  const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  let _names = null, _nameRe = null, _nameKey = "";
+  function sfNames(){
+    const list = (typeof STORES !== "undefined" && Array.isArray(STORES)) ? STORES : [];
+    const key = list.join("|");
+    if(key !== _nameKey){
+      _nameKey = key;
+      _names = list.slice().sort((a,b)=>b.length-a.length);
+      _nameRe = _names.length ? new RegExp("^(?:" + _names.map(escRe).join("|") + ")") : null;
+    }
+    return _names;
+  }
+  // 문자열이 매장 이름으로 시작하면 그 매장(가장 긴 이름 우선: 파주가맹점2 > 파주가맹점)
+  function storeAt(text){
+    sfNames(); if(!_nameRe) return null;
+    const t = String(text||"").replace(/^[\s\d.#▸▶·•★☆\-]+/, "").trim();
+    const m = _nameRe.exec(t);
+    return m ? m[0] : null;
+  }
+  const isTotalLabel = t => /^\s*(합\s*계|총\s*합|총계|전체|전사|평균|소계|Total)/i.test(String(t||""));
+
+  /* ---------- UI ---------- */
+  const css = `
+  .sf-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0 12px;padding:9px 12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);font-size:13px;}
+  .sf-bar.on{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber-dim) inset;}
+  .sf-lbl{font-weight:700;color:var(--text);}
+  .sf-seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;}
+  .sf-seg button{background:transparent;border:0;color:var(--muted);padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit;}
+  .sf-seg button.act{background:var(--amber);color:var(--amber-ink);font-weight:700;}
+  .sf-btn{background:var(--panel2);border:1px solid var(--line);color:var(--pale);padding:4px 10px;border-radius:7px;font-size:12px;cursor:pointer;font-family:inherit;}
+  .sf-btn:hover{border-color:var(--amber);color:var(--text);}
+  .sf-cur{display:inline-flex;flex-wrap:wrap;gap:5px;align-items:center;}
+  .sf-cur .sf-tag{background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber);border-radius:999px;padding:2px 9px;font-size:12px;cursor:pointer;}
+  .sf-cur .sf-all-txt{color:var(--muted);font-size:12px;}
+  .sf-note{color:var(--muted2);font-size:11px;margin-left:auto;}
+  .sf-grid{flex-basis:100%;display:flex;flex-wrap:wrap;gap:5px;padding-top:6px;border-top:1px dashed var(--line-soft);}
+  .sf-grid[hidden]{display:none;}
+  .sf-chip{background:var(--panel2);border:1px solid var(--line);color:var(--pale);border-radius:999px;padding:3px 11px;font-size:12px;cursor:pointer;font-family:inherit;}
+  .sf-chip:hover{border-color:var(--muted);}
+  .sf-chip.act{background:var(--amber);border-color:var(--amber);color:var(--amber-ink);font-weight:700;}
+  .sf-hide{display:none !important;}
+  tr[data-sf-total] > :first-child::after{content:" · 선택 매장 합";color:var(--amber);font-size:10px;font-weight:600;white-space:nowrap;}
+  tr[data-sf-total="all"] > :first-child::after{content:" · 전체 매장 기준";color:var(--muted2);}
+  .sf-dim{opacity:.38;}
+  `;
+  function sfInjectUi(){
+    if(document.getElementById("storeFilterBar")) return;
+    const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
+    const bar = document.createElement("div");
+    bar.id = "storeFilterBar"; bar.className = "sf-bar"; bar.setAttribute("data-sf-skip","1");
+    const tabs = document.querySelector(".tabs[role=tablist]");
+    if(tabs && tabs.parentNode) tabs.parentNode.insertBefore(bar, tabs.nextSibling);
+    else document.body.insertBefore(bar, document.body.firstChild);
+    bar.addEventListener("click", e=>{
+      const b = e.target.closest("button,[data-sf-store]"); if(!b) return;
+      if(b.dataset.sfMode){
+        sfMode = b.dataset.sfMode;
+        if(sfMode==="single" && sfSel.size>1){ const first=[...sfSel][0]; sfSel = new Set([first]); }
+      } else if(b.dataset.sfStore){
+        const s = b.dataset.sfStore;
+        if(sfMode==="single"){ sfSel = (sfSel.size===1 && sfSel.has(s)) ? new Set() : new Set([s]); }
+        else { sfSel.has(s) ? sfSel.delete(s) : sfSel.add(s); }
+      } else if(b.dataset.sfAct==="all"){ sfSel = new Set(); }
+      else if(b.dataset.sfAct==="toggle"){ sfOpen = !sfOpen; }
+      else if(b.dataset.sfAct==="invert"){ const n = sfNames(); const all = (typeof STORES!=="undefined"?STORES:n); sfSel = new Set(all.filter(s=>!sfSel.has(s))); if(sfSel.size===all.length) sfSel = new Set(); }
+      else return;
+      sfSave(); sfRenderBar(); sfApply();
+      try{ window.dispatchEvent(new Event("storefilterchange")); }catch(_){}
+    });
+  }
+  function sfRenderBar(){
+    const bar = document.getElementById("storeFilterBar"); if(!bar) return;
+    const all = (typeof STORES!=="undefined" && Array.isArray(STORES)) ? STORES : [];
+    // 목록에서 사라진 매장 이름은 선택에서 정리
+    [...sfSel].forEach(s=>{ if(!all.includes(s)) sfSel.delete(s); });
+    const h = s => String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+    const cur = sfActive()
+      ? [...sfSel].map(s=>`<span class="sf-tag" data-sf-store="${h(s)}" title="눌러서 선택 해제">${h(s)} ✕</span>`).join("")
+      : `<span class="sf-all-txt">전체 매장 (${all.length}곳)</span>`;
+    bar.classList.toggle("on", sfActive());
+    bar.innerHTML =
+      `<span class="sf-lbl">매장 선택</span>`
+      + `<span class="sf-seg" title="단수: 한 매장만 / 복수: 여러 매장을 눌러서 켜고 끄기">`
+      +   `<button type="button" data-sf-mode="single" class="${sfMode==="single"?"act":""}">단수</button>`
+      +   `<button type="button" data-sf-mode="multi" class="${sfMode==="multi"?"act":""}">복수</button>`
+      + `</span>`
+      + `<button type="button" class="sf-btn" data-sf-act="toggle">${sfOpen?"매장 목록 접기 ▴":"매장 목록 펼치기 ▾"}</button>`
+      + `<span class="sf-cur">${cur}</span>`
+      + (sfActive() ? `<button type="button" class="sf-btn" data-sf-act="all">전체 보기</button>` : "")
+      + (sfActive() && sfMode==="multi" ? `<button type="button" class="sf-btn" data-sf-act="invert" title="선택한 매장을 빼고 나머지를 고릅니다">선택 반전</button>` : "")
+      + `<span class="sf-note">${sfActive() ? `선택 ${sfSel.size}곳 · 모든 탭의 매장별 표·카드에 적용 · 합계 행은 합 열만 선택 매장 기준` : "모든 탭의 매장별 표·카드에 함께 적용됩니다"}</span>`
+      + `<div class="sf-grid"${sfOpen?"":" hidden"}>`
+      +   all.map(s=>`<button type="button" class="sf-chip${sfSel.has(s)?" act":""}" data-sf-store="${h(s)}">${h(s)}</button>`).join("")
+      + `</div>`;
+  }
+
+  /* ---------- 적용 ---------- */
+  const STOP_SEL = ".agg-card, .card, section, .gsub-panel, .gsub-tabs, header, body, [role=tabpanel]";
+  const SKIP_SEL = "[data-sf-skip], select, option, svg, canvas, script, style, textarea";
+  function sfReset(root){
+    root.querySelectorAll(".sf-hide").forEach(el=>el.classList.remove("sf-hide"));
+    root.querySelectorAll(".sf-dim").forEach(el=>el.classList.remove("sf-dim"));
+    root.querySelectorAll("[data-sf-total]").forEach(el=>el.removeAttribute("data-sf-total"));
+    root.querySelectorAll("[data-sf-orig]").forEach(el=>{ const f = numNode(el); if(f) f.nodeValue = el.getAttribute("data-sf-orig"); else el.textContent = el.getAttribute("data-sf-orig"); el.removeAttribute("data-sf-orig"); });
+  }
+  // "1,234" "4.9" "57원" "-" → {v, dec, comma, suffix} / 아니면 null (%, 텍스트는 제외)
+  function parseNum(t){
+    t = String(t||"").trim();
+    if(t==="-"||t==="—"||t==="") return {v:0, dec:0, comma:false, suffix:"", dash:true};
+    const m = /^(-?[\d,]+(?:\.(\d+))?)\s*(원|PLT|plt|건|개|곳|일)?$/.exec(t);
+    if(!m) return null;
+    return { v: parseFloat(m[1].replace(/,/g,"")), dec: m[2]?m[2].length:0, comma: m[1].includes(","), suffix: m[3]||"", dash:false };
+  }
+  // 칸의 숫자 글자 노드: 자식 요소가 없으면 유일한 글자 노드, 있으면 맨 앞 글자 노드(예: "4,360,822,360<span>전월 ▼6%</span>")
+  function numNode(cell){
+    const w = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT, null);
+    let n; while((n = w.nextNode())){ if(n.nodeValue.trim()) return n; }
+    return null;
+  }
+  function fmtNum(v, like){
+    const r = Math.round(v * Math.pow(10, like.dec)) / Math.pow(10, like.dec);
+    const s = (like.comma || Math.abs(r)>=1000) ? r.toLocaleString("ko-KR", {minimumFractionDigits:like.dec, maximumFractionDigits:like.dec}) : r.toFixed(like.dec);
+    return s + like.suffix;
+  }
+  function sfApplyTable(tbl){
+    const rows = [...tbl.rows];
+    if(!rows.length) return;
+    const storeRows = [], totalRows = [];
+    let carry = 0, carryStore = null;
+    rows.forEach(tr=>{
+      if(tr.closest("table") !== tbl) return;
+      if(tr.parentElement && tr.parentElement.tagName==="THEAD"){ return; }
+      if(carry>0){ carry--; storeRows.push({tr, s:carryStore, cont:true}); if(!sfSel.has(carryStore)) tr.classList.add("sf-hide"); return; }
+      const cells = tr.cells; if(!cells.length) return;
+      let s = null, cell = null;
+      for(let i=0;i<Math.min(2,cells.length);i++){
+        const tx = cells[i].textContent;
+        s = storeAt(tx);
+        if(s){ cell = cells[i]; break; }
+        if(String(tx).trim().length > 4) break;   // 첫 칸이 순위 번호 같은 짧은 값일 때만 두 번째 칸을 본다
+      }
+      if(s){
+        storeRows.push({tr, s});
+        if(!sfSel.has(s)) tr.classList.add("sf-hide");
+        if(cell.rowSpan > 1){ carry = cell.rowSpan-1; carryStore = s; }
+        return;
+      }
+      if(cells[0] && isTotalLabel(cells[0].textContent)) totalRows.push(tr);
+    });
+    if(storeRows.length < 2 || !totalRows.length) return;
+    const hasSpan = rows.some(tr=>[...tr.cells].some(c=>c.rowSpan>1 || c.colSpan>1) && !(tr.parentElement && tr.parentElement.tagName==="THEAD"));
+    const main = storeRows.filter(r=>!r.cont);
+    totalRows.forEach(tr=>{
+      let any = false;
+      [...tr.cells].forEach((cell, ci)=>{
+        if(ci===0) return;
+        const tn = numNode(cell);
+        const tv = tn ? parseNum(tn.nodeValue) : null;
+        if(!tv || tv.dash || hasSpan){ if(cell.textContent.trim() && cell.textContent.trim()!=="-") cell.classList.add("sf-dim"); return; }
+        let sumAll = 0, sumSel = 0, ok = true, unit = Math.pow(10, -tv.dec);
+        main.forEach(r=>{
+          const c = r.tr.cells[ci]; if(!c){ ok=false; return; }
+          const cn = numNode(c); const p = cn ? parseNum(cn.nodeValue) : (c.textContent.trim()===""||c.textContent.trim()==="-" ? {v:0,dec:0} : null); if(!p){ ok=false; return; }
+          sumAll += p.v; if(sfSel.has(r.s)) sumSel += p.v;
+          unit = Math.max(unit, Math.pow(10, -p.dec));
+        });
+        const tol = Math.max(main.length * unit * 0.6, Math.abs(tv.v) * 0.003, 0.01);
+        if(ok && Math.abs(sumAll - tv.v) <= tol){
+          cell.setAttribute("data-sf-orig", tn.nodeValue);
+          tn.nodeValue = fmtNum(sumSel, tv);
+          // 같은 칸의 부가 표시(전월 대비 ▲▼ 등)는 전체 매장 기준이라 흐리게
+          [...cell.children].forEach(ch=>{ if(!ch.contains(tn)) ch.classList.add("sf-dim"); });
+          any = true;
+        } else {
+          cell.classList.add("sf-dim");
+        }
+      });
+      tr.setAttribute("data-sf-total", any ? "sum" : "all");
+    });
+  }
+  function sfApplyItems(root){
+    sfNames(); if(!_nameRe) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    const seen = new Set();
+    let n;
+    while((n = walker.nextNode())){
+      const raw = n.nodeValue; if(!raw) continue;
+      const t = raw.trim(); if(!t || t.length > 120) continue;
+      const s = storeAt(t); if(!s) continue;
+      // 긴 글이면 매장명 바로 뒤가 구분 기호여야 "매장 항목 제목"으로 본다("인천점 — 6월 …", "용인점 (…)").
+      if(t.length > 24){ const rest = t.replace(/^[\s\d.#▸▶·•★☆\-]+/, "").slice(s.length); if(!/^\s*[—–\-:·(|\[]/.test(rest)) continue; }
+      const pe = n.parentElement; if(!pe) continue;
+      if(pe.closest("table") || pe.closest(SKIP_SEL)) continue;
+      // 반복 항목(형제 중에 같은 태그·클래스가 있는 요소)까지 올라간다. 카드 묶음(.agg-card 등)에 닿으면 포기.
+      let el = pe, item = null;
+      for(let d=0; d<8 && el; d++){
+        if(el.matches(STOP_SEL)) break;
+        const p = el.parentElement; if(!p) break;
+        const sigOf = x => x.tagName + "|" + String(x.className||"").replace(/\s*\bsf-(hide|dim)\b/g,"").trim();
+        const sig = sigOf(el);
+        let same = 0;
+        for(const c of p.children){ if(c!==el && sigOf(c)===sig) { same++; if(same>=1) break; } }
+        if(same>=1){ item = el; break; }
+        el = p;
+      }
+      if(!item || seen.has(item)) continue;
+      // 항목의 앞부분(30자 안)에 그 매장 이름이 있어야 "그 매장의 항목"으로 본다(설명 문장 속 매장명은 제외)
+      const it = (item.textContent||"").replace(/\s+/g," ").trim();
+      const pos = it.indexOf(s);
+      if(pos < 0 || pos > 30) continue;
+      seen.add(item);
+      if(!sfSel.has(s)) item.classList.add("sf-hide");
+    }
+  }
+  let _applying = false;
+  function sfApply(){
+    const views = ["view-agg","view-sales","view-goals"].map(id=>document.getElementById(id)).filter(Boolean);
+    _applying = true;
+    try{
+      views.forEach(v=>{
+        sfReset(v);
+        if(!sfActive()) return;
+        v.querySelectorAll("table").forEach(tbl=>{ if(!tbl.closest(SKIP_SEL)) sfApplyTable(tbl); });
+        sfApplyItems(v);
+      });
+    }catch(e){ console.warn("store filter", e); }
+    finally{ if(_obs) _obs.takeRecords(); _applying = false; }
+  }
+  let _obs = null, _timer = null;
+  function sfSchedule(){ if(_applying) return; clearTimeout(_timer); _timer = setTimeout(sfApply, 40); }
+  function sfInit(){
+    sfInjectUi(); sfRenderBar();
+    _obs = new MutationObserver(muts=>{
+      if(_applying) return;
+      if(muts.some(m=>m.type==="childList")) sfSchedule();
+    });
+    ["view-agg","view-sales","view-goals"].forEach(id=>{ const v=document.getElementById(id); if(v) _obs.observe(v, {childList:true, subtree:true}); });
+    sfApply();
+  }
+  window.storeFilterApply = sfApply;
+  window.storeFilterState = () => ({ mode:sfMode, sel:[...sfSel] });
+  window.storeFilterSet = (arr, mode) => { if(mode) sfMode = mode; sfSel = new Set(arr||[]); sfSave(); sfRenderBar(); sfApply(); try{ window.dispatchEvent(new Event("storefilterchange")); }catch(_){} };
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", sfInit); else sfInit();
+})();
 
 cloudInit();
 pltLiveInit();
