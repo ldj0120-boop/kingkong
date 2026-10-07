@@ -998,7 +998,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 106 · 2026-10-07</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 107 · 2026-10-08</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1578,6 +1578,7 @@ const CATE_RULES = [
   [/매트리스/, "대형가구"], // 본사 표기(48건) — 센터 쪽은 이미 "XLW/쇼파/매트리스"를 대형가구로 묶고
     // 있어(센터 CATE 대조 확인), 본사의 단독 "매트리스" 표기도 동일하게 대형가구로 맞춘다.
   [/^대형가구/, "대형가구"], [/^생산가구/, "생산재고"],
+  [/삼단장/, "대형가구"], // build 107 사용자 지정: 본사 "FC 삼단장"은 FC가 아니라 대형가구("^FC" 규칙보다 먼저)
   [/분배\s*FC/, "FC파손"], // 본사 표기 "분배 FC파손"(11건)/"분배FC"(5건) — 접두어
     // "분배"가 붙어 "^FC" 규칙을 못 타던 것을 보강. FC파손의 하위 배분 건이라 FC파손으로 합산.
   [/지정\s*FC파손/, "FC파손"], // 본사 표기 "지정FC파손"/"지정 FC파손"(4건) — 위와 같은 이유로 보강.
@@ -1587,7 +1588,7 @@ const CATE_RULES = [
   [/컬래버|컬레버|콜라보|collab/i, "사입"], // 사용자 지정: "컬래버레이션 N월" 등 협업 상품 = 사입 (월이 바뀌어도 자동)
   [/임박/, "임박"], [/사입/, "사입"],
   [/^FC/, "FC파손"], // 단독 "FC" 표기도 FC파손에 합산
-  [/혼합/, "혼합"], [/기저귀|분유/, "기저귀_분유"],
+  [/혼합/, "FC파손"], [/기저귀|분유/, "기저귀_분유"], // build 107 사용자 지정: 혼합(혼합FC 등) = FC
   // 사용자 지정(2026-08-31): 센터 출고내역서에 "서비스솔루션 A/B/C/D/F"처럼 알파벳 한 글자만 붙은 표기는
   // 실제로는 대형가전 하위 랏 — 본사 출고계획서의 같은 블록에 "대형가전 A/D/F"로 정확히 대응된다
   // (0826 인천점*2 블록에서 대조 확인). 밑줄 구분("서비스솔루션_A")도 같은 표기이므로 함께 잡는다.
@@ -2197,7 +2198,7 @@ function mergeStoredCatMaps(){
 //                 각 18PLT인데 1PLT. 직출건 파일 XLS 약 250PLT·XLG 약 80PLT가 이렇게 빠지고 있었다)
 //   center 13 · hq 9 : (build 67, 2026-09-30) 별칭 추가 — 의정부점→의정부가맹점, 파주점_오도동→파주가맹점.
 //                 파싱 로직은 그대로, 보관 원본으로 재계산해 빠졌던 XLA 9·XLB 9PLT를 채우기 위한 버전 올림.
-const PARSE_LOGIC_VERSIONS = { center: 15, hq: 12, appliance: 8, fresh: 2 }; // build 91: 별칭 파주점·파주가맹점1→파주가맹점(사용자 확인) → 보관 원본으로 자동 재계산 // build 72: hq 오타 별칭(퍙택점·벙도리센터) // build 71: 날짜 단위 병합(최신 파일 우선) + 미매칭 위치 // build 67: 별칭 추가 → 보관 원본으로 자동 재계산
+const PARSE_LOGIC_VERSIONS = { center: 16, hq: 14, appliance: 9, fresh: 2 }; // build 107: hq 날짜=시트 상단 제목 날짜, 혼합→FC파손, 삼단장→대형가구 // build 91: 별칭 파주점·파주가맹점1→파주가맹점(사용자 확인) → 보관 원본으로 자동 재계산 // build 72: hq 오타 별칭(퍙택점·벙도리센터) // build 71: 날짜 단위 병합(최신 파일 우선) + 미매칭 위치 // build 67: 별칭 추가 → 보관 원본으로 자동 재계산
 const PARSE_LOGIC_VERSION = 5; // (하위호환: 예전 상태에 통째로 저장돼 있던 값 비교용)
 /* ★ build 72: 엑셀의 "사용 범위"가 실제 내용보다 훨씬 크게 잡힌 파일(예: 본사 06월 출고계획서_0630 — 시트 20개가 모두
    A1:P1040344, 실제 내용은 50~500행)은 파싱할 때 빈 행 100만 개씩을 훑어 몇 분씩 걸리거나 탭이 멈췄다.
@@ -6038,7 +6039,7 @@ function findHQDaySheets(wb){
   return wb.SheetNames.filter(n=> n!=="기본양식" && /^\d{4}$/.test(n));
 }
 // 시트 맨 위쪽 제목 문구(예: " 2026년  7월  28일  화요일  출고계획서")에서 날짜를 뽑는다. 열이 밀려도 셀 위치와 무관하게 찾는다.
-function hqDateFromSheet(aoa, sheetName){
+function hqDateFromSheet(aoa, sheetName, otherSheetNames){
   let titleDate = null;
   for(let r=0; r<Math.min(aoa.length,4) && !titleDate; r++){
     const row = aoa[r] || [];
@@ -6051,6 +6052,17 @@ function hqDateFromSheet(aoa, sheetName){
   // 시트명(MMDD)이 제목 문구보다 신뢰도가 높다 — 제목은 손으로 적어서 오타가 난다.
   // 이 파일의 "0721" 시트 제목이 "7월 22일"로 잘못 적혀 있어 21일 물량이 22일에 합산되고 있었다.
   // 연도는 제목에서만 알 수 있으므로, 연도는 제목에서 가져오고 월·일은 시트명에서 가져온다. (2026-08-26 수정)
+  // ★ build 107 (2026-10-08, 사용자 지정): 날짜는 시트 상단 제목 날짜로 맞춘다. 제목이 있으면 그대로 쓰고,
+  //   (계기: 10월 파일 "1003" 시트 제목이 "10월 06일") 단, 아래 경우는 제목이 복사해 둔 이전 시트 제목이
+  //   그대로 남은 것이라 시트명을 쓴다 — ① 제목 일자가 0일 등 무효("8월 0814" 시트 제목 "7월 00일"),
+  //   ② 제목 날짜(MMDD)가 같은 파일의 다른 시트 이름으로 이미 있음("0907" 시트 제목 "9월 3일" — 0903 시트 존재,
+  //   07월 "0721" 시트 제목 "7월 22일" — 0722 시트 존재). 같은 날짜가 두 시트에서 겹쳐 하루치가 지워지는 것을 막는다.
+  if(titleDate){
+    const tm = +titleDate.slice(5,7), td = +titleDate.slice(8,10);
+    const tKey = titleDate.slice(5,7)+titleDate.slice(8,10);
+    const others = (otherSheetNames||[]).filter(n=> n!==sheetName);
+    if(tm>=1 && tm<=12 && td>=1 && td<=31 && !others.includes(tKey)) return titleDate;
+  }
   const sm = String(sheetName||"").match(/^(\d{2})(\d{2})$/);
   if(sm && titleDate){
     const mm = +sm[1], dd = +sm[2];
@@ -6072,7 +6084,7 @@ async function parseHQPlanWorkbook(wb, onProgress){
   for(let si=0; si<sheets.length; si++){
     const sheetName = sheets[si];
     const aoa = sheetAoA(wb, sheetName);
-    const date = hqDateFromSheet(aoa, sheetName);
+    const date = hqDateFromSheet(aoa, sheetName, sheets);
     const month = date ? date.slice(0,7) : null;
     if(date && !byDay[date]) byDay[date] = {};   // build 71
     for(let r=0; r<aoa.length; r++){
@@ -7129,6 +7141,7 @@ const SUPPLY_PLAN_CAT_MATCH = {
 // 매출 집계 시 "대형가전+XLB → 가전"으로 이미 합쳐버려(18차, SALES_CAT_GROUP) XLB와 XLK(=대형가전)의
 // 실제 매출을 카테고리별로 다시 분리할 근거가 없기 때문. 그래서 카테고리 단위 비교는 PLT(수량)로만
 // 하고, 기대매출 도달율은 (아래에서) 매장 전체 합계 기준으로만 낸다 — 근거 없는 배분보다 정직한 선택.
+const OUTSIDE_CAT_LABEL = { "FC파손":"FC", "혼합":"FC", "임박":"임박식품" };
 function goalsPlanCatPLT(members, m){
   const real = diagStoreMonth(members, m); // {실제 카테고리명: PLT}
   const total = Object.values(real).reduce((a,v)=>a+v,0);
@@ -7140,7 +7153,8 @@ function goalsPlanCatPLT(members, m){
   });
   // 계획 외: 계획표 9개 카테고리 어디에도 대응되지 않는 실제 출고(FC파손·사입·임박·생산재고 등)
   const outside = {};
-  Object.keys(real).forEach(rc=>{ if(!used.has(rc) && real[rc]>0) outside[rc] = real[rc]; });
+  // build 107 사용자 지정 표시명: FC파손·혼합 → "FC", 임박 → "임박식품", 사입 → "사입"
+  Object.keys(real).forEach(rc=>{ if(!used.has(rc) && real[rc]>0){ const lb = OUTSIDE_CAT_LABEL[rc]||rc; outside[lb] = (outside[lb]||0) + real[rc]; } });
   return { byCat: out, total, matched, outside, outsideTotal: Math.max(0, total - matched) };
 }
 // 이 탭 전용 "조회할 달" — 상단 공용 "분석 기간" 바와는 별개 상태다. 계획표 자체는 달과 무관하게
@@ -10197,11 +10211,14 @@ function goalsRender11Body(ctx){
         <td style="color:${pctColor(p==null?null:(isCur(D)?p/(elapsed/goalsDaysInMonth(D)):p))}"><span class="num">${p!=null?p.toFixed(0)+"%":"-"}</span></td><td><span class="num">${planR?won(planR):"-"}</span></td></tr>`;
     }).filter(Boolean).join("");
     const outE = Object.entries(pi.outside||{}).sort((a,b)=>b[1]-a[1]);
+    // build 107: 계획 외 출고(FC파손·임박·사입·혼합 등)도 표 행으로 보여 준다 — 각주에만 있으면 "공급 없음"으로 보였다.
+    const outSum = outE.reduce((a,[,v])=>a+v,0);
+    const outRows = outE.map(([c,v])=>`<tr style="opacity:.85"><td>계획 외 · ${h(c)}</td><td><span class="num">-</span></td><td><span class="num">${f1(v)}</span></td><td><span class="num">-</span></td><td><span class="num">-</span></td></tr>`).join("");
     const pP = planStores.reduce((a,s)=>a+Object.values(SUPPLY_PLAN[s].plt||{}).reduce((x,v)=>x+g11Num(v),0),0);
     planTbl = `<div class="g-tbl-title">공급계획 대비 ${h(dLbl)} 공급 — 계획 카테고리별</div>
       <div class="tblbox"><table class="g-tbl g11-tbl"><thead><tr><th>계획 카테고리</th><th>월 계획 PLT</th><th>${mL(D)} 공급 PLT</th><th>도달률</th><th>계획 기대매출(월)</th></tr></thead>
-      <tbody>${rows}</tbody><tfoot><tr><td>합계</td><td><span class="num">${f1(pP)}</span></td><td><span class="num">${f1(pi.matched)}</span></td><td style="color:${pctColor(pP>0?(isCur(D)?pi.matched/pP*100/(elapsed/goalsDaysInMonth(D)):pi.matched/pP*100):null)}"><span class="num">${pP>0?(pi.matched/pP*100).toFixed(0)+"%":"-"}</span></td><td><span class="num">${won(planStores.reduce((a,s)=>a+g11Num(SUPPLY_PLAN[s].opTotal),0))}</span></td></tr></tfoot></table></div>
-      <div class="g-tbl-sub">도달률 = 공급 ÷ 월 계획 전체${isCur(D)?` (색은 ${goalsDaysInMonth(D)}일 중 ${elapsed}일 경과 기준으로 판정)`:""}. 계획 외 출고: ${outE.length?outE.map(([c,v])=>`${h(c)} ${f1(v)}`).join(" · ")+" PLT":"없음"}${planStores.length<sel.length?` · 공급계획 없는 매장: ${h(sel.filter(s=>!SUPPLY_PLAN[s]).join(", "))}`:""}</div>`;
+      <tbody>${rows}${outRows}</tbody><tfoot><tr><td>계획 카테고리 합계</td><td><span class="num">${f1(pP)}</span></td><td><span class="num">${f1(pi.matched)}</span></td><td style="color:${pctColor(pP>0?(isCur(D)?pi.matched/pP*100/(elapsed/goalsDaysInMonth(D)):pi.matched/pP*100):null)}"><span class="num">${pP>0?(pi.matched/pP*100).toFixed(0)+"%":"-"}</span></td><td><span class="num">${won(planStores.reduce((a,s)=>a+g11Num(SUPPLY_PLAN[s].opTotal),0))}</span></td></tr>${outSum?`<tr><td>전체 공급 (계획 외 포함)</td><td><span class="num">-</span></td><td><span class="num">${f1(pi.matched+outSum)}</span></td><td><span class="num">-</span></td><td><span class="num">-</span></td></tr>`:""}</tfoot></table></div>
+      <div class="g-tbl-sub">도달률 = 계획 카테고리 공급 ÷ 월 계획 전체${isCur(D)?` (색은 ${goalsDaysInMonth(D)}일 중 ${elapsed}일 경과 기준으로 판정)`:""}. 계획 외 출고: ${outE.length?outE.map(([c,v])=>`${h(c)} ${f1(v)}`).join(" · ")+" PLT":"없음"}${planStores.length<sel.length?` · 공급계획 없는 매장: ${h(sel.filter(s=>!SUPPLY_PLAN[s]).join(", "))}`:""}</div>`;
   }
 
   // ================= 7) 카테고리 효율 (조회 달) =================
