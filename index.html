@@ -718,6 +718,17 @@
   table.g11-tbl td.g11-selc{background:rgba(245,178,17,.08);}
   table.g11-tbl td.g11-up{color:var(--green);} table.g11-tbl td.g11-dn{color:var(--red);}
   .g11-grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;}
+  /* build 108: 07 재고·일별·시간대 2줄 배치 + 실행방안 카드 */
+  .g11-row{display:grid;gap:12px;margin-bottom:12px;align-items:stretch;}
+  .g11-row-a{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
+  .g11-row-b{grid-template-columns:minmax(0,2fr) minmax(0,1fr);}
+  @media (max-width:1000px){ .g11-row-a,.g11-row-b{grid-template-columns:1fr;} }
+  .g11-panel{background:var(--panel2);border:1px solid var(--line-soft);border-radius:10px;padding:12px 14px;min-width:0;display:flex;flex-direction:column;gap:8px;}
+  .g11-panel .tblbox{margin:0;}
+  .g11-panel rect:hover{opacity:1 !important;}
+  .g11-pt{font-size:13px;font-weight:700;color:var(--text);display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;}
+  .g11-card{margin-bottom:14px;}
+  .g11-card .g-store-card{margin:0 0 10px;}
   .g11-facts{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:11.5px;color:var(--muted);margin:6px 0 4px;}
   .g11-diag{background:var(--panel2);border:1px solid var(--line-soft);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
   .g11-diag-hd{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;}
@@ -998,7 +1009,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 107 · 2026-10-08</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 108 · 2026-10-08</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -8998,6 +9009,63 @@ function goalsEffBarsHtml(effRows){
 }
 
 /* ---------------- 06_매장별실행방안 ---------------- */
+// build 108: 04 매장별 실행방안의 매장 카드 한 장 — 07 매장 분석에서도 같은 카드를 쓴다(opts.compact: 07에 이미 있는
+//   최근 3개월 실적·월별 달성률 이력은 빼고 숫자 줄·카테고리 구성·드릴다운·구성비 격차만).
+function goalsStoreCardHtml(r, ctx, opts){
+  opts = opts || {};
+  const cm = ctx.mLbl(ctx.curMonth);
+  const won = v => Math.round(v).toLocaleString();
+      const tier = goalsTier(r.pct);
+  const band = goalsIncentiveBand(r.dev);
+  const gaugeColor = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--info)":tier.cls==="g-tier-warn"?"var(--amber)":"var(--red)";
+  const cumTxt = (r.cum && !r.cum.gap)
+    ? `${won(r.cum.actualCum)} / ${won(r.cum.targetCum)}원 (${r.cum.pct.toFixed(1)}%)`
+    : `결측으로 산출 제외`;
+  const cumDelta = (r.cum && !r.cum.gap)
+    ? `<span style="color:${r.cum.actualCum>=r.cum.targetCum?'var(--green)':'var(--red)'}">${r.cum.actualCum>=r.cum.targetCum?'+':'−'}${won(Math.abs(r.cum.actualCum-r.cum.targetCum))}원</span>`
+    : `<span style="color:var(--muted2)">${escHtml(ctx.missingMonths[r.store]||'-')}</span>`;
+  const kpis = [
+    // 월 목표(그 달 전체 금액)와 일할 목표(경과일까지 잘라낸 금액)는 다른 숫자다 — 나란히 보여준다.
+    {k:"월 목표매출",     v:`<b style="color:var(--amber)">${won(r.target)}원</b>`},
+    {k:`${cm} 실적`,      v:`${won(r.actual)}원`},
+    {k:`${cm} 목표(일할·${r.activeDays}/${r.monthDays}일)`, v:`${won(r.proratedTarget)}원`},
+    {k:"목표 대비 편차",   v:`<span style="color:${r.dev>=0?'var(--green)':'var(--red)'}">${(r.dev>=0?'+':'')+(r.dev*100).toFixed(1)}%</span>`},
+    {k:"인센티브 구간",   v:escHtml(band.label)},
+    {k:`누적 실적 / 목표 (${ctx.months.length}개월)`, v:cumTxt, wide:true},
+    {k:"누적 격차",       v:cumDelta, wide:true},
+  ].map(x=>`<div class="g-kpi${x.wide?' wide':''}"><span class="k">${x.k}</span><span class="v">${x.v}</span></div>`).join("");
+  const catVisual = goalsCatColHtml(r, ctx);   // build 89: 월 선택 가능한 카테고리 구성
+  const freshTag = r.freshLabel
+    ? `<span class="g-store-tag ${r.fresh?'':'off'}" title="식품 운영 매장 현황(20260707 기준)">${escHtml(r.freshLabel)}</span>` : "";
+  const stateTag = r.stateBadge ? `<span class="g-store-tag warn">${escHtml(r.stateBadge)}</span>` : "";
+  const memberTag = r.members.length>1 ? `<span class="g-store-tag">${escHtml(r.members.slice(1).join("·"))} 합산</span>` : "";
+  return `<div class="g-store-card v2 ${tier.cls}" data-store-anchor="${escHtml(r.store)}">
+    <div class="g-store-hd">
+      <span class="g-store-name">${escHtml(r.label)}
+        <span class="g-store-rank">월 목표 ${(r.target/100000000).toFixed(2)}억 · ${ctx.rows.length}개 중 ${r.rank}위(낮은 순)</span>
+      </span>
+      <span class="g-store-gauge" title="${cm} 달성률 ${r.pct.toFixed(1)}%">
+        <span class="gg-track"><span class="gg-fill" style="width:${Math.min(100,r.pct).toFixed(1)}%;background:${gaugeColor}"></span></span>
+        <span class="gg-num" style="color:${gaugeColor}">${r.pct.toFixed(1)}%</span>
+      </span>
+      <span class="g-store-badge">${tier.label}</span>
+    </div>
+    <div class="g-store-tags">${stateTag}${memberTag}${freshTag}</div>
+    <div class="g-kpi-grid">${kpis}</div>
+    <div class="g-store-split">
+      ${opts.compact?"":`<div class="g-store-leftcol">
+        ${goalsNarrative(r, ctx)}
+      </div>`}
+      ${catVisual}
+    </div>
+    ${opts.compact?"":goalsMonthStripHtml(r.hist, ctx.curMonth, r.store)}
+    <div class="g-drill" data-drill-store="${escHtml(r.store)}">${goalsDrillHtml(r.store)}</div>
+    <details class="g-store-more">
+      <summary>카테고리 구성비 전체 — 전사 평균 대비 격차 ${r.diag?`(${r.diag.diffs.length}개)`:""}</summary>
+      ${goalsDiagTableHtml(r.diag)}
+    </details>
+  </div>`;
+}
 function goalsRender06(ctx){
   // 15차 레이아웃 재구성: 예전에는 카드 하나에 문장 4개 + 월별 스트립 + 카테고리 격차표(카테고리 20여 개)
   // + 도넛이 세로로 줄줄이 쌓여 한 매장 카드가 화면 몇 개 높이가 됐고, 매장을 비교하기 어려웠다.
@@ -9015,58 +9083,7 @@ function goalsRender06(ctx){
   return goalsStoreNavHtml(ctx.rows, "06") + tiers.map(t=>{
     const list = ctx.rows.filter(t.test);
     if(!list.length) return `<div class="g-tier-group"><div class="g-tier-hd ${t.key}">${escHtml(t.title)}<span class="cnt">해당 매장 없음</span></div></div>`;
-    const cards = list.map(r=>{
-      const tier = goalsTier(r.pct);
-      const band = goalsIncentiveBand(r.dev);
-      const gaugeColor = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--info)":tier.cls==="g-tier-warn"?"var(--amber)":"var(--red)";
-      const cumTxt = (r.cum && !r.cum.gap)
-        ? `${won(r.cum.actualCum)} / ${won(r.cum.targetCum)}원 (${r.cum.pct.toFixed(1)}%)`
-        : `결측으로 산출 제외`;
-      const cumDelta = (r.cum && !r.cum.gap)
-        ? `<span style="color:${r.cum.actualCum>=r.cum.targetCum?'var(--green)':'var(--red)'}">${r.cum.actualCum>=r.cum.targetCum?'+':'−'}${won(Math.abs(r.cum.actualCum-r.cum.targetCum))}원</span>`
-        : `<span style="color:var(--muted2)">${escHtml(ctx.missingMonths[r.store]||'-')}</span>`;
-      const kpis = [
-        // 월 목표(그 달 전체 금액)와 일할 목표(경과일까지 잘라낸 금액)는 다른 숫자다 — 나란히 보여준다.
-        {k:"월 목표매출",     v:`<b style="color:var(--amber)">${won(r.target)}원</b>`},
-        {k:`${cm} 실적`,      v:`${won(r.actual)}원`},
-        {k:`${cm} 목표(일할·${r.activeDays}/${r.monthDays}일)`, v:`${won(r.proratedTarget)}원`},
-        {k:"목표 대비 편차",   v:`<span style="color:${r.dev>=0?'var(--green)':'var(--red)'}">${(r.dev>=0?'+':'')+(r.dev*100).toFixed(1)}%</span>`},
-        {k:"인센티브 구간",   v:escHtml(band.label)},
-        {k:`누적 실적 / 목표 (${ctx.months.length}개월)`, v:cumTxt, wide:true},
-        {k:"누적 격차",       v:cumDelta, wide:true},
-      ].map(x=>`<div class="g-kpi${x.wide?' wide':''}"><span class="k">${x.k}</span><span class="v">${x.v}</span></div>`).join("");
-      const catVisual = goalsCatColHtml(r, ctx);   // build 89: 월 선택 가능한 카테고리 구성
-      const freshTag = r.freshLabel
-        ? `<span class="g-store-tag ${r.fresh?'':'off'}" title="식품 운영 매장 현황(20260707 기준)">${escHtml(r.freshLabel)}</span>` : "";
-      const stateTag = r.stateBadge ? `<span class="g-store-tag warn">${escHtml(r.stateBadge)}</span>` : "";
-      const memberTag = r.members.length>1 ? `<span class="g-store-tag">${escHtml(r.members.slice(1).join("·"))} 합산</span>` : "";
-      return `<div class="g-store-card v2 ${tier.cls}" data-store-anchor="${escHtml(r.store)}">
-        <div class="g-store-hd">
-          <span class="g-store-name">${escHtml(r.label)}
-            <span class="g-store-rank">월 목표 ${(r.target/100000000).toFixed(2)}억 · ${ctx.rows.length}개 중 ${r.rank}위(낮은 순)</span>
-          </span>
-          <span class="g-store-gauge" title="${cm} 달성률 ${r.pct.toFixed(1)}%">
-            <span class="gg-track"><span class="gg-fill" style="width:${Math.min(100,r.pct).toFixed(1)}%;background:${gaugeColor}"></span></span>
-            <span class="gg-num" style="color:${gaugeColor}">${r.pct.toFixed(1)}%</span>
-          </span>
-          <span class="g-store-badge">${tier.label}</span>
-        </div>
-        <div class="g-store-tags">${stateTag}${memberTag}${freshTag}</div>
-        <div class="g-kpi-grid">${kpis}</div>
-        <div class="g-store-split">
-          <div class="g-store-leftcol">
-            ${goalsNarrative(r, ctx)}
-          </div>
-          ${catVisual}
-        </div>
-        ${goalsMonthStripHtml(r.hist, ctx.curMonth, r.store)}
-        <div class="g-drill" data-drill-store="${escHtml(r.store)}">${goalsDrillHtml(r.store)}</div>
-        <details class="g-store-more">
-          <summary>카테고리 구성비 전체 — 전사 평균 대비 격차 ${r.diag?`(${r.diag.diffs.length}개)`:""}</summary>
-          ${goalsDiagTableHtml(r.diag)}
-        </details>
-      </div>`;
-    }).join("");
+    const cards = list.map(r=> goalsStoreCardHtml(r, ctx)).join("");
     return `<div class="g-tier-group">
       <div class="g-tier-hd ${t.key}">${escHtml(t.title)}<span class="cnt">${list.length}개 매장</span></div>
       <div class="g-store-list">${cards}</div>
@@ -10012,7 +10029,7 @@ function g11Bars(items, opts){
     return `<g><title>${escHtml(d.tip || (d.l+" · "+d.v))}</title><rect x="${x-gap/2}" y="${padT}" width="${bw+gap}" height="${H-padT-padB}" fill="transparent"></rect>
       <rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="3" fill="${fill}" opacity="${op}"></rect>${lbl}${xl}</g>`;
   }).join("");
-  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block" role="img" aria-label="${escHtml(opts.label||"")}">
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="${opts.fill?"":`max-width:${W}px;`}display:block" role="img" aria-label="${escHtml(opts.label||"")}">
     <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="var(--line)" stroke-width="1"></line>${bars}</svg>`;
 }
 function goalsRender11(ctx){
@@ -10090,10 +10107,18 @@ function goalsRender11Body(ctx){
   const kpi = (v, l, cls, tip) => `<div class="g-kpi"${tip?` title="${h(tip)}"`:""}><div class="v"${cls?` style="color:${cls}"`:""}>${v}</div><div class="l">${l}</div></div>`;
   const dLbl = mL(D) + (isCur(D)?` (${goalsDaysInMonth(D)}일 중 ${elapsed}일 경과)`:"");
   const salesDelta = pPrev && pPrev.sales>0 && pD.sales>0 ? (isCur(D) ? null : (pD.sales/pPrev.sales-1)*100) : null;
+  // build 108: 매장을 고르면 04 매장별 실행방안 카드(월 목표·실적·달성률·편차·누적·카테고리 구성)가 위에 나온다.
+  //   단수일 때 매출·월 목표·달성률 타일은 카드와 겹치므로 빼고 07에만 있는 공급 PLT·PLT당 매출·매장재고만 남긴다.
+  const ctxRowOf = s => (ctx.rows||[]).find(r=> r.store===s || (r.members||[]).includes(s));
+  const cardRows = sel.map(ctxRowOf).filter(Boolean).filter((r,i,a)=> a.indexOf(r)===i);
+  const showCard = sel.length===1 && cardRows.length===1;
+  const cardBlock = !cardRows.length ? "" : showCard
+    ? `<div class="g-tbl-title">매장별 실행방안 — ${h(cardRows[0].label||cardRows[0].store)} (04 탭과 같은 카드 · ${h(ctx.scopeLabel)} 기준)</div><div class="g11-card">${goalsStoreCardHtml(cardRows[0], ctx, {compact:true})}</div>`
+    : `<details class="g-store-more"><summary>매장별 실행방안 카드 — 고른 ${cardRows.length}개 매장 (04 탭과 같은 카드 · 펼치기)</summary><div class="g11-card">${cardRows.map(r=>goalsStoreCardHtml(r, ctx, {compact:true})).join("")}</div></details>`;
   const kpis = `<div class="g-kpis">
-      ${kpi(eok(pD.sales)+"원", `${dLbl} 매출 · ${h(pD.src||"-")}${salesDelta!=null?` · 전월 대비 ${salesDelta>=0?"+":""}${salesDelta.toFixed(1)}%`:""}`, null, `${won(pD.sales)}원`)}
-      ${kpi(eok(pD.tFull)+"원", `월 목표매출(전액)${isCur(D)?` · 경과 환산 ${eok(pD.tPace)}원`:""}`, null, `${won(pD.tFull)}원`)}
-      ${kpi(pD.pct!=null?pD.pct.toFixed(1)+"%":"-", `목표 달성률${isCur(D)?" (경과일 환산 목표 대비)":""}`, pctColor(pD.pct))}
+      ${showCard?"":kpi(eok(pD.sales)+"원", `${dLbl} 매출 · ${h(pD.src||"-")}${salesDelta!=null?` · 전월 대비 ${salesDelta>=0?"+":""}${salesDelta.toFixed(1)}%`:""}`, null, `${won(pD.sales)}원`)}
+      ${showCard?"":kpi(eok(pD.tFull)+"원", `월 목표매출(전액)${isCur(D)?` · 경과 환산 ${eok(pD.tPace)}원`:""}`, null, `${won(pD.tFull)}원`)}
+      ${showCard?"":kpi(pD.pct!=null?pD.pct.toFixed(1)+"%":"-", `목표 달성률${isCur(D)?" (경과일 환산 목표 대비)":""}`, pctColor(pD.pct))}
       ${kpi(f1(pD.plt)+" PLT", `${mL(D)} 공급 PLT (출고 전체)${pPrev?` · 전월 ${f1(pPrev.plt)}`:""}`)}
       ${kpi(pD.perPlt!=null?eok(pD.perPlt)+"원":"-", `PLT당 매출 (${mL(D)} 매출 ÷ 공급 PLT)`)}
       ${kpi(stkTot!=null?f1(stkTot)+" PLT":"-", snap?`매장재고 (${h(snap.date)} 기준) · 야적 ${f1(stkYard)}${stkRoom!=null?` · 창고 여유 ${f1(stkRoom)}`:""}`:"매장재고 파일 없음")}
@@ -10258,21 +10283,26 @@ function goalsRender11Body(ctx){
   const dAvg = dVals.length ? dVals.reduce((a,v)=>a+v,0)/dVals.length : 0;
   const wdAgg = [0,0,0,0,0,0,0].map(()=>({s:0,n:0})); Object.keys(daily).forEach(d=>{ const wd = new Date(`${D}-${String(d).padStart(2,"0")}T00:00:00`).getDay(); if(daily[d]>0){ wdAgg[wd].s+=daily[d]; wdAgg[wd].n++; } });
   const best = dVals.length ? Object.keys(daily).sort((a,b)=>daily[b]-daily[a])[0] : null;
-  const dailyBlock = `<div class="g-tbl-title">일별 매출 — ${h(dLbl)} (${useBill?"청구금액":"실매출액"})</div>
-    ${dVals.length ? `<div class="g11-chart wide">${g11Bars(dItems, {w:760, h:150, color:"var(--amber)", label:"일별 매출"})}</div>
+  const dailyBlock = `<div class="g11-panel">
+    <div class="g11-pt">일별 매출 — ${h(dLbl)} <span class="g11-mute">${useBill?"청구금액":"실매출액"}</span></div>
+    ${dVals.length ? `${g11Bars(dItems, {w:640, h:170, color:"var(--amber)", label:"일별 매출", fill:true})}
     <div class="g11-facts"><span>영업일 데이터 ${dVals.length}일</span><span>하루 평균 ${eok(dAvg)}원</span>${best?`<span>최고 ${+best}일 ${eok(daily[best])}원</span>`:""}
-      <span>요일 평균: ${[1,2,3,4,5,6,0].map(i=>`${WD[i]} ${wdAgg[i].n?eok(wdAgg[i].s/wdAgg[i].n):"-"}`).join(" · ")}</span></div>` : `<div class="g11-mute">이 달 일별 매출 데이터 없음</div>`}`;
+      <span>요일 평균: ${[1,2,3,4,5,6,0].map(i=>`${WD[i]} ${wdAgg[i].n?eok(wdAgg[i].s/wdAgg[i].n):"-"}`).join(" · ")}</span></div>` : `<div class="g11-mute">이 달 일별 매출 데이터 없음</div>`}
+  </div>`;
 
   // ================= 9) 매장재고 · 재고 추이 · 시간대 =================
   const stkCats = Object.keys(stkCat).sort((a,b)=>stkCat[b]-stkCat[a]);
   const stkTrend = snaps.slice(-8).map(sn=>{ let t=null, y=0; sel.forEach(s=>{ const o = stockOf(sn,s); if(o){ t=(t||0)+o.tot; y+=o.yard; } }); return {d:sn.date, t, y}; }).filter(x=>x.t!=null);
-  const stockBlock = `<div class="g11-col">
-      <div class="g-tbl-title">매장재고 ${snap?`(${h(snap.date)} 기준)`:""}</div>
+  const stockBlock = `<div class="g11-panel">
+      <div class="g11-pt">매장재고 ${snap?`<span class="g11-mute">${h(snap.date)} 기준</span>`:""}</div>
       ${snap && stkTot!=null ? `<div class="tblbox"><table class="g-tbl g11-tbl"><thead><tr><th>항목</th><th>PLT</th><th>비중</th></tr></thead>
         <tbody>${stkCats.map(c=>`<tr><td>${h(c)}</td><td><span class="num">${f1(stkCat[c])}</span></td><td><span class="num">${stkTot>0?(stkCat[c]/stkTot*100).toFixed(0)+"%":"-"}</span></td></tr>`).join("")}</tbody>
         <tfoot><tr><td>합계</td><td><span class="num">${f1(stkTot)}</span></td><td></td></tr><tr><td>창고외 야적</td><td><span class="num">${f1(stkYard)}</span></td><td></td></tr><tr><td>창고 보관가능</td><td><span class="num">${stkRoom!=null?f1(stkRoom):"미보고"}</span></td><td></td></tr></tfoot></table></div>`
         : `<div class="g11-mute">매장재고 스냅샷 없음</div>`}
-      ${stkTrend.length>1 ? `<div class="g11-mini">재고 추이 (최근 ${stkTrend.length}회 스냅샷)</div>${g11Bars(stkTrend.map(x=>({l:x.d.slice(5), v:Math.round(x.t*10)/10, hl:x.d===(snap&&snap.date), tip:`${x.d} 재고 ${f1(x.t)} PLT · 야적 ${f1(x.y)}`})), {w:360, h:120, color:"var(--info)", hlAny:true, showVals:true, short:v=>f1(v), label:"재고 추이"})}` : ""}
+    </div>`;
+  const stockTrendBlock = `<div class="g11-panel">
+      <div class="g11-pt">재고 추이 <span class="g11-mute">최근 ${stkTrend.length}회 스냅샷 · PLT</span></div>
+      ${stkTrend.length>1 ? g11Bars(stkTrend.map(x=>({l:x.d.slice(5), v:Math.round(x.t*10)/10, hl:x.d===(snap&&snap.date), tip:`${x.d} 재고 ${f1(x.t)} PLT · 야적 ${f1(x.y)}`})), {w:420, h:190, color:"var(--info)", hlAny:true, showVals:true, short:v=>f1(v), label:"재고 추이", fill:true}) : `<div class="g11-mute">스냅샷이 2회 이상 있어야 추이를 그립니다</div>`}
     </div>`;
   const hr = {}; const dSet = new Set([D]);
   SALES_HISTORY.forEach(x=>{ if(!x || !x.date || !dSet.has(x.date.slice(0,7)) || !x.byStoreHour) return;
@@ -10280,9 +10310,9 @@ function goalsRender11Body(ctx){
   const hrArr = Object.keys(hr).map(k=>({h:+k, a:hr[k].a, c:hr[k].c})).filter(x=>x.a>0).sort((a,b)=>a.h-b.h);
   const hrTot = hrArr.reduce((a,x)=>a+x.a,0);
   const hrTop = hrArr.slice().sort((a,b)=>b.a-a.a).slice(0,3).map(x=>x.h);
-  const hourBlock = `<div class="g11-col">
-      <div class="g-tbl-title">시간대별 매출 — ${h(mL(D))}</div>
-      ${hrArr.length ? `${g11Bars(hrArr.map(x=>({l:String(x.h), v:x.a, hl:hrTop.includes(x.h), tip:`${x.h}~${x.h+1}시 ${won(x.a)}원 · ${x.c.toLocaleString()}건 · ${(x.a/hrTot*100).toFixed(1)}%`})), {w:360, h:140, color:"var(--amber)", hlAny:true, label:"시간대별 매출"})}
+  const hourBlock = `<div class="g11-panel">
+      <div class="g11-pt">시간대별 매출 — ${h(mL(D))} <span class="g11-mute">진한 막대 = 상위 3</span></div>
+      ${hrArr.length ? `${g11Bars(hrArr.map(x=>({l:String(x.h), v:x.a, hl:hrTop.includes(x.h), tip:`${x.h}~${x.h+1}시 ${won(x.a)}원 · ${x.c.toLocaleString()}건 · ${(x.a/hrTot*100).toFixed(1)}%`})), {w:320, h:170, color:"var(--amber)", hlAny:true, label:"시간대별 매출", fill:true})}
         <div class="g11-facts">${hrTop.map(hh=>{ const x = hrArr.find(y=>y.h===hh); return `<span><b>${hh}~${hh+1}시</b> ${eok(x.a)}원 (${(x.a/hrTot*100).toFixed(0)}%)</span>`; }).join("")}</div>`
         : `<div class="g11-mute">시간대 데이터 없음(카테고리별 매출 파일에 시간대가 있어야 합니다)</div>`}
     </div>`;
@@ -10315,9 +10345,12 @@ function goalsRender11Body(ctx){
       <div><span class="k">매장 정보</span><span class="v">${prof.length?prof.map(h).join("<br>"):'<span class="g11-mute">-</span>'}</span></div>
     </div>`;
 
-  return wrapLayout(head + kpis + trend + compare
-    + `<div class="g11-grid2">${stockBlock}${hourBlock}</div>`
-    + dailyBlock + planTbl + effTbl + pltCatTbl + salesCatTbl + diagBlock + notes);
+  // build 108: 재고·일별·시간대 배치 정리 — 1줄 [매장재고 표 | 재고 추이], 2줄 [일별 매출(넓게) | 시간대별 매출]
+  const opsBlock = `<div class="g-tbl-title">재고 · 일별 · 시간대</div>
+    <div class="g11-row g11-row-a">${stockBlock}${stockTrendBlock}</div>
+    <div class="g11-row g11-row-b">${dailyBlock}${hourBlock}</div>`;
+  return wrapLayout(head + cardBlock + kpis + trend + compare
+    + opsBlock + planTbl + effTbl + pltCatTbl + salesCatTbl + diagBlock + notes);
 }
 // 07 매장 분석: 매장/모드/달 버튼(이벤트 위임) · 위 "매장 선택" 줄이 바뀌면 이 탭만 다시 그림
 let _g11Wired = false;
