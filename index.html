@@ -1009,7 +1009,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 108 · 2026-10-08</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 109 · 2026-10-08</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -9786,7 +9786,7 @@ function goalsRender10Body(ctx){
   const useCats = planCats.filter(pc=> !(freshMissing && pc==="신선"));
   // build 97: 사용자 요청 — FC파손·사입도 집계에 넣는다. 공급계획(목표)이 없는 카테고리라 각자 "실제" 열로 따로 보여주고,
   //   매장 합계의 "실제"와 달성률에 더한다(목표는 계획 카테고리 합계 그대로). "계획 외"에서는 뺀다.
-  const PQ_EXTRA = [ {key:"FC파손", cats:["FC파손"]}, {key:"사입", cats:["사입","FC_사입"]} ];
+  const PQ_EXTRA = [ {key:"FC파손", cats:["FC파손","FC"]}, {key:"사입", cats:["사입","FC_사입"]} ];
   const extraAct = (x,key)=>{ const e = PQ_EXTRA.find(z=>z.key===key); return e.cats.reduce((a,c)=>a+((x.outside||{})[c]||0),0); };
   const extraSum = x => PQ_EXTRA.reduce((a,e)=>a+extraAct(x,e.key),0);
   const outRest = x => Math.max(0, (x.outsideTotal||0) - extraSum(x));
@@ -10220,31 +10220,74 @@ function goalsRender11Body(ctx){
     <tfoot><tr><td>합계</td>${M.map(m=>`<td${cellCls(m)}><span class="num">${catMonthTot(m)?eok(catMonthTot(m)):"-"}</span></td>`).join("")}<td></td></tr></tfoot></table></div>
     <div class="g-tbl-sub">위 월별 추이의 매출(청구금액이 더 완전한 달은 청구금액)과 금액이 조금 다를 수 있습니다 — 이 표는 카테고리 구분이 있는 실매출액 기준입니다. 칸에 마우스를 올리면 원 단위·판매수량.</div>` : "";
 
-  // ================= 6) 공급계획 대비 (조회 달) =================
+  // ================= 6) 출고계획 기준 총 입고 PLT 현황 (조회 달) =================
+  // build 109: 사용자 요청 — 06 공급계획(PLT) 진단의 "매장별 × 카테고리별 상세표"(목표 · 매장재고 · 이번달 공급 · 달성)를
+  //   고른 매장만 세로 표로 위쪽에 보여 준다. 계산은 06과 같은 goalsSupplyDetail(같은 매장 묶음·같은 합계 규칙:
+  //   계획 카테고리 + FC파손·사입 = 합계, 임박·생산재고 등은 계획 외로 따로) → 06 표와 숫자가 똑같다.
   let planTbl = "";
-  const planStores = sel.filter(s=> SUPPLY_PLAN[s]);
-  if(planStores.length){
-    const pi = goalsPlanCatPLT(planStores, D);
-    const planCats = Object.keys(SUPPLY_PLAN_PARAMS);
-    const rows = planCats.map(pc=>{
-      const planP = planStores.reduce((a,s)=>a+g11Num((SUPPLY_PLAN[s].plt||{})[pc]),0);
-      const planR = planStores.reduce((a,s)=>a+g11Num((SUPPLY_PLAN[s].target||{})[pc]),0);
-      const act = pi.byCat[pc]||0;
-      if(!planP && !act) return null;
-      const p = planP>0 ? act/planP*100 : null;
-      return `<tr><td>${h(pc)}</td><td><span class="num">${planP?f1(planP):"-"}</span></td><td><span class="num">${act?f1(act):"-"}</span></td>
-        <td style="color:${pctColor(p==null?null:(isCur(D)?p/(elapsed/goalsDaysInMonth(D)):p))}"><span class="num">${p!=null?p.toFixed(0)+"%":"-"}</span></td><td><span class="num">${planR?won(planR):"-"}</span></td></tr>`;
-    }).filter(Boolean).join("");
-    const outE = Object.entries(pi.outside||{}).sort((a,b)=>b[1]-a[1]);
-    // build 107: 계획 외 출고(FC파손·임박·사입·혼합 등)도 표 행으로 보여 준다 — 각주에만 있으면 "공급 없음"으로 보였다.
-    const outSum = outE.reduce((a,[,v])=>a+v,0);
-    const outRows = outE.map(([c,v])=>`<tr style="opacity:.85"><td>계획 외 · ${h(c)}</td><td><span class="num">-</span></td><td><span class="num">${f1(v)}</span></td><td><span class="num">-</span></td><td><span class="num">-</span></td></tr>`).join("");
-    const pP = planStores.reduce((a,s)=>a+Object.values(SUPPLY_PLAN[s].plt||{}).reduce((x,v)=>x+g11Num(v),0),0);
-    planTbl = `<div class="g-tbl-title">공급계획 대비 ${h(dLbl)} 공급 — 계획 카테고리별</div>
-      <div class="tblbox"><table class="g-tbl g11-tbl"><thead><tr><th>계획 카테고리</th><th>월 계획 PLT</th><th>${mL(D)} 공급 PLT</th><th>도달률</th><th>계획 기대매출(월)</th></tr></thead>
-      <tbody>${rows}${outRows}</tbody><tfoot><tr><td>계획 카테고리 합계</td><td><span class="num">${f1(pP)}</span></td><td><span class="num">${f1(pi.matched)}</span></td><td style="color:${pctColor(pP>0?(isCur(D)?pi.matched/pP*100/(elapsed/goalsDaysInMonth(D)):pi.matched/pP*100):null)}"><span class="num">${pP>0?(pi.matched/pP*100).toFixed(0)+"%":"-"}</span></td><td><span class="num">${won(planStores.reduce((a,s)=>a+g11Num(SUPPLY_PLAN[s].opTotal),0))}</span></td></tr>${outSum?`<tr><td>전체 공급 (계획 외 포함)</td><td><span class="num">-</span></td><td><span class="num">${f1(pi.matched+outSum)}</span></td><td><span class="num">-</span></td><td><span class="num">-</span></td></tr>`:""}</tfoot></table></div>
-      <div class="g-tbl-sub">도달률 = 계획 카테고리 공급 ÷ 월 계획 전체${isCur(D)?` (색은 ${goalsDaysInMonth(D)}일 중 ${elapsed}일 경과 기준으로 판정)`:""}. 계획 외 출고: ${outE.length?outE.map(([c,v])=>`${h(c)} ${f1(v)}`).join(" · ")+" PLT":"없음"}${planStores.length<sel.length?` · 공급계획 없는 매장: ${h(sel.filter(s=>!SUPPLY_PLAN[s]).join(", "))}`:""}</div>`;
-  }
+  try{
+    const pMonths = Array.from(new Set([...(ctx.months||[]), D])).filter(Boolean).sort();
+    const SD = goalsSupplyDetail(Object.assign({}, ctx, { months: pMonths }), D);
+    const pRows = (SD.rows||[]).filter(x=> cardRows.includes(x.r));
+    if(pRows.length){
+      const PQ_STOCK_IDX = { "상온":[3], "XLA":[0], "XLB":[1], "XLC":[2], "XLG":[4], "XLS":[17], "XLK":[9], "XLW":[8] };   // 06과 동일(AGG_HDR 위치)
+      const PQ_STOCK_TOTAL_IDX = AGG_HDR.map((_,i)=>i).filter(i=> !/보관가능|야적/.test(AGG_HDR[i]));
+      const PQ_EXTRA = [ {key:"FC파손", cats:["FC파손","FC"]}, {key:"사입", cats:["사입","FC_사입"]} ];
+      const exSet = new Set(PQ_EXTRA.flatMap(e=>e.cats));
+      const memOf = x => (x.r && x.r.members && x.r.members.length) ? x.r.members : [x.store];
+      const stkOf = idxs => { if(!snap || !idxs) return null; let t=0, any=false;
+        pRows.forEach(x=> memOf(x).forEach(st=>{ const arr = (snap.stock||{})[st]; if(!arr) return;
+          idxs.forEach(i=>{ const v = arr[i]; if(v!=null && v!=="" && !isNaN(+v)){ t+=+v; any=true; } }); }));
+        return any ? t : null; };
+      const freshMiss = !(FRESH_M[SD.month] && Object.keys(FRESH_M[SD.month]).length);
+      const catSub = pc => { const r = (SUPPLY_PLAN_CAT_MATCH[pc]||[]).join("·"); return r && r!==pc ? r : ""; };
+      const planCats = Object.keys(SUPPLY_PLAN_PARAMS).filter(pc=> !(freshMiss && pc==="신선"));
+      const agg = pc => { let f=0, pp=0, a=0, has=false; pRows.forEach(x=>{ const c = (x.cats||[]).find(y=>y.cat===pc); if(c){ f+=c.planPLTFull; pp+=c.planPLT; a+=c.actualPLT; has=true; } }); return {f,pp,a,has}; };
+      const extra = e => pRows.reduce((s,x)=> s + e.cats.reduce((t,c)=>t+((x.outside||{})[c]||0),0), 0);
+      const outM = {}; pRows.forEach(x=> Object.entries(x.outside||{}).forEach(([c,v])=>{ if(!exSet.has(c)) outM[c] = (outM[c]||0)+v; }));
+      const outE = Object.entries(outM).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+      const ongoing = SD.isOngoing && SD.prorate<1;
+      const dash = `<span class="g11-mute">-</span>`;
+      const num = v => v==null ? dash : `<span class="num">${f1(v)}</span>`;
+      const stCls = pace => pace==null ? null : pace>=100 ? "var(--green)" : pace>=80 ? "var(--info)" : pace>=50 ? "var(--amber)" : "var(--red)";
+      const line = (label, f, pp, a, stk, opt) => { opt = opt||{};
+        const pct = f>0 ? a/f*100 : null, pace = pp>0 ? a/pp*100 : null, need = f>0 ? Math.max(0, f-a) : null;
+        const tip = f>0 ? `${label} · 월 목표 ${f1(f)} PLT → ${mL(SD.month)} 입고 ${f1(a)} PLT (월 목표 대비 ${pct.toFixed(0)}%)`+(ongoing?` · 경과일 기준 목표 ${f1(pp)} PLT 대비 ${pace!=null?pace.toFixed(0):'-'}%`:"") : `${label} · 공급계획 없음 · 입고 ${f1(a)} PLT`;
+        return `<tr${opt.cls?` class="${opt.cls}"`:""}${opt.style?` style="${opt.style}"`:""} title="${h(tip)}"><td>${opt.bold?`<b>${label}</b>`:label}</td>
+          <td><span class="num">${f>0?f1(f):"-"}</span></td>${ongoing?`<td><span class="num">${pp>0?f1(pp):"-"}</span></td>`:""}
+          <td>${num(stk)}</td>
+          <td><span class="num">${opt.bold?`<b>${f1(a)}</b>`:(a?f1(a):"-")}</span></td>
+          <td style="font-weight:700;color:${stCls(pace)||"var(--muted2)"}"><span class="num">${pct!=null?pct.toFixed(0)+"%":(opt.noPlan?'<span class="g11-mute" style="font-weight:400">계획 없음</span>':"-")}</span></td>
+          <td><span class="num">${need!=null?(need>0.05?f1(need):'<span style="color:var(--green)">달성</span>'):"-"}</span></td></tr>`; };
+      let tF=0, tP=0, tA=0;
+      const catRowsH = planCats.map(pc=>{ const g = agg(pc); const stk = stkOf(PQ_STOCK_IDX[pc]);
+        if(!(g.f>0) && !(g.a>0)) return "";
+        tF+=g.f; tP+=g.pp; tA+=g.a;
+        return line(`${h(pc)}${catSub(pc)?` <span class="g11-mute" style="font-size:11px">${h(catSub(pc))}</span>`:""}`, g.f, g.pp, g.a, stk, {noPlan: !(g.f>0)}); }).join("");
+      const exRowsH = PQ_EXTRA.map(e=>{ const v = extra(e); tA += v; return v>0 ? line(`${h(e.key)} <span class="g11-mute" style="font-size:11px">계획 없음 · 합계 포함</span>`, 0, 0, v, null, {noPlan:true}) : ""; }).join("");
+      const outSum = outE.reduce((a,[,v])=>a+v,0);
+      const outRowsH = outE.map(([c,v])=> `<tr style="opacity:.8"><td>계획 외 · ${h(c)}</td><td><span class="num">-</span></td>${ongoing?"<td></td>":""}<td></td><td><span class="num">${f1(v)}</span></td><td><span class="g11-mute">미포함</span></td><td></td></tr>`).join("");
+      const stkAll = stkOf(PQ_STOCK_TOTAL_IDX);
+      const tPct = tF>0 ? tA/tF*100 : null, tPace = tP>0 ? tA/tP*100 : null;
+      const noPlanStores = pRows.filter(x=>!x.cats).map(x=>x.label);
+      const sumKpis = `<div class="g-kpis">
+          ${kpi(f1(tF)+" PLT", `${mL(SD.month)} 월 목표(출고계획) PLT${ongoing?` · 경과일 기준 ${f1(tP)}`:""}`)}
+          ${kpi(f1(tA)+" PLT", `${mL(SD.month)} 총 입고 PLT (계획 카테고리 + FC파손·사입)${outSum?` · 계획 외 ${f1(outSum)} 별도`:""}`)}
+          ${kpi(tPct!=null?tPct.toFixed(1)+"%":"-", `월 목표 대비 달성${ongoing&&tPace!=null?` · 경과일 기준 ${tPace.toFixed(0)}%`:""}`, stCls(tPace))}
+          ${kpi(tF>0?f1(Math.max(0,tF-tA))+" PLT":"-", "월 목표까지 남은 PLT")}
+          ${kpi(stkAll!=null?f1(stkAll)+" PLT":"-", snap?`매장재고 (${h(snap.date)} 기준)`:"매장재고 파일 없음")}
+        </div>`;
+      planTbl = `<div class="g-tbl-title">출고계획 기준 총 입고 PLT 현황 — ${h(mL(SD.month))}${ongoing?` (${SD.dim}일 중 ${SD.elapsed}일 경과)`:""} · 06 공급계획(PLT) 진단과 같은 계산</div>
+        ${sumKpis}
+        <div class="tblbox"><table class="g-tbl g11-tbl">
+          <thead><tr><th>카테고리</th><th>월 목표 PLT</th>${ongoing?"<th>경과일 목표</th>":""}<th>매장재고</th><th>${h(mL(SD.month))} 입고 PLT</th><th>달성</th><th>남은 PLT</th></tr></thead>
+          <tbody>${catRowsH}${exRowsH}${outRowsH}</tbody>
+          <tfoot>${line("합계 (계획 카테고리 + FC파손·사입)", tF, tP, tA, stkAll, {bold:true, style:"border-top:2px solid var(--line)"})}
+            ${outSum?`<tr><td><b>총 출고</b> <span class="g11-mute" style="font-size:11px">(계획 외 포함)</span></td><td>-</td>${ongoing?"<td></td>":""}<td></td><td><span class="num"><b>${f1(tA+outSum)}</b></span></td><td></td><td></td></tr>`:""}</tfoot>
+        </table></div>
+        <div class="g-tbl-sub">달성 = ${mL(SD.month)} 입고 ÷ 월 목표(출고계획 PLT)${ongoing?` · 색은 경과일 기준 목표 대비(초록 100%↑ · 파랑 80~100% · 노랑 50~80% · 빨강 50% 미만)`:""} · 매장재고 = ${snap?`매장재고현황 ${h(snap.date)} 기준`:"파일 없음"} · 입고 = 본사↔센터(병합 정책) + 센터 직출 + 가전센터 + 신선 · FC파손·사입은 계획이 없어 실제만 표시하고 합계에 포함 · 계획 외(임박·생산재고 등)는 합계 미포함${freshMiss?` · <span style="color:var(--amber)">${mL(SD.month)} 신선 출고내역서 미업로드 → 신선 제외</span>`:""}${SD.month!==D?` · <span style="color:var(--amber)">조회 달 ${mL(D)} 출고계획이 없어 ${mL(SD.month)} 기준</span>`:""}${noPlanStores.length?` · 공급계획 없는 매장: ${h(noPlanStores.join(", "))}`:""}</div>`;
+    }
+  }catch(e){ planTbl = `<div class="g-tbl-sub" style="color:var(--red)">출고계획 기준 입고 PLT 현황을 만드는 중 오류: ${h(String(e&&e.message||e))}</div>`; }
 
   // ================= 7) 카테고리 효율 (조회 달) =================
   const compMg = g11Merged(D), compSales = {}, compPltG = {}, selPltG = {}, selSalesG = {};
@@ -10349,8 +10392,8 @@ function goalsRender11Body(ctx){
   const opsBlock = `<div class="g-tbl-title">재고 · 일별 · 시간대</div>
     <div class="g11-row g11-row-a">${stockBlock}${stockTrendBlock}</div>
     <div class="g11-row g11-row-b">${dailyBlock}${hourBlock}</div>`;
-  return wrapLayout(head + cardBlock + kpis + trend + compare
-    + opsBlock + planTbl + effTbl + pltCatTbl + salesCatTbl + diagBlock + notes);
+  return wrapLayout(head + cardBlock + kpis + planTbl + trend + compare
+    + opsBlock + effTbl + pltCatTbl + salesCatTbl + diagBlock + notes);
 }
 // 07 매장 분석: 매장/모드/달 버튼(이벤트 위임) · 위 "매장 선택" 줄이 바뀌면 이 탭만 다시 그림
 let _g11Wired = false;
