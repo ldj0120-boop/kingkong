@@ -812,6 +812,11 @@
   .g-store-nav-b .pc{font-family:"JetBrains Mono";font-size:11px;font-weight:700;}
   .g-store-nav-b:hover{border-color:var(--amber);}
   .g-store-nav-b.on{background:var(--raise);border-color:var(--amber);}
+  /* build 110: 화면 왼쪽 여백에 세로 목록으로 고정(여백이 좁으면 기존처럼 위쪽 가로 바) */
+  .g-store-nav.side{position:fixed;z-index:60;margin:0;flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:4px;
+    padding:10px 8px;overflow-y:auto;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.45);}
+  .g-store-nav.side .g-store-nav-t{margin:0 0 4px 4px;}
+  .g-store-nav.side .g-store-nav-b{justify-content:space-between;border-radius:8px;padding:5px 10px;flex:0 0 auto;}
   .g-store-gauge{display:flex;align-items:center;gap:8px;flex:1 1 160px;min-width:140px;}
   .g-store-gauge .gg-track{flex:1;height:8px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden;}
   .g-store-gauge .gg-fill{display:block;height:100%;border-radius:99px;}
@@ -1009,7 +1014,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 109 · 2026-10-08</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 110 · 2026-10-12</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -7725,22 +7730,45 @@ try{
     const nav = b.closest(".g-store-nav"); const wrapEl = nav ? nav.closest(".g-store-nav-wrap") : null; const scope = wrapEl ? wrapEl.parentElement : document;
     const card = [...scope.querySelectorAll(".g-store-card[data-store-anchor]")].find(c=> c.dataset.storeAnchor===b.dataset.gotoStore && c.offsetParent!==null);
     if(!card) return;
-    const navH = nav ? nav.offsetHeight + 14 : 12;
+    const navH = (nav && !nav.classList.contains("side")) ? nav.offsetHeight + 14 : 12;
     window.scrollTo({ top: window.scrollY + card.getBoundingClientRect().top - navH, behavior:"smooth" });
     card.classList.remove("g-flash"); void card.offsetWidth; card.classList.add("g-flash");
     if(nav) nav.querySelectorAll(".g-store-nav-b").forEach(x=> x.classList.toggle("on", x===b));
   });
   // 상위 카드가 overflow:hidden이라 CSS sticky가 안 먹는다 → 스크롤 시 JS로 화면 위에 고정
+  // build 110: 왼쪽 여백(본문 왼쪽 빈 공간)이 130px 이상이면 그 자리에 세로 목록으로 고정, 아니면 위쪽 가로 바(build 96 방식)
+  const SIDE_MIN = 130, SIDE_MAX = 210;
+  const clearSide = (nav, w)=>{ if(nav.classList.contains("side")){ nav.classList.remove("side"); ["left","top","width","maxHeight","display"].forEach(k=> nav.style[k]=""); w.style.height=""; } };
   const pinNavs = ()=>{
     document.querySelectorAll(".g-store-nav-wrap").forEach(w=>{
       const nav = w.firstElementChild; if(!nav) return;
-      if(w.offsetParent===null){ nav.classList.remove("pinned"); return; }
-      const r = w.getBoundingClientRect(); const host = w.parentElement.getBoundingClientRect();
+      if(w.offsetParent===null){ nav.classList.remove("pinned"); clearSide(nav, w); return; }
+      const host = w.parentElement.getBoundingClientRect();
+      const gap = host.left - 16;
+      if(gap >= SIDE_MIN){
+        if(nav.classList.contains("pinned")){ nav.classList.remove("pinned"); nav.style.left = ""; nav.style.width = ""; }
+        w.style.height = "0px";
+        const wr = w.getBoundingClientRect();
+        const width = Math.min(SIDE_MAX, gap - 8);
+        const top = Math.max(12, wr.top);
+        const visible = host.bottom > 160 && wr.top < window.innerHeight - 60;
+        nav.classList.add("side");
+        nav.style.width = width + "px";
+        nav.style.left = Math.max(8, host.left - 12 - width) + "px";
+        nav.style.top = top + "px";
+        nav.style.maxHeight = Math.max(120, Math.min(window.innerHeight - 12, host.bottom) - top) + "px";
+        nav.style.display = visible ? "" : "none";
+        return;
+      }
+      clearSide(nav, w);
+      const r = w.getBoundingClientRect();
       const pin = r.top < 0 && host.bottom > nav.offsetHeight + 40;
       if(pin){ w.style.height = nav.offsetHeight + "px"; nav.classList.add("pinned"); nav.style.left = r.left + "px"; nav.style.width = r.width + "px"; }
       else if(nav.classList.contains("pinned")){ nav.classList.remove("pinned"); nav.style.left = ""; nav.style.width = ""; w.style.height = ""; }
     });
   };
+  // 탭 전환·다시 그리기 직후에도 자리 맞추기
+  if(typeof window!=="undefined") setInterval(pinNavs, 400);
   if(typeof window!=="undefined"){ window.addEventListener("scroll", pinNavs, {passive:true}); window.addEventListener("resize", pinNavs); }
 }catch(_){}
 function goalsDrillSeries(store, month, cat){
