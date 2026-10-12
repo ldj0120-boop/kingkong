@@ -1070,7 +1070,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 117 · 2026-10-12</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 118 · 2026-10-13</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1471,6 +1471,35 @@
         <input type="file" id="fiInput" accept=".xlsx,.xlsm,.xls" multiple hidden>
         <div id="fiStatus" class="fi-status"></div>
         <div id="fiResult"></div>
+      </div>
+    </div>
+    <!-- build 118: 일반 리퀴데이션 낙찰파일 생성 (아리바 비딩 원본 + 낙찰 LOT No → 원본/RAW/총액) -->
+    <div class="agg-card" id="liqBox">
+      <div class="p-hd">
+        <span class="store-name">일반 리퀴데이션 · 낙찰파일 생성</span>
+        <span class="meta">아리바 비딩 원본(AR_Bidding_Liquidation) + 낙찰 LOT No → 원본 / RAW / 총액 낙찰파일</span>
+      </div>
+      <div class="fi-body">
+        <div class="fi-disp-in">
+          <div id="liqDrop" class="fi-drop" role="button" tabindex="0">
+            <div class="fi-drop-t">낙찰 원본 파일(AR_Bidding_Liquidation_….xlsb)을 끌어다 놓거나 클릭</div>
+            <div class="fi-drop-s">60MB 넘는 xlsb도 됩니다 — 필요한 RAW 시트만 읽어서 해당 LOT 행만 꺼냅니다</div>
+            <div id="liqFileInfo" style="margin-top:8px;font-size:12.5px"></div>
+          </div>
+          <div class="fi-disp-paste">
+            <textarea id="liqLots" class="fi-text" style="min-height:96px" placeholder="낙찰된 LOT No (한 줄에 하나, 또는 쉼표·띄어쓰기로 구분)&#10;예) 46254AG&#10;46260AK"></textarea>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <label class="fi-mut">낙찰일 <input id="liqDate" class="fi-sel" style="width:96px" placeholder="YYYYMMDD" data-auto="1"></label>
+              <span class="fi-mut">비워 두면 원본의 "YYYYMMDD_아리바 비딩건" 날짜로 자동</span>
+              <button class="act primary fi-mini" id="liqGo" style="margin-left:auto">낙찰파일 생성</button>
+            </div>
+          </div>
+        </div>
+        <input type="file" id="liqInput" accept=".xlsb,.xlsx,.xlsm" hidden>
+        <div id="liqStatus" class="fi-status"></div>
+        <div id="liqResult"></div>
+        <div class="fi-sec-t">일반 리퀴 낙찰파일 기록</div>
+        <div id="liqHistory"></div>
       </div>
     </div>
     <div class="agg-card" id="fiDispBox">
@@ -5221,7 +5250,7 @@ function selectTab(which){
   if(which==="agg"){ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }
   if(which==="sales"){ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); }
   if(which==="goals"){ renderGoals(); }
-  if(which==="fixed"){ try{ wireFixedIntake(); fiRender(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } }
+  if(which==="fixed"){ try{ wireFixedIntake(); fiRender(); wireLiquidation(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } }
 }
 tabAgg.onclick=()=>selectTab("agg");
 tabSales.onclick=()=>selectTab("sales");
@@ -13353,6 +13382,317 @@ function fiDispMonthGroups(){
     const rows = by[m].slice().sort((a,b)=> (`${a.outboundDate} ${a.outboundAmPm==="오전"?0:1}`).localeCompare(`${b.outboundDate} ${b.outboundAmPm==="오전"?0:1}`));
     return { name: mm ? `배차 ${y} ${+mm}월` : m, rows };
   });
+}
+/* build 118: 일반 리퀴데이션 낙찰파일 생성
+   - 원본 = 아리바 비딩 파일(AR_Bidding_Liquidation_*.xlsb, RAW 시트 ~36만 행). 낙찰 LOT No(NO.)만 골라
+     원본 / RAW / 총액 3시트 낙찰파일을 만든다 (예시: 20261006_고양3_리퀴_46246AF(9PLT)_….xlsb 와 같은 구성).
+   - xlsb는 SheetJS로 통째로 읽으면 1GB 가까이 메모리를 쓰므로, fflate로 필요한 시트만 풀고 BIFF12 레코드를
+     직접 훑어 해당 LOT 행만 꺼낸다(피벗 캐시 112MB 등은 풀지 않음). xlsx/xlsm 원본이면 SheetJS로 읽는다.
+   - 매장판매가 = Unit_Sales_Price(VAT X) × (면세 Y 1.0 / N 1.1), 도매가 = 매장판매가 × 요율(CATE2+CATE3+CATE4).
+     요율 = 고정인수 도매요율표(FI_REF.rate) + 일반 리퀴 낙찰파일 예시에서 확인한 값(LIQ_RATE_FIX, 23개 우선 적용).
+   - PLT = LOT No별 LOT_FULL_NAME_Original 개수. 파일명 = 날짜_센터_리퀴_LOT(nPLT)_… (LOT No 순). */
+const LIQ_RATE_FIX = {"식품유제품/아이스크림/디저트멸균우유":0.48,"식품건강식품건강식품":0.47,"식품신선식품채소류":0.47,"생활용품청소/세탁/욕실용품영유아목욕용품":0.18,"반려/애완용품고양이용품배변용품":0.27,"반려/애완용품고양이용품위생/미용용품":0.25,"패션의류여성의류하의류":0.16,"패션의류주니어의류속옷/잠옷":0.15,"패션의류캐주얼의류하의류":0.16,"패션의류여성의류골프의류":0.2,"패션의류신생아의류/잡화신생아잡화":0.17,"패션잡화스포츠신발야구":0.23,"패션의류키즈의류코스튬 외 특수복":0.16,"패션의류여성의류트레이닝복":0.16,"패션의류주니어의류하의류":0.16,"패션의류키즈의류속옷/잠옷":0.15,"패션의류스포츠의류축구":0.23,"패션잡화시계/쥬얼리시계":0.2,"패션의류키즈의류하의류":0.16,"패션의류캐주얼의류트레이닝/비치웨어":0.23,"패션잡화스포츠신발축구":0.23,"패션잡화안경/선글라스/소품소품":0.23,"패션잡화스포츠신발배구/피구/족구":0.22};
+const LIQ_SRC_COLS = ["FC","NO.","INVENTORY_ID","GROUPING","UNIT_CATEGORY1","UNIT_CATEGORY2","CATE2","CATE3","CATE4","CATE5",
+  "LOT_FULL_NAME_Original","EXTERNAL_SKU_ID","INTERNAL_SKU_ID","BARCODE","DESCRIPTION","QUANTITY","isdutyfree","Unit_Sales_Price (VAT X)","Sales_Price (VAT X)"];
+const LIQ_RAW_COLS = ["NO.","GROUPING","UNIT_CATEGORY1","UNIT_CATEGORY2","CATE2","CATE3","CATE4","CATE5","LOT_FULL_NAME_Original",
+  "EXTERNAL_SKU_ID","INTERNAL_SKU_ID","BARCODE","DESCRIPTION","QUANTITY","isdutyfree","매장판매가","매장판매가 총액","도매가","도매판매가 총액"];
+const LIQ_FFLATE_URL = "https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js";
+const LIQ_LS = "liq_history_v1";
+let LIQ_HISTORY = [];
+try{ LIQ_HISTORY = JSON.parse(localStorage.getItem(LIQ_LS)||"[]") || []; }catch(_){ LIQ_HISTORY = []; }
+let _liqFile = null, _liqCur = null;
+const liqTick = ()=> new Promise(r=> setTimeout(r, 30));
+function liqParseLots(text){
+  const out = [];
+  String(text||"").toUpperCase().split(/[^0-9A-Z]+/).forEach(s=>{ if(/^\d{4,6}[A-Z]{1,3}$/.test(s) && !out.includes(s)) out.push(s); });
+  return out;
+}
+function liqRate(r){ const k=(r.CATE2||"")+(r.CATE3||"")+(r.CATE4||""); return LIQ_RATE_FIX[k]!=null ? LIQ_RATE_FIX[k] : FI_REF.rate[k]; }
+// 요율표에 없는 CATE4: 같은 CATE2+CATE3 아래 요율이 전부 같으면 그 값으로 추정(예: 로켓프레시>냉장식품 = 모두 0.5)
+let _liqSib = null;
+function liqSiblingRate(r){
+  if(!r.CATE2 || !r.CATE3) return null;
+  if(!_liqSib) _liqSib = { all:Object.assign({}, FI_REF.rate, LIQ_RATE_FIX), memo:{} };
+  const pre = String(r.CATE2)+String(r.CATE3);
+  if(pre in _liqSib.memo) return _liqSib.memo[pre];
+  const vals = new Set(); Object.keys(_liqSib.all).forEach(k=>{ if(k.indexOf(pre)===0) vals.add(_liqSib.all[k]); });
+  return _liqSib.memo[pre] = vals.size===1 ? [...vals][0] : null;
+}
+// ── BIFF12(xlsb) 최소 리더: 레코드 = 유형(varint, 최대 2바이트) + 길이(varint, 최대 4바이트) + 데이터
+function liqEachRecord(u8, fn){
+  const n = u8.length; let p = 0;
+  while(p < n){
+    let t = u8[p++]; if(t & 0x80){ t = (t & 0x7f) | ((u8[p++] & 0x7f) << 7); }
+    let sz = 0;
+    for(let i=0, sh=0; i<4; i++, sh+=7){ const b = u8[p++]; sz |= (b & 0x7f) << sh; if(!(b & 0x80)) break; }
+    if(fn(t, p, sz) === false) return;
+    p += sz;
+  }
+}
+const _liqU16 = new TextDecoder("utf-16le");
+function liqWide(u8, dv, p){ const cch = dv.getUint32(p, true); if(cch===0xFFFFFFFF) return [null, p+4]; return [_liqU16.decode(u8.subarray(p+4, p+4+cch*2)), p+4+cch*2]; }
+function liqRk(dv, p){
+  const x = dv.getInt32(p, true); let v;
+  if(x & 2) v = x >> 2;
+  else { const b = new DataView(new ArrayBuffer(8)); b.setInt32(4, x & ~3, true); b.setInt32(0, 0, true); v = b.getFloat64(0, true); }
+  return (x & 1) ? v/100 : v;
+}
+function liqSst(u8){
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength), out = [];
+  liqEachRecord(u8, (t,p)=>{ if(t===19){ out.push(liqWide(u8, dv, p+1)[0]); } });
+  return out;
+}
+// 시트 행을 하나씩 콜백(rowIdx, values[0..maxCol]). 콜백이 false면 중단.
+function liqSheetRows(u8, sst, maxCol, fn){
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  let row = -1, vals = null, col = -1, stop = false;
+  const flush = ()=>{ if(vals && fn(row, vals)===false) stop = true; };
+  liqEachRecord(u8, (t,p)=>{
+    if(t===0){ flush(); if(stop) return false; row = dv.getUint32(p, true); vals = new Array(maxCol+1); col = -1; return; }
+    if(t>=1 && t<=11){ col = dv.getUint32(p, true); p += 8; }
+    else if(t>=12 && t<=18){ col = col+1; p += 4; t -= 11; }
+    else return;
+    if(!vals || col>maxCol) return;
+    let v;
+    switch(t){
+      case 2: v = liqRk(dv, p); break;
+      case 5: case 9: v = dv.getFloat64(p, true); break;
+      case 6: case 8: v = liqWide(u8, dv, p)[0]; break;
+      case 7: v = sst[dv.getUint32(p, true)]; break;
+      case 4: case 10: v = !!u8[p]; break;
+      default: v = null;
+    }
+    vals[col] = v;
+  });
+  if(!stop) flush();
+}
+async function liqReadXlsb(buf, lots, status){
+  const ff = await fiLoadScript(LIQ_FFLATE_URL, "fflate");
+  const u8 = new Uint8Array(buf);
+  const meta = ff.unzipSync(u8, { filter: f=> f.name==="xl/workbook.bin" || f.name==="xl/_rels/workbook.bin.rels" });
+  if(!meta["xl/workbook.bin"]) throw new Error("xlsb 구조가 아닙니다");
+  const rels = {}; const relXml = new TextDecoder().decode(meta["xl/_rels/workbook.bin.rels"]||new Uint8Array());
+  (relXml.match(/<Relationship\b[^>]*>/g)||[]).forEach(tag=>{ const id=(tag.match(/\bId="([^"]+)"/)||[])[1], tg=(tag.match(/\bTarget="([^"]+)"/)||[])[1]; if(id&&tg) rels[id]=tg; });
+  const sheets = []; const wbu = meta["xl/workbook.bin"], wdv = new DataView(wbu.buffer, wbu.byteOffset, wbu.byteLength);
+  liqEachRecord(wbu, (t,p)=>{ if(t===156){ const [rid, p2] = liqWide(wbu, wdv, p+8); const [name] = liqWide(wbu, wdv, p2);
+    let tg = rels[rid]||""; tg = tg.replace(/^\/?xl\//,"").replace(/^\//,""); sheets.push({ name, path:"xl/"+tg }); } });
+  const order = sheets.slice().sort((a,b)=> (b.name.trim().toUpperCase()==="RAW") - (a.name.trim().toUpperCase()==="RAW"));
+  status("원본 압축 푸는 중… (큰 파일은 10초 정도)"); await liqTick();
+  const need = new Set(["xl/sharedStrings.bin", order[0] && order[0].path]);
+  let files = ff.unzipSync(u8, { filter: f=> need.has(f.name) });
+  const sst = files["xl/sharedStrings.bin"] ? liqSst(files["xl/sharedStrings.bin"]) : [];
+  let date = null;
+  for(const s of sst){ if(typeof s==="string"){ const m = s.match(/^(20\d{6})_.*비딩/); if(m){ date = m[1]; break; } } }
+  if(!date){
+    const ds = sheets.find(x=>/리퀴\s*낙찰/.test(x.name)) || sheets.find(x=>/리퀴\s*요약/.test(x.name));
+    if(ds){ try{ const f2 = ff.unzipSync(u8, { filter: f=> f.name===ds.path });
+      if(f2[ds.path]) liqSheetRows(f2[ds.path], sst, 12, (ri, v)=>{ for(const x of v){ const m = typeof x==="string" && x.match(/(20\d{6})_/); if(m){ date = m[1]; return false; } } if(ri>8) return false; });
+    }catch(_){} }
+  }
+  status("낙찰 LOT 행 찾는 중…"); await liqTick();
+  for(const sh of order){
+    if(!files[sh.path]) files = ff.unzipSync(u8, { filter: f=> f.name===sh.path });
+    const res = liqScanRows((fn)=> liqSheetRows(files[sh.path], sst, 60, fn), lots);
+    files[sh.path] = null;
+    if(res){ res.sheet = sh.name; res.date = date; return res; }
+  }
+  throw new Error("RAW 시트(헤더에 NO. · LOT_FULL_NAME_Original · Unit_Sales_Price)를 찾지 못했습니다");
+}
+// 행 순회기(each(fn)) → 헤더 찾기 + 해당 LOT 행만 객체로. 헤더를 못 찾으면 null.
+function liqScanRows(each, lots){
+  const want = new Set(lots); let hdr = null, idx = null, noI = -1, seen = 0; const rows = [];
+  let bad = false;
+  each((ri, v)=>{
+    if(!hdr){
+      seen++;
+      const s = Array.from(v, x=> x==null ? "" : String(x).trim());
+      const a = s.indexOf("NO."), b = s.indexOf("LOT_FULL_NAME_Original"), c = s.indexOf("Unit_Sales_Price (VAT X)");
+      if(a>=0 && b>=0 && c>=0){ hdr = s; noI = a; idx = {}; LIQ_SRC_COLS.forEach(h=>{ const i=s.indexOf(h); if(i>=0) idx[h]=i; }); }
+      else if(seen>15){ bad = true; return false; }
+      return;
+    }
+    const no = v[noI]; if(no==null) return;
+    const key = String(no).trim().toUpperCase();
+    if(!want.has(key)) return;
+    const o = {}; LIQ_SRC_COLS.forEach(h=>{ const i=idx[h]; o[h] = i==null || v[i]===undefined ? null : v[i]; });
+    o["NO."] = key; rows.push(o);
+  });
+  if(bad || !hdr) return null;
+  const miss = LIQ_SRC_COLS.filter(h=> idx[h]==null);
+  return { rows, missCols: miss };
+}
+async function liqReadSheetJs(buf, lots){
+  const names = XLSX.read(buf, { type:"array", bookSheets:true }).SheetNames;
+  const order = names.slice().sort((a,b)=> (b.trim().toUpperCase()==="RAW") - (a.trim().toUpperCase()==="RAW"));
+  for(const sn of order){
+    const wb = XLSX.read(buf, { type:"array", sheets:[sn], dense:true });
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header:1, defval:null, raw:true });
+    const res = liqScanRows(fn=>{ for(let i=0;i<aoa.length;i++){ if(fn(i, aoa[i]||[])===false) break; } }, lots);
+    if(res){ res.sheet = sn; res.date = null; return res; }
+  }
+  throw new Error("RAW 시트(헤더에 NO. · LOT_FULL_NAME_Original · Unit_Sales_Price)를 찾지 못했습니다");
+}
+function liqBuild(rows, lots, date){
+  const missingRate = {}, guessRate = {};
+  const order = new Map(lots.map((l,i)=>[l,i]));
+  const src = rows.map((r,i)=>({ r, i })).sort((a,b)=> (a.r["NO."]<b.r["NO."]?-1:a.r["NO."]>b.r["NO."]?1:a.i-b.i)).map(x=>x.r);
+  const raw = src.map(r=>{
+    const q = +r.QUANTITY || 0, unit = +r["Unit_Sales_Price (VAT X)"] || 0;
+    const shop = unit * (String(r.isdutyfree||"").trim().toUpperCase()==="Y" ? 1.0 : 1.1);
+    let rate = liqRate(r);
+    if(rate==null){ const k=(r.CATE2||"")+" > "+(r.CATE3||"")+" > "+(r.CATE4||""); const sib = liqSiblingRate(r);
+      if(sib!=null){ guessRate[k] = sib; rate = sib; } else { missingRate[k]=(missingRate[k]||0)+1; rate=0; } }
+    const whole = shop*rate;
+    return { "NO.":r["NO."], GROUPING:r.GROUPING, UNIT_CATEGORY1:r.UNIT_CATEGORY1, UNIT_CATEGORY2:r.UNIT_CATEGORY2, CATE2:r.CATE2, CATE3:r.CATE3,
+      CATE4:r.CATE4, CATE5:r.CATE5, LOT_FULL_NAME_Original:r.LOT_FULL_NAME_Original, EXTERNAL_SKU_ID:r.EXTERNAL_SKU_ID,
+      INTERNAL_SKU_ID:r.INTERNAL_SKU_ID==null?null:String(r.INTERNAL_SKU_ID), BARCODE:r.BARCODE, DESCRIPTION:"★_"+(r.DESCRIPTION==null?"":r.DESCRIPTION),
+      QUANTITY:q, isdutyfree:r.isdutyfree, "매장판매가":shop, "매장판매가 총액":shop*q, "도매가":whole, "도매판매가 총액":whole*q, _fc:r.FC };
+  });
+  const by = {};
+  raw.forEach(r=>{
+    const o = by[r["NO."]] || (by[r["NO."]] = { lot:r["NO."], fcs:{}, lots:new Set(), qty:0, shop:0, whole:0, rows:0 });
+    const fc = String(r._fc||"").trim(); if(fc) o.fcs[fc]=(o.fcs[fc]||0)+1;
+    if(r.LOT_FULL_NAME_Original!=null && String(r.LOT_FULL_NAME_Original).trim()!=="") o.lots.add(String(r.LOT_FULL_NAME_Original).trim());
+    o.qty += r.QUANTITY; o.shop += r["매장판매가 총액"]; o.whole += r["도매판매가 총액"]; o.rows++;
+  });
+  const perLot = Object.values(by).sort((a,b)=> a.lot<b.lot?-1:a.lot>b.lot?1:0).map(o=>{
+    const fc = Object.keys(o.fcs).sort((a,b)=>o.fcs[b]-o.fcs[a])[0]||"";
+    return { lot:o.lot, fc, name:fiCenterName(fc), plt:o.lots.size, qty:o.qty, shop:o.shop, whole:o.whole, rows:o.rows };
+  });
+  const notFound = lots.filter(l=> !by[l]);
+  const totals = perLot.reduce((a,x)=>{ a.q+=x.qty; a.s+=x.shop; a.w+=x.whole; a.p+=x.plt; return a; }, { q:0,s:0,w:0,p:0 });
+  const outName = date + "_" + perLot.map(x=>`${x.name}_리퀴_${x.lot}(${x.plt}PLT)`).join("_") + ".xlsx";
+  return { date, src, raw, perLot, notFound, totals, missingRate, guessRate, outName };
+}
+function liqMakeWorkbook(b){
+  const wb = XLSX.utils.book_new(), L = n => XLSX.utils.encode_col(n);
+  const textCol = (ws, ci, n)=>{ for(let r=3;r<=n+2;r++){ const a=L(ci)+r, c=ws[a]; if(c && c.v!=null && c.v!=="") ws[a] = { t:"s", v:(typeof c.v==="number" ? c.v.toFixed(0) : String(c.v)), z:"@" }; } };
+  const numFmt0 = (ws, cis, n)=>{ for(let r=3;r<=n+2;r++) cis.forEach(ci=>{ const c=ws[L(ci)+r]; if(c && c.t==="n") c.z="0"; }); };
+  // 원본 (A~S, 1행 SUBTOTAL P~S)
+  const ws1 = XLSX.utils.aoa_to_sheet([new Array(19).fill(null), LIQ_SRC_COLS].concat(b.src.map(r=>LIQ_SRC_COLS.map(h=>r[h]))));
+  [15,16,17,18].forEach(c=>{ ws1[L(c)+"1"] = { t:"n", f:`SUBTOTAL(9,${L(c)}3:${L(c)}1048576)` }; });
+  ws1["!autofilter"] = { ref:`A2:S${b.src.length+2}` };
+  ws1["!cols"] = LIQ_SRC_COLS.map(h=>({ wch: h==="DESCRIPTION"?50 : /LOT/.test(h)?20 : h==="BARCODE"?17 : 12 }));
+  textCol(ws1, LIQ_SRC_COLS.indexOf("BARCODE"), b.src.length);
+  numFmt0(ws1, ["INVENTORY_ID","EXTERNAL_SKU_ID","INTERNAL_SKU_ID"].map(h=>LIQ_SRC_COLS.indexOf(h)), b.src.length);
+  // RAW (A~S, 1행 SUBTOTAL N·O·Q·S)
+  const ws2 = XLSX.utils.aoa_to_sheet([new Array(19).fill(null), LIQ_RAW_COLS].concat(b.raw.map(r=>LIQ_RAW_COLS.map(h=>r[h]))));
+  [13,14,16,18].forEach(c=>{ ws2[L(c)+"1"] = { t:"n", f:`SUBTOTAL(9,${L(c)}3:${L(c)}1048576)` }; });
+  ws2["!autofilter"] = { ref:`A2:S${b.raw.length+2}` };
+  ws2["!cols"] = LIQ_RAW_COLS.map(h=>({ wch: h==="DESCRIPTION"?52 : /LOT/.test(h)?20 : h==="BARCODE"?17 : 12 }));
+  textCol(ws2, LIQ_RAW_COLS.indexOf("BARCODE"), b.raw.length);
+  numFmt0(ws2, [LIQ_RAW_COLS.indexOf("EXTERNAL_SKU_ID")], b.raw.length);
+  for(let r=3;r<=b.raw.length+2;r++) [15,16,17,18].forEach(ci=>{ const c=ws2[L(ci)+r]; if(c && c.t==="n") c.z="#,##0"; });
+  // 총액 (LOT No별 매장판매가 총액)
+  const ws3 = XLSX.utils.aoa_to_sheet([[],[],["행 레이블","합계 : 매장판매가 총액"]].concat(b.perLot.map(x=>[x.lot, x.shop])).concat([["총합계", b.totals.s]]));
+  for(let i=4;i<=b.perLot.length+4;i++){ const c=ws3["B"+i]; if(c) c.z="#,##0"; }
+  ws3["!cols"] = [{wch:14},{wch:22}];
+  XLSX.utils.book_append_sheet(wb, ws1, "원본");
+  XLSX.utils.book_append_sheet(wb, ws2, "RAW");
+  XLSX.utils.book_append_sheet(wb, ws3, "총액");
+  return wb;
+}
+function liqPersist(){ try{ localStorage.setItem(LIQ_LS, JSON.stringify(LIQ_HISTORY.slice(0,200))); }catch(_){} }
+async function liqGenerate(){
+  const st = document.getElementById("liqStatus"), ta = document.getElementById("liqLots"), dEl = document.getElementById("liqDate");
+  const say = (m, bad)=>{ st.innerHTML = bad ? `<span style="color:var(--red)">${m}</span>` : m; };
+  const lots = liqParseLots(ta.value);
+  if(!_liqFile){ say("먼저 낙찰 원본 파일(AR_Bidding_Liquidation_*.xlsb)을 올려 주세요.", true); return; }
+  if(!lots.length){ say("낙찰된 LOT No를 입력해 주세요 (예: 46254AG). 한 줄에 하나 또는 쉼표·띄어쓰기로 구분.", true); return; }
+  const btn = document.getElementById("liqGo"); if(btn) btn.disabled = true;
+  const t0 = Date.now();
+  try{
+    say(`원본 읽는 중… (${(_liqFile.size/1048576).toFixed(0)}MB)`); await liqTick();
+    const buf = await _liqFile.arrayBuffer();
+    let res = null, isXlsb = /\.xlsb$/i.test(_liqFile.name);
+    if(isXlsb){
+      try{ res = await liqReadXlsb(buf, lots, m=> say(m)); }
+      catch(e){ console.warn("xlsb 직접 읽기 실패 → SheetJS", e); say("다른 방식으로 다시 읽는 중… (시간이 조금 더 걸립니다)"); await liqTick(); res = await liqReadSheetJs(buf, lots); }
+    } else res = await liqReadSheetJs(buf, lots);
+    if(!res.rows.length){ say(`원본(${escHtml(res.sheet)} 시트)에서 입력한 LOT No(${lots.map(escHtml).join(", ")})를 하나도 찾지 못했습니다. 번호를 확인해 주세요.`, true); return; }
+    let date = (dEl.value||"").replace(/\D/g,"");
+    if(!/^20\d{6}$/.test(date) || dEl.dataset.auto==="1"){
+      const m = String(_liqFile.name).match(/(20\d{6})(?!\d)/);
+      date = res.date || (m && m[1]) || fiDetectDate(""); dEl.value = date; dEl.dataset.auto = "1";
+    }
+    const b = liqBuild(res.rows, lots, date);
+    const out = XLSX.write(liqMakeWorkbook(b), { bookType:"xlsx", type:"array" });
+    const id = Date.now();
+    _liqCur = { id, b, bytes:out, srcName:_liqFile.name, sheet:res.sheet, missCols:res.missCols, sec:((Date.now()-t0)/1000).toFixed(1) };
+    try{ await idbSet("liq_file_"+id, { name:b.outName, data:out }); }catch(_){}
+    LIQ_HISTORY = [{ id, at:new Date(id).toLocaleString("ko-KR"), date:b.date, lots, srcName:_liqFile.name, outName:b.outName, rows:b.raw.length,
+      perLot:b.perLot.map(x=>({ lot:x.lot, fc:x.fc, name:x.name, plt:x.plt, qty:x.qty, shop:Math.round(x.shop), whole:Math.round(x.whole) })),
+      notFound:b.notFound, missingRate:b.missingRate }].concat(LIQ_HISTORY);
+    LIQ_HISTORY.slice(40).forEach(h=>{ try{ idbSet("liq_file_"+h.id, null).catch(()=>{}); }catch(_){} });
+    liqPersist();
+    say(`✓ 낙찰파일 생성 — LOT ${b.perLot.length}개 · ${b.totals.p}PLT · ${b.raw.length.toLocaleString()}행 (${_liqCur.sec}초)`);
+    liqRender();
+  }catch(e){ console.error(e); say("생성 실패: "+escHtml(e && e.message || e), true); }
+  finally{ if(btn) btn.disabled = false; }
+}
+function liqLotTable(perLot, tot){
+  return `<table class="fi-tbl"><thead><tr><th>LOT No</th><th>센터</th><th>FC</th><th class="n">PLT</th><th class="n">수량</th><th class="n">매장판매가 총액</th><th class="n">도매판매가 총액</th></tr></thead><tbody>
+    ${perLot.map(x=>`<tr><td><b>${escHtml(x.lot)}</b></td><td>${escHtml(x.name)}</td><td class="fi-mut">${escHtml(x.fc)}</td><td class="n"><b>${x.plt}</b></td><td class="n">${fiFmt(x.qty)}</td><td class="n">${fiFmt(x.shop)}</td><td class="n">${fiFmt(x.whole)}</td></tr>`).join("")}
+    <tr class="fi-tot"><td colspan="3">합계</td><td class="n">${perLot.reduce((s,x)=>s+x.plt,0)}</td><td class="n">${fiFmt(tot.q)}</td><td class="n">${fiFmt(tot.s)}</td><td class="n">${fiFmt(tot.w)}</td></tr></tbody></table>`;
+}
+function liqRender(){
+  const wrap = document.getElementById("liqResult"); if(!wrap) return;
+  const f = document.getElementById("liqFileInfo");
+  if(f) f.innerHTML = _liqFile ? `원본: <b>${escHtml(_liqFile.name)}</b> <span class="fi-mut">(${(_liqFile.size/1048576).toFixed(1)}MB) — LOT No를 바꿔 다시 만들 때는 파일을 다시 올릴 필요 없음</span>` : `<span class="fi-mut">원본 파일 없음</span>`;
+  if(!_liqCur){ wrap.innerHTML = ""; }
+  else {
+    const c = _liqCur, b = c.b, miss = Object.keys(b.missingRate||{});
+    const tot = { q:b.totals.q, s:b.totals.s, w:b.totals.w };
+    wrap.innerHTML = `<div class="fi-file" style="margin-top:10px">
+      <div class="fi-file-hd"><span class="fi-type" style="border-color:#E07A4F;color:#E07A4F">리퀴</span> <span class="fi-fname">${escHtml(b.outName)}</span>
+        <button class="act primary fi-mini" id="liqDl">⬇ 다운로드</button></div>
+      ${liqLotTable(b.perLot, tot)}
+      ${b.notFound.length?`<div style="color:var(--red);font-size:12.5px;margin-top:6px">⚠ 원본에 없는 LOT No: ${b.notFound.map(escHtml).join(", ")} — 파일에서 빠졌습니다</div>`:""}
+      ${miss.length?`<div style="color:var(--red);font-size:12.5px;margin-top:6px">⚠ 도매요율표에 없는 분류 ${miss.length}개 → 도매가 0 처리: ${miss.map(escHtml).join(", ")}</div>`:""}
+      ${Object.keys(b.guessRate||{}).length?`<div style="color:var(--amber);font-size:12.5px;margin-top:6px">ⓘ 요율표에 없어 같은 상위 분류 요율로 계산: ${Object.entries(b.guessRate).map(([k,v])=>escHtml(k)+" = "+v).join(", ")}</div>`:""}
+      ${(c.missCols||[]).length?`<div style="color:var(--red);font-size:12.5px;margin-top:6px">⚠ 원본에 없는 열: ${c.missCols.map(escHtml).join(", ")} (빈칸으로 둠)</div>`:""}
+      <div class="fi-mut" style="margin-top:6px">시트: 원본 ${b.src.length.toLocaleString()}행 · RAW ${b.raw.length.toLocaleString()}행 · 총액(LOT별 매장판매가) — 원본 파일의 "${escHtml(c.sheet)}" 시트에서 추출</div>
+    </div>`;
+  }
+  const hEl = document.getElementById("liqHistory"); if(!hEl) return;
+  if(!LIQ_HISTORY.length){ hEl.innerHTML = `<div class="fi-empty">아직 만든 일반 리퀴 낙찰파일이 없습니다.</div>`; return; }
+  hEl.innerHTML = `<table class="fi-tbl"><thead><tr><th>작성 일시</th><th>낙찰일</th><th>LOT No (PLT)</th><th class="n">매장판매가 총액</th><th></th></tr></thead><tbody>${
+    LIQ_HISTORY.slice(0,30).map(h=>`<tr><td>${escHtml(h.at)}</td><td>${escHtml(h.date||"")}</td>
+      <td style="white-space:normal">${(h.perLot||[]).map(x=>`${escHtml(x.name)} ${escHtml(x.lot)}(${x.plt})`).join(", ")}</td>
+      <td class="n">${fiFmt((h.perLot||[]).reduce((s,x)=>s+(x.shop||0),0))}</td>
+      <td style="white-space:nowrap"><button class="act fi-mini" data-liq-dl="${h.id}">⬇ 다시 받기</button> <button class="act fi-mini" data-liq-lots="${h.id}">LOT 다시 입력</button> <button class="act fi-mini" data-liq-del="${h.id}">✕</button></td></tr>`).join("")
+  }</tbody></table>`;
+}
+function liqSetFile(f){
+  if(!f) return;
+  if(!/\.xls[bxm]?$/i.test(f.name)){ document.getElementById("liqStatus").innerHTML = `<span style="color:var(--red)">엑셀(.xlsb / .xlsx) 파일을 올려 주세요.</span>`; return; }
+  _liqFile = f; _liqCur = null;
+  const dEl = document.getElementById("liqDate");
+  if(dEl && (dEl.dataset.auto==="1" || !dEl.value)){ const m = String(f.name).match(/(20\d{6})(?!\d)/); dEl.value = m ? m[1] : ""; dEl.dataset.auto = "1"; }
+  document.getElementById("liqStatus").textContent = "";
+  liqRender();
+  if(liqParseLots(document.getElementById("liqLots").value).length) liqGenerate();
+}
+function wireLiquidation(){
+  const box = document.getElementById("liqBox");
+  if(!box || box._wired) return; box._wired = true;
+  const dz = document.getElementById("liqDrop"), inp = document.getElementById("liqInput");
+  dz.addEventListener("click", ()=> inp.click());
+  dz.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); inp.click(); } });
+  inp.addEventListener("change", ()=>{ liqSetFile(inp.files && inp.files[0]); inp.value=""; });
+  ["dragenter","dragover"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("dragover"); }));
+  ["dragleave","drop"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove("dragover"); }));
+  dz.addEventListener("drop", e=> liqSetFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]));
+  document.getElementById("liqDate").addEventListener("input", e=>{ e.target.dataset.auto = e.target.value ? "0" : "1"; });
+  box.addEventListener("click", async e=>{
+    const t = e.target.closest("button"); if(!t) return;
+    if(t.id==="liqGo") liqGenerate();
+    else if(t.id==="liqDl" && _liqCur) fiDownloadBytes(_liqCur.b.outName, _liqCur.bytes);
+    else if(t.dataset.liqDl){ try{ const v = await idbGet("liq_file_"+t.dataset.liqDl); if(v && v.data) fiDownloadBytes(v.name, v.data); else showNotice("이 브라우저에는 그 낙찰파일 보관본이 없습니다. 원본을 올리고 \"LOT 다시 입력\"으로 다시 만들어 주세요."); }catch(_){} }
+    else if(t.dataset.liqLots){ const h = LIQ_HISTORY.find(x=>x.id===+t.dataset.liqLots); if(h){ document.getElementById("liqLots").value = (h.lots||[]).join("\n"); const d=document.getElementById("liqDate"); d.value = h.date||""; d.dataset.auto = "0"; } }
+    else if(t.dataset.liqDel){ if(confirm("이 기록을 삭제할까요?")){ const id=+t.dataset.liqDel; LIQ_HISTORY = LIQ_HISTORY.filter(x=>x.id!==id); try{ idbSet("liq_file_"+id, null).catch(()=>{}); }catch(_){} liqPersist(); liqRender(); } }
+  });
+  liqRender();
 }
 function wireFixedDispatch(){
   const box = document.getElementById("fiDispBox");
