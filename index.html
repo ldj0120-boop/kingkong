@@ -1070,7 +1070,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 116 · 2026-10-12</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 117 · 2026-10-12</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -13275,11 +13275,17 @@ function fiDispRender(){
     <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="type">${["XLG","XLS","XLD","XLA","XLB","XLC","XLE"].concat(r.type&&!["XLG","XLS","XLD","XLA","XLB","XLC","XLE"].includes(r.type)?[r.type]:[]).map(x=>`<option ${x===r.type?"selected":""}>${x}</option>`).join("")}</select></td>
     <td class="fi-why" style="color:var(--amber);font-size:12px">${escHtml(r.memo||"")}</td></tr>`).join("")}
   </tbody></table></div>`;
-  // 엑셀 미리보기 (예시 양식 그대로)
+  h += `<div id="fiDispOut">${fiDispOutHtml(d)}</div>`;
+  wrap.innerHTML = h;
+}
+// build 117: 미리보기·문구만 따로 다시 그림 — 표의 칸(PLT 등)을 고치는 즉시 반영(입력 중인 칸 포커스 유지)
+function fiDispRenderOut(){ const el=document.getElementById("fiDispOut"); if(el && _fiDisp) el.innerHTML = fiDispOutHtml(_fiDisp); }
+function fiDispOutHtml(d){
+  let h = "";
   // build 114: 거래처별(더한 = 경산 외 / KPP = 경산) 출고요청서 — 포함 체크된 행만
   const inc = d.rows.filter(r=>!r.skip);
   h += `<div class="fi-sec-t">출고요청서 미리보기 <button class="act primary fi-mini" id="fiDispXlsx">⬇ 이번 요청 엑셀 (더한·KPP 시트)</button>
-    <button class="act primary fi-mini admin-only" id="fiDispToLedger">＋ 거래처 누적 출고요청서에 추가</button> <span id="fiDispLedgerMsg" class="fi-mut"></span></div>`;
+    <button class="act primary fi-mini admin-only" id="fiDispToLedger" title="처음 누르면 추가, 이미 추가한 행은 고친 값으로 갱신">＋ 누적 출고요청서에 추가/갱신</button> <span id="fiDispLedgerMsg" class="fi-mut"></span></div>`;
   Object.keys(FI_LEDGER_CO).forEach(co=>{
     const rs = inc.filter(r=>fiCoOf(r)===co); if(!rs.length) return;
     h += `<div class="fi-mut" style="margin:8px 0 4px"><b style="color:var(--text)">${FI_LEDGER_CO[co].label}</b> ${rs.length}건 · ${rs.reduce((s,r)=>s+(+r.pallets||0),0)}PLT</div>
@@ -13288,7 +13294,7 @@ function fiDispRender(){
   });
   h += `<div class="fi-sec-t">물류업체 전달 문구 <button class="act primary fi-mini" id="fiDispCopy">복사</button> <span id="fiDispCopyMsg" class="fi-mut"></span></div>
   <textarea id="fiDispText" class="fi-text" style="min-height:220px" readonly>${escHtml(fiDispTextAll(d))}</textarea>`;
-  wrap.innerHTML = h;
+  return h;
 }
 function fiDispRenderHistory(){
   const el = document.getElementById("fiDispHistory"); if(!el) return;
@@ -13373,8 +13379,7 @@ function wireFixedDispatch(){
     r[k] = k==="pallets" ? (t.value===""?null:+t.value) : k==="skip" ? !t.checked : t.value;
     if(k==="fc") r.fc = String(t.value).toUpperCase().trim();
     fiDispSave();
-    const txt = document.getElementById("fiDispText"); if(txt) txt.value = fiDispTextAll(_fiDisp);
-    if(t.tagName==="SELECT" || k==="fc" || k==="type" || k==="skip") fiDispRender();
+    if(t.tagName==="SELECT" || k==="fc" || k==="type" || k==="skip") fiDispRender(); else fiDispRenderOut();
   });
   box.addEventListener("click", e=>{
     const b = e.target.closest("button"); if(!b) return;
@@ -13383,7 +13388,7 @@ function wireFixedDispatch(){
       const groups = Object.keys(FI_LEDGER_CO).map(co=>({ name:`${FI_LEDGER_CO[co].label} 출고요청${co==="kpp"?"(경산)":""}`, rows:inc.filter(r=>fiCoOf(r)===co) })).filter(g=>g.rows.length);
       if(groups.length) fiDispDownload(groups, `출고요청서_${Array.from(new Set(inc.map(r=>r.type))).join("")}_${d.replace(/-/g,"")}.xlsx`); }
     else if(b.id==="fiDispToLedger" && _fiDisp){ const inc=_fiDisp.rows.filter(r=>!r.skip); const msg=document.getElementById("fiDispLedgerMsg"); msg.textContent="추가 중…";
-      fiLedgerAdd(inc).then(({res,where})=>{ msg.innerHTML = Object.keys(res).filter(co=>res[co].add||res[co].dup).map(co=>`${FI_LEDGER_CO[co].label} +${res[co].add}행${res[co].dup?` (이미 있음 ${res[co].dup})`:""}${where[co]?` · ${fiLedgerWhere(where[co])}`:""}`).join(" / ") || "추가할 행 없음"; fiLedgerRender(); }); }
+      fiLedgerAdd(inc).then(({res,where})=>{ msg.innerHTML = Object.keys(res).filter(co=>res[co].add||res[co].dup||res[co].upd).map(co=>`${FI_LEDGER_CO[co].label} +${res[co].add}행${res[co].upd?` · 수정 반영 ${res[co].upd}행`:""}${res[co].dup?` (변경 없음/원본에 있음 ${res[co].dup})`:""}${where[co]?` · ${fiLedgerWhere(where[co])}`:""}`).join(" / ") || "추가할 행 없음"; fiLedgerRender(); }); }
     else if(b.id==="fiDispMonth"){ const g=fiDispMonthGroups(); if(g.length) fiDispDownload(g, `배차표_월별누적_${fiDetectDate("")}.xlsx`); }
     else if(b.id==="fiDispUseLatest" && _fiDisp){ const en=(FIXED_INTAKE_HISTORY||[]).find(h=>h.id===_fiDisp.matchInfo.latestId); if(en){ fiDispAssign(_fiDisp.rows, en); _fiDisp.rows.forEach(r=>{ r.memo = [r.memo, `최근 기록 ${en.date} 기준 도착지 — 확인`].filter(Boolean).join(" / "); }); _fiDisp.matchInfo = { ok:true, text:`같은 날짜 기록이 없어 최근 고정인수 기록 ${en.date} 분배표로 채웠습니다 — 도착지를 꼭 확인하세요.` }; fiDispSave(); fiDispRender(); } }
     else if(b.dataset.fdOpen){ const h=FI_DISPATCH_HISTORY.find(x=>x.id===+b.dataset.fdOpen); if(h){ _fiDisp = JSON.parse(JSON.stringify(h)); fiDispRender(); } }
@@ -13508,7 +13513,16 @@ async function fiLedgerAdd(rows){
     const key = fiLedgerKey(r.bidcode, r.number, r.fc);
     const inBase = L.meta && Array.isArray(L.meta.keys) && L.meta.keys.includes(key);
     const inAdded = L.added.some(a=> fiLedgerKey(a.bidcode, a.number, a.fc)===key);
-    if(inBase || inAdded){ res[co].dup++; return; }
+    if(inBase){ res[co].dup++; return; }
+    if(inAdded){
+      // build 117: 사이트에서 추가했던 행이면 고친 값(PLT·도착지·출고일시 등)으로 갱신
+      const i = L.added.findIndex(a=> fiLedgerKey(a.bidcode, a.number, a.fc)===key);
+      const nv = fiLedgerRowFrom(r), ov = L.added[i];
+      const ch = ["pallets","dest","outboundDate","outboundAmPm","bidDate","type","group"].some(f=> String(ov[f]??"")!==String(nv[f]??""));
+      if(ch){ nv.addedAt = ov.addedAt; nv.updatedAt = new Date().toISOString(); L.added[i] = nv; res[co].upd = (res[co].upd||0)+1; touched.add(co); }
+      else res[co].dup++;
+      return;
+    }
     L.added.push(fiLedgerRowFrom(r)); res[co].add++; touched.add(co);
   });
   for(const co of touched) where[co] = await fiLedgerSave(co, false);
