@@ -1070,7 +1070,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 115 · 2026-10-12</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 116 · 2026-10-12</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -12141,7 +12141,16 @@ function fiBuild(fileName, rows){
   });
   const tot = raw.reduce((a,r)=>{ a.q+=r.QUANTITY; a.s+=r["매장판매가 총액"]; a.w+=r["도매판매가 총액"]; return a; },{q:0,s:0,w:0});
   summary.push(["총합계",tot.q,tot.s,tot.w,-1]);
-  return { type, date, outName, centers, raw, src:rows, summary, missingRate, totals:tot };
+  // build 116: 그룹(=트럭 1대 단위) 사전 — 출고일정 메일의 GroupNumber·NUMBER·BIDCODE와 맞추는 데 쓴다
+  const gm = {};
+  rows.forEach(r=>{
+    const grp = String(r.Grouping||"").trim(); const m = grp.match(/^([A-Z]{1,3})\((\d{5,7})\)/i); if(!m) return;
+    const k = m[2]+"|"+r.FC;
+    const o = gm[k] || (gm[k] = { prefix:m[1].toUpperCase(), num:m[2], fc:r.FC, lots:new Set(), bidcode:String(r.BIDCODE||"").trim() });
+    if(r.LOT_FULL_NAME) o.lots.add(String(r.LOT_FULL_NAME).trim());
+  });
+  const groups = Object.values(gm).map(o=>({ prefix:o.prefix, num:o.num, fc:o.fc, plt:o.lots.size, bidcode:o.bidcode }));
+  return { type, date, outName, centers, raw, src:rows, summary, missingRate, totals:tot, groups };
 }
 // 엑셀 Workbook (SheetJS) 생성: 원본 / 종합 / RAW
 function fiMakeWorkbook(b){
@@ -12394,9 +12403,15 @@ async function fiHandleFiles(fileList){
   builds.sort((a,b)=> FI_TYPES.indexOf(a.type) - FI_TYPES.indexOf(b.type));
   const snap = fiLatestSnap();
   const stockMap = fiEffStock(snap, null, (builds[0]||{}).date);
-  const plan = fiPlan(builds, stockMap, Object.assign({ eligible:fiEligMap() }, fiSettings()));
-  const id = Date.now();
-  _fiCur = { id, builds, plan, stockDate: snap ? snap.date : null, stockMap };
+  let plan = fiPlan(builds, stockMap, Object.assign({ eligible:fiEligMap() }, fiSettings()));
+  let id = Date.now();
+  // build 116: 같은 인수일·같은 낙찰파일 기록이 이미 있으면(예: 그룹 정보 보강용 재업로드) 그 분배표(수정 포함)를 그대로 쓴다
+  const sameEntry = (FIXED_INTAKE_HISTORY||[]).find(h=> h.date===(builds[0]||{}).date && h.plan &&
+    builds.every(b=> (h.files||[]).some(f=> f.outName===b.outName)));
+  let reused = false;
+  if(sameEntry){ id = sameEntry.id; plan = JSON.parse(JSON.stringify(sameEntry.plan)); ["XLS","XLG","XLD"].forEach(t=>{ if(!plan[t]) plan[t]=[]; }); reused = true;
+    builds.forEach(b=> (plan[b.type]||[]).forEach(r=>{ r.file = b.outName; })); }
+  _fiCur = { id, builds, plan, stockDate: snap ? snap.date : null, stockMap, reused };
   // 낙찰파일을 만들어 이 브라우저(IndexedDB)에 보관 → 히스토리에서 다시 받을 수 있다
   builds.forEach((b,i)=>{
     try{
@@ -12406,7 +12421,7 @@ async function fiHandleFiles(fileList){
     }catch(e){ errs.push(`${b.outName}: 엑셀 생성 실패 ${e && e.message || e}`); }
   });
   fiSaveCurrentToHistory(true);
-  st.innerHTML = `✓ ${builds.length}개 낙찰파일 생성 · 분배표 작성 완료 (히스토리 저장됨)` + (errs.length ? `<br><span style="color:var(--red)">${errs.map(escHtml).join("<br>")}</span>` : "");
+  st.innerHTML = `✓ ${builds.length}개 낙찰파일 생성 · ${reused?"같은 날 기존 분배표(수정 포함)를 그대로 불러옴 — 새로 나누려면 아래 설정의 \"다시 분배\"":"분배표 작성 완료"} (히스토리 저장됨)` + (errs.length ? `<br><span style="color:var(--red)">${errs.map(escHtml).join("<br>")}</span>` : "");
   fiRender();
 }
 function fiPlanCompact(plan){
@@ -12422,7 +12437,7 @@ function fiSaveCurrentToHistory(isNew){
     id:c.id, updatedAt:Date.now(), at:new Date(c.id).toLocaleString("ko-KR"), date:(c.builds[0]||{}).date, stockDate:c.stockDate,
     files:c.builds.map((b,i)=>({ idx:i, type:b.type, srcName:b.srcName, outName:b.outName, rows:b.raw?b.raw.length:(b.rowsN||0),
       centers:b.centers.map(x=>({ fc:x.fc, name:x.name, plt:x.plt, qty:x.qty })), qty:b.totals.q, shop:Math.round(b.totals.s), whole:Math.round(b.totals.w),
-      missingRate:b.missingRate })),
+      missingRate:b.missingRate, groups:b.groups||[] })),
     plan: fiPlanCompact(c.plan),
     text: fiPlanText(c.builds, c.plan),
     edited: !isNew
@@ -12540,7 +12555,7 @@ function fiOpenHistory(id){
   if(!hh) return;
   // 히스토리에서 연 결과는 원본 행이 없으므로 다운로드는 이 브라우저 IndexedDB 보관본으로만 가능
   const builds = (hh.files||[]).map(f=>({ type:f.type, outName:f.outName, srcName:f.srcName, date:hh.date,
-    centers:f.centers.map(x=>({...x, shop:null, whole:null})), totals:{ q:f.qty, s:f.shop, w:f.whole }, missingRate:f.missingRate||{}, raw:null, rowsN:f.rows||0 }));
+    centers:f.centers.map(x=>({...x, shop:null, whole:null})), totals:{ q:f.qty, s:f.shop, w:f.whole }, missingRate:f.missingRate||{}, raw:null, rowsN:f.rows||0, groups:f.groups||[] }));
   const plan = JSON.parse(JSON.stringify(hh.plan||{XLS:[],XLG:[],XLD:[]}));
   ["XLS","XLG","XLD"].forEach(t=>{ if(!plan[t]) plan[t]=[]; });
   _fiCur = { id:hh.id, builds, plan, stockDate:hh.stockDate, stockMap: null };
@@ -12693,23 +12708,27 @@ function fiDispGrid(g0, w, h){
   return { h: hl, v: vl, top, bot, x0, x1 };
 }
 // 칸 하나를 잘라 scale배 확대 + 이진화한 RGBA 이미지로
-function fiDispCrop(g, w, x0, y0, x1, y1, scale){
+function fiDispCrop(g, w, x0, y0, x1, y1, scale, thr, trim){
+  if(thr==null) thr = 165;
+  if(trim){
+    // 글자 있는 부분만 남기고(여백 제거) 글자 높이가 ~44px 되도록 확대 — 한 글자 칸(파렛트 수) 인식률 개선
+    let a=x1, b=y1, c=x0, d=y0;
+    for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++) if(g[y*w+x] < 150){ if(x<a)a=x; if(x>c)c=x; if(y<b)b=y; if(y>d)d=y; }
+    if(c>=a && d>=b){ x0=Math.max(x0,a-2); x1=Math.min(x1,c+2); y0=Math.max(y0,b-2); y1=Math.min(y1,d+2); scale = Math.max(2, Math.min(10, Math.round(44/(d-b+1)))); }
+  }
   const cw = Math.max(1, x1-x0+1), ch = Math.max(1, y1-y0+1);
-  const W = cw*scale, H = ch*scale;
-  const out = new Uint8ClampedArray(W*H*4);
+  const W = cw*scale, H = ch*scale, P = 20, W2 = W+P*2, H2 = H+P*2;
+  const out = new Uint8ClampedArray(W2*H2*4).fill(255);
   for(let y=0;y<H;y++){
-    const sy = y0 + y/scale, ya = Math.floor(sy), yb = Math.min(y1, ya+1), fy = sy-ya;
+    const sy = y0 + (y+0.5)/scale - 0.5, ya = Math.max(y0, Math.floor(sy)), yb = Math.min(y1, ya+1), fy = Math.max(0, sy-ya);
     for(let x=0;x<W;x++){
-      const sx = x0 + x/scale, xa = Math.floor(sx), xb = Math.min(x1, xa+1), fx = sx-xa;
-      const v = (g[ya*w+xa]*(1-fx)+g[ya*w+xb]*fx)*(1-fy) + (g[yb*w+xa]*(1-fx)+g[yb*w+xb]*fx)*fy;
-      const o = v < 165 ? 0 : 255;
-      const k=(y*W+x)*4; out[k]=out[k+1]=out[k+2]=o; out[k+3]=255;
+      const sx = x0 + (x+0.5)/scale - 0.5, xa = Math.max(x0, Math.floor(sx)), xb = Math.min(x1, xa+1), fx = Math.max(0, sx-xa);
+      let v = (g[ya*w+xa]*(1-fx)+g[ya*w+xb]*fx)*(1-fy) + (g[yb*w+xa]*(1-fx)+g[yb*w+xb]*fx)*fy;
+      if(thr) v = v < thr ? 0 : 255;
+      const k=((y+P)*W2+x+P)*4; out[k]=out[k+1]=out[k+2]=v; out[k+3]=255;
     }
   }
-  // 흰 여백 20px 추가(테서랙트는 가장자리에 붙은 글자를 잘 못 읽음)
-  const P=20, W2=W+P*2, H2=H+P*2, out2=new Uint8ClampedArray(W2*H2*4).fill(255);
-  for(let y=0;y<H;y++) out2.set(out.subarray(y*W*4,(y+1)*W*4), ((y+P)*W2+P)*4);
-  return { width:W2, height:H2, data:out2 };
+  return { width:W2, height:H2, data:out };
 }
 // 격자에서 OCR할 칸 목록 [{r,c,x0,y0,x1,y1}]
 function fiDispCells(grid){
@@ -12741,23 +12760,19 @@ function _fiLev(a,b){
   return d[m][n];
 }
 // OCR된 FC 조각(예: "6073", "\02", "INC49") → 알려진 FC 코드
+var FI_FC_SCOPE = null;   // 이번 메일과 같은 낙찰일 고정인수 기록의 FC 목록(있으면 이 안에서만 맞춤)
 function fiFixFC(raw){
   let t = String(raw||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
   if(!t) return "";
+  const conv = x=>{ const m = x.match(/^(.{2,3}?)(\d{1,2}|[A-Z0-9]{1,2})$/); if(!m) return x;
+    return m[1].split("").map(ch=> FI_OCR_DIGIT2ALPHA[ch]||ch).join("") + m[2].split("").map(ch=> FI_OCR_ALPHA2DIGIT[ch]||ch).join(""); };
+  const cands = [t, conv(t), conv(t.slice(-4)), conv(t.slice(-5))];
+  const pick = list=>{ let best=null, bd=99; list.forEach(k=> cands.forEach(c=>{ const d=_fiLev(c,k); if(d<bd){ bd=d; best=k; } })); return { best, bd }; };
+  if(FI_FC_SCOPE && FI_FC_SCOPE.length){ const r = pick(FI_FC_SCOPE); if(r.bd <= 2) return r.best; }
   const known = fiKnownFCs();
-  if(known.includes(t)) return t;
-  // 앞 3글자는 영문, 뒤는 숫자로 보정해서 다시 비교
-  const m = t.match(/^(.{2,3}?)(\d{1,2})$/) || t.match(/^(.{3})(.*)$/);
-  let cand = t;
-  if(m){
-    const a = m[1].split("").map(ch=> FI_OCR_DIGIT2ALPHA[ch]||ch).join("");
-    const n = m[2].split("").map(ch=> FI_OCR_ALPHA2DIGIT[ch]||ch).join("");
-    cand = a+n;
-    if(known.includes(cand)) return cand;
-  }
-  let best=null, bd=99;
-  known.forEach(k=>{ const dd=Math.min(_fiLev(cand,k), _fiLev(t,k)); if(dd<bd){ bd=dd; best=k; } });
-  return bd <= 2 ? best : cand;
+  for(const c of cands) if(known.includes(c)) return c;
+  const r = pick(known);
+  return r.bd <= 1 ? r.best : conv(t);
 }
 function fiFixDate(raw){
   const t = String(raw||"").replace(/[oO]/g,"0").replace(/[lI|]/g,"1");
@@ -12784,14 +12799,19 @@ function fiFixDigits(raw, len){
 }
 // 그룹 문자열 "GD(100858)_GOY3" → { prefix, num, fc }
 function fiParseGroup(raw){
-  const t = String(raw||"").replace(/\s+/g,"");
-  const m = t.match(/^([A-Za-z0-9]{1,3})?[\(\[\{]?([0-9OoIlSB]{5,7})[\)\]\}]?[_\-~.]?([A-Za-z0-9\\\/]{2,6})$/);
-  if(!m) return { prefix:"", num:fiFixDigits(t.match(/\d{6}/)?t.match(/\d{6}/)[0]:""), fc:"" };
-  let prefix = String(m[1]||"").toUpperCase().split("").map(ch=> FI_OCR_DIGIT2ALPHA[ch]||ch).join("");
-  return { prefix, num: fiFixDigits(m[2],6), fc: fiFixFC(m[3].replace(/[\\\/]/g,"Y")) };
+  const t = String(raw||"").toUpperCase().replace(/\s+/g,"");
+  const m = t.match(/^([A-Z0-9]{0,3}?)[\(\[\{C]?([0-9OCQIlSBG]{5,7})[\)\]\}J]?[_\-~.,;]{0,2}([A-Z0-9\\\/]{2,6})$/);
+  if(!m){ const d = t.match(/\d{6}/); return { prefix:"", num:d?d[0]:"", fc:"", fcRaw:"" }; }
+  const prefix = String(m[1]||"").split("").map(ch=> FI_OCR_DIGIT2ALPHA[ch]||ch).join("");
+  const num = String(m[2]).split("").map(ch=> /\d/.test(ch)?ch:({ "O":"0","C":"0","Q":"0","I":"1","L":"1","S":"5","B":"8","G":"6" }[ch]||"")).join("");
+  const fcRaw = m[3].replace(/[\\\/]/g,"Y");
+  return { prefix, num: num.length===6 ? num : (num.length===5 ? "1"+num : num), fc: fiFixFC(fcRaw), fcRaw };
 }
 function fiTypeFromText(t){
   t = String(t||"").toUpperCase();
+  if(/^\s*S\(/.test(t)) return "XLS";
+  if(/^\s*D\(/.test(t)) return "XLD";
+  if(/^\s*G[DHE]?\(/.test(t)) return "XLG";
   if(/XLG|GD\(|GH\(/.test(t)) return "XLG";
   if(/XLS|\bS\(/.test(t)) return "XLS";
   if(/XLD|\bD\(/.test(t)) return "XLD";
@@ -12800,47 +12820,76 @@ function fiTypeFromText(t){
 // 머리글 칸 OCR 결과 → 열 의미
 function fiDispColRole(text, idx){
   const t = String(text||"").toUpperCase().replace(/\s/g,"");
-  if(/낙찰|일자/.test(t) && !/OUT/.test(t)) return "bidDate";
-  if(/BID|CODE/.test(t)) return "bidcode";
-  if(/GROUP|GR0UP/.test(t)) return "group";
+  if(/낙찰/.test(t)) return "bidDate";
+  if(/BID|CODE|입차/.test(t)) return "bidcode";
+  if(/GROUP|GR0UP|GROUPN/.test(t)) return "group";
   if(/NUM|NUMB/.test(t)) return "number";
-  if(/파렛|팔레|PLT|파레/.test(t)) return "pallets";
-  if(/VEND/.test(t)) return "vendor";
-  if(/OUT|BOUND|DATE/.test(t)) return "outbound";
+  if(/파렛|팔레|PLT|파레|수량/.test(t)) return "pallets";
+  if(/VEND|업체/.test(t)) return "vendor";
+  if(/OUT|BOUND|출고|예정/.test(t)) return "outbound";
+  if(/일자|DATE/.test(t)) return "bidDate";
   return FI_DISP_COLS[idx] || "";
 }
 // 칸 OCR 결과(행×열 텍스트) → 정규화된 행
 function fiDispRowsFromGrid(texts, headerText){
   if(!texts.length) return [];
+  const first = (texts[0]||[]).map(c=> Array.isArray(c) ? c.join(" ") : c);
   let roles = null, start = 0;
-  const hdrHits = (texts[0]||[]).filter(t=>/낙찰|BID|GROUP|NUMBER|파렛|VENDOR|OUTBOUND/i.test(t||"")).length;
-  if(hdrHits >= 2){ roles = texts[0].map((t,i)=>fiDispColRole(t,i)); start = 1; }
-  else roles = FI_DISP_COLS.slice(0, (texts[0]||[]).length);
+  const hdrHits = first.filter(t=>/낙찰|BID|GROUP|NUMBER|파렛|VENDOR|OUTBOUND|업체|출고/i.test(t||"")).length;
+  if(hdrHits >= 2){ roles = first.map((t,i)=>fiDispColRole(t,i)); start = 1; }
+  else roles = FI_DISP_COLS.slice(0, first.length);
   const type0 = fiTypeFromText(headerText);
   const rows = [];
   for(let r=start;r<texts.length;r++){
-    const o = {}; roles.forEach((k,i)=>{ if(k) o[k] = texts[r][i]; });
+    const o = {}; roles.forEach((k,i)=>{ if(k){ const v = texts[r][i]; o[k] = Array.isArray(v) ? v : [v]; } });
     const row = fiDispNormalize(o, type0);
-    if(row.number || row.bidcode || row.fc) rows.push(row);
+    if(row.number || row.bidcode || row.fc || row.groupNum) rows.push(row);
   }
   return rows;
 }
+// 값 후보(여러 번 읽은 결과) 중 다수결
+function _fiVote(list){ const c={}; list.filter(Boolean).forEach(v=> c[v]=(c[v]||0)+1); return Object.keys(c).sort((a,b)=>c[b]-c[a])[0] || ""; }
+const FI_BID_D2A = { "2":"Z","7":"Z","5":"S","8":"B","0":"O","1":"I","4":"A","6":"G","3":"B" };
+const FI_BID_A2D = { "O":"0","Q":"0","D":"0","I":"1","L":"1","Z":"2","S":"5","G":"6","B":"8","T":"7","E":"8" };
+// 쿠팡 BIDCODE 구조: AF + (A|숫자) + yy + 월(1~9,A,B,C) + dd + 영문 2자리. 위치별로 숫자/영문을 보정
+function fiBidStruct(raw){
+  let t = String(raw||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+  if(t.length===11 && /^AF/.test(t)) t = t.slice(0,2)+t.slice(3);   // 끼어든 글자 1개
+  if(t.length!==10) return "";
+  const a = t.split("");
+  a[0]="A"; a[1]="F";
+  [3,4,6,7].forEach(i=>{ if(!/\d/.test(a[i])) a[i] = FI_BID_A2D[a[i]] || a[i]; });
+  [8,9].forEach(i=>{ if(/\d/.test(a[i])) a[i] = FI_BID_D2A[a[i]] || a[i]; });
+  return a.join("");
+}
 function fiDispNormalize(o, type0){
-  const g = fiParseGroup(o.group);
-  const number = fiFixDigits(o.number, 6) || g.num;
-  const pal = fiFixDigits(o.pallets);
-  const out = fiFixDate(o.outbound);
+  const L = k => (o[k]||[]).map(v=>String(v==null?"":v));
+  const groups = L("group").map(fiParseGroup);
+  const prefix = _fiVote(groups.map(g=>g.prefix).filter(p=>/^(S|D|GH|GD|GE|G|A|B|C|E|W|H|X)$/.test(p)));
+  const gnum = _fiVote(groups.map(g=>g.num).filter(n=>/^\d{6}$/.test(n)));
+  const fcRaw = groups.map(g=>g.fcRaw).filter(Boolean);
+  const nums = L("number").map(t=>fiFixDigits(t)).filter(n=>n.length===6);
+  const number = _fiVote(nums) || gnum;
+  const palC = L("pallets").map(t=>fiFixDigits(t)).filter(n=>/^\d{1,2}$/.test(n)&&+n>0);
+  const pal = _fiVote(palC);
+  const palAgree = pal ? palC.filter(x=>x===pal).length : 0;
+  const outs = L("outbound");
+  const bids = L("bidcode").map(fiBidStruct).filter(Boolean);
+  let bidcode = "";
+  if(bids.length){ bidcode = Array.from({length:10},(_,i)=>_fiVote(bids.map(b=>b[i]))).join(""); }
+  else bidcode = fiFixBidcode(L("bidcode")[0]);
+  const type = fiTypeFromText(prefix ? prefix+"(" : "") || ({ A:"XLA", B:"XLB", C:"XLC", E:"XLE" }[prefix]) || "";
+  if(/^AF.{6}Z/.test(bidcode) && type){ const t9 = { XLS:"S", XLD:"B", XLG:"H" }[type]; if(t9 && /[S5B8H7]/.test(bidcode[9])) bidcode = bidcode.slice(0,9)+t9; }
+  const fc = _fiVote(groups.map(g=>g.fc).filter(Boolean));
   return {
-    bidDate: fiFixDate(o.bidDate),
-    bidcode: fiFixBidcode(o.bidcode),
-    group: g.prefix && g.num && g.fc ? `${g.prefix}(${g.num})_${g.fc}` : String(o.group||"").trim(),
-    groupPrefix: g.prefix,
-    number,
-    pallets: pal ? +pal : null,
-    outboundDate: out,
-    outboundAmPm: fiFixAmPm(o.outbound),
-    fc: g.fc,
-    type: fiTypeFromText(g.prefix ? g.prefix+"(" : "") || type0 || "",
+    bidDate: _fiVote(L("bidDate").map(fiFixDate)),
+    bidcode, groupPrefix: prefix, groupNum: gnum, number,
+    group: prefix && number && fc ? `${prefix}(${number})_${fc}` : (L("group")[0]||"").trim(),
+    pallets: pal ? +pal : null, palAgree,
+    outboundDate: _fiVote(outs.map(fiFixDate)),
+    outboundAmPm: _fiVote(outs.map(fiFixAmPm)),
+    fc, fcRaw, numCands: Array.from(new Set(nums.concat(groups.map(g=>g.num).filter(n=>n&&n.length>=5)))),
+    type: type || type0 || "",
     ocrRaw: o
   };
 }
@@ -12858,29 +12907,95 @@ function fiDispParseText(text){
     const nums = after.match(/\b\d+\b/g) || [];
     const number = nums.find(n=>n.length>=5) || "";
     const pal = nums.find(n=>n.length<=3 && n!==number);
-    const o = { bidDate:d[0], bidcode:bc?bc[0]:"", group:g[0], number, pallets:pal||"", outbound:(d[1]||d[0]) + " " + (l.match(/오전|오후/g)||[""]).pop() };
-    rows.push(fiDispNormalize(o, type0));
+    const o = { bidDate:[d[0]], bidcode:[bc?bc[0]:""], group:[g[0]], number:[number], pallets:[pal||""], outbound:[(d[1]||d[0]) + " " + (l.match(/오전|오후/g)||[""]).pop()] };
+    const nr = fiDispNormalize(o, type0); nr.fromText = true; rows.push(nr);
   });
   return rows;
 }
 // 고정인수 히스토리에서 도착지 찾기. 같은 낙찰일(YYYYMMDD) 기록 우선.
 function fiDispFindHistory(dateStr, type){
   const ymd = String(dateStr||"").replace(/-/g,"");
-  const list = (FIXED_INTAKE_HISTORY||[]).filter(h=> h.plan && (h.plan[type]||[]).length);
+  const list = (FIXED_INTAKE_HISTORY||[]).filter(h=> h.plan && (!type || (h.plan[type]||[]).length)).slice().sort((a,b)=>(b.updatedAt||b.id)-(a.updatedAt||a.id));
   const same = list.filter(h=> h.date===ymd);
   return { exact: same[0] || null, latest: list[0] || null };
 }
-function fiDispAssign(rows, entry){
-  // FC별로 분배표의 하차지(PLT)를 메일 행 순서대로 소진하며 배정 (XLS 9PLT 여러 대 대응)
+// 고정인수 기록의 그룹 사전: NUMBER+FC → 입차코드·그룹·PLT·유형 (build 116부터 낙찰파일 만들 때 저장)
+function fiDispDict(dates){
+  const out = [];
+  const seen = new Set();
+  (FIXED_INTAKE_HISTORY||[]).slice().sort((a,b)=>(b.updatedAt||b.id)-(a.updatedAt||a.id)).forEach(h=>{
+    if(dates && dates.length && !dates.includes(h.date)) return;
+    (h.files||[]).forEach(f=> (f.groups||[]).forEach(g=>{
+      const k = g.num+"|"+g.fc; if(seen.has(k)) return; seen.add(k);
+      out.push(Object.assign({ date:h.date, type:f.type, entryId:h.id }, g));
+    }));
+  });
+  return out;
+}
+function fiDispScope(dates){
+  const s = new Set();
+  (FIXED_INTAKE_HISTORY||[]).forEach(h=>{ if(dates.includes(h.date)) ["XLS","XLG","XLD"].forEach(t=> ((h.plan||{})[t]||[]).forEach(r=> s.add(r.fc))); });
+  fiDispDict(dates).forEach(g=> s.add(g.fc));
+  return Array.from(s);
+}
+// OCR 행 ↔ 고정인수 그룹 사전 맞추기 (가장 잘 맞는 쌍부터, 한 그룹은 한 행에만)
+function fiDispResolve(rows){
+  const dates = Array.from(new Set(rows.map(r=>String(r.bidDate||"").replace(/-/g,"")).filter(Boolean)));
+  const dict = fiDispDict(dates);
+  const pairs = [];
+  rows.forEach((r,ri)=> dict.forEach((g,gi)=>{
+    let sc = 0;
+    const nc = (r.numCands||[]).concat(r.number?[r.number]:[]);
+    const nd = nc.length ? Math.min(...nc.map(n=>_fiLev(n,g.num))) : 9;
+    if(nd===0) sc += 10; else if(nd===1) sc += 6; else if(nd===2) sc += 2; else return;
+    const fcs = [r.fc].concat(r.fcRaw||[]).filter(Boolean);
+    const fd = fcs.length ? Math.min(...fcs.map(f=>_fiLev(String(f).toUpperCase(), g.fc))) : 4;
+    sc += Math.max(0, 4 - fd*1.5);
+    if(r.pallets!=null && +r.pallets===+g.plt) sc += 2;
+    if(r.groupPrefix && r.groupPrefix===g.prefix) sc += 2;
+    if(r.bidcode && g.bidcode) sc += Math.max(0, 3 - _fiLev(r.bidcode, g.bidcode));
+    if(String(r.bidDate||"").replace(/-/g,"")===g.date) sc += 1;
+    pairs.push({ ri, gi, sc });
+  }));
+  pairs.sort((a,b)=>b.sc-a.sc);
+  const usedR = new Set(), usedG = new Set();
+  pairs.forEach(p=>{
+    if(p.sc < 11 || usedR.has(p.ri) || usedG.has(p.gi)) return;
+    usedR.add(p.ri); usedG.add(p.gi);
+    const r = rows[p.ri], g = dict[p.gi];
+    const diff = [];
+    if(r.number!==g.num) diff.push(`NUMBER ${r.number||"?"}→${g.num}`);
+    if(r.bidcode!==g.bidcode) diff.push(`입차코드 ${r.bidcode||"?"}→${g.bidcode}`);
+    // 파렛트: 메일 값이 실제 상차 수량이므로, 여러 번 읽어 같은 값(2회 이상)이면 메일 값을 쓰고 기록과 다르다고만 알린다
+    let palNote = "";
+    if(r.pallets!=null && +r.pallets!==+g.plt){
+      // XLG는 LOT 수와 실제 파렛트 수가 다를 수 있어 메일 값, XLS·XLD는 LOT=파렛트라 낙찰파일 값(글자 오인식 방지). 붙여넣은 글은 메일 값.
+      if(g.type==="XLG" || r.fromText) palNote = `파렛트 메일 ${r.pallets} / 낙찰파일 LOT ${g.plt} — 메일 값 사용(확인)`;
+      else { diff.push(`파렛트 ${r.pallets}→${g.plt}`); r.pallets = g.plt; }
+    }
+    r.number = g.num; r.bidcode = g.bidcode; r.fc = g.fc; r.groupPrefix = g.prefix; r.type = g.type;
+    r.group = `${g.prefix}(${g.num})_${g.fc}`;
+    if(r.pallets==null) r.pallets = g.plt;
+    r.dict = true;
+    r.warn = (r.warn||[]).filter(w=>!/NUMBER|그룹|파렛트/.test(w));
+    r.warn.unshift("✓ 고정인수 기록과 일치" + (diff.length ? ` (글자인식 보정: ${diff.join(", ")})` : ""));
+    if(palNote) r.warn.push(palNote);
+  });
+  return rows;
+}
+function fiDispAssign(rows, entryOverride){
+  // 유형(XLS/XLG/XLD)별로 같은 낙찰일 고정인수 기록의 분배표에서, FC별 하차지를 메일 행 순서대로 소진하며 배정
   const pools = {};
   rows.forEach(r=>{ r.dest = ""; r.destNote = ""; });
-  if(!entry) return rows;
   rows.forEach(r=>{
-    const t = r.type || "XLG";
+    const t = r.type;
+    if(!t || !["XLS","XLG","XLD"].includes(t)){ r.destNote = "고정인수(XLS·XLG·XLD) 외 출고 — 도착지 선택"; return; }
+    const entry = entryOverride || fiDispFindHistory(r.bidDate, t).exact;
+    if(!entry){ r.destNote = `${r.bidDate||"?"} ${t} 분배 기록 없음`; if(t==="XLD") r.dest = FI_JINCHEON; return; }
     const plan = (entry.plan||{})[t] || [];
     const pr = plan.find(p=> p.fc===r.fc) || plan.find(p=> fiCenterName(p.fc)===fiCenterName(r.fc));
-    if(!pr){ r.destNote = "분배표에 이 센터 없음"; return; }
-    const key = t+"|"+pr.fc;
+    if(!pr){ r.destNote = "분배표에 이 센터 없음"; if(t==="XLD") r.dest = FI_JINCHEON; return; }
+    const key = entry.id+"|"+t+"|"+pr.fc;
     if(!pools[key]) pools[key] = pr.alloc.map(a=>({ store:a.store, left:+a.plt||0 }));
     const pool = pools[key];
     let need = r.pallets || 0;
@@ -12888,7 +13003,38 @@ function fiDispAssign(rows, entry){
     for(const a of pool){ if(need<=0) break; if(a.left<=0) continue; const take=Math.min(a.left, need||a.left); a.left-=take; need-=take; used.push(a.store); }
     if(!used.length && pool.length) used.push(pool[pool.length-1].store);
     r.dest = Array.from(new Set(used)).join(", ");
+    r.entryDate = entry.date;
     if(used.length>1) r.destNote = "여러 매장 분할 — 확인";
+  });
+  return rows;
+}
+// 고정인수 외 일반 리퀴데이션(A/B/C/E 그룹 등): 해당 카테고리 매장재고(+미반영) · 센터 거리로 하차지 추천
+const FI_PREFIX_CAT = { A:0, B:1, C:2, E:3, G:4, GD:4, GH:4, GE:4, S:17 };
+function fiDispSuggest(rows){
+  const snap = (typeof fiLatestSnap==="function") ? fiLatestSnap() : null;
+  if(!snap) return rows;
+  const base = fiStockMap(snap); const raw = snap.stock || {};
+  const el = fiEligMap();
+  const stores = Object.keys(el).filter(s=> s!==FI_JINCHEON && !FI_CLOSING.includes(s) && fiEligible(s,"XLS",el));
+  const add = {};
+  rows.forEach(r=>{ if(r.dest) String(r.dest).split(", ").forEach(d=> add[d]=(add[d]||0)+(+r.pallets||0)); });
+  rows.forEach(r=>{
+    if(r.dest) return;
+    if(r.type==="XLD" || (r.type==="XLG" && String(r.fc).toUpperCase()==="GYS2")){ r.dest = FI_JINCHEON; r.destNote = `${r.type==="XLD"?"XLD 전 센터":"XLG 경산"} → 진천센터 규칙`; return; }
+    const idx = FI_PREFIX_CAT[r.groupPrefix];
+    const geo = FI_REGION_GEO[fiCenterRegion(r.fc)];
+    if(idx==null || !geo) return;
+    const cat = ["XLA","XLB","XLC","XLE","XLG"][idx] || "XLS";
+    let best = null;
+    stores.forEach(s=>{
+      const a = raw[s] || []; const cur = (+a[idx]||0) + (add[s]||0); const yard = +a[16]||0;
+      const dist = fiDistKm(geo, FI_STORE_GEO[s]); if(dist==null) return;
+      const sc = (20 - cur) - dist/30 - Math.min(10, yard/10);
+      if(!best || sc > best.sc) best = { s, sc, cur, dist, yard };
+    });
+    if(!best) return;
+    r.dest = best.s; add[best.s] = (add[best.s]||0) + (+r.pallets||0);
+    r.destNote = `추천: ${cat} 재고 ${best.cur}PLT · ${fiCenterName(r.fc)}에서 ${best.dist}km${best.yard?` · 야적 ${best.yard}`:""} — 고정인수 외 출고라 확인 필요`;
   });
   return rows;
 }
@@ -12925,59 +13071,68 @@ const FI_DISP_VALID = {
   pallets: t=> /^\d{1,3}$/.test(fiFixDigits(t)), vendor: ()=>true
 };
 // ocrFn(rgbaImage, psm) → Promise<text>. 브라우저(tesseract.js)·테스트(node) 공용 드라이버
+// 역할별로 여러 방식(확대 배율·이진화·영문 전용+허용 글자)으로 읽어 후보를 모은다
+const FI_OCR_PLANS = {
+  bidDate:  [{ lang:"kor", s:3, thr:165 }, { lang:"eng", s:4, thr:0, wl:"0123456789-" }],
+  bidcode:  [{ lang:"eng", s:4, thr:170, wl:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" }, { lang:"eng", s:4, thr:0, wl:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" }, { lang:"eng", s:3, thr:0, wl:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" }],
+  group:    [{ lang:"eng", s:4, thr:0, wl:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789()_" }, { lang:"eng", s:4, thr:170, wl:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789()_" }, { lang:"eng", s:3, thr:0, wl:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789()_" }],
+  number:   [{ lang:"kor", s:3, thr:165 }, { lang:"eng", s:4, thr:170, wl:"0123456789" }, { lang:"eng", s:3, thr:0, wl:"0123456789" }],
+  pallets:  [{ lang:"eng", s:4, thr:0, wl:"0123456789", psm:"10", trim:1 }, { lang:"eng", s:4, thr:170, wl:"0123456789", psm:"8", trim:1 }, { lang:"kor", s:3, thr:165 }],
+  outbound: [{ lang:"kor", s:3, thr:165 }, { lang:"kor", s:4, thr:0 }],
+  vendor:   []
+};
 async function fiDispOcrImage(img, ocrFn, onProgress){
   const g = fiDispGray(img);
   const grid = fiDispGrid(g, img.width, img.height);
   if(!grid) throw new Error("표(테두리 선)를 찾지 못했습니다. 메일의 표 부분이 보이게 캡처해 주세요.");
   const cells = fiDispCells(grid);
-  const nRows = Math.max(...cells.map(c=>c.r)) + 1;
-  const texts = [];
-  const read = async (c, scale, psm) => (await ocrFn(fiDispCrop(g, img.width, c.x0, c.y0, c.x1, c.y1, scale), psm || "7")).trim();
-  // 1) 머리글 행 → 열 역할
-  const hdr = cells.filter(c=>c.r===cells[0].r);
+  const read = async (c, p) => String(await ocrFn(fiDispCrop(g, img.width, c.x0, c.y0, c.x1, c.y1, p.s, p.thr, p.trim), { psm:p.psm||"7", lang:p.lang, wl:p.wl||"" })).trim();
+  const r0 = cells[0].r;
+  const hdr = cells.filter(c=>c.r===r0);
   const hdrText = [];
-  for(const c of hdr) hdrText[c.c] = await read(c, 3);
-  const isHdr = hdrText.filter(t=>/낙찰|BID|GROUP|NUMB|파렛|VEND|OUTB/i.test(t||"")).length >= 2;
+  for(const c of hdr) hdrText[c.c] = await read(c, { lang:"kor", s:3, thr:165 });
+  const isHdr = hdrText.filter(t=>/낙찰|BID|GROUP|NUMB|파렛|VEND|OUTB|업체|출고/i.test(t||"")).length >= 2;
   const roles = isHdr ? hdrText.map((t,i)=>fiDispColRole(t,i)) : FI_DISP_COLS.slice();
-  texts.push(hdrText);
-  // 2) 데이터 칸
-  let done = 0; const total = cells.length - (isHdr ? hdr.length : 0);
-  for(const c of cells){
-    if(isHdr && c.r===cells[0].r) continue;
-    const role = roles[c.c];
-    let t = await read(c, 3);
-    const ok = FI_DISP_VALID[role];
-    if(ok && !ok(t)){ for(const [sc,psm] of [[4,"7"],[5,"7"],[3,"8"],[2,"7"]]){ const t2 = await read(c, sc, psm); if(ok(t2)){ t=t2; break; } } }
-    (texts[c.r] = texts[c.r] || [])[c.c] = t;
-    done++; if(onProgress) onProgress(done/total);
+  const texts = [hdrText];
+  const data = cells.filter(c=> !(isHdr && c.r===r0));
+  const total = data.reduce((s,c)=> s + Math.max(1,(FI_OCR_PLANS[roles[c.c]]||[]).length), 0);
+  let done = 0;
+  for(const c of data){
+    const plans = FI_OCR_PLANS[roles[c.c]] || [];
+    const cands = [];
+    for(const p of plans){ cands.push(await read(c, p)); done++; if(onProgress) onProgress(done/total); }
+    if(!plans.length){ done++; }
+    (texts[c.r] = texts[c.r] || [])[c.c] = cands;
   }
-  // 3) 표 위쪽 안내문(유형·배차 시간 안내)
   let head = "";
-  if(grid.top > 12) head = await ocrFn(fiDispCrop(g, img.width, 0, 0, img.width-1, grid.top-3, 2), "6");
+  if(grid.top > 12) head = await ocrFn(fiDispCrop(g, img.width, 0, 0, img.width-1, grid.top-3, 2), { psm:"6", lang:"kor" });
+  // 같은 낙찰일 기록의 FC로 범위를 좁혀 FC 오인식을 줄인다
+  const dates = new Set();
+  texts.slice(1).forEach(row=> (row||[]).forEach((cands,ci)=>{ if(roles[ci]==="bidDate") (cands||[]).forEach(t=>{ const d=fiFixDate(t); if(d) dates.add(d.replace(/-/g,"")); }); }));
+  FI_FC_SCOPE = fiDispScope(Array.from(dates));
   const rows = fiDispRowsFromGrid(texts.filter(Boolean), head);
+  FI_FC_SCOPE = null;
   return { rows: fiDispPost(rows, head), head };
 }
 // 행 사이 교차 보정: 그룹 접두어 다수결, 낙찰일/출고일 빈 값 채우기, NUMBER↔그룹번호 대조
 function fiDispPost(rows, head){
-  const cnt = {}; rows.forEach(r=>{ if(r.groupPrefix) cnt[r.groupPrefix]=(cnt[r.groupPrefix]||0)+1; });
-  const major = Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0] || "";
-  const confus = s => String(s).replace(/[0O]/g,"D").replace(/6/g,"G").replace(/5/g,"S");
-  const date0 = (rows.find(r=>r.bidDate)||{}).bidDate || "";
-  const out0 = (rows.find(r=>r.outboundDate)||{}).outboundDate || "";
-  const ap0 = (rows.find(r=>r.outboundAmPm)||{}).outboundAmPm || "";
-  const type0 = fiTypeFromText(head) || fiTypeFromText(major ? major+"(" : "");
+  const date0 = _fiVote(rows.map(r=>r.bidDate));
+  const out0 = _fiVote(rows.map(r=>r.outboundDate));
+  const type0 = fiTypeFromText(head);
   rows.forEach(r=>{
     r.warn = [];
-    if(major && r.groupPrefix !== major && confus(r.groupPrefix)===confus(major)) r.groupPrefix = major;
-    const g = fiParseGroup(r.group);
-    if(r.groupPrefix && g.num && r.fc) r.group = `${r.groupPrefix}(${g.num})_${r.fc}`;
-    if(g.num && r.number && g.num !== r.number){ r.warn.push(`NUMBER ${r.number} ↔ 그룹 ${g.num} 불일치 → 그룹 번호 사용`); r.number = g.num; }
-    if(!r.number && g.num) r.number = g.num;
+    if(r.groupNum && r.number && r.groupNum !== r.number) r.warn.push(`NUMBER ${r.number} ↔ 그룹 ${r.groupNum} 다름(NUMBER 칸 사용)`);
     if(!r.bidDate){ r.bidDate = date0 || out0; r.warn.push("낙찰일 인식 보정(확인)"); }
-    if(!r.outboundDate){ r.outboundDate = out0 || r.bidDate; r.warn.push("출고일 인식 보정"); }
-    if(!r.outboundAmPm){ r.outboundAmPm = ap0; }
-    if(!r.type) r.type = fiTypeFromText(r.groupPrefix ? r.groupPrefix+"(" : "") || type0 || "XLG";
-    if(!r.pallets) r.warn.push("파렛트 수 확인");
+    if(!r.outboundDate){ r.outboundDate = out0 || r.bidDate; r.warn.push("출고일 인식 보정(확인)"); }
+    if(!r.type) r.type = type0 || "";
+  });
+  fiDispResolve(rows);
+  rows.forEach(r=>{
+    if(!r.dict){
+      r.warn.push(/^AF[A-Z0-9]{8}$/.test(r.bidcode||"") ? "고정인수 기록에 없음 — 입차코드·NUMBER 메일과 대조" : "입차코드 확인");
+      if(!r.pallets) r.warn.push("파렛트 수 확인");
+      if(!r.fc) r.warn.push("FC 확인");
+    }
   });
   return rows;
 }
@@ -12985,7 +13140,6 @@ function fiDispNote(head){
   const m = String(head||"").replace(/\s+/g," ").match(/배차[^.。\n]*?(\d{1,2})\s*시[^.。\n]*/);
   return m ? m[0].trim() : "";
 }
-
 
 /* ---- 배차 요청서 화면 ---- */
 var FI_DISPATCH_HISTORY; if(!Array.isArray(FI_DISPATCH_HISTORY)) FI_DISPATCH_HISTORY = [];
@@ -13015,7 +13169,9 @@ async function fiOcrWorker(status){
   // 엔진은 버전을 고정한 jsdelivr 경로, 언어 데이터(kor·eng)는 tesseract.js 기본 경로(@tesseract.js-data, 브라우저 캐시됨)
   const opts = Object.assign({ workerPath:"https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js",
     corePath:"https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1" }, window.FI_TESS_OPTS || {});
-  _fiOcrWorker = await T.createWorker(["kor","eng"], 1, opts);
+  // build 116: 한글 포함 칸(kor+eng)과 코드·숫자 칸(eng, 허용 글자 제한)을 다른 엔진으로 읽는다
+  const [kor, eng] = await Promise.all([ T.createWorker(["kor","eng"], 1, opts), T.createWorker("eng", 1, opts) ]);
+  _fiOcrWorker = { kor, eng };
   return _fiOcrWorker;
 }
 async function fiImageData(file){
@@ -13036,7 +13192,9 @@ async function fiDispFromImage(file){
     status("이미지 읽는 중…");
     const img = await fiImageData(file);
     const w = await fiOcrWorker(status);
-    const ocr = async (im, psm)=>{ await w.setParameters({ tessedit_pageseg_mode: String(psm||"7") }); const r = await w.recognize(fiRgbaToCanvas(im)); return r.data.text||""; };
+    const ocr = async (im, o)=>{ o = o||{}; const wk = o.lang==="eng" ? w.eng : w.kor;
+      await wk.setParameters({ tessedit_pageseg_mode: String(o.psm||"7"), tessedit_char_whitelist: o.wl||"" });
+      const r = await wk.recognize(fiRgbaToCanvas(im)); return r.data.text||""; };
     status("표 칸별로 글자 인식 중…");
     const res = await fiDispOcrImage(img, ocr, p=> status(`표 칸별로 글자 인식 중… ${Math.round(p*100)}%`));
     if(!res.rows.length) throw new Error("표에서 출고 행을 찾지 못했습니다.");
@@ -13051,13 +13209,15 @@ function fiDispFromText(text){
 }
 function fiDispStart(rows, note, src){
   const r0 = rows[0] || {};
-  const type = r0.type || "XLG";
-  const hit = fiDispFindHistory(r0.bidDate, type);
-  const entry = hit.exact;
-  fiDispAssign(rows, entry);
-  const matchInfo = entry ? { ok:true, date:entry.date, id:entry.id, text:`고정인수 기록 ${entry.date} (${entry.at}) ${type} 분배표로 도착지를 채웠습니다.` }
+  fiDispAssign(rows);   // build 116: 행마다 유형(XLS/XLG/XLD)·낙찰일에 맞는 분배표 사용
+  fiDispSuggest(rows); // 고정인수 외 행은 재고·거리로 추천
+  const got = rows.filter(r=>r.dest).length, dictN = rows.filter(r=>r.dict).length;
+  const ents = Array.from(new Set(rows.map(r=>r.entryDate).filter(Boolean)));
+  const hit = fiDispFindHistory(r0.bidDate, null);
+  const miss = rows.filter(r=>!r.dest);
+  const matchInfo = got ? { ok: !miss.length, date:ents.join(","), text:`고정인수 분배표(${ents.join(", ")||"-"})로 ${got}/${rows.length}행 도착지 지정 · 고정인수 기록과 일치 ${dictN}행${miss.length?` — 도착지 없는 ${miss.length}행(${miss.map(r=>r.group||r.number).slice(0,4).join(", ")}${miss.length>4?" …":""})은 직접 선택`:""}` }
     : { ok:false, latestId: hit.latest && hit.latest.id, latestDate: hit.latest && hit.latest.date,
-        text:`낙찰일 ${r0.bidDate||"?"} 과 같은 날짜의 고정인수 ${type} 분배 기록이 없습니다 — 도착지를 직접 고르세요.` };
+        text:`낙찰일 ${r0.bidDate||"?"} 과 같은 날짜의 고정인수 분배 기록이 없습니다 — 도착지를 직접 고르세요.` };
   rows.forEach(r=>{ r.memo = (r.warn||[]).concat(r.destNote?[r.destNote]:[]).join(" / "); });
   _fiDisp = { id: Date.now(), at: new Date().toLocaleString("ko-KR"), rows, note: note || "", matchInfo, src };
   fiDispSave();
@@ -13112,7 +13272,7 @@ function fiDispRender(){
     <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="outboundAmPm">${["오전","오후",""].map(x=>`<option ${x===r.outboundAmPm?"selected":""} value="${x}">${x||"-"}</option>`).join("")}</select></td>
     <td>${ed(r,i,"fc",r.fc,62)} <span class="fi-mut">${escHtml(fiCenterName(r.fc)||"")}</span></td>
     <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="dest">${fiDispDestOptions(r)}</select></td>
-    <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="type">${["XLG","XLS","XLD"].map(x=>`<option ${x===r.type?"selected":""}>${x}</option>`).join("")}</select></td>
+    <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="type">${["XLG","XLS","XLD","XLA","XLB","XLC","XLE"].concat(r.type&&!["XLG","XLS","XLD","XLA","XLB","XLC","XLE"].includes(r.type)?[r.type]:[]).map(x=>`<option ${x===r.type?"selected":""}>${x}</option>`).join("")}</select></td>
     <td class="fi-why" style="color:var(--amber);font-size:12px">${escHtml(r.memo||"")}</td></tr>`).join("")}
   </tbody></table></div>`;
   // 엑셀 미리보기 (예시 양식 그대로)
