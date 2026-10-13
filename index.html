@@ -1070,7 +1070,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 120 · 2026-10-13</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 121 · 2026-10-13</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -12288,6 +12288,8 @@ function fiStockMap(snap){
   });
   return out;
 }
+// build 121: XLG(XLGH 포함) 센터 → 매장 고정 직출(당분간). 키 = FC 코드 또는 센터명. 해제하려면 항목을 지우면 된다.
+const FI_XLG_FIXED = { "YEO2":"이천점" };   // 여주2센터 XLG·XLGH → 이천점
 // 분배 계획. builds = fiBuild 결과 배열. 반환: { XLS:[{fc,name,plt,region,alloc:[{store,plt,why}]}], XLG:[...], XLD:[...] }
 function fiPlan(builds, stockMap, opt){
   const S = Object.assign({}, FI_SETTINGS, opt||{});
@@ -12322,6 +12324,8 @@ function fiPlan(builds, stockMap, opt){
   // XLG: 경산 → 진천센터, 나머지는 센터 통째로 1개 매장 (PLT 많은 센터부터)
   plan.XLG.slice().sort((a,b)=>b.plt-a.plt).forEach(r=>{
     if(r.region==="경산"){ r.alloc=[{ store:FI_JINCHEON, plt:r.plt, why:"XLG 경산센터 → 진천센터 고정" }]; return; }
+    const fixed = FI_XLG_FIXED[String(r.fc||"").toUpperCase()] || FI_XLG_FIXED[r.name];
+    if(fixed){ assigned.XLG[fixed] = (assigned.XLG[fixed]||0) + r.plt; r.alloc=[{ store:fixed, plt:r.plt, why:`XLG ${r.name}센터 → ${fixed} 직출 고정` }]; return; }
     const geo = FI_REGION_GEO[r.region];
     if(!geo){ r.alloc=[{ store:FI_JINCHEON, plt:r.plt, why:"센터 위치 미확인 → 진천센터(수정 필요)" }]; return; }
     let best=null;
