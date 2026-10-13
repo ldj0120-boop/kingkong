@@ -1072,7 +1072,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 122 · 2026-10-13</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 124 · 2026-10-13</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -13279,13 +13279,26 @@ function fiDispSave(){
   FI_DISPATCH_HISTORY = fiMergeHistory([e], FI_DISPATCH_HISTORY.filter(h=>h.id!==e.id));
   fiDispPersist();
 }
+// build 123: 도착지는 어느 매장이든 고를 수 있게 — 위쪽은 이 유형 취급 매장(추천), 아래쪽은 나머지 전체 매장.
+//            (XLE·XLA 등 고정인수 외 유형은 취급표가 없어 예전엔 진천센터·폐점예정 매장만 보였음)
+// build 124: 목록에 있는 도착지인지 (아니면 "직접 입력" 칸에 보여 준다)
+function fiDispKnownDest(s){
+  s = String(s||""); if(!s) return true;
+  return s===FI_JINCHEON || Object.prototype.hasOwnProperty.call(fiEligMap(), s) || (typeof STORES!=="undefined" && STORES.includes(s));
+}
 function fiDispDestOptions(r){
   const el = fiEligMap(), t = r.type || "XLG";
-  const list = [""].concat(Object.keys(el).filter(s=> s===FI_JINCHEON || fiEligible(s, t==="XLD"?"XLG":t, el)));
-  FI_CLOSING.forEach(s=>{ if(!list.includes(s)) list.push(s); });
-  String(r.dest||"").split(", ").forEach(d=>{ if(d && !list.includes(d)) list.push(d); });
-  return list.map(s=>`<option value="${escHtml(s)}" ${s===r.dest?"selected":""}>${s?escHtml(s)+(FI_CLOSING.includes(s)?" (폐점예정)":""):"(선택)"}</option>`).join("")
-    + (String(r.dest||"").includes(", ") ? `<option selected value="${escHtml(r.dest)}">${escHtml(r.dest)}</option>` : "");
+  const known = ["XLG","XLS","XLD"].includes(t);
+  const top = known ? Object.keys(el).filter(s=> s===FI_JINCHEON || fiEligible(s, t, el)) : [];
+  const all = [];
+  [FI_JINCHEON].concat(Object.keys(el), (typeof STORES!=="undefined" ? STORES : [])).forEach(s=>{ if(s && !top.includes(s) && !all.includes(s)) all.push(s); });
+  const cur = String(r.dest||"");
+  if(cur && !cur.includes(", ") && !top.includes(cur) && !all.includes(cur)) all.unshift(cur);   // 직접 입력한 값도 목록 맨 위에 보이게
+  const opt = s=>`<option value="${escHtml(s)}" ${s===cur?"selected":""}>${escHtml(s)+(FI_CLOSING.includes(s)?" (폐점예정)":"")}</option>`;
+  return `<option value="" ${cur?"":"selected"}>(선택)</option>`
+    + (top.length ? `<optgroup label="${escHtml(t)} 취급 매장">${top.map(opt).join("")}</optgroup>` : "")
+    + `<optgroup label="${top.length?"그 외 전체 매장":"전체 매장"}">${all.map(opt).join("")}</optgroup>`
+    + (cur.includes(", ") ? `<option selected value="${escHtml(cur)}">${escHtml(cur)}</option>` : "");
 }
 // 엑셀 예시(더한 배차표) 열 구성: NO | 낙찰일 | 입차CODE | 낙찰NO | Group Number | PLT수량 | 출고일시 | FC | 도착지 | 카테. | 비고
 function fiDispSheetRows(rows){
@@ -13317,7 +13330,7 @@ function fiDispRender(){
     <td>${ed(r,i,"number",r.number,70)}</td><td class="n">${ed(r,i,"pallets",r.pallets,40)}</td><td>${ed(r,i,"outboundDate",r.outboundDate,92)}</td>
     <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="outboundAmPm">${["오전","오후",""].map(x=>`<option ${x===r.outboundAmPm?"selected":""} value="${x}">${x||"-"}</option>`).join("")}</select></td>
     <td>${ed(r,i,"fc",r.fc,62)} <span class="fi-mut">${escHtml(fiCenterName(r.fc)||"")}</span></td>
-    <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="dest">${fiDispDestOptions(r)}</select></td>
+    <td style="white-space:nowrap"><select class="fi-dinp" data-fd-i="${i}" data-fd-k="dest">${fiDispDestOptions(r)}</select> <input class="fi-dinp fi-dfree" data-fd-i="${i}" data-fd-k="dest" placeholder="직접 입력" title="목록에 없는 도착지는 여기에 입력" value="${escHtml(r.dest && !fiDispKnownDest(r.dest) ? r.dest : "")}" style="width:96px"></td>
     <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="type">${["XLG","XLS","XLD","XLA","XLB","XLC","XLE"].concat(r.type&&!["XLG","XLS","XLD","XLA","XLB","XLC","XLE"].includes(r.type)?[r.type]:[]).map(x=>`<option ${x===r.type?"selected":""}>${x}</option>`).join("")}</select></td>
     <td class="fi-why" style="color:var(--amber);font-size:12px">${escHtml(r.memo||"")}</td></tr>`).join("")}
   </tbody></table></div>`;
@@ -13742,6 +13755,8 @@ function wireFixedDispatch(){
     fiDispSave();
     if(t.tagName==="SELECT" || k==="fc" || k==="type" || k==="skip") fiDispRender(); else fiDispRenderOut();
   });
+  // build 124: 도착지 직접 입력 — 입력 중엔 미리보기만, 칸을 벗어나면(엔터·Tab) 선택상자에도 반영
+  box.addEventListener("change", e=>{ const t = e.target; if(t.classList && t.classList.contains("fi-dfree") && _fiDisp){ const r=_fiDisp.rows[+t.dataset.fdI]; r.dest = String(t.value||"").trim(); fiDispSave(); fiDispRender(); } });
   box.addEventListener("click", e=>{
     const b = e.target.closest("button"); if(!b) return;
     if(b.id==="fiDispCopy") fiCopyText(document.getElementById("fiDispText").value, document.getElementById("fiDispCopyMsg"));
