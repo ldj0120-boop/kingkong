@@ -1072,7 +1072,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 126 · 2026-10-13</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 127 · 2026-10-13</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -13545,6 +13545,7 @@ function lsCell(ref, v, s, sst){
   }
   return '<c r="'+ref+'"'+sa+' t="s"><v>'+sst.idx(String(v))+'</v></c>';
 }
+function lsCellV(ref, v, st, sst){ if(v && typeof v==="object" && v.f!=null) v=v.v; return lsCell(ref, v, st, sst); }
 function lsColsXml(cols){
   if(!cols||!cols.length) return "";
   return "<cols>"+cols.map(function(c){ var fl=c[4]||0, ol=(fl>>8)&7;
@@ -13656,29 +13657,29 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
     all.forEach(function(row,i){ var r=i+1; s.w('<row r="'+r+'">'+row.map(function(v,c){ return lsCell(lsCol(c)+r,v,null,sst2); }).join("")+'</row>'); });
     s.w(lsSheetTail({})); s.end();
   })();
-  // ---- PLT CATE
+  // ---- PLT CATE  (build 127: 계산 결과 값으로 저장 — COUNTIFS/SUMIFS/VLOOKUP 1만여 개가 36만 행을 매번 다시 계산해 엑셀이 느려지던 원인)
   prog("PLT CATE 작성 중…"); await tick();
   (function(){
     var nm="PLT CATE", sp=oth[nm]||{}, hs=specCells(sp,function(r){ return r===0; }), st=lsColStyles(sp,1), s=stream("xl/worksheets/"+sheetFile[nm]);
     s.w(lsSheetHead({sel:false, zoom:zoomOf(nm), cols:sp.cols}));
-    s.w('<row r="1">'+(hs.get(0)||[]).sort(function(a,b){ return a[1]-b[1]; }).map(function(c){ return lsCell(lsCol(c[1])+"1",c[4],c[2],sst2); }).join("")+'</row>');
+    s.w('<row r="1">'+(hs.get(0)||[]).sort(function(a,b){ return a[1]-b[1]; }).map(function(c){ return lsCellV(lsCol(c[1])+"1",c[4],c[2],sst2); }).join("")+'</row>');
     var labs=["A","B","C","E","K","임박","대형"], pats=["*XLA*","*XLB*","*XLC*","*XLE*","*XLK*","*XLR*","*XLW*"];
     var catF=[["주방","주방용품"],["가전디지털"],["생활용품"],["가구/홈인테리어"],["식품","로켓프레시"],["패션의류"],["패션잡화"],["뷰티"],["완구/취미","반려/애완용품","도서/음반","문구/사무용품","스포츠/레저용품","자동차용품","출산/유아"]];
     var nR=Math.max(A.aCol.length, M, N);
     for(var k=1;k<=nR;k++){
       var r=k+1, i=k-1, x="";
-      if(i<A.aCol.length){ x+=lsCell("A"+r,A.aCol[i],st[0],sst2)+lsCell("B"+r,A.bCol[i],st[1],sst2); }
-      if(i<N) x+=lsCell("C"+r,A.rows[i].no,st[2],sst2);
-      if(i<M){ var lot=A.lotOrder[i]; x+=lsCell("D"+r,lot,st[3],sst2)+lsCell("E"+r,{f:"VLOOKUP(D"+r+",A$2:B$899999,2,FALSE)",v:String(A.lotNo.get(lot))},st[4],sst2); }
+      if(i<A.aCol.length){ x+=lsCellV("A"+r,A.aCol[i],st[0],sst2)+lsCellV("B"+r,A.bCol[i],st[1],sst2); }
+      if(i<N) x+=lsCellV("C"+r,A.rows[i].no,st[2],sst2);
+      if(i<M){ var lot=A.lotOrder[i]; x+=lsCellV("D"+r,lot,st[3],sst2)+lsCellV("E"+r,{f:"VLOOKUP(D"+r+",A$2:B$899999,2,FALSE)",v:String(A.lotNo.get(lot))},st[4],sst2); }
       if(i<N){
         var R=A.rows[i], cn=R.cnt;
-        labs.forEach(function(l,j){ x+=lsCell(lsCol(6+j)+r,{f:'COUNTIFS(E$1:E$1048576,C'+r+',D$1:D$1048576,"'+pats[j]+'")',v:cn[l]||0},st[6+j],sst2); });
-        x+=lsCell("N"+r,{f:'COUNTIFS(E$1:E$1048576,C'+r+',D$1:D$1048576,"*???-XLB?-777*")+COUNTIFS(E$1:E$1048576,C'+r+',D$1:D$1048576,"*???-XLB??-777*")+COUNTIFS(E$1:E$1048576,C'+r+',D$1:D$1048576,"*???-XLB???-777*")',v:cn["777"]||0},st[13],sst2);
+        labs.forEach(function(l,j){ x+=lsCellV(lsCol(6+j)+r,{f:'COUNTIFS(E$1:E$1048576,C'+r+',D$1:D$1048576,"'+pats[j]+'")',v:cn[l]||0},st[6+j],sst2); });
+        x+=lsCellV("N"+r,{f:'COUNTIFS(E$1:E$1048576,C'+r+',D$1:D$1048576,"*???-XLB?-777*")+COUNTIFS(E$1:E$1048576,C'+r+',D$1:D$1048576,"*???-XLB??-777*")+COUNTIFS(E$1:E$1048576,C'+r+',D$1:D$1048576,"*???-XLB???-777*")',v:cn["777"]||0},st[13],sst2);
         var parts=["G","H","I","J","K","L","M","N"].map(function(c,j){ return '(_xlfn.IFS('+c+r+'>0,(CONCATENATE('+c+'$1,"-",'+c+r+(j<6?',", "':'')+')),'+c+r+'=0,""))'; });
-        x+=lsCell("O"+r,{f:"CONCATENATE("+parts.join(",")+")",v:R.cat},st[14],sst2);
+        x+=lsCellV("O"+r,{f:"CONCATENATE("+parts.join(",")+")",v:R.cat},st[14],sst2);
         catF.forEach(function(ks,j){ var f=ks.map(function(k2){ return 'IFERROR(SUMIFS(INDEX(Sheet1!A$1:Z$1048576,,MATCH("'+k2+'",Sheet1!$A$1:$XFD$1,0)),Sheet1!$A$1:$A$1048576,C'+r+'),0)'; }).join("+");
-          x+=lsCell(lsCol(17+j)+r,{f:f,v:R.cats[j]},st[17+j],sst2); });
-        x+=lsCell("AA"+r,{f:"SUM(R"+r+":Z"+r+")",v:R.cats.reduce(function(a,b){ return a+b; },0)},st[26],sst2);
+          x+=lsCellV(lsCol(17+j)+r,{f:f,v:R.cats[j]},st[17+j],sst2); });
+        x+=lsCellV("AA"+r,{f:"SUM(R"+r+":Z"+r+")",v:R.cats.reduce(function(a,b){ return a+b; },0)},st[26],sst2);
       }
       s.w('<row r="'+r+'">'+x+'</row>');
     }
