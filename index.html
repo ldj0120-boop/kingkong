@@ -490,6 +490,8 @@
   .fi-sel,.fi-plt,.fi-set-grid input{background:var(--ink);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-size:12.5px;}
   .fi-plt{width:64px;text-align:right;}
   button.act.fi-mini{padding:5px 10px;font-size:11.5px;}
+  button.act.fi-del{color:var(--red);border-color:rgba(255,99,99,.45);}
+  button.act.fi-del:hover{background:rgba(255,99,99,.12);}
   .fi-addrow td{border-bottom:none;padding-top:2px;}
   .fi-text{width:100%;min-height:300px;background:var(--ink);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:12px;font-size:13.5px;line-height:1.55;font-family:inherit;resize:vertical;box-sizing:border-box;}
   .fi-ref{margin:6px 0 4px;} .fi-ref summary{cursor:pointer;color:var(--muted);font-size:13px;margin-bottom:6px;}
@@ -1070,7 +1072,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 121 · 2026-10-13</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 122 · 2026-10-13</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1147,7 +1149,7 @@
     <button class="tab" role="tab" id="tab-agg" aria-selected="false" aria-controls="view-agg">매장별 재고/공급 현황</button>
     <button class="tab" role="tab" id="tab-sales" aria-selected="false" aria-controls="view-sales">매장별 매출</button>
     <button class="tab" role="tab" id="tab-goals" aria-selected="false" aria-controls="view-goals">목표매출 달성 방안</button>
-    <button class="tab" role="tab" id="tab-fixed" aria-selected="false" aria-controls="view-fixed">고정인수</button>
+    <button class="tab" role="tab" id="tab-fixed" aria-selected="false" aria-controls="view-fixed">낙찰파일 / 분배표 생성기</button>
   </div>
 
   <section id="view-agg" role="tabpanel" aria-labelledby="tab-agg" hidden>
@@ -1457,26 +1459,10 @@
   </section>
 
   <section id="view-fixed" role="tabpanel" aria-labelledby="tab-fixed" hidden>
-    <!-- build 111: 고정인수 — 쿠팡 리퀴데이션 고정 리스트(XLG/XLS/기저귀) → 낙찰파일(원본/종합/RAW) + 직출 분배표 + 카톡 문구 + 히스토리 -->
-    <div class="agg-card">
-      <div class="p-hd">
-        <span class="store-name">고정인수 · 낙찰파일 생성 & 직출 분배</span>
-        <span class="meta" id="fiMeta"></span>
-      </div>
-      <div class="fi-body">
-        <div id="fiDrop" class="fi-drop" role="button" tabindex="0">
-          <div class="fi-drop-t">쿠팡 리퀴데이션 고정 리스트 파일을 여기에 끌어다 놓거나 클릭해서 선택</div>
-          <div class="fi-drop-s">XLG(XLGH) · XLS · 기저귀 등(XLD) 3개를 한 번에 올려도 됩니다 — 유형은 LOT 코드·파일명으로 자동 판별</div>
-        </div>
-        <input type="file" id="fiInput" accept=".xlsx,.xlsm,.xls" multiple hidden>
-        <div id="fiStatus" class="fi-status"></div>
-        <div id="fiResult"></div>
-      </div>
-    </div>
-    <!-- build 118: 일반 리퀴데이션 낙찰파일 생성 (아리바 비딩 원본 + 낙찰 LOT No → 원본/RAW/총액) -->
+    <!-- build 118 (build 122부터 탭 맨 위): 일반 리퀴데이션 낙찰파일 생성 (아리바 비딩 원본 + 낙찰 LOT No → 원본/RAW/총액) -->
     <div class="agg-card" id="liqBox">
       <div class="p-hd">
-        <span class="store-name">일반 리퀴데이션 · 낙찰파일 생성</span>
+        <span class="store-name">① 일반 리퀴데이션 · 낙찰파일 생성기</span>
         <span class="meta">아리바 비딩 원본(AR_Bidding_Liquidation) + 낙찰 LOT No → 원본 / RAW / 총액 낙찰파일</span>
       </div>
       <div class="fi-body">
@@ -1502,9 +1488,25 @@
         <div id="liqHistory"></div>
       </div>
     </div>
+    <!-- build 111: 고정인수 — 쿠팡 리퀴데이션 고정 리스트(XLG/XLS/기저귀) → 낙찰파일(원본/종합/RAW) + 직출 분배표 + 카톡 문구 + 히스토리 -->
+    <div class="agg-card">
+      <div class="p-hd">
+        <span class="store-name">② 고정인수 · 낙찰파일 생성 & 직출 분배표</span>
+        <span class="meta" id="fiMeta"></span>
+      </div>
+      <div class="fi-body">
+        <div id="fiDrop" class="fi-drop" role="button" tabindex="0">
+          <div class="fi-drop-t">쿠팡 리퀴데이션 고정 리스트 파일을 여기에 끌어다 놓거나 클릭해서 선택</div>
+          <div class="fi-drop-s">XLG(XLGH) · XLS · 기저귀 등(XLD) 3개를 한 번에 올려도 됩니다 — 유형은 LOT 코드·파일명으로 자동 판별</div>
+        </div>
+        <input type="file" id="fiInput" accept=".xlsx,.xlsm,.xls" multiple hidden>
+        <div id="fiStatus" class="fi-status"></div>
+        <div id="fiResult"></div>
+      </div>
+    </div>
     <div class="agg-card" id="fiDispBox">
       <div class="p-hd">
-        <span class="store-name">배차 요청서 (입차코드)</span>
+        <span class="store-name">③ 배차 요청서 (입차코드)</span>
         <span class="meta">쿠팡 출고일정 메일 캡처 → 입차코드·상차일시·도착지 표 + 물류업체 문구 + 엑셀</span>
       </div>
       <div class="fi-body">
@@ -12554,7 +12556,7 @@ function fiRender(){
   if(!_fiCur){ wrap.innerHTML = `<div class="fi-empty">아직 이번 화면에서 만든 결과가 없습니다. 위에 파일을 놓거나, 아래 히스토리에서 지난 분배표를 볼 수 있습니다.</div>`; fiRenderHistory(); return; }
   _fiCur.stockMap = fiEffStock(fiLatestSnap(), _fiCur.id, fiCurDate());   // build 113/114: 최신 스냅샷 + 미반영 출고
   const c = _fiCur, live = !!c.builds[0] && !!c.builds[0].raw;
-  let h = `<div class="fi-sec-t">① 낙찰파일 (인수리스트)</div><div class="fi-files">`;
+  let h = `<div class="fi-sec-t">① 낙찰파일 (인수리스트) <button class="act fi-mini fi-del" id="fiCurDel" title="화면에서 이번 결과 닫기 (히스토리 기록은 아래 분배 히스토리에서 ✕로 삭제)">✕ 결과 닫기</button></div><div class="fi-files">`;
   c.builds.forEach((b,i)=>{
     const miss = Object.keys(b.missingRate||{});
     h += `<div class="fi-file">
@@ -12669,6 +12671,7 @@ function wireFixedIntake(){
     else if(t.dataset.fiDlidb){
       try{ const v = await idbGet("fi_file_"+t.dataset.fiDlidb); if(v && v.data) fiDownloadBytes(v.name, v.data); else showNotice("이 브라우저에는 그 날 낙찰파일 보관본이 없습니다. (다른 PC에서 만든 기록이면 원본 고정 리스트를 다시 올려 주세요)"); }catch(_){}
     }
+    else if(t.id==="fiCurDel"){ _fiCur = null; const st=document.getElementById("fiStatus"); if(st) st.textContent=""; fiRender(); }
     else if(t.id==="fiCopy"){ fiCopyText(document.getElementById("fiText").value, document.getElementById("fiCopyMsg")); }
     else if(t.dataset.fiOpen){ fiOpenHistory(+t.dataset.fiOpen); }
     else if(t.dataset.fiCopyh){ const hh=FIXED_INTAKE_HISTORY.find(x=>x.id===+t.dataset.fiCopyh); if(hh) fiCopyText(hh.text, t); if(hh) setTimeout(()=>t.textContent="문구 복사",1500); }
@@ -13305,7 +13308,7 @@ function fiDispRender(){
   if(!_fiDisp){ wrap.innerHTML = ""; return; }
   const d = _fiDisp;
   const ed = (r,i,k,val,w)=>`<input class="fi-dinp" data-fd-i="${i}" data-fd-k="${k}" value="${escHtml(val==null?"":val)}" style="width:${w}px">`;
-  let h = `<div class="fi-match ${d.matchInfo.ok?"ok":"bad"}">${escHtml(d.matchInfo.text)}${!d.matchInfo.ok && d.matchInfo.latestId ? ` <button class="act fi-mini" id="fiDispUseLatest">최근 기록(${escHtml(d.matchInfo.latestDate||"")})으로 채우기</button>`:""}</div>`;
+  let h = `<div style="text-align:right;margin-bottom:6px"><button class="act fi-mini fi-del" id="fiDispCurDel" title="화면에서 이번 인식 결과 닫기 (기록은 아래 배차 요청 기록에서 ✕로 삭제)">✕ 인식 결과 닫기</button></div><div class="fi-match ${d.matchInfo.ok?"ok":"bad"}">${escHtml(d.matchInfo.text)}${!d.matchInfo.ok && d.matchInfo.latestId ? ` <button class="act fi-mini" id="fiDispUseLatest">최근 기록(${escHtml(d.matchInfo.latestDate||"")})으로 채우기</button>`:""}</div>`;
   h += `<div class="fi-sec-t" style="margin-top:12px">인식 결과 · 수정 <span class="fi-mut">노란 칸 = 자동 보정/확인 필요</span></div>
   <div style="overflow-x:auto"><table class="fi-tbl"><thead><tr><th>포함</th><th>거래처</th><th>#</th><th>낙찰일</th><th>입차CODE (BIDCODE)</th><th>Group (메일)</th><th>Group Number</th><th class="n">파렛트</th><th>출고일</th><th>오전/오후</th><th>FC</th><th>도착지</th><th>유형</th><th>확인</th></tr></thead><tbody>
   ${d.rows.map((r,i)=>`<tr class="${r.memo?"fi-warnrow":""}" style="${r.skip?"opacity:.45":""}"><td><input type="checkbox" class="fi-dinp" data-fd-i="${i}" data-fd-k="skip" ${r.skip?"":"checked"}></td>
@@ -13654,14 +13657,14 @@ function liqLotTable(perLot, tot){
 function liqRender(){
   const wrap = document.getElementById("liqResult"); if(!wrap) return;
   const f = document.getElementById("liqFileInfo");
-  if(f) f.innerHTML = _liqFile ? `원본: <b>${escHtml(_liqFile.name)}</b> <span class="fi-mut">(${(_liqFile.size/1048576).toFixed(1)}MB) — LOT No를 바꿔 다시 만들 때는 파일을 다시 올릴 필요 없음</span>` : `<span class="fi-mut">원본 파일 없음</span>`;
+  if(f) f.innerHTML = _liqFile ? `원본: <b>${escHtml(_liqFile.name)}</b> <span class="fi-mut">(${(_liqFile.size/1048576).toFixed(1)}MB) — LOT No를 바꿔 다시 만들 때는 파일을 다시 올릴 필요 없음</span> <button class="act fi-mini fi-del" id="liqFileDel" title="올린 원본 빼기">✕ 원본 삭제</button>` : `<span class="fi-mut">원본 파일 없음</span>`;
   if(!_liqCur){ wrap.innerHTML = ""; }
   else {
     const c = _liqCur, b = c.b, miss = Object.keys(b.missingRate||{});
     const tot = { q:b.totals.q, s:b.totals.s, w:b.totals.w };
     wrap.innerHTML = `<div class="fi-file" style="margin-top:10px">
       <div class="fi-file-hd"><span class="fi-type" style="border-color:#E07A4F;color:#E07A4F">리퀴</span> <span class="fi-fname">${escHtml(b.outName)}</span>
-        <button class="act primary fi-mini" id="liqDl">⬇ 다운로드</button></div>
+        <button class="act primary fi-mini" id="liqDl">⬇ 다운로드</button> <button class="act fi-mini fi-del" id="liqResDel" title="화면에서 결과 지우기 (기록은 아래에서 삭제)">✕</button></div>
       ${liqLotTable(b.perLot, tot)}
       ${b.notFound.length?`<div style="color:var(--red);font-size:12.5px;margin-top:6px">⚠ 원본에 없는 LOT No: ${b.notFound.map(escHtml).join(", ")} — 파일에서 빠졌습니다</div>`:""}
       ${miss.length?`<div style="color:var(--red);font-size:12.5px;margin-top:6px">⚠ 도매요율표에 없는 분류 ${miss.length}개 → 도매가 0 처리: ${miss.map(escHtml).join(", ")}</div>`:""}
@@ -13693,7 +13696,7 @@ function wireLiquidation(){
   const box = document.getElementById("liqBox");
   if(!box || box._wired) return; box._wired = true;
   const dz = document.getElementById("liqDrop"), inp = document.getElementById("liqInput");
-  dz.addEventListener("click", ()=> inp.click());
+  dz.addEventListener("click", e=>{ if(e.target.closest("button")) return; inp.click(); });
   dz.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); inp.click(); } });
   inp.addEventListener("change", ()=>{ liqSetFile(inp.files && inp.files[0]); inp.value=""; });
   ["dragenter","dragover"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("dragover"); }));
@@ -13702,7 +13705,9 @@ function wireLiquidation(){
   document.getElementById("liqDate").addEventListener("input", e=>{ e.target.dataset.auto = e.target.value ? "0" : "1"; });
   box.addEventListener("click", async e=>{
     const t = e.target.closest("button"); if(!t) return;
-    if(t.id==="liqGo") liqGenerate();
+    if(t.id==="liqFileDel"){ e.stopPropagation(); _liqFile = null; _liqCur = null; const d=document.getElementById("liqDate"); if(d && d.dataset.auto==="1") d.value=""; document.getElementById("liqStatus").textContent = "원본 파일을 뺐습니다."; liqRender(); }
+    else if(t.id==="liqResDel"){ _liqCur = null; document.getElementById("liqStatus").textContent = ""; liqRender(); }
+    else if(t.id==="liqGo") liqGenerate();
     else if(t.id==="liqDl" && _liqCur) fiDownloadBytes(_liqCur.b.outName, _liqCur.bytes);
     else if(t.dataset.liqDl){ try{ const v = await idbGet("liq_file_"+t.dataset.liqDl); if(v && v.data) fiDownloadBytes(v.name, v.data); else showNotice("이 브라우저에는 그 낙찰파일 보관본이 없습니다. 원본을 올리고 \"LOT 다시 입력\"으로 다시 만들어 주세요."); }catch(_){} }
     else if(t.dataset.liqLots){ const h = LIQ_HISTORY.find(x=>x.id===+t.dataset.liqLots); if(h){ document.getElementById("liqLots").value = (h.lots||[]).join("\n"); const d=document.getElementById("liqDate"); d.value = h.date||""; d.dataset.auto = "0"; } }
@@ -13746,6 +13751,7 @@ function wireFixedDispatch(){
     else if(b.id==="fiDispToLedger" && _fiDisp){ const inc=_fiDisp.rows.filter(r=>!r.skip); const msg=document.getElementById("fiDispLedgerMsg"); msg.textContent="추가 중…";
       fiLedgerAdd(inc).then(({res,where})=>{ msg.innerHTML = Object.keys(res).filter(co=>res[co].add||res[co].dup||res[co].upd).map(co=>`${FI_LEDGER_CO[co].label} +${res[co].add}행${res[co].upd?` · 수정 반영 ${res[co].upd}행`:""}${res[co].dup?` (변경 없음/원본에 있음 ${res[co].dup})`:""}${where[co]?` · ${fiLedgerWhere(where[co])}`:""}`).join(" / ") || "추가할 행 없음"; fiLedgerRender(); }); }
     else if(b.id==="fiDispMonth"){ const g=fiDispMonthGroups(); if(g.length) fiDispDownload(g, `배차표_월별누적_${fiDetectDate("")}.xlsx`); }
+    else if(b.id==="fiDispCurDel"){ _fiDisp = null; const st=document.getElementById("fiDispStatus"); if(st) st.textContent=""; fiDispRender(); }
     else if(b.id==="fiDispUseLatest" && _fiDisp){ const en=(FIXED_INTAKE_HISTORY||[]).find(h=>h.id===_fiDisp.matchInfo.latestId); if(en){ fiDispAssign(_fiDisp.rows, en); _fiDisp.rows.forEach(r=>{ r.memo = [r.memo, `최근 기록 ${en.date} 기준 도착지 — 확인`].filter(Boolean).join(" / "); }); _fiDisp.matchInfo = { ok:true, text:`같은 날짜 기록이 없어 최근 고정인수 기록 ${en.date} 분배표로 채웠습니다 — 도착지를 꼭 확인하세요.` }; fiDispSave(); fiDispRender(); } }
     else if(b.dataset.fdOpen){ const h=FI_DISPATCH_HISTORY.find(x=>x.id===+b.dataset.fdOpen); if(h){ _fiDisp = JSON.parse(JSON.stringify(h)); fiDispRender(); } }
     else if(b.dataset.fdDel){ if(confirm("이 배차 요청 기록을 삭제할까요?")){ const id=+b.dataset.fdDel; FI_DISPATCH_HISTORY=FI_DISPATCH_HISTORY.filter(x=>x.id!==id); if(_fiDisp&&_fiDisp.id===id) _fiDisp=null; fiDispPersist(); fiDispRender(); } }
@@ -13963,7 +13969,7 @@ function fiLedgerRender(){
     const pend = L.added.filter(r=> !baseKeys.has(fiLedgerKey(r.bidcode, r.number, r.fc)));
     return `<div class="fi-file"><div class="fi-file-hd"><span class="fi-type" style="border-color:var(--amber);color:var(--amber)">${C.label}</span>
       <span class="fi-fname">${m ? `${escHtml(m.name)} <span class="fi-mut">· 원본 ${new Date(m.uploadedAt).toLocaleString("ko-KR")} · 기존 ${Number(m.rowsInBase||0).toLocaleString()}행 · 시트 ${(m.sheets||[]).length}개</span>` : `<span class="fi-mut">원본 없음 — 누적 엑셀을 올려 주세요</span>`}</span>
-      <button class="act primary fi-mini" data-fl-dl="${co}">⬇ 전체 다운로드 (원본+추가 ${pend.length}행)</button></div>
+      <button class="act primary fi-mini" data-fl-dl="${co}">⬇ 전체 다운로드 (원본+추가 ${pend.length}행)</button>${m ? ` <button class="act fi-mini fi-del admin-only" data-fl-delbase="${co}" title="올린 원본 엑셀 삭제 (사이트 추가분은 유지)">✕ 원본 삭제</button>` : ""}${pend.length ? ` <button class="act fi-mini fi-del admin-only" data-fl-delall="${co}" title="사이트에서 추가한 행 전부 삭제">✕ 추가분 전체 삭제</button>` : ""}</div>
       ${pend.length ? `<table class="fi-tbl"><thead><tr><th>낙찰일</th><th>입차CODE</th><th>Group</th><th class="n">PLT</th><th>출고일시</th><th>FC</th><th>도착지</th><th>유형</th><th></th></tr></thead><tbody>
       ${pend.slice().reverse().slice(0,30).map(r=>`<tr><td>${escHtml(r.bidDate)}</td><td>${escHtml(r.bidcode)}</td><td>${escHtml(r.group)}</td><td class="n">${r.pallets==null?"":r.pallets}</td><td>${escHtml(r.outboundDate+" "+r.outboundAmPm)}</td><td>${escHtml(fiCenterName(r.fc)||r.fc)}</td><td>${escHtml(r.dest)}</td><td>${escHtml(r.type)}</td>
         <td><button class="act fi-mini admin-only" data-fl-rm="${co}|${escHtml(fiLedgerKey(r.bidcode,r.number,r.fc))}" title="추가분에서 빼기">✕</button></td></tr>`).join("")}</tbody></table>
@@ -13985,6 +13991,17 @@ function wireFixedLedger(){
     if(b.dataset.flDl) fiLedgerDownload(b.dataset.flDl);
     else if(b.dataset.flRm){ const [co,key]=b.dataset.flRm.split(/\|(.*)/s); const L=FI_LEDGER[co]; L.added = L.added.filter(r=> fiLedgerKey(r.bidcode,r.number,r.fc)!==key); const w=await fiLedgerSave(co,false); document.getElementById("fiLedgerStatus").innerHTML = `추가분 1행 뺌 · ${fiLedgerWhere(w)}`; fiLedgerRender(); }
     else if(b.id==="fiLedgerReload"){ await fiLedgerLoad(true); fiLedgerRender(); }
+    // build 122: 원본 엑셀 삭제 / 사이트 추가분 전체 삭제
+    else if(b.dataset.flDelbase || b.dataset.flDelall){
+      const co = b.dataset.flDelbase || b.dataset.flDelall, C = FI_LEDGER_CO[co], L = FI_LEDGER[co]; if(!L) return;
+      const base = !!b.dataset.flDelbase;
+      if(!confirm(base ? `${C.label} 누적 출고요청서 원본(${L.meta&&L.meta.name||""})을 삭제할까요?\n사이트에서 추가한 행은 남습니다.` : `${C.label} 사이트 추가분 ${L.added.length}행을 전부 삭제할까요?`)) return;
+      if(base){ L.meta = null; try{ await idbSet("fi_ledger_file_"+co, null); }catch(_){} try{ const r=fiLedgerRef(co+"/file"); if(r && typeof IS_ADMIN!=="undefined" && IS_ADMIN) await r.remove(); }catch(_){} }
+      else L.added = [];
+      const w = await fiLedgerSave(co, false);
+      document.getElementById("fiLedgerStatus").innerHTML = `${escHtml(C.label)} ${base?"원본":"추가분"} 삭제 완료` + (w==="server"?" (서버 반영)":w==="viewer"?" — 뷰어 모드라 이 PC에만 반영":"");
+      fiLedgerRender();
+    }
   });
   fiLedgerLoad().then(fiLedgerRender);
 }
