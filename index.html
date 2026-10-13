@@ -1072,7 +1072,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 125 · 2026-10-13</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 126 · 2026-10-13</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -13479,13 +13479,19 @@ function lsOpenXlsb(ff, u8){
 }
 // ── 1단계: 원본 분석
 function lsAnalyze(u8, sst, maxRows){
-  var rawTot=[0,0,0,0], hdr=null, kind=null, L=null, lots=[], lotNo=new Map(), lotOrder=[], byNo=new Map(), aCol=[], bCol=[], rowIdx=[], maxRow=0, maxColSeen=0;
+  var fcOfNo=new Map(), rawTot=[0,0,0,0], hdr=null, kind=null, L=null, lots=[], lotNo=new Map(), lotOrder=[], byNo=new Map(), aCol=[], bCol=[], rowIdx=[], maxRow=0, maxColSeen=0;
   lsRows(u8,sst,60,function(ri,v){
     if(ri===1){
       hdr=v.slice(); var h=v.map(function(x){ return x==null?"":String(x).trim(); });
-      var buy=h.indexOf("BUY NOW");
-      if(buy>=20){ kind="buy"; L={idx:buy-5,fc:buy-4,no:buy-3,plt:buy-2,min:buy-1,buy:buy}; }
-      else { var ni=h.indexOf("NO.",20); if(ni<0) throw new Error("원본 RAW 시트에서 LOT 목록(NO./FC/PLT/MIN BID AMT) 머리글을 찾지 못했습니다"); kind="gen"; L={idx:ni-1,no:ni,fc:ni+1,plt:ni+2,min:ni+3}; }
+      // build 126: LOT 목록 열은 위치가 아니라 머리글 이름으로 찾는다 (원본마다 FC/NO. 순서·FC 유무가 다름)
+      var U=h.map(function(x){ return x.toUpperCase().replace(/\s+/g," "); });
+      var fi=function(test){ for(var c=20;c<U.length;c++) if(test(U[c])) return c; return -1; };
+      var noI=fi(function(x){ return x==="NO."||x==="NO"; }), fcI=fi(function(x){ return x==="FC"; }), pltI=fi(function(x){ return x==="PLT"; }),
+          minI=fi(function(x){ return /MIN/.test(x)&&/BID/.test(x); }), buyI=fi(function(x){ return x==="BUY NOW"||x==="BUYNOW"; });
+      if(noI<0) throw new Error("원본 RAW 시트에서 LOT 목록(NO. · PLT · MIN BID AMT) 머리글을 찾지 못했습니다");
+      kind = buyI>=0 ? "buy" : "gen";
+      var lotCols=[noI,fcI,pltI,minI,buyI].filter(function(x){ return x>=0; });
+      L={ no:noI, fc:fcI, plt:pltI, min:minI, buy:buyI, idx:Math.min.apply(null,lotCols)-1, fcFirst: fcI>=0 && fcI<noI, nameCol: Math.max.apply(null,lotCols)+2 };
       return;
     }
     if(ri<2) return;
@@ -13502,8 +13508,9 @@ function lsAnalyze(u8, sst, maxRows){
       var t2=o.tree.get(c2); if(!t2){ t2={q:0,s:0,k:new Map()}; o.tree.set(c2,t2); } t2.q+=q; t2.s+=s;
       var t4=t2.k.get(c4); if(!t4){ t4={q:0,s:0}; t2.k.set(c4,t4); } t4.q+=q; t4.s+=s;
     }
+    if(no!=null && v[0]!=null && !fcOfNo.has(String(no).trim())) fcOfNo.set(String(no).trim(), v[0]);
     if(L && v[L.no]!=null && String(v[L.no]).trim()!==""){
-      lots.push({idx:v[L.idx], no:String(v[L.no]).trim(), fc:v[L.fc], plt:v[L.plt], min:v[L.min], buy:kind==="buy"?v[L.buy]:null});
+      lots.push({idx:v[L.idx], no:String(v[L.no]).trim(), fc:L.fc>=0?v[L.fc]:null, plt:L.plt>=0?v[L.plt]:null, min:L.min>=0?v[L.min]:null, buy:L.buy>=0?v[L.buy]:null});
     }
   });
   if(!hdr) throw new Error("RAW 시트 머리글(2행)을 찾지 못했습니다");
@@ -13518,6 +13525,7 @@ function lsAnalyze(u8, sst, maxRows){
   var cat2All=new Set(); byNo.forEach(function(o){ o.cat.forEach(function(v,k){ cat2All.add(k); }); });
   var cat2List=Array.from(cat2All).sort(lsCmp), noList=Array.from(byNo.keys()).sort(lsCmp);
   function catVals(no){ var o=byNo.get(no); return LIQSUM_CAT.map(function(m){ var s=0; if(o) m[1].forEach(function(k){ s+=o.cat.get(k)||0; }); return s; }); }
+  lots.forEach(function(l){ if(l.fc==null||l.fc==="") l.fc=fcOfNo.get(l.no); });   // FC 열이 없는 원본: RAW 상품행의 FC
   var rows=lots.map(function(l){ var o=byNo.get(l.no); return { no:l.no, fc:lsFcName(l.fc), plt:l.plt, min:l.min, buy:l.buy, cat:catStr(l.no), total:o?o.s:0, cats:catVals(l.no), cnt:cnt.get(l.no)||{} }; });
   return { rawTot:rawTot, kind:kind, hdr:hdr, L:L, lots:lots, rows:rows, lotOrder:lotOrder, lotNo:lotNo, byNo:byNo, noList:noList, cat2List:cat2List, aCol:aCol, bCol:bCol, maxRow:maxRow, maxCol:maxColSeen };
 }
@@ -13680,7 +13688,7 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
   prog("RAW 작성 중… (행이 많아 시간이 조금 걸립니다)"); await tick();
   (function(){
     var nm="RAW", sp=oth[nm]||{}, s0=lsColStyles(sp,0), s1=lsColStyles(sp,1), s2=lsColStyles(sp,2), s=stream("xl/worksheets/"+sheetFile[nm]);
-    var nameCol = A.kind==="buy" ? 32 : 30, fcCol=A.L.fc, tot=[0,0,0,0];
+    var nameCol = A.L.nameCol, fcCol=A.L.fc, tot=[0,0,0,0], lotFc=new Map(); A.lots.forEach(function(l){ lotFc.set(l.no,l.fc); });
     s.w(lsSheetHead({sel:false, zoom:zoomOf(nm), cols:sp.cols}));
     var lastR=A.maxRow+1;
     lsRows(rawU8,sst,60,function(ri,v){
@@ -13691,10 +13699,10 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
       for(var c2=0;c2<v.length;c2++){
         var val=v[c2];
         if(val==null){ continue; }
-        if(c2===fcCol && v[A.L.no]!=null) val=lsFcName(val);
+        if(fcCol>=0 && c2===fcCol && v[A.L.no]!=null) val=lsFcName(val);
         x+=lsCell(lsCol(c2)+r,val,s2[c2],sst2);
       }
-      if(v[A.L.no]!=null && String(v[A.L.no]).trim()!=="") x+=lsCell(lsCol(nameCol)+r,lsFcName(v[fcCol]),s2[nameCol],sst2);
+      if(v[A.L.no]!=null && String(v[A.L.no]).trim()!=="") x+=lsCell(lsCol(nameCol)+r,lsFcName(fcCol>=0?v[fcCol]:lotFc.get(String(v[A.L.no]).trim())),s2[nameCol],sst2);
       s.w('<row r="'+r+'">'+x+'</row>');
     });
     s.w(lsSheetTail({})); s.end();
@@ -13711,10 +13719,12 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
     function val(kind,v,shift){ if(kind==="F"){ var f=String(v).replace(/^=/,""); return {f:shift?shiftF(f):f}; } return v; }
     SP.header.forEach(function(c){ put(c[0],c[1],lsCell(lsCol(c[1])+(c[0]+1),val(c[3],c[4],false),c[2],sst2)); });
     var dcols=Object.keys(SP.data).map(Number).sort(function(a,b){ return a-b; });
+    // build 126: 원본 LOT 목록이 FC → NO. 순서면 C=FC·D=NO, NO. → FC 순서면 C=NO·D=FC (사람이 붙여넣던 순서 그대로)
+    var swapNF = SP.data[2] && SP.data[3] && ((A.L.fcFirst && SP.data[2].f==="no") || (!A.L.fcFirst && A.L.fc>=0 && SP.data[2].f==="fc"));
     A.rows.forEach(function(R,i){
       var r=4+i;
       dcols.forEach(function(c){ var d=SP.data[c], v=null;
-        if(d.k==="field"){ var f=d.f; v = f[0]==="c" && /^c\d$/.test(f) ? R.cats[+f.slice(1)] : R[f]; if(f==="no"||f==="fc"||f==="cat") v=v==null?"":String(v); }
+        if(d.k==="field"){ var f=d.f; if(swapNF && (c===2||c===3)) f = f==="no"?"fc":(f==="fc"?"no":f); v = f[0]==="c" && /^c\d$/.test(f) ? R.cats[+f.slice(1)] : R[f]; if(f==="no"||f==="fc"||f==="cat") v=v==null?"":String(v); }
         else if(d.k==="fmla") v={f:String(d.f).replace(/^=/,"").replace(/\{r\}/g,String(r+1))};
         put(r,c,lsCell(lsCol(c)+(r+1),v,d.s,sst2)); });
     });
