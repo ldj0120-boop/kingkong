@@ -1072,7 +1072,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 127 · 2026-10-13</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 128 · 2026-10-13</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -13631,9 +13631,8 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
   (function(){
     var nm=order[0], sp=oth[nm]||{}, st=lsColStyles(sp,3), sh=lsColStyles(sp,2), s=stream("xl/worksheets/"+sheetFile[nm]);
     s.w(lsSheetHead({sel:false, zoom:zoomOf(nm), cols:sp.cols}));
-    s.w(rowXml(2, lsCell("A3","행 레이블",sh[0],sst2)+lsCell("B3","합계 : QUANTITY",sh[1],sst2)+lsCell("C3","합계 : Sales_Price (VAT X)",sh[2],sst2)));
-    p1rows.forEach(function(x,i){ var r=i+4; s.w('<row r="'+r+'">'+lsCell("A"+r,x[0],st[0],sst2)+lsCell("B"+r,x[1],st[1],sst2)+lsCell("C"+r,x[2],st[2],sst2)+'</row>'); });
-    var rT=p1rows.length+4; s.w('<row r="'+rT+'">'+lsCell("A"+rT,"총합계",st[0],sst2)+lsCell("B"+rT,gq,st[1],sst2)+lsCell("C"+rT,gs,st[2],sst2)+'</row>');
+    // build 128: 피벗 자리에 값을 미리 써 두면 엑셀이 열 때 새로 고치며 "피벗 테이블 내용이 기존 데이터와 겹칩니다" 경고를 띄운다
+    //            → 피벗 자리는 비워 두고 엑셀이 열 때(refreshOnLoad) 피벗이 직접 채우게 한다.
     s.w(lsSheetTail({})); s.end();
   })();
   // ---- Sheet3|Sheet2 (피벗 2: NO × CATE2 / Sales_Price 합계) + Sheet1 (값 복사)
@@ -13645,9 +13644,7 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
   (function(){
     var nm=order[1], sp=oth[nm]||{}, st=lsColStyles(sp,4), s=stream("xl/worksheets/"+sheetFile[nm]);
     s.w(lsSheetHead({sel:false, zoom:zoomOf(nm), cols:sp.cols}));
-    s.w('<row r="3">'+lsCell("A3","합계 : Sales_Price (VAT X)",null,sst2)+lsCell("B3","열 레이블",null,sst2)+'</row>');
-    var all=[hdrRow()].concat(mrows,[totRow()]);
-    all.forEach(function(row,i){ var r=i+4; s.w('<row r="'+r+'">'+row.map(function(v,c){ return lsCell(lsCol(c)+r,v,st[Math.min(c,2)],sst2); }).join("")+'</row>'); });
+    // build 128: 피벗 자리 비움 (겹침 경고 방지) — 값 복사본은 Sheet1에 있음
     s.w(lsSheetTail({})); s.end();
   })();
   (function(){
