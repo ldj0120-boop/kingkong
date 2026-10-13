@@ -1072,7 +1072,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 124 · 2026-10-13</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 125 · 2026-10-13</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1459,10 +1459,26 @@
   </section>
 
   <section id="view-fixed" role="tabpanel" aria-labelledby="tab-fixed" hidden>
+    <!-- build 125: 아리바 비딩 요약본 생성기 (일반 리퀴 원본 / 바이나우 원본 → 요약본, 원본 종류 자동 판별) -->
+    <div class="agg-card" id="lsBox">
+      <div class="p-hd">
+        <span class="store-name">① 아리바 비딩 요약본 생성기</span>
+        <span class="meta">일반 리퀴 원본 · 바이나우 원본(.xlsb)을 놓으면 종류를 자동 판별 → 요약본(종합 피벗 · PLT CATE · RAW · ★리퀴 요약) 엑셀</span>
+      </div>
+      <div class="fi-body">
+        <div id="lsDrop" class="fi-drop" role="button" tabindex="0">
+          <div class="fi-drop-t">아리바 비딩 원본 파일(AR_Bidding_Liquidation_… - 원본 / 바이나우원본 .xlsb)을 끌어다 놓거나 클릭</div>
+          <div class="fi-drop-s">RAW 시트 머리글에 "BUY NOW"가 있으면 바이나우 요약본, 없으면 일반 리퀴 요약본 양식으로 만듭니다 · 30MB 원본 기준 20~40초</div>
+        </div>
+        <input type="file" id="lsInput" accept=".xlsb" hidden>
+        <div id="lsStatus" class="fi-status"></div>
+        <div id="lsResult"></div>
+      </div>
+    </div>
     <!-- build 118 (build 122부터 탭 맨 위): 일반 리퀴데이션 낙찰파일 생성 (아리바 비딩 원본 + 낙찰 LOT No → 원본/RAW/총액) -->
     <div class="agg-card" id="liqBox">
       <div class="p-hd">
-        <span class="store-name">① 일반 리퀴데이션 · 낙찰파일 생성기</span>
+        <span class="store-name">② 일반 리퀴데이션 · 낙찰파일 생성기</span>
         <span class="meta">아리바 비딩 원본(AR_Bidding_Liquidation) + 낙찰 LOT No → 원본 / RAW / 총액 낙찰파일</span>
       </div>
       <div class="fi-body">
@@ -1491,7 +1507,7 @@
     <!-- build 111: 고정인수 — 쿠팡 리퀴데이션 고정 리스트(XLG/XLS/기저귀) → 낙찰파일(원본/종합/RAW) + 직출 분배표 + 카톡 문구 + 히스토리 -->
     <div class="agg-card">
       <div class="p-hd">
-        <span class="store-name">② 고정인수 · 낙찰파일 생성 & 직출 분배표</span>
+        <span class="store-name">③ 고정인수 · 낙찰파일 생성 & 직출 분배표</span>
         <span class="meta" id="fiMeta"></span>
       </div>
       <div class="fi-body">
@@ -1506,7 +1522,7 @@
     </div>
     <div class="agg-card" id="fiDispBox">
       <div class="p-hd">
-        <span class="store-name">③ 배차 요청서 (입차코드)</span>
+        <span class="store-name">④ 배차 요청서 (입차코드)</span>
         <span class="meta">쿠팡 출고일정 메일 캡처 → 입차코드·상차일시·도착지 표 + 물류업체 문구 + 엑셀</span>
       </div>
       <div class="fi-body">
@@ -5252,7 +5268,7 @@ function selectTab(which){
   if(which==="agg"){ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }
   if(which==="sales"){ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); }
   if(which==="goals"){ renderGoals(); }
-  if(which==="fixed"){ try{ wireFixedIntake(); fiRender(); wireLiquidation(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } }
+  if(which==="fixed"){ try{ wireFixedIntake(); fiRender(); wireLiqSum(); wireLiquidation(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } }
 }
 tabAgg.onclick=()=>selectTab("agg");
 tabSales.onclick=()=>selectTab("sales");
@@ -13411,6 +13427,405 @@ function fiDispMonthGroups(){
     const [y,mm] = m.split("-");
     const rows = by[m].slice().sort((a,b)=> (`${a.outboundDate} ${a.outboundAmPm==="오전"?0:1}`).localeCompare(`${b.outboundDate} ${b.outboundAmPm==="오전"?0:1}`));
     return { name: mm ? `배차 ${y} ${+mm}월` : m, rows };
+  });
+}
+/* build 125: 아리바 비딩 요약본 생성기 (일반 리퀴 / 바이나우)
+   원본(RAW 시트) → 요약본: 종합(피벗) · Sheet3|Sheet2(피벗) · Sheet1 · PLT CATE · RAW · ★리퀴 요약 (2)|BUY
+   레이아웃·서식은 사용자 요약본에서 뽑은 템플릿(LIQSUM_TPL: 스타일·열너비·머리글·수식)을 그대로 쓴다. */
+var LIQSUM_FC = {GEW3:"금왕3",YEO2:"여주2",GOY3:"고양3",GYS2:"경산2",SIH3:"시흥3",INC43:"인천43",CHA3:"천안3"};
+var LIQSUM_CAT = [["주방",["주방","주방용품"]],["가전",["가전디지털"]],["생활",["생활용품"]],["가구",["가구/홈인테리어"]],["식품",["식품","로켓프레시"]],
+  ["의류",["패션의류"]],["패션잡화",["패션잡화"]],["뷰티",["뷰티"]],["기타-J",["완구/취미","반려/애완용품","도서/음반","문구/사무용품","스포츠/레저용품","자동차용품","출산/유아"]]];
+var LIQSUM_CODES = [["A","XLA"],["B","XLB"],["C","XLC"],["E","XLE"],["K","XLK"],["임박","XLR"],["대형","XLW"]];
+function lsFcName(s){ if(s==null) return s; return String(s).split(",").map(function(x){ x=x.trim(); return LIQSUM_FC[x]||x; }).join(","); }
+var _lsColC=[];
+function lsCol(c){ var h=_lsColC[c]; if(h) return h; var s="", c0=c; c++; while(c){ var m=(c-1)%26; s=String.fromCharCode(65+m)+s; c=(c-1-m)/26; } return _lsColC[c0]=s; }
+function lsCmp(a,b){ a=String(a).toLowerCase(); b=String(b).toLowerCase(); return a<b?-1:a>b?1:0; }
+// ── BIFF12 리더
+function lsEachRecord(u8, fn){
+  var n=u8.length, p=0;
+  while(p<n){
+    var t=u8[p++]; if(t&0x80){ t=(t&0x7f)|((u8[p++]&0x7f)<<7); }
+    var sz=0; for(var i=0,sh=0;i<4;i++,sh+=7){ var b=u8[p++]; sz|=(b&0x7f)<<sh; if(!(b&0x80)) break; }
+    if(fn(t,p,sz)===false) return; p+=sz;
+  }
+}
+var _lsU16 = new TextDecoder("utf-16le");
+function lsWide(u8,dv,p){ var cch=dv.getUint32(p,true); if(cch===0xFFFFFFFF) return [null,p+4]; return [_lsU16.decode(u8.subarray(p+4,p+4+cch*2)),p+4+cch*2]; }
+var _lsRkB = new DataView(new ArrayBuffer(8));
+function lsRk(dv,p){ var x=dv.getInt32(p,true), v; if(x&2) v=x>>2; else { _lsRkB.setInt32(4,x&~3,true); _lsRkB.setInt32(0,0,true); v=_lsRkB.getFloat64(0,true); } return (x&1)?v/100:v; }
+function lsSst(u8){ var dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength), out=[]; lsEachRecord(u8,function(t,p){ if(t===19) out.push(lsWide(u8,dv,p+1)[0]); }); return out; }
+function lsRows(u8, sst, maxCol, fn){
+  var dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength), row=-1, vals=null, col=-1, stop=false;
+  function flush(){ if(vals && fn(row,vals)===false) stop=true; }
+  lsEachRecord(u8,function(t,p){
+    if(t===0){ flush(); if(stop) return false; row=dv.getUint32(p,true); vals=[]; col=-1; return; }
+    if(t>=1&&t<=11){ col=dv.getUint32(p,true); p+=8; } else if(t>=12&&t<=18){ col=col+1; p+=4; t-=11; } else return;
+    if(!vals||col>maxCol) return;
+    var v;
+    switch(t){ case 2: v=lsRk(dv,p); break; case 5: case 9: v=dv.getFloat64(p,true); break; case 6: case 8: v=lsWide(u8,dv,p)[0]; break;
+      case 7: v=sst[dv.getUint32(p,true)]; break; case 4: case 10: v=!!u8[p]; break; default: v=null; }
+    vals[col]=v;
+  });
+  if(!stop) flush();
+}
+function lsOpenXlsb(ff, u8){
+  var meta=ff.unzipSync(u8,{filter:function(f){ return f.name==="xl/workbook.bin"||f.name==="xl/_rels/workbook.bin.rels"; }});
+  if(!meta["xl/workbook.bin"]) throw new Error("xlsb 파일이 아닙니다 (원본은 .xlsb로 올려 주세요)");
+  var rels={}, relXml=new TextDecoder().decode(meta["xl/_rels/workbook.bin.rels"]||new Uint8Array());
+  (relXml.match(/<Relationship\b[^>]*>/g)||[]).forEach(function(tag){ var id=(tag.match(/\bId="([^"]+)"/)||[])[1], tg=(tag.match(/\bTarget="([^"]+)"/)||[])[1]; if(id&&tg) rels[id]=tg; });
+  var sheets=[], wbu=meta["xl/workbook.bin"], wdv=new DataView(wbu.buffer,wbu.byteOffset,wbu.byteLength);
+  lsEachRecord(wbu,function(t,p){ if(t===156){ var a=lsWide(wbu,wdv,p+8), nm=lsWide(wbu,wdv,a[1])[0]; var tg=(rels[a[0]]||"").replace(/^\/?xl\//,"").replace(/^\//,""); sheets.push({name:nm,path:"xl/"+tg}); } });
+  return sheets;
+}
+// ── 1단계: 원본 분석
+function lsAnalyze(u8, sst, maxRows){
+  var rawTot=[0,0,0,0], hdr=null, kind=null, L=null, lots=[], lotNo=new Map(), lotOrder=[], byNo=new Map(), aCol=[], bCol=[], rowIdx=[], maxRow=0, maxColSeen=0;
+  lsRows(u8,sst,60,function(ri,v){
+    if(ri===1){
+      hdr=v.slice(); var h=v.map(function(x){ return x==null?"":String(x).trim(); });
+      var buy=h.indexOf("BUY NOW");
+      if(buy>=20){ kind="buy"; L={idx:buy-5,fc:buy-4,no:buy-3,plt:buy-2,min:buy-1,buy:buy}; }
+      else { var ni=h.indexOf("NO.",20); if(ni<0) throw new Error("원본 RAW 시트에서 LOT 목록(NO./FC/PLT/MIN BID AMT) 머리글을 찾지 못했습니다"); kind="gen"; L={idx:ni-1,no:ni,fc:ni+1,plt:ni+2,min:ni+3}; }
+      return;
+    }
+    if(ri<2) return;
+    if(maxRows && ri>maxRows) return false;
+    if(v.length>maxColSeen) maxColSeen=v.length;
+    for(var ti=0;ti<4;ti++){ var tv=v[15+ti]; if(typeof tv==="number") rawTot[ti]+=tv; }
+    maxRow=ri; rowIdx.push(ri);
+    var no=v[1], lot=v[10]; aCol.push(lot==null?null:lot); bCol.push(no==null?null:no);
+    if(no!=null){
+      if(lot!=null && !lotNo.has(lot)){ lotNo.set(lot,no); lotOrder.push(lot); }
+      var o=byNo.get(no); if(!o){ o={cat:new Map(), tree:new Map(), q:0, s:0}; byNo.set(no,o); }
+      var c2=v[6]==null?"":String(v[6]), c4=v[8]==null?"":String(v[8]), q=+v[15]||0, s=+v[18]||0;
+      o.cat.set(c2,(o.cat.get(c2)||0)+s); o.q+=q; o.s+=s;
+      var t2=o.tree.get(c2); if(!t2){ t2={q:0,s:0,k:new Map()}; o.tree.set(c2,t2); } t2.q+=q; t2.s+=s;
+      var t4=t2.k.get(c4); if(!t4){ t4={q:0,s:0}; t2.k.set(c4,t4); } t4.q+=q; t4.s+=s;
+    }
+    if(L && v[L.no]!=null && String(v[L.no]).trim()!==""){
+      lots.push({idx:v[L.idx], no:String(v[L.no]).trim(), fc:v[L.fc], plt:v[L.plt], min:v[L.min], buy:kind==="buy"?v[L.buy]:null});
+    }
+  });
+  if(!hdr) throw new Error("RAW 시트 머리글(2행)을 찾지 못했습니다");
+  // 유형별 LOT 수(PLT CATE G~N) · 카테고리 문자열(O)
+  var cnt=new Map();
+  lotOrder.forEach(function(lot){
+    var no=lotNo.get(lot), u=String(lot).toUpperCase(), c=cnt.get(no); if(!c){ c={}; cnt.set(no,c); }
+    LIQSUM_CODES.forEach(function(x){ if(u.indexOf(x[1])>=0) c[x[0]]=(c[x[0]]||0)+1; });
+    var n7=0; if(/.{3}-XLB.-777/.test(u)) n7++; if(/.{3}-XLB..-777/.test(u)) n7++; if(/.{3}-XLB...-777/.test(u)) n7++; if(n7) c["777"]=(c["777"]||0)+n7;
+  });
+  function catStr(no){ var c=cnt.get(no)||{}, s=""; LIQSUM_CODES.forEach(function(x){ var n=c[x[0]]||0; if(n>0) s+=x[0]+"-"+n+(x[0]==="대형"?"":", "); }); if(c["777"]>0) s+="777-"+c["777"]; return s; }
+  var cat2All=new Set(); byNo.forEach(function(o){ o.cat.forEach(function(v,k){ cat2All.add(k); }); });
+  var cat2List=Array.from(cat2All).sort(lsCmp), noList=Array.from(byNo.keys()).sort(lsCmp);
+  function catVals(no){ var o=byNo.get(no); return LIQSUM_CAT.map(function(m){ var s=0; if(o) m[1].forEach(function(k){ s+=o.cat.get(k)||0; }); return s; }); }
+  var rows=lots.map(function(l){ var o=byNo.get(l.no); return { no:l.no, fc:lsFcName(l.fc), plt:l.plt, min:l.min, buy:l.buy, cat:catStr(l.no), total:o?o.s:0, cats:catVals(l.no), cnt:cnt.get(l.no)||{} }; });
+  return { rawTot:rawTot, kind:kind, hdr:hdr, L:L, lots:lots, rows:rows, lotOrder:lotOrder, lotNo:lotNo, byNo:byNo, noList:noList, cat2List:cat2List, aCol:aCol, bCol:bCol, maxRow:maxRow, maxCol:maxColSeen };
+}
+// ── xlsx 작성 도구
+function lsX(s){ return String(s).replace(/[&<>"]/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F￾￿]/g,""); }
+function LsSst(){ this.m=new Map(); this.a=[]; this.n=0; }
+LsSst.prototype.idx=function(s){ this.n++; var i=this.m.get(s); if(i===undefined){ i=this.a.length; this.a.push(s); this.m.set(s,i); } return i; };
+function lsCell(ref, v, s, sst){
+  var sa = s!=null && s!==0 ? ' s="'+s+'"' : "";
+  if(v==null || v==="") return sa ? '<c r="'+ref+'"'+sa+'/>' : "";
+  if(typeof v==="number"){ if(!isFinite(v)) return sa ? '<c r="'+ref+'"'+sa+'/>' : ""; return '<c r="'+ref+'"'+sa+'><v>'+v+'</v></c>'; }
+  if(typeof v==="boolean") return '<c r="'+ref+'"'+sa+' t="b"><v>'+(v?1:0)+'</v></c>';
+  if(typeof v==="object" && v.f!=null){
+    var cv=v.v, t="", vx="";
+    if(typeof cv==="number" && isFinite(cv)){ vx="<v>"+cv+"</v>"; } else if(typeof cv==="string"){ t=' t="str"'; vx="<v>"+lsX(cv)+"</v>"; } else if(typeof cv==="boolean"){ t=' t="b"'; vx="<v>"+(cv?1:0)+"</v>"; }
+    return '<c r="'+ref+'"'+sa+t+'><f>'+lsX(v.f)+'</f>'+vx+'</c>';
+  }
+  return '<c r="'+ref+'"'+sa+' t="s"><v>'+sst.idx(String(v))+'</v></c>';
+}
+function lsColsXml(cols){
+  if(!cols||!cols.length) return "";
+  return "<cols>"+cols.map(function(c){ var fl=c[4]||0, ol=(fl>>8)&7;
+    return '<col min="'+(c[0]+1)+'" max="'+Math.min(c[1]+1,16384)+'" width="'+(c[2]/256)+'"'+(c[3]?' style="'+c[3]+'"':"")+(fl&1?' hidden="1"':"")+(fl&2?' customWidth="1"':' customWidth="1"')+(ol?' outlineLevel="'+ol+'"':"")+(fl&0x1000?' collapsed="1"':"")+'/>'; }).join("")+"</cols>";
+}
+function lsRowAttr(info){
+  if(!info) return "";
+  var ixfe=info[0], miy=info[1], B=info[3]||0, a="";
+  if(B&0x20) a+=' ht="'+(miy/20)+'" customHeight="1"';
+  if(B&0x10) a+=' hidden="1"';
+  if(B&7) a+=' outlineLevel="'+(B&7)+'"';
+  if(B&0x40 && ixfe) a+=' s="'+ixfe+'" customFormat="1"';
+  return a;
+}
+function lsPane(hex){
+  if(!hex) return "";
+  var b=new Uint8Array(hex.match(/../g).map(function(h){ return parseInt(h,16); })), dv=new DataView(b.buffer);
+  var xs=dv.getFloat64(0,true), ys=dv.getFloat64(8,true), rw=dv.getUint32(16,true), cl=dv.getUint32(20,true), pnn=dv.getUint32(24,true), fl=b[28];
+  if(!(fl&1)) return "";
+  var ap=["bottomRight","topRight","bottomLeft","topLeft"][pnn]||"bottomRight";
+  return '<pane'+(xs?' xSplit="'+xs+'"':"")+(ys?' ySplit="'+ys+'"':"")+' topLeftCell="'+lsCol(cl)+(rw+1)+'" activePane="'+ap+'" state="frozen"/><selection pane="'+ap+'"/>';
+}
+var LS_NS='xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+function lsSheetHead(o){ // o: {zoom, sel, pane, cols}
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet '+LS_NS+'><sheetViews><sheetView workbookViewId="0"'+(o.sel?' tabSelected="1"':"")+(o.zoom&&o.zoom!==100?' zoomScale="'+o.zoom+'" zoomScaleNormal="'+o.zoom+'"':"")+'>'+(o.pane||"")+'</sheetView></sheetViews><sheetFormatPr defaultRowHeight="16.5"/>'+lsColsXml(o.cols)+'<sheetData>';
+}
+function lsSheetTail(o){
+  var x='</sheetData>';
+  if(o.merges&&o.merges.length) x+='<mergeCells count="'+o.merges.length+'">'+o.merges.map(function(m){ return '<mergeCell ref="'+lsCol(m[2])+(m[0]+1)+':'+lsCol(m[3])+(m[1]+1)+'"/>'; }).join("")+'</mergeCells>';
+  if(o.cf) x+=o.cf;
+  x+='<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>';
+  if(o.pivotRel) x+='';
+  return x+'</worksheet>';
+}
+// 수식 안 셀 참조의 행 번호 바꾸기 (문자열 상수 "..." 안은 건드리지 않음)
+function lsShiftRows(f, fn){
+  var out="", i=0, n=f.length;
+  while(i<n){
+    var ch=f[i];
+    if(ch==='"'){ var j=f.indexOf('"',i+1); while(j>=0 && f[j+1]==='"') j=f.indexOf('"',j+2); if(j<0) j=n-1; out+=f.slice(i,j+1); i=j+1; continue; }
+    var m=/^(\$?)([A-Z]{1,3})(\$?)(\d+)(?![\d(A-Za-z_])/.exec(f.slice(i));
+    var prev=i>0?f[i-1]:"";
+    if(m && !/[A-Za-z0-9_.]/.test(prev)){ out+=m[1]+m[2]+m[3]+fn(+m[4]); i+=m[0].length; continue; }
+    out+=ch; i++;
+  }
+  return out;
+}
+// 시트별 템플릿 셀 스타일 → 열별 스타일 (data 행 기준)
+function lsColStyles(spec, row){ var m={}; (spec.cells||[]).forEach(function(c){ if(c[0]===row) m[c[1]]=c[2]; }); return m; }
+// ── 2단계: 요약본 xlsx 만들기
+async function lsBuild(ff, u8, srcName, TPL, prog, opt){
+  opt = opt || {};
+  prog = prog || function(){};
+  var tick = function(){ return new Promise(function(r){ setTimeout(r,0); }); };
+  prog("원본 구조 읽는 중…"); await tick();
+  var sheets=lsOpenXlsb(ff,u8);
+  var raw=sheets.find(function(s){ return s.name.trim().toUpperCase()==="RAW"; }) || sheets[0];
+  var files=ff.unzipSync(u8,{filter:function(f){ return f.name===raw.path || f.name==="xl/sharedStrings.bin"; }});
+  var sst=files["xl/sharedStrings.bin"]?lsSst(files["xl/sharedStrings.bin"]):[];
+  var rawU8=files[raw.path]; if(!rawU8) throw new Error("RAW 시트를 읽지 못했습니다");
+  prog("원본 분석 중…"); await tick();
+  var A=lsAnalyze(rawU8,sst,opt.maxRows);
+  var T=TPL[A.kind]; if(!T) throw new Error("템플릿 없음: "+A.kind);
+  var SP=T.summary, N=A.rows.length, M=A.lotOrder.length;
+  var out=[], zip=new ff.Zip(function(err,dat){ if(err) throw err; out.push(dat); });
+  var enc=new TextEncoder(), LV=3;
+  function addText(name,str){ var f=new ff.ZipDeflate(name,{level:LV}); zip.add(f); f.push(enc.encode(str),true); }
+  function stream(name){ var f=new ff.ZipDeflate(name,{level:LV}); zip.add(f); var buf=[],len=0;
+    return { w:function(s){ buf.push(s); len+=s.length; if(len>(1<<21)){ f.push(enc.encode(buf.join(""))); buf=[]; len=0; } }, end:function(){ f.push(enc.encode(buf.join("")),true); } }; }
+  var sst2=new LsSst();
+  var order=T.sheetOrder, sumName=T.summaryName, pivSheet2=order[1]; // 종합, Sheet3|Sheet2
+  var sheetFile={}; order.forEach(function(nm,i){ sheetFile[nm]="sheet"+(i+1)+".xml"; });
+  var oth=T.other;
+  function rowXml(r, cellsXml, attr){ return cellsXml||attr ? '<row r="'+(r+1)+'"'+(attr||"")+'>'+cellsXml+'</row>' : ""; }
+  function specCells(spec, rowFilter){ var m=new Map(); (spec.cells||[]).forEach(function(c){ if(rowFilter(c[0])){ var a=m.get(c[0])||[]; a.push(c); m.set(c[0],a); } }); return m; }
+  function zoomOf(nm){ return nm===sumName?40:(nm==="RAW"?115:100); }
+  // ---- 종합 (피벗 1: NO > CATE2 > CATE4 / QUANTITY·Sales_Price 합계)
+  prog("종합 · 피벗 값 작성 중…"); await tick();
+  var p1rows=[]; var gq=0, gs=0;
+  A.noList.forEach(function(no){ var o=A.byNo.get(no); p1rows.push([no,o.q,o.s,0]); gq+=o.q; gs+=o.s;
+    Array.from(o.tree.keys()).sort(lsCmp).forEach(function(c2){ var t2=o.tree.get(c2); p1rows.push([c2||"(비어 있음)",t2.q,t2.s,1]);
+      Array.from(t2.k.keys()).sort(lsCmp).forEach(function(c4){ var t4=t2.k.get(c4); p1rows.push([c4||"(비어 있음)",t4.q,t4.s,2]); }); }); });
+  (function(){
+    var nm=order[0], sp=oth[nm]||{}, st=lsColStyles(sp,3), sh=lsColStyles(sp,2), s=stream("xl/worksheets/"+sheetFile[nm]);
+    s.w(lsSheetHead({sel:false, zoom:zoomOf(nm), cols:sp.cols}));
+    s.w(rowXml(2, lsCell("A3","행 레이블",sh[0],sst2)+lsCell("B3","합계 : QUANTITY",sh[1],sst2)+lsCell("C3","합계 : Sales_Price (VAT X)",sh[2],sst2)));
+    p1rows.forEach(function(x,i){ var r=i+4; s.w('<row r="'+r+'">'+lsCell("A"+r,x[0],st[0],sst2)+lsCell("B"+r,x[1],st[1],sst2)+lsCell("C"+r,x[2],st[2],sst2)+'</row>'); });
+    var rT=p1rows.length+4; s.w('<row r="'+rT+'">'+lsCell("A"+rT,"총합계",st[0],sst2)+lsCell("B"+rT,gq,st[1],sst2)+lsCell("C"+rT,gs,st[2],sst2)+'</row>');
+    s.w(lsSheetTail({})); s.end();
+  })();
+  // ---- Sheet3|Sheet2 (피벗 2: NO × CATE2 / Sales_Price 합계) + Sheet1 (값 복사)
+  var cats=A.cat2List, colTot=cats.map(function(){ return 0; });
+  function matrixRows(){ return A.noList.map(function(no){ var o=A.byNo.get(no); return [no].concat(cats.map(function(c,j){ var v=o.cat.get(c); if(v!=null) colTot[j]+=v; return v==null?null:v; }), [o.s]); }); }
+  var mrows=matrixRows();
+  function hdrRow(){ return ["행 레이블"].concat(cats.map(function(c){ return c||"(비어 있음)"; }),["총합계"]); }
+  function totRow(){ return ["총합계"].concat(colTot,[gs]); }
+  (function(){
+    var nm=order[1], sp=oth[nm]||{}, st=lsColStyles(sp,4), s=stream("xl/worksheets/"+sheetFile[nm]);
+    s.w(lsSheetHead({sel:false, zoom:zoomOf(nm), cols:sp.cols}));
+    s.w('<row r="3">'+lsCell("A3","합계 : Sales_Price (VAT X)",null,sst2)+lsCell("B3","열 레이블",null,sst2)+'</row>');
+    var all=[hdrRow()].concat(mrows,[totRow()]);
+    all.forEach(function(row,i){ var r=i+4; s.w('<row r="'+r+'">'+row.map(function(v,c){ return lsCell(lsCol(c)+r,v,st[Math.min(c,2)],sst2); }).join("")+'</row>'); });
+    s.w(lsSheetTail({})); s.end();
+  })();
+  (function(){
+    var nm="Sheet1", sp=oth[nm]||{}, s=stream("xl/worksheets/"+sheetFile[nm]);
+    s.w(lsSheetHead({sel:false, zoom:zoomOf(nm), cols:sp.cols}));
+    var all=[hdrRow()].concat(mrows,[totRow()]);
+    all.forEach(function(row,i){ var r=i+1; s.w('<row r="'+r+'">'+row.map(function(v,c){ return lsCell(lsCol(c)+r,v,null,sst2); }).join("")+'</row>'); });
+    s.w(lsSheetTail({})); s.end();
+  })();
+  // ---- PLT CATE
+  prog("PLT CATE 작성 중…"); await tick();
+  (function(){
+    var nm="PLT CATE", sp=oth[nm]||{}, hs=specCells(sp,function(r){ return r===0; }), st=lsColStyles(sp,1), s=stream("xl/worksheets/"+sheetFile[nm]);
+    s.w(lsSheetHead({sel:false, zoom:zoomOf(nm), cols:sp.cols}));
+    s.w('<row r="1">'+(hs.get(0)||[]).sort(function(a,b){ return a[1]-b[1]; }).map(function(c){ return lsCell(lsCol(c[1])+"1",c[4],c[2],sst2); }).join("")+'</row>');
+    var labs=["A","B","C","E","K","임박","대형"], pats=["*XLA*","*XLB*","*XLC*","*XLE*","*XLK*","*XLR*","*XLW*"];
+    var catF=[["주방","주방용품"],["가전디지털"],["생활용품"],["가구/홈인테리어"],["식품","로켓프레시"],["패션의류"],["패션잡화"],["뷰티"],["완구/취미","반려/애완용품","도서/음반","문구/사무용품","스포츠/레저용품","자동차용품","출산/유아"]];
+    var nR=Math.max(A.aCol.length, M, N);
+    for(var k=1;k<=nR;k++){
+      var r=k+1, i=k-1, x="";
+      if(i<A.aCol.length){ x+=lsCell("A"+r,A.aCol[i],st[0],sst2)+lsCell("B"+r,A.bCol[i],st[1],sst2); }
+      if(i<N) x+=lsCell("C"+r,A.rows[i].no,st[2],sst2);
+      if(i<M){ var lot=A.lotOrder[i]; x+=lsCell("D"+r,lot,st[3],sst2)+lsCell("E"+r,{f:"VLOOKUP(D"+r+",A$2:B$899999,2,FALSE)",v:String(A.lotNo.get(lot))},st[4],sst2); }
+      if(i<N){
+        var R=A.rows[i], cn=R.cnt;
+        labs.forEach(function(l,j){ x+=lsCell(lsCol(6+j)+r,{f:'COUNTIFS(E$1:E$1048576,C'+r+',D$1:D$1048576,"'+pats[j]+'")',v:cn[l]||0},st[6+j],sst2); });
+        x+=lsCell("N"+r,{f:'COUNTIFS(E$1:E$1048576,C'+r+',D$1:D$1048576,"*???-XLB?-777*")+COUNTIFS(E$1:E$1048576,C'+r+',D$1:D$1048576,"*???-XLB??-777*")+COUNTIFS(E$1:E$1048576,C'+r+',D$1:D$1048576,"*???-XLB???-777*")',v:cn["777"]||0},st[13],sst2);
+        var parts=["G","H","I","J","K","L","M","N"].map(function(c,j){ return '(_xlfn.IFS('+c+r+'>0,(CONCATENATE('+c+'$1,"-",'+c+r+(j<6?',", "':'')+')),'+c+r+'=0,""))'; });
+        x+=lsCell("O"+r,{f:"CONCATENATE("+parts.join(",")+")",v:R.cat},st[14],sst2);
+        catF.forEach(function(ks,j){ var f=ks.map(function(k2){ return 'IFERROR(SUMIFS(INDEX(Sheet1!A$1:Z$1048576,,MATCH("'+k2+'",Sheet1!$A$1:$XFD$1,0)),Sheet1!$A$1:$A$1048576,C'+r+'),0)'; }).join("+");
+          x+=lsCell(lsCol(17+j)+r,{f:f,v:R.cats[j]},st[17+j],sst2); });
+        x+=lsCell("AA"+r,{f:"SUM(R"+r+":Z"+r+")",v:R.cats.reduce(function(a,b){ return a+b; },0)},st[26],sst2);
+      }
+      s.w('<row r="'+r+'">'+x+'</row>');
+    }
+    s.w(lsSheetTail({})); s.end();
+  })();
+  // ---- RAW (원본 그대로 + LOT 목록 FC → 센터명)
+  prog("RAW 작성 중… (행이 많아 시간이 조금 걸립니다)"); await tick();
+  (function(){
+    var nm="RAW", sp=oth[nm]||{}, s0=lsColStyles(sp,0), s1=lsColStyles(sp,1), s2=lsColStyles(sp,2), s=stream("xl/worksheets/"+sheetFile[nm]);
+    var nameCol = A.kind==="buy" ? 32 : 30, fcCol=A.L.fc, tot=[0,0,0,0];
+    s.w(lsSheetHead({sel:false, zoom:zoomOf(nm), cols:sp.cols}));
+    var lastR=A.maxRow+1;
+    lsRows(rawU8,sst,60,function(ri,v){
+      var r=ri+1, x="";
+      if(opt.maxRows && ri>opt.maxRows) return false;
+      if(ri===0){ for(var t0=0;t0<4;t0++){ var cc=lsCol(15+t0); x+=lsCell(cc+"1",{f:"SUBTOTAL(9,"+cc+"3:"+cc+"1048576)",v:A.rawTot[t0]},s0[15+t0],sst2); } s.w('<row r="1">'+x+'</row>'); return; }
+      if(ri===1){ for(var c=0;c<v.length;c++) if(v[c]!=null) x+=lsCell(lsCol(c)+r,v[c],s1[c],sst2); s.w('<row r="'+r+'">'+x+'</row>'); return; }
+      for(var c2=0;c2<v.length;c2++){
+        var val=v[c2];
+        if(val==null){ continue; }
+        if(c2===fcCol && v[A.L.no]!=null) val=lsFcName(val);
+        x+=lsCell(lsCol(c2)+r,val,s2[c2],sst2);
+      }
+      if(v[A.L.no]!=null && String(v[A.L.no]).trim()!=="") x+=lsCell(lsCol(nameCol)+r,lsFcName(v[fcCol]),s2[nameCol],sst2);
+      s.w('<row r="'+r+'">'+x+'</row>');
+    });
+    s.w(lsSheetTail({})); s.end();
+  })();
+  // RAW 1행 SUBTOTAL은 별도로 넣을 수 없으니(스트림 순서) — 위에서 ri===0을 건너뛰었으므로 여기서 다시 쓰지 않는다. → 아래 lsRawRow1 참고
+  // ---- 요약 시트
+  prog("요약 시트 작성 중…"); await tick();
+  (function(){
+    var nm=sumName, s=stream("xl/worksheets/"+sheetFile[nm]);
+    var tplLast1=SP.lastTpl+1, tplTot1=SP.totTpl+1, newLast1=4+N, newTot1=5+N, newTot0=newTot1-1;
+    var shiftF=function(f){ return lsShiftRows(f,function(R){ return R===tplLast1?newLast1:(R>tplLast1?R-tplTot1+newTot1:R); }); };
+    var rows=new Map();
+    function put(r,c,xml){ var m=rows.get(r); if(!m){ m=new Map(); rows.set(r,m); } m.set(c,xml); }
+    function val(kind,v,shift){ if(kind==="F"){ var f=String(v).replace(/^=/,""); return {f:shift?shiftF(f):f}; } return v; }
+    SP.header.forEach(function(c){ put(c[0],c[1],lsCell(lsCol(c[1])+(c[0]+1),val(c[3],c[4],false),c[2],sst2)); });
+    var dcols=Object.keys(SP.data).map(Number).sort(function(a,b){ return a-b; });
+    A.rows.forEach(function(R,i){
+      var r=4+i;
+      dcols.forEach(function(c){ var d=SP.data[c], v=null;
+        if(d.k==="field"){ var f=d.f; v = f[0]==="c" && /^c\d$/.test(f) ? R.cats[+f.slice(1)] : R[f]; if(f==="no"||f==="fc"||f==="cat") v=v==null?"":String(v); }
+        else if(d.k==="fmla") v={f:String(d.f).replace(/^=/,"").replace(/\{r\}/g,String(r+1))};
+        put(r,c,lsCell(lsCol(c)+(r+1),v,d.s,sst2)); });
+    });
+    SP.absolute.forEach(function(c){ if(c[0]<newTot0) put(c[0],c[1],lsCell(lsCol(c[1])+(c[0]+1),val(c[3],c[4],false),c[2],sst2)); });
+    SP.footer.forEach(function(c){ var r=newTot0+c[0]; put(r,c[1],lsCell(lsCol(c[1])+(r+1),val(c[3],c[4],true),c[2],sst2)); });
+    var merges=SP.merges.map(function(m){ return m[4]==="f" ? [m[0]+newTot0,m[1]+newTot0,m[2],m[3]] : [m[0],m[1],m[2],m[3]]; });
+    var cf=(SP.cf||[]).map(function(b){ var rf=b.ref[0]; return '<conditionalFormatting sqref="'+lsCol(rf[2])+'5:'+lsCol(rf[3])+newLast1+'">'+b.rules.map(function(ru){ return '<cfRule type="expression" dxfId="'+ru[1]+'" priority="'+ru[2]+'"><formula>'+lsX(ru[3])+'</formula></cfRule>'; }).join("")+'</conditionalFormatting>'; }).join("");
+    s.w(lsSheetHead({sel:true, zoom:40, cols:SP.cols, pane:lsPane(SP.pane)}));
+    var keys=Array.from(rows.keys()); for(var r0=0;r0<4;r0++) if(!rows.has(r0)) keys.push(r0);
+    keys=Array.from(new Set(keys)).sort(function(a,b){ return a-b; });
+    keys.forEach(function(r){
+      var info = r<4 ? SP.rows.header[r] : (r<newTot0 ? SP.rows.data : SP.rows.footer[r-newTot0]);
+      var m=rows.get(r), x="";
+      if(m) Array.from(m.keys()).sort(function(a,b){ return a-b; }).forEach(function(c){ x+=m.get(c); });
+      s.w('<row r="'+(r+1)+'"'+lsRowAttr(info)+'>'+x+'</row>');
+    });
+    s.w(lsSheetTail({merges:merges, cf:cf})); s.end();
+  })();
+  // ---- 피벗 캐시 · 피벗 테이블 (Excel이 열 때 새로 고침 → 실제 피벗으로 동작)
+  var lastRawRow=A.maxRow+1;
+  var fieldNames=[]; for(var fi=0;fi<=19;fi++) fieldNames.push(A.hdr[fi]==null?("열"+(fi+1)):String(A.hdr[fi]).trim());
+  var seen={}; fieldNames=fieldNames.map(function(n){ var b=n||"열", k=b, j=2; while(seen[k]) k=b+j++; seen[k]=1; return k; });
+  var F_NO=fieldNames.indexOf("NO."), F_C2=fieldNames.indexOf("CATE2"), F_C4=fieldNames.indexOf("CATE4"), F_Q=fieldNames.indexOf("QUANTITY"), F_S=fieldNames.indexOf("Sales_Price (VAT X)");
+  addText("xl/pivotCache/pivotCacheDefinition1.xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotCacheDefinition '+LS_NS+' r:id="rId1" refreshOnLoad="1" createdVersion="6" refreshedVersion="6" minRefreshableVersion="3" recordCount="0"><cacheSource type="worksheet"><worksheetSource ref="A2:T'+lastRawRow+'" sheet="RAW"/></cacheSource><cacheFields count="'+fieldNames.length+'">'+fieldNames.map(function(n){ return '<cacheField name="'+lsX(n)+'" numFmtId="0"><sharedItems/></cacheField>'; }).join("")+'</cacheFields></pivotCacheDefinition>');
+  addText("xl/pivotCache/pivotCacheRecords1.xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotCacheRecords '+LS_NS+' count="0"/>');
+  addText("xl/pivotCache/_rels/pivotCacheDefinition1.xml.rels",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/pivotCacheRecords" Target="pivotCacheRecords1.xml"/></Relationships>');
+  function pivotXml(name, rowsF, colsF, dataF, loc){
+    var pf=fieldNames.map(function(n,i){
+      if(rowsF.indexOf(i)>=0) return '<pivotField axis="axisRow" showAll="0"><items count="1"><item t="default"/></items></pivotField>';
+      if(colsF.indexOf(i)>=0) return '<pivotField axis="axisCol" showAll="0"><items count="1"><item t="default"/></items></pivotField>';
+      if(dataF.some(function(d){ return d[0]===i; })) return '<pivotField dataField="1" showAll="0"/>';
+      return '<pivotField showAll="0"/>'; }).join("");
+    var cf = colsF.length ? '<colFields count="'+colsF.length+'">'+colsF.map(function(i){ return '<field x="'+i+'"/>'; }).join("")+'</colFields>' : (dataF.length>1 ? '<colFields count="1"><field x="-2"/></colFields>' : "");
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotTableDefinition xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" name="'+name+'" cacheId="1" applyNumberFormats="0" applyBorderFormats="0" applyFontFormats="0" applyPatternFormats="0" applyAlignmentFormats="0" applyWidthHeightFormats="1" dataCaption="값" updatedVersion="6" minRefreshableVersion="3" useAutoFormatting="1" itemPrintTitles="1" createdVersion="6" indent="0" outline="1" outlineData="1" multipleFieldFilters="0">'
+      +'<location ref="'+loc+'" firstHeaderRow="1" firstDataRow="1" firstDataCol="1"/><pivotFields count="'+fieldNames.length+'">'+pf+'</pivotFields>'
+      +'<rowFields count="'+rowsF.length+'">'+rowsF.map(function(i){ return '<field x="'+i+'"/>'; }).join("")+'</rowFields>'+cf
+      +'<dataFields count="'+dataF.length+'">'+dataF.map(function(d){ return '<dataField name="'+lsX(d[1])+'" fld="'+d[0]+'" baseField="0" baseItem="0"/>'; }).join("")+'</dataFields>'
+      +'<pivotTableStyleInfo name="PivotStyleLight16" showRowHeaders="1" showColHeaders="1" showRowStripes="0" showColStripes="0" showLastColumn="1"/></pivotTableDefinition>';
+  }
+  addText("xl/pivotTables/pivotTable1.xml", pivotXml("피벗 테이블1",[F_NO,F_C2,F_C4],[],[[F_Q,"합계 : QUANTITY"],[F_S,"합계 : Sales_Price (VAT X)"]],"A3:C4"));
+  addText("xl/pivotTables/pivotTable2.xml", pivotXml("피벗 테이블2",[F_NO],[F_C2],[[F_S,"합계 : Sales_Price (VAT X)"]],"A3:B5"));
+  var pcRel='<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/pivotCacheDefinition" Target="../pivotCache/pivotCacheDefinition1.xml"/>';
+  ["pivotTable1","pivotTable2"].forEach(function(p){ addText("xl/pivotTables/_rels/"+p+".xml.rels",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+pcRel+'</Relationships>'); });
+  [[order[0],"pivotTable1"],[order[1],"pivotTable2"]].forEach(function(p){ addText("xl/worksheets/_rels/"+sheetFile[p[0]]+".rels",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/pivotTable" Target="../pivotTables/'+p[1]+'.xml"/></Relationships>'); });
+  // ---- 공유 문자열 · 스타일 · 테마 · 통합 문서
+  prog("파일 마무리 중…"); await tick();
+  (function(){ var s=stream("xl/sharedStrings.xml"); s.w('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="'+sst2.n+'" uniqueCount="'+sst2.a.length+'">');
+    for(var i=0;i<sst2.a.length;i++){ var t=sst2.a[i]; s.w('<si><t'+(/^\s|\s$|\n/.test(t)?' xml:space="preserve"':'')+'>'+lsX(t)+'</t></si>'); } s.w('</sst>'); s.end(); })();
+  addText("xl/styles.xml", T.styles);
+  addText("xl/theme/theme1.xml", TPL.theme);
+  var sumIdx=order.indexOf(sumName);
+  addText("xl/workbook.xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook '+LS_NS+'><bookViews><workbookView activeTab="'+sumIdx+'"/></bookViews><sheets>'+order.map(function(nm,i){ return '<sheet name="'+lsX(nm)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>'; }).join("")+'</sheets><calcPr calcId="191029" fullCalcOnLoad="1"/><pivotCaches><pivotCache cacheId="1" r:id="rId'+(order.length+4)+'"/></pivotCaches></workbook>');
+  addText("xl/_rels/workbook.xml.rels",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+order.map(function(nm,i){ return '<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/'+sheetFile[nm]+'"/>'; }).join("")
+    +'<Relationship Id="rId'+(order.length+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId'+(order.length+2)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/><Relationship Id="rId'+(order.length+3)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/><Relationship Id="rId'+(order.length+4)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/pivotCacheDefinition" Target="pivotCache/pivotCacheDefinition1.xml"/></Relationships>');
+  addText("_rels/.rels",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+  var ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'
+    +'<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+    +order.map(function(nm){ return '<Override PartName="/xl/worksheets/'+sheetFile[nm]+'" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'; }).join("")
+    +'<Override PartName="/xl/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>'
+    +'<Override PartName="/xl/pivotTables/pivotTable1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.pivotTable+xml"/><Override PartName="/xl/pivotTables/pivotTable2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.pivotTable+xml"/>'
+    +'<Override PartName="/xl/pivotCache/pivotCacheDefinition1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.pivotCacheDefinition+xml"/><Override PartName="/xl/pivotCache/pivotCacheRecords1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.pivotCacheRecords+xml"/></Types>';
+  addText("[Content_Types].xml", ct);
+  zip.end();
+  var total=out.reduce(function(a,b){ return a+b.length; },0), res=new Uint8Array(total), o2=0; out.forEach(function(b){ res.set(b,o2); o2+=b.length; });
+  var base=String(srcName||"AR_Bidding_Liquidation").replace(/\.xls[bxm]?$/i,"");
+  var outName = /바이나우\s*원본/.test(base) ? base.replace(/바이나우\s*원본/,"바이나우 요약본") : (/원본/.test(base) ? base.replace(/원본/,"요약본") : base+" - "+(A.kind==="buy"?"바이나우 요약본":"요약본"));
+  return { bytes:res, name:outName+".xlsx", kind:A.kind, n:N, lots:M, rawRows:A.aCol.length, nos:A.noList.length, totalSales:gs, rows:A.rows };
+}
+
+// ---- build 125: 요약본 생성기 화면
+var _lsCur = null;
+async function lsHandleFile(f){
+  var st=document.getElementById("lsStatus");
+  if(!f) return;
+  if(!/\.xlsb$/i.test(f.name)){ st.innerHTML='<span style="color:var(--red)">원본 .xlsb 파일을 올려 주세요 (AR_Bidding_Liquidation_… - 원본 / 바이나우원본)</span>'; return; }
+  _lsCur=null; lsRender(); st.textContent="준비 중…";
+  try{
+    var ff=await fiLoadScript(LIQ_FFLATE_URL,"fflate");
+    await fiLoadScript("liq_summary_tpl.js?v=125","LIQSUM_TPL");
+    var buf=new Uint8Array(await f.arrayBuffer()), t0=Date.now();
+    var r=await lsBuild(ff,buf,f.name,window.LIQSUM_TPL,function(m){ st.textContent=m; });
+    r.sec=((Date.now()-t0)/1000).toFixed(1); r.srcName=f.name; _lsCur=r;
+    st.innerHTML="✓ 요약본 생성 완료 ("+r.sec+"초) — 아래에서 받으세요";
+    lsRender();
+  }catch(e){ console.error(e); st.innerHTML='<span style="color:var(--red)">생성 실패: '+escHtml(e&&e.message||e)+'</span>'; }
+}
+function lsRender(){
+  var el=document.getElementById("lsResult"); if(!el) return;
+  if(!_lsCur){ el.innerHTML=""; return; }
+  var r=_lsCur, plt=r.rows.reduce(function(a,x){ return a+(+x.plt||0); },0), mn=r.rows.reduce(function(a,x){ return a+(+x.min||0); },0), tot=r.rows.reduce(function(a,x){ return a+(+x.total||0); },0);
+  var buy=r.kind==="buy";
+  el.innerHTML='<div class="fi-file" style="margin-top:10px"><div class="fi-file-hd"><span class="fi-type" style="border-color:'+(buy?"#B07CE8":"#4FA3E0")+';color:'+(buy?"#B07CE8":"#4FA3E0")+'">'+(buy?"바이나우":"일반 리퀴")+'</span> <span class="fi-fname">'+escHtml(r.name)+'</span> <span class="fi-mut">'+(r.bytes.length/1048576).toFixed(1)+'MB</span>'
+    +' <button class="act primary fi-mini" id="lsDl">⬇ 요약본 다운로드</button> <button class="act fi-mini fi-del" id="lsDel" title="화면에서 결과 지우기">✕</button></div>'
+    +'<div class="fi-mut" style="margin-bottom:6px">LOT '+r.n+'건 · '+plt.toLocaleString()+'PLT · MIN Bid 합계 '+fiFmt(mn)+' · 쿠팡판매총액 '+fiFmt(tot)+' · RAW '+r.rawRows.toLocaleString()+'행 · 시트: 종합(피벗) / '+(buy?"Sheet2":"Sheet3")+'(피벗) / Sheet1 / PLT CATE / RAW / ★리퀴 요약 '+(buy?"BUY":"(2)")+'</div>'
+    +'<div style="overflow-x:auto"><table class="fi-tbl"><thead><tr><th>NO</th><th>FC</th><th class="n">PLT</th><th class="n">MIN Bid</th>'+(buy?'<th class="n">BUY NOW</th>':'')+'<th>카테고리</th><th class="n">쿠팡판매총액</th></tr></thead><tbody>'
+    +r.rows.slice(0,12).map(function(x){ return '<tr><td><b>'+escHtml(x.no)+'</b></td><td>'+escHtml(x.fc||"")+'</td><td class="n">'+(x.plt==null?"":x.plt)+'</td><td class="n">'+fiFmt(x.min)+'</td>'+(buy?'<td class="n">'+fiFmt(x.buy)+'</td>':'')+'<td>'+escHtml(x.cat||"")+'</td><td class="n">'+fiFmt(x.total)+'</td></tr>'; }).join("")
+    +(r.rows.length>12?'<tr><td colspan="'+(buy?7:6)+'" class="fi-mut">… 외 '+(r.rows.length-12)+'건 (엑셀에서 확인)</td></tr>':'')+'</tbody></table></div>'
+    +'<div class="fi-mut" style="margin-top:6px">엑셀로 열면 수식·피벗(종합 / '+(buy?"Sheet2":"Sheet3")+')이 자동으로 다시 계산·새로 고침됩니다. 행이 많아 처음 열 때 몇십 초 걸릴 수 있습니다.</div></div>';
+}
+function wireLiqSum(){
+  var box=document.getElementById("lsBox"); if(!box||box._wired) return; box._wired=true;
+  var dz=document.getElementById("lsDrop"), inp=document.getElementById("lsInput");
+  dz.addEventListener("click",function(){ inp.click(); });
+  dz.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); inp.click(); } });
+  inp.addEventListener("change",function(){ lsHandleFile(inp.files&&inp.files[0]); inp.value=""; });
+  ["dragenter","dragover"].forEach(function(ev){ dz.addEventListener(ev,function(e){ e.preventDefault(); dz.classList.add("dragover"); }); });
+  ["dragleave","drop"].forEach(function(ev){ dz.addEventListener(ev,function(e){ e.preventDefault(); dz.classList.remove("dragover"); }); });
+  dz.addEventListener("drop",function(e){ lsHandleFile(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]); });
+  box.addEventListener("click",function(e){ var t=e.target.closest("button"); if(!t) return;
+    if(t.id==="lsDl" && _lsCur){ var blob=new Blob([_lsCur.bytes],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}); var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=_lsCur.name; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },3000); }
+    else if(t.id==="lsDel"){ _lsCur=null; document.getElementById("lsStatus").textContent=""; lsRender(); }
   });
 }
 /* build 118: 일반 리퀴데이션 낙찰파일 생성
