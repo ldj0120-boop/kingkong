@@ -1072,7 +1072,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 134 · 2026-10-14</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 136 · 2026-10-14</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1557,7 +1557,7 @@
       <div class="fi-body">
         <div class="fi-disp-in">
           <div id="fiDispDrop" class="fi-drop" role="button" tabindex="0">
-            <div class="fi-drop-t">출고일정 메일 캡처 이미지를 끌어다 놓거나 클릭</div>
+            <div class="fi-drop-t">출고일정 메일 캡처 이미지 또는 저장한 메일 파일(.mhtml)을 끌어다 놓거나 클릭</div>
             <div class="fi-drop-s">캡처 후 이 탭에서 <b>Ctrl+V</b> 해도 됩니다 · 표(낙찰일자/BIDCODE/GroupNumber/NUMBER/파렛트/Outbound date)가 보이게 · <b>임박식품(FC EOS)</b> 메일은 "출고 요청" 문장부터 센터별 표(FC/센터/BIDCODE/Pallet)까지</div>
           </div>
           <div class="fi-disp-paste">
@@ -1565,7 +1565,7 @@
             <button class="act fi-mini" id="fiDispParseBtn">붙여넣은 글 인식</button>
           </div>
         </div>
-        <input type="file" id="fiDispInput" accept="image/*" hidden>
+        <input type="file" id="fiDispInput" accept="image/*,.mhtml,.mht,.html,.htm,.eml" hidden>
         <div id="fiDispStatus" class="fi-status"></div>
         <div id="fiDispResult"></div>
         <div class="fi-sec-t">배차 요청 기록</div>
@@ -13150,9 +13150,9 @@ function fiDispText(rows, meta){
       out.push(`${i+1}. ${fiCenterName(r.fc)||r.fc} → ${r.dest||"(도착지 미정)"} / ${r.pallets||"?"}PLT`);
       if(r.type==="임박"){   // build 134: 임박식품(FC EOS) — 넘버 없음, 상차지·담당·특이사항
         out.push(`   입차코드 ${r.bidcode||"?"}${r.lot?` · LOT ${r.lot}`:""}`);
-        if(r.addr) out.push(`   상차지 ${r.addr}`);
-        if(r.person || r.phone) out.push(`   담당 ${[r.person, r.phone].filter(Boolean).join(" ")}`);
-        if(r.opNote) out.push(`   ※ ${r.opNote}`);
+        out.push(`   상차지 ${r.addr || "(주소 확인 필요)"}`);
+        out.push(`   담당 ${r.person || "(담당자 확인 필요)"} ${r.phone || "(연락처 확인 필요)"}`);
+        { const nt = r.remark!=null && r.remark!=="" ? r.remark : (r.opNote||""); if(nt) out.push(`   비고 ${nt}`); }
       } else
       out.push(`   입차코드 ${r.bidcode||"?"} · Group ${r.number||"?"} (${r.group||""})`);
     });
@@ -13372,7 +13372,9 @@ function fiDispSave(){
   const e = { id:_fiDisp.id, at:_fiDisp.at, updatedAt:Date.now(), note:_fiDisp.note, matchInfo:_fiDisp.matchInfo,
     rows:_fiDisp.rows.map(r=>({ bidDate:r.bidDate, bidcode:r.bidcode, group:r.group, number:r.number, pallets:r.pallets, outboundDate:r.outboundDate,
       outboundAmPm:r.outboundAmPm, fc:r.fc, dest:r.dest, type:r.type, memo:r.memo||"", co:fiCoOf(r), skip:!!r.skip,
-      lot:r.lot||"", addr:r.addr||"", person:r.person||"", phone:r.phone||"", opNote:r.opNote||"", remark:r.remark||"" })) };
+      lot:r.lot||"", addr:r.addr||"", person:r.person||"", phone:r.phone||"", opNote:r.opNote||"", remark:r.remark||"",
+      eos:!!r.eos, src:r.src||null, srcs:r.srcs||null, histPlt:r.histPlt==null?null:r.histPlt, wdBad:r.wdBad||null, dirFilled:r.dirFilled||null, onlyIn:r.onlyIn||null, missingIn:r.missingIn||null, warn:r.warn||[], center:r.center||"" })),
+    srcs:_fiDisp.srcs||null, answers:_fiDisp.answers||null };
   FI_DISPATCH_HISTORY = fiMergeHistory([e], FI_DISPATCH_HISTORY.filter(h=>h.id!==e.id));
   fiDispPersist();
 }
@@ -13419,12 +13421,21 @@ function fiDispSheetRows(rows){
     GroupNumber: /^\d+$/.test(String(r.number||"")) ? +r.number : (r.number||""),
     PLT: r.pallets==null||r.pallets==="" ? "" : +r.pallets,
     출고일시: `${r.outboundDate||""} ${r.outboundAmPm||""}`.trim(),
-    FC: fiCenterName(r.fc)||r.fc, 도착지:r.dest||"", 카테:r.type||"", 비고:r.remark||""
+    FC: fiCenterName(r.fc)||r.fc, 주소:r.addr||"", 담당자:r.person||"", 연락처:r.phone||"", 도착지:r.dest||"", 카테:r.type||"",
+    비고: r.remark!=null && r.remark!=="" ? r.remark : (r.opNote||"")
   }));
 }
 const FI_DISP_HDR = ["NO","낙찰일","입차CODE","낙찰NO","Group Number","PLT수량","출고일시","FC","도착지","카테.","비고"];
 const FI_DISP_KEYS = ["NO","낙찰일","입차CODE","낙찰NO","GroupNumber","PLT","출고일시","FC","도착지","카테","비고"];
 const FI_DISP_WIDTH = [12,13,14,18,15,9,17,10,14,8,24];
+// build 135: 임박식품 행이 있으면 FC 옆에 상차지 주소 · 담당자 · 연락처 열, 비고(운영 특이사항) 넓게
+function fiDispCols(rows){
+  if(!(rows||[]).some(r=> r.type==="임박")) return { hdr:FI_DISP_HDR, keys:FI_DISP_KEYS, width:FI_DISP_WIDTH };
+  const i = FI_DISP_KEYS.indexOf("FC") + 1;
+  const ins = (a, b)=> a.slice(0,i).concat(b, a.slice(i));
+  const width = ins(FI_DISP_WIDTH, [46,16,15]); width[width.length-1] = 42;
+  return { hdr: ins(FI_DISP_HDR, ["상차지 주소","담당자","연락처"]), keys: ins(FI_DISP_KEYS, ["주소","담당자","연락처"]), width };
+}
 function fiDispRender(){
   const wrap = document.getElementById("fiDispResult");
   if(!wrap) return;
@@ -13433,6 +13444,7 @@ function fiDispRender(){
   const d = _fiDisp;
   const ed = (r,i,k,val,w)=>`<input class="fi-dinp" data-fd-i="${i}" data-fd-k="${k}" value="${escHtml(val==null?"":val)}" style="width:${w}px">`;
   let h = `<div style="text-align:right;margin-bottom:6px"><button class="act fi-mini fi-del" id="fiDispCurDel" title="화면에서 이번 인식 결과 닫기 (기록은 아래 배차 요청 기록에서 ✕로 삭제)">✕ 인식 결과 닫기</button></div><div class="fi-match ${d.matchInfo.ok?"ok":"bad"}">${escHtml(d.matchInfo.text)}${!d.matchInfo.ok && d.matchInfo.latestId ? ` <button class="act fi-mini" id="fiDispUseLatest">최근 기록(${escHtml(d.matchInfo.latestDate||"")})으로 채우기</button>`:""}</div>`;
+  if(d.matchInfo && d.matchInfo.eos){ d.rows.forEach(r=>{ r.memo = eosRowStatus(r); }); h += eosDispQHtml(eosDispQuestions(d), d); }   // build 136
   // build 134: 모든 행 도착지 한 번에 (임박식품처럼 도착지를 직접 고르는 경우)
   h += `<div style="margin:10px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b style="font-size:13px">모든 행 도착지</b> <select id="fiDispBulkSel">${fiDispDestOptions({ type:(d.rows[0]||{}).type, dest:"" })}</select> <input id="fiDispBulkFree" placeholder="직접 입력" style="width:110px"> <button class="act fi-mini" id="fiDispBulkEmpty">빈 행에만 적용</button> <button class="act fi-mini" id="fiDispBulkAll">전체 행에 적용</button> <span class="fi-mut">행마다 다르면 아래 표에서 고르세요</span></div>`;
   h += `<div class="fi-sec-t" style="margin-top:12px">인식 결과 · 수정 <span class="fi-mut">노란 칸 = 자동 보정/확인 필요</span></div>
@@ -13445,10 +13457,21 @@ function fiDispRender(){
     <td>${ed(r,i,"fc",r.fc,62)} <span class="fi-mut">${escHtml(fiCenterName(r.fc)||"")}</span></td>
     <td style="white-space:nowrap"><select class="fi-dinp" data-fd-i="${i}" data-fd-k="dest">${fiDispDestOptions(r)}</select> <input class="fi-dinp fi-dfree" data-fd-i="${i}" data-fd-k="dest" placeholder="직접 입력" title="목록에 없는 도착지는 여기에 입력" value="${escHtml(r.dest && !fiDispKnownDest(r.dest) ? r.dest : "")}" style="width:96px"></td>
     <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="type">${["XLG","XLS","XLD","XLA","XLB","XLC","XLE","임박"].concat(r.type&&!["XLG","XLS","XLD","XLA","XLB","XLC","XLE","임박"].includes(r.type)?[r.type]:[]).map(x=>`<option ${x===r.type?"selected":""}>${x}</option>`).join("")}</select></td>
-    <td class="fi-why" style="color:var(--amber);font-size:12px">${escHtml(r.memo||"")}</td></tr>`).join("")}
+    <td class="fi-why" style="color:var(--amber);font-size:12px">${escHtml(r.memo||"")}</td></tr>${fiDispEosSubRow(r,i)}`).join("")}
   </tbody></table></div>`;
   h += `<div id="fiDispOut">${fiDispOutHtml(d)}</div>`;
   wrap.innerHTML = h;
+}
+// build 135: 임박식품 행 — 상차지 주소 · 담당자 · 연락처 · 비고(필수) 입력줄
+function fiDispEosSubRow(r, i){
+  if(r.type!=="임박") return "";
+  const f = (k, v, w, ph)=>`<input class="fi-dinp" data-fd-i="${i}" data-fd-k="${k}" value="${escHtml(v==null?"":v)}" placeholder="${ph}" style="width:${w}px;${v?"":"border-color:var(--red,#e5534b)"}">`;
+  const nt = r.remark!=null ? r.remark : (r.opNote||"");
+  return `<tr class="fi-eosinfo" style="${r.skip?"opacity:.45":""}"><td></td><td colspan="13" style="padding:0 6px 10px;font-size:12px;white-space:nowrap">
+    <span class="fi-mut">상차지</span> ${f("addr", r.addr, 360, "상차지 주소(필수)")}
+    <span class="fi-mut">담당자</span> ${f("person", r.person, 120, "담당자(필수)")}
+    <span class="fi-mut">연락처</span> ${f("phone", r.phone, 120, "연락처(필수)")}
+    <span class="fi-mut">비고</span> <input class="fi-dinp" data-fd-i="${i}" data-fd-k="remark" value="${escHtml(nt)}" placeholder="운영 특이사항(없으면 비움)" style="width:320px"></td></tr>`;
 }
 // build 117: 미리보기·문구만 따로 다시 그림 — 표의 칸(PLT 등)을 고치는 즉시 반영(입력 중인 칸 포커스 유지)
 function fiDispRenderOut(){ const el=document.getElementById("fiDispOut"); if(el && _fiDisp) el.innerHTML = fiDispOutHtml(_fiDisp); }
@@ -13456,13 +13479,17 @@ function fiDispOutHtml(d){
   let h = "";
   // build 114: 거래처별(더한 = 경산 외 / KPP = 경산) 출고요청서 — 포함 체크된 행만
   const inc = d.rows.filter(r=>!r.skip);
-  h += `<div class="fi-sec-t">출고요청서 미리보기 <button class="act primary fi-mini" id="fiDispXlsx">⬇ 이번 요청 엑셀 (더한·KPP 시트)</button>
-    <button class="act primary fi-mini admin-only" id="fiDispToLedger" title="처음 누르면 추가, 이미 추가한 행은 고친 값으로 갱신">＋ 누적 출고요청서에 추가/갱신</button> <span id="fiDispLedgerMsg" class="fi-mut"></span></div>`;
+  // build 136: 임박식품은 확인 질문 · 도착지가 남아 있으면 초안 — 엑셀/누적 추가 잠금
+  let lock = "";
+  if(d.matchInfo && d.matchInfo.eos){ const Q = eosDispQuestions(d); if(Q.pending.length || Q.destMiss) lock = `확인 질문 ${Q.pending.length}개${Q.destMiss?` · 도착지 미선택 ${Q.destMiss}곳`:""} 남음`; }
+  const dis = lock ? ` disabled title="${escHtml(lock)} — 위 교차 검증 칸에서 답하면 열립니다" style="opacity:.5;cursor:not-allowed"` : "";
+  h += `<div class="fi-sec-t">${d.matchInfo && d.matchInfo.eos ? (lock ? `출고요청서 초안 <span style="color:var(--amber,#e0a030);font-size:12px">(${escHtml(lock)})</span>` : `✓ 최종 배차요청서`) : "출고요청서 미리보기"} <button class="act primary fi-mini" id="fiDispXlsx"${dis}>⬇ 이번 요청 엑셀 (더한·KPP 시트)</button>
+    <button class="act primary fi-mini admin-only" id="fiDispToLedger" title="처음 누르면 추가, 이미 추가한 행은 고친 값으로 갱신"${dis}>＋ 누적 출고요청서에 추가/갱신</button> <span id="fiDispLedgerMsg" class="fi-mut"></span></div>`;
   Object.keys(FI_LEDGER_CO).forEach(co=>{
     const rs = inc.filter(r=>fiCoOf(r)===co); if(!rs.length) return;
     h += `<div class="fi-mut" style="margin:8px 0 4px"><b style="color:var(--text)">${FI_LEDGER_CO[co].label}</b> ${rs.length}건 · ${rs.reduce((s,r)=>s+(+r.pallets||0),0)}PLT</div>
-    <div class="fi-xprev"><table><thead><tr>${FI_DISP_HDR.map(x=>`<th>${escHtml(x)}</th>`).join("")}</tr></thead><tbody>
-    ${fiDispSheetRows(rs).map(o=>`<tr>${FI_DISP_KEYS.map(k=>`<td>${escHtml(o[k]==null?"":o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+    <div class="fi-xprev"><table><thead><tr>${fiDispCols(rs).hdr.map(x=>`<th>${escHtml(x)}</th>`).join("")}</tr></thead><tbody>
+    ${fiDispSheetRows(rs).map(o=>`<tr>${fiDispCols(rs).keys.map(k=>`<td${/^(주소|비고)$/.test(k)?' style="text-align:left;white-space:normal;min-width:180px"':""}>${escHtml(o[k]==null?"":o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   });
   h += `<div class="fi-sec-t">물류업체 전달 문구 <button class="act primary fi-mini" id="fiDispCopy">복사</button> <span id="fiDispCopyMsg" class="fi-mut"></span></div>
   <textarea id="fiDispText" class="fi-text" style="min-height:220px" readonly>${escHtml(fiDispTextAll(d))}</textarea>`;
@@ -13490,17 +13517,18 @@ async function fiDispWorkbook(groups){
   const border = { top:thin, left:thin, bottom:thin, right:thin };
   groups.forEach(g=>{
     const ws = wb.addWorksheet(g.name.slice(0,31));
-    ws.columns = [{ width:3 }].concat(FI_DISP_WIDTH.map(w=>({ width:w })));
+    const COLS = fiDispCols(g.rows);   // build 135
+    ws.columns = [{ width:3 }].concat(COLS.width.map(w=>({ width:w })));
     const leg = [["진행","FF92D050"],["완료","FF9BC2E6"],["미진행",null]];
     leg.forEach(([t,c],i)=>{ const cell = ws.getCell(2, 3+i); cell.value=t; cell.alignment={horizontal:"center"}; cell.border=border; cell.font={name:"맑은 고딕",size:10}; if(c) cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:c}}; });
-    FI_DISP_HDR.forEach((t,i)=>{ const cell = ws.getCell(3, 2+i); cell.value=t; cell.font={name:"맑은 고딕",size:10,bold:true}; cell.alignment={horizontal:"center",vertical:"middle"}; cell.border=border; cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFF2F2F2"}}; });
+    COLS.hdr.forEach((t,i)=>{ const cell = ws.getCell(3, 2+i); cell.value=t; cell.font={name:"맑은 고딕",size:10,bold:true}; cell.alignment={horizontal:"center",vertical:"middle"}; cell.border=border; cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFF2F2F2"}}; });
     fiDispSheetRows(g.rows).forEach((o,ri)=>{
-      FI_DISP_KEYS.forEach((k,ci)=>{
+      COLS.keys.forEach((k,ci)=>{
         const cell = ws.getCell(4+ri, 2+ci);
         let v = o[k];
         if(k==="낙찰일" && /^\d{4}-\d{2}-\d{2}$/.test(v||"")){ const [y,m,d]=v.split("-").map(Number); v = new Date(Date.UTC(y,m-1,d)); cell.numFmt="yyyy-mm-dd"; }
         cell.value = v===""||v==null ? null : v;
-        cell.font = { name:"맑은 고딕", size:11 }; cell.alignment = { horizontal:"center", vertical:"middle" }; cell.border = border;
+        cell.font = { name:"맑은 고딕", size:11 }; cell.alignment = /^(주소|비고)$/.test(k) ? { horizontal:"left", vertical:"middle", wrapText:true } : { horizontal:"center", vertical:"middle" }; cell.border = border;
       });
     });
     ws.views = [{ state:"frozen", ySplit:3 }];
@@ -14665,6 +14693,25 @@ async function eosDispHistTable(date, lots){
   return null;
 }
 // 행 마무리: 낙찰일·상차일·유형·경고, 낙찰파일 EOS 표와 대조
+// build 135: 임박식품은 센터별 상차지 주소 · 담당자 · 연락처 · 비고(운영 특이사항)가 필수.
+//   메일 글에서 읽은 값은 센터(FC)별로 기억해 두고, 이미지(주소 칸이 잘리거나 한글 인식이 불안정)일 때 채운다.
+const EOS_CENTER_LS = "eos_center_info_v1";
+var EOS_CENTER_INFO = {};
+try{ EOS_CENTER_INFO = JSON.parse(localStorage.getItem(EOS_CENTER_LS)||"{}") || {}; }catch(_){ EOS_CENTER_INFO = {}; }
+function eosCenterSave(r){
+  const fc = String(r && r.fc || "").toUpperCase(); if(!fc) return;
+  const o = Object.assign({}, EOS_CENTER_INFO[fc] || {});
+  ["addr","person","phone"].forEach(k=>{ if(r[k]) o[k] = r[k]; });
+  if(r.remark != null) o.remark = r.remark;
+  o.at = r.bidDate || o.at || "";
+  EOS_CENTER_INFO[fc] = o;
+  try{ localStorage.setItem(EOS_CENTER_LS, JSON.stringify(EOS_CENTER_INFO)); }catch(_){}
+}
+function eosDispNeedInfo(r){
+  const miss = [];
+  if(!r.addr) miss.push("상차지 주소"); if(!r.person) miss.push("담당자"); if(!r.phone) miss.push("연락처");
+  return miss;
+}
 async function eosDispFinish(rows, text, fromImage){
   const bis = rows.map(r=> eosBidInfo(r.bidcode));
   const bidDate = _fiVote(bis.filter(Boolean).map(b=>b.date));
@@ -14681,7 +14728,7 @@ async function eosDispFinish(rows, text, fromImage){
     else {
       const d = new Date((r.bidDate||fiDetectDate("").replace(/(\d{4})(\d\d)(\d\d)/,"$1-$2-$3"))+"T00:00:00"); d.setDate(d.getDate()+1);
       r.outboundDate = isNaN(d) ? "" : `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; r.outboundAmPm = "오전";
-      r.warn.push("상차일을 본문에서 못 찾음 — 낙찰 다음날 오전으로 가정(확인)");
+      r.warn.push("상차일을 본문에서 못 찾음 — 낙찰 다음날 오전으로 가정(확인)"); r.obGuess = true;
     }
     r.type = "임박"; r.eos = true;
     r.group = r.lot ? `임박 ${r.lot}` : "임박";
@@ -14693,6 +14740,7 @@ async function eosDispFinish(rows, text, fromImage){
     // 운영 특이사항의 상차 불가 요일
     const wd = fiDispWeekday(r.outboundDate);
     const nm = String(r.opNote||"").match(/([월화수목금토일](?:요일)?[\s,·/]*)+[^가-힣]*상차\s*불가/);
+    if(wd && nm && nm[0].replace(/요일/g,"").includes(wd)) r.wdBad = wd;
     if(wd && nm && nm[0].replace(/요일/g,"").includes(wd)) r.warn.push(`⚠ ${wd}요일 상차 불가 센터(운영 특이사항) — 상차일 조정 필요`);
     if(/오전/.test(r.opNote||"") && /오후/.test(r.outboundAmPm||"")) r.warn.push("운영 특이사항: 오전 상차 — 확인");
   });
@@ -14716,7 +14764,7 @@ async function eosDispFinish(rows, text, fromImage){
       if(t[2] && t[2] !== r.center){ if(fromImage || !r.center){ if(r.center) diff.push(`센터 ${r.center}→${t[2]}`); r.center = r.fcName = t[2]; eosDispRememberName(code, t[2]); } }
       if(+t[3] !== +r.pallets){
         if(fromImage){ diff.push(`PLT ${r.pallets==null?"?":r.pallets}→${t[3]}`); r.pallets = +t[3]; }
-        else r.warn.push(`PLT 메일 ${r.pallets} / 낙찰파일 ${t[3]} — 메일 값 사용(확인)`);
+        else { r.warn.push(`PLT 메일 ${r.pallets} / 낙찰파일 ${t[3]} — 메일 값 사용(확인)`); r.histPlt = +t[3]; }
       }
       r.warn.unshift(`✓ 낙찰파일 EOS 표와 일치${diff.length?` (글자인식 보정: ${diff.join(", ")})`:""}`);
     });
@@ -14729,6 +14777,24 @@ async function eosDispFinish(rows, text, fromImage){
   } else {
     rows.forEach(r=>{ if(fromImage) r.warn.push("PLT·FC 글자인식 — 메일과 대조(같은 PC에서 ③ 임박식품 낙찰파일을 먼저 만들면 자동 보정)"); });
   }
+  // build 135: 상차지 주소 · 담당자 · 연락처 · 비고 — 글은 기억, 이미지는 기억한 값으로 채움, 없으면 경고
+  rows.forEach(r=>{
+    if(r.remark == null) r.remark = r.opNote || "";
+    if(!fromImage){ eosCenterSave(r); }
+    else {
+      const c = EOS_CENTER_INFO[String(r.fc||"").toUpperCase()];
+      if(c){
+        const used = [];
+        if(c.addr && (!r.addr || r.addr.length < 8)){ r.addr = c.addr; used.push("주소"); } else if(c.addr) { r.addr = c.addr; used.push("주소"); }
+        if(c.person){ r.person = c.person; used.push("담당자"); }
+        if(c.phone){ r.phone = c.phone; used.push("연락처"); }
+        if(c.remark != null){ r.remark = r.opNote = c.remark; used.push("비고"); }
+        if(used.length){ r.warn.push(`${used.join("·")}는 지난 메일(${c.at||"?"}) 기준 — 바뀌었는지 확인`); r.dirFilled = c.at || "?"; }
+      } else if(r.addr || r.person || r.phone){ r.warn.push("상차지 주소·담당자·연락처 글자인식 — 메일과 대조"); }
+    }
+    const miss = eosDispNeedInfo(r);
+    if(miss.length) r.warn.push(`⚠ ${miss.join("·")} 없음(필수) — 메일 본문 글을 붙여넣거나 아래 칸에 직접 입력`);
+  });
   rows.forEach(r=>{ if(!r.pallets) r.warn.push("파렛트 수 확인"); if(!r.fc) r.warn.push("FC 확인");
     if(r.palCut && !(r.warn[0]||"").startsWith("✓")) r.warn.push("⚠ 캡처 오른쪽이 Pallet 칸에서 잘림 — 숫자가 안 보였을 수 있으니 Pallet 칸 끝까지 캡처하거나 PLT 확인"); });
   const byLot = {}; rows.forEach(r=>{ const k=r.lot||"?"; (byLot[k]=byLot[k]||{ n:0, p:0 }); byLot[k].n++; byLot[k].p += +r.pallets||0; });
@@ -14741,12 +14807,12 @@ async function eosDispFinish(rows, text, fromImage){
     + ` — 도착지는 직접 선택(표 위 "모든 행 도착지"로 한 번에 지정 가능)` };
   return { rows, matchInfo, note: eosDispNote(text) };
 }
-async function eosDispFromText(text){
+async function eosDispFromText(text, label){
   const st = document.getElementById("fiDispStatus");
   const rows = eosDispParseText(text);
   if(!rows.length){ if(st) st.textContent = "⚠ 임박식품(FC EOS) 메일 표(FC · 센터 · BIDCODE · Pallet)를 찾지 못했습니다. 메일 본문 전체를 복사해서 붙여넣어 주세요."; return false; }
   const res = await eosDispFinish(rows, text, false);
-  fiDispStart(res.rows, res.note, "임박식품 메일 글", { eos:true, matchInfo:res.matchInfo });
+  await eosDispIngest(res, label || "메일 글");
   return true;
 }
 // ---- 이미지: 메일 캡처에 표가 2개(요약표·센터별 표) 있으므로 표마다 따로 찾아 행이 가장 많은 표를 쓴다 ----
@@ -14881,18 +14947,231 @@ async function eosDispFromImage(img, ocr, status){
   if(!res) return false;
   if(!res.rows.length) throw new Error("임박식품(FC EOS) 표에서 센터 행을 찾지 못했습니다.");
   const out = await eosDispFinish(res.rows, res.head, true);
-  fiDispStart(out.rows, out.note, "임박식품 메일 이미지", { eos:true, matchInfo:out.matchInfo });
+  await eosDispIngest(out, "캡처 이미지");
   return true;
+}
+/* build 136: 임박식품 배차 요청서 — 자료 교차 검증 + 확인 질문 → 최종 배차요청서
+   - 자료: 메일 파일(.mhtml) · 메일 글(붙여넣기) · 캡처 이미지. 같은 메일(입차코드 겹침)을 또 넣으면 새로 만들지 않고 센터(LOT+FC)별로 대조한다.
+   - 자료끼리 값이 다르거나, 낙찰파일과 PLT가 다르거나, 필수(상차지 주소·담당자·연락처)가 비었거나, 상차 불가 요일이면 "확인 질문"으로 묻는다.
+   - 질문에 모두 답하고 도착지를 다 고르면 최종 배차요청서(엑셀·누적 출고요청서 추가) 버튼이 열린다. */
+const EOS_CMP = ["pallets","bidcode","outboundDate","outboundAmPm","addr","person","phone","remark"];
+const EOS_FLD = { pallets:"PLT", bidcode:"입차코드", outboundDate:"상차일", outboundAmPm:"오전/오후", addr:"상차지 주소", person:"담당자", phone:"연락처", remark:"비고", fc:"FC" };
+const _eosIsImg = l=> /이미지/.test(l||"");
+const _eosKey = r=> (r.lot||"")+"|"+String(r.fc||"").replace(/_/g,"").toUpperCase();
+const _eosNorm = v=> String(v==null?"":v).replace(/\s+/g,"").toUpperCase();
+function eosFieldFrom(label, f, r){
+  if(!_eosIsImg(label)) return true;
+  if(f==="pallets" || f==="bidcode") return true;
+  if(/^outbound/.test(f)) return !r.obGuess;
+  return false;   // 이미지의 주소·담당자·연락처·비고는 글자인식이 불안정 → 대조에 쓰지 않음
+}
+function eosRowSrcInit(r, label){
+  r.src = {}; r.srcs = [label];
+  EOS_CMP.forEach(f=>{ if(eosFieldFrom(label, f, r) && r[f]!=null && r[f]!=="") r.src[f] = { [label]: r[f] }; });
+}
+async function eosDispIngest(out, label){
+  const d = _fiDisp;
+  const st = document.getElementById("fiDispStatus");
+  const bids = new Set(out.rows.map(r=> r.bidcode).filter(Boolean));
+  if(d && d.matchInfo && d.matchInfo.eos && d.rows.some(r=> bids.has(r.bidcode))){
+    const res = eosDispMerge(d, out, label);
+    fiDispSave(); fiDispRender();
+    const Q = eosDispQuestions(d);
+    if(st) st.textContent = `✓ ${label}을(를) 앞 자료(${(d.srcs||[]).filter(x=>x!==label).join("·")})와 대조 — 센터 ${res.same}곳 일치${res.diff?` · 값이 다른 칸 ${res.diff}개`:""}${res.only?` · 한쪽에만 있는 센터 ${res.only}곳`:""}${Q.pending.length?` → 아래 "확인이 필요한 항목"에 답해 주세요`:" → 확인할 항목 없음"}`;
+    return;
+  }
+  out.rows.forEach(r=> eosRowSrcInit(r, label));
+  fiDispStart(out.rows, out.note, label, { eos:true, matchInfo: out.matchInfo });
+  _fiDisp.srcs = [label]; _fiDisp.answers = {};
+  fiDispSave(); fiDispRender();
+}
+function eosDispMerge(d, out, label){
+  const textish = l=> !_eosIsImg(l);
+  let same = 0, diff = 0, only = 0;
+  const map = new Map(d.rows.map(r=> [_eosKey(r), r]));
+  const newKeys = new Set(out.rows.map(_eosKey));
+  out.rows.forEach(n=>{
+    let o = map.get(_eosKey(n));
+    if(!o){   // 글자인식으로 FC가 다르게 읽힌 같은 센터: 같은 LOT · 편집거리 2 이하 · 아직 짝 없는 행
+      o = d.rows.find(x=> !x._m && x.lot===n.lot && !newKeys.has(_eosKey(x)) && _fiLev(String(x.fc||""), String(n.fc||"")) <= 2);
+      if(o){ o.src = o.src || {}; o.src.fc = o.src.fc || { [(o.srcs||["앞 자료"])[0]]: o.fc }; o.src.fc[label] = n.fc; o._fcDiff = true;
+        if(textish(label) && !Object.keys(o.src.fc).some(l=> l!==label && textish(l))) o.fc = n.fc; }
+    }
+    if(!o){ eosRowSrcInit(n, label); n.onlyIn = label; d.rows.push(n); only++; return; }
+    o._m = true; o.src = o.src || {}; o.srcs = Array.from(new Set((o.srcs||[]).concat(label)));
+    let rowDiff = 0;
+    EOS_CMP.forEach(f=>{
+      if(!eosFieldFrom(label, f, n)) return;
+      const v = n[f]; if(v==null || v==="") return;
+      const cur = o.src[f] || (o.src[f] = {});
+      const before = Object.values(cur).map(_eosNorm);
+      cur[label] = v;
+      if(before.length && !before.includes(_eosNorm(v))) rowDiff++;
+      // 값 고르기: 대조 전엔 메일 파일·글 값을 우선(이미지는 글자인식)
+      const hasText = Object.keys(cur).some(l=> l!==label && textish(l));
+      if(o[f]==null || o[f]==="" || (textish(label) && !hasText)) o[f] = f==="pallets" ? +v : v;
+      if(f==="remark" && (o.remark===v)) o.opNote = v;
+    });
+    if(textish(label)){ ["center","fcName"].forEach(k=>{ if(n[k] && !o[k]) o[k] = n[k]; }); if(o.histPlt==null && n.histPlt!=null) o.histPlt = n.histPlt; if(n.wdBad) o.wdBad = n.wdBad; o.dirFilled = null; o.obGuess = o.obGuess && n.obGuess; }
+    if(o._fcDiff){ rowDiff++; delete o._fcDiff; }
+    if(rowDiff) diff += rowDiff; else same++;
+  });
+  d.rows.forEach(r=>{ if(!r._m && !(r.srcs||[]).includes(label)) r.missingIn = Array.from(new Set((r.missingIn||[]).concat(label))); delete r._m; });
+  d.srcs = Array.from(new Set((d.srcs||[]).concat(label)));
+  d.rows.forEach(r=>{ r.memo = eosRowStatus(r); });
+  return { same, diff, only };
+}
+function eosRowStatus(r){
+  const out = [];
+  const multi = Object.keys(r.src||{}).filter(f=> Object.keys(r.src[f]).length > 1);
+  const conf = multi.filter(f=> new Set(Object.values(r.src[f]).map(_eosNorm)).size > 1);
+  const A = (_fiDisp && _fiDisp.answers) || {};
+  const open = conf.filter(f=> A[_eosKey(r)+"|"+f] == null), decided = conf.filter(f=> A[_eosKey(r)+"|"+f] != null);
+  if((r.srcs||[]).length > 1) out.push(open.length ? `⚠ 자료마다 다름: ${open.map(f=>EOS_FLD[f]).join(", ")}` : decided.length ? `✓ ${decided.map(f=>EOS_FLD[f]).join(", ")} 결정함 · 나머지 ${r.srcs.join("·")} 일치` : `✓ ${r.srcs.join("·")} 일치`);
+  (r.warn||[]).forEach(w=>{ if(!out.includes(w)) out.push(w); });
+  return out.join(" / ");
+}
+function eosDispQuestions(d){
+  const A = d.answers || (d.answers = {});
+  const qs = [];
+  const nm = r=> `${fiCenterName(r.fc)||r.fc} (LOT ${r.lot||"?"})`;
+  const add = q=>{ q.done = q.check ? q.check() : (A[q.id] != null); qs.push(q); };
+  const srcs = d.srcs || [];
+  if(srcs.length && srcs.every(_eosIsImg))
+    add({ id:"src|image", type:"confirm", text:"캡처 이미지로만 인식했습니다(글자인식). 메일 파일(.mhtml)이나 메일 글을 넣으면 자동으로 대조합니다 — 이대로 진행할까요?", opts:[["이대로 진행(직접 대조함)","ok"]] });
+  d.rows.forEach((r,i)=>{
+    const k = _eosKey(r);
+    if(r.onlyIn || (r.missingIn && r.missingIn.length))
+      add({ id:k+"|row", i, type:"row", text:`${nm(r)} · ${r.pallets||"?"}PLT — ${r.onlyIn ? `${r.onlyIn}에만 있는 센터` : `${r.missingIn.join("·")}에는 없는 센터`}. 배차에 넣을까요?`, opts:[["넣기","1"],["빼기","0"]] });
+    if(r.skip) return;
+    Object.keys(r.src||{}).forEach(f=>{
+      const vals = r.src[f]; if(new Set(Object.values(vals).map(_eosNorm)).size < 2) return;
+      const opts = []; Object.entries(vals).forEach(([l,v])=>{ const o = opts.find(x=> _eosNorm(x[1])===_eosNorm(v)); if(o) o[0] = o[0].replace(/\)$/, `·${l})`); else opts.push([`${v} (${l})`, String(v)]); });
+      add({ id:k+"|"+f, i, type:"pick", field:f, text:`${nm(r)} · ${EOS_FLD[f]} — 자료마다 값이 다릅니다`, opts, input:true });
+    });
+    if(r.histPlt!=null && +r.histPlt !== +(r.src && r.src.pallets ? Object.values(r.src.pallets)[0] : r.pallets))
+      add({ id:k+"|hist", i, type:"pick", field:"pallets", text:`${nm(r)} · PLT — 메일 ${Object.values((r.src||{}).pallets||{})[0] ?? r.pallets} / ③ 낙찰파일 ${r.histPlt}`, opts:[[`${Object.values((r.src||{}).pallets||{})[0] ?? r.pallets} (메일)`, String(Object.values((r.src||{}).pallets||{})[0] ?? r.pallets)],[`${r.histPlt} (낙찰파일)`, String(r.histPlt)]], input:true });
+    if(r.wdBad)
+      add({ id:k+"|wd", i, type:"pick", field:"outboundDate", text:`${nm(r)} — 비고 "${r.remark||r.opNote||""}" 인데 상차일이 ${r.outboundDate}(${r.wdBad})입니다. 상차일을 어떻게 할까요?`, opts:[[`그대로 ${r.outboundDate} (쿠팡 요청일)`, r.outboundDate]], input:true, ph:"YYYY-MM-DD" });
+    if(r.dirFilled && !(r.srcs||[]).some(l=> !_eosIsImg(l)))
+      add({ id:k+"|dir", i, type:"confirm", text:`${nm(r)} — 상차지 주소·담당자·연락처·비고를 지난 메일(${r.dirFilled}) 기준으로 채웠습니다(아래 칸). 맞나요?`, opts:[["맞음","ok"]] });
+    ["addr","person","phone"].forEach(f=>{
+      add({ id:k+"|need|"+f, i, type:"input", field:f, text:`${nm(r)} · ${EOS_FLD[f]} 없음(필수)`, ph:EOS_FLD[f], check:()=> !!String(r[f]||"").trim() });
+    });
+  });
+  const destMiss = d.rows.filter(r=> !r.skip && !String(r.dest||"").trim()).length;
+  return { qs, pending: qs.filter(q=> !q.done), done: qs.filter(q=> q.done && q.type!=="input"), destMiss };
+}
+function eosDispAnswer(id, v){
+  const d = _fiDisp; if(!d) return;
+  const Q = eosDispQuestions(d); const q = Q.qs.find(x=> x.id===id); if(!q) return;
+  v = String(v==null?"":v).trim(); if(!v) return;
+  const r = q.i!=null ? d.rows[q.i] : null;
+  if(q.type==="input"){ if(r){ r[q.field] = v; eosCenterSave(r); } }
+  else {
+    d.answers[id] = v;
+    if(q.type==="row" && r) r.skip = v==="0";
+    if(q.type==="pick" && r){
+      if(q.field==="outboundDate"){ const dd = fiFixDate(v) || v; r.outboundDate = dd; }
+      else r[q.field] = q.field==="pallets" ? +v : v;
+      if(q.field==="remark") r.opNote = v;
+      if(["addr","person","phone","remark"].includes(q.field)) eosCenterSave(r);
+    }
+  }
+  fiDispSave(); fiDispRender();
+}
+function eosDispQHtml(Q, d){
+  const srcs = d.srcs || [];
+  const qh = q=> `<div style="margin:6px 0;line-height:1.9"><span>${escHtml(q.text)}</span> `
+    + (q.opts||[]).map(([lab,v])=>`<button class="act fi-mini" data-q-id="${escHtml(q.id)}" data-q-v="${escHtml(v)}">${escHtml(lab)}</button>`).join(" ")
+    + (q.input || q.type==="input" ? ` <input data-q-in="${escHtml(q.id)}" placeholder="${escHtml(q.ph || "직접 입력")}" style="width:${q.field==="addr"?300:140}px"> <button class="act fi-mini" data-q-id="${escHtml(q.id)}" data-q-use-in="1">적용</button>` : "") + `</div>`;
+  let h = `<div style="border:1px solid ${Q.pending.length||Q.destMiss?"var(--amber,#e0a030)":"var(--green,#33c784)"};border-radius:8px;padding:10px 12px;margin-top:10px">
+    <div><b>교차 검증</b> · 넣은 자료: ${srcs.map(x=>`<span class="fi-type" style="border-color:#93A5B6;color:inherit">${escHtml(x)}</span>`).join(" ")}
+    ${srcs.length < 2 ? `<span class="fi-mut"> — 메일 파일(.mhtml) · 메일 글 · 캡처 이미지 중 하나를 더 넣으면 센터별로 자동 대조합니다</span>` : ""}</div>`;
+  if(Q.pending.length) h += `<div style="margin-top:8px;color:var(--amber,#e0a030)"><b>확인이 필요한 항목 ${Q.pending.length}개</b> — 답하면 최종 배차요청서가 완성됩니다</div>` + Q.pending.map(qh).join("");
+  if(Q.destMiss) h += `<div style="margin-top:6px;color:var(--amber,#e0a030)">도착지를 아직 고르지 않은 센터 ${Q.destMiss}곳 — 위 "모든 행 도착지" 또는 표에서 골라 주세요</div>`;
+  if(!Q.pending.length && !Q.destMiss) h += `<div style="margin-top:6px;color:var(--green,#33c784)"><b>✓ 확인 완료 — 최종 배차요청서가 완성됐습니다</b> (아래 엑셀 · 누적 출고요청서 · 물류업체 문구)</div>`;
+  if(Q.done.length) h += `<details style="margin-top:6px"><summary class="fi-mut">결정한 항목 ${Q.done.length}개</summary>${Q.done.map(q=>`<div class="fi-mut" style="margin:2px 0">✓ ${escHtml(q.text)} → <b>${escHtml(q.type==="row" ? (d.answers[q.id]==="0"?"빼기":"넣기") : (d.answers[q.id]==="ok"?"확인":d.answers[q.id]))}</b> <button class="act fi-mini" data-q-undo="${escHtml(q.id)}">다시 묻기</button></div>`).join("")}</details>`;
+  return h + `</div>`;
+}
+// build 135: 네이버 메일 "저장(.mhtml)" 파일 → 본문 HTML → 글(표는 칸을 탭으로) → 붙여넣기와 같은 인식
+function _mhtDecode(bytes, enc, charset){
+  enc = String(enc||"").toLowerCase();
+  let u8 = bytes;
+  if(enc==="quoted-printable"){
+    const out = []; for(let i=0;i<bytes.length;i++){ const b = bytes[i];
+      if(b===61){ const a = bytes[i+1], c = bytes[i+2];
+        if(a===13 && c===10){ i+=2; continue; } if(a===10){ i+=1; continue; }
+        const hx = String.fromCharCode(a||0, c||0); if(/^[0-9A-Fa-f]{2}$/.test(hx)){ out.push(parseInt(hx,16)); i+=2; continue; } }
+      out.push(b); }
+    u8 = new Uint8Array(out);
+  } else if(enc==="base64"){
+    const bin = atob(new TextDecoder("latin1").decode(bytes).replace(/[^A-Za-z0-9+\/=]/g,"")); u8 = new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i);
+  }
+  try{ return new TextDecoder(charset||"utf-8").decode(u8); }catch(_){ return new TextDecoder("utf-8").decode(u8); }
+}
+function mhtmlToHtml(buf){
+  const u8 = new Uint8Array(buf);
+  const lat = new TextDecoder("latin1").decode(u8);
+  const bm = lat.match(/boundary="?([^";\r\n]+)"?/i);
+  if(!bm) return _mhtDecode(u8, (lat.match(/Content-Transfer-Encoding:\s*([\w-]+)/i)||[])[1], "utf-8");
+  const parts = lat.split("--"+bm[1]);
+  let pos = 0; const htmls = [];
+  for(const p of parts){
+    const start = lat.indexOf(p, pos); pos = start + p.length;
+    const hEnd = p.search(/\r?\n\r?\n/); if(hEnd<0) continue;
+    const head = p.slice(0, hEnd);
+    if(!/Content-Type:\s*text\/html/i.test(head)) continue;
+    const bodyOff = start + hEnd + (p.slice(hEnd).match(/^\r?\n\r?\n/)[0].length);
+    const body = u8.subarray(bodyOff, start + p.length);
+    htmls.push(_mhtDecode(body, (head.match(/Content-Transfer-Encoding:\s*([\w-]+)/i)||[])[1], ((head.match(/charset="?([\w-]+)/i)||[])[1]) || "utf-8"));
+  }
+  return htmls.sort((a,b)=> b.length - a.length)[0] || "";
+}
+function mailHtmlToText(html){
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  doc.querySelectorAll("script,style,noscript").forEach(e=> e.remove());
+  // 메일 본문(인사말이 들어 있는 가장 작은 덩어리)이 있으면 그것만
+  let root = doc.body;
+  const t = Array.from(doc.querySelectorAll("table")).find(x=> /BIDCODE/i.test(x.textContent||""));
+  if(t){ let p = t; while(p && p !== doc.body && !/안녕하세요|출고\s*요청/.test(p.textContent||"")) p = p.parentElement; if(p) root = p; }
+  const out = [];
+  const walk = el=>{
+    if(el.nodeType===3){ out.push(el.nodeValue); return; }
+    if(el.nodeType!==1) return;
+    const tag = el.tagName;
+    if(tag==="TABLE"){ out.push("\n"); el.querySelectorAll("tr").forEach(tr=>{ out.push(Array.from(tr.children).map(td=> String(td.textContent||"").replace(/\s+/g," ").trim()).join("\t") + "\n"); }); return; }
+    if(tag==="BR"){ out.push("\n"); return; }
+    const block = /^(DIV|P|LI|H\d|TR|SECTION|ARTICLE|BLOCKQUOTE)$/.test(tag);
+    if(block) out.push("\n");
+    el.childNodes.forEach(walk);
+    if(block) out.push("\n");
+  };
+  walk(root);
+  return out.join("").replace(/[ \u00a0]+/g," ").replace(/\n\s*\n+/g,"\n");
+}
+async function fiDispFromFile(f){
+  if(/^image\//.test(f.type) && !/\.(mhtml|mht|html?|eml)$/i.test(f.name)) return fiDispFromImage(f);
+  const st = document.getElementById("fiDispStatus");
+  try{
+    if(st) st.textContent = "메일 파일 읽는 중…";
+    const buf = await f.arrayBuffer();
+    const html = /\.html?$/i.test(f.name) ? new TextDecoder("utf-8").decode(buf) : mhtmlToHtml(buf);
+    if(!html) throw new Error("메일 파일에서 본문을 찾지 못했습니다.");
+    const text = mailHtmlToText(html);
+    if(eosDispIsMail(text)){ if(!(await eosDispFromText(text, "메일 파일"))) throw new Error("메일 파일에서 임박식품(FC EOS) 표를 찾지 못했습니다."); }
+    else { const ta = document.getElementById("fiDispPaste"); if(ta) ta.value = text; fiDispFromText(text); }
+  }catch(e){ if(st) st.textContent = "⚠ " + (e && e.message || e); }
 }
 function wireFixedDispatch(){
   const box = document.getElementById("fiDispBox");
   if(!box || box._wired) return; box._wired = true;
   const dz = document.getElementById("fiDispDrop"), inp = document.getElementById("fiDispInput"), ta = document.getElementById("fiDispPaste");
   dz.addEventListener("click", ()=> inp.click());
-  inp.addEventListener("change", ()=>{ const f=inp.files&&inp.files[0]; if(f) fiDispFromImage(f); inp.value=""; });
+  inp.addEventListener("change", ()=>{ const f=inp.files&&inp.files[0]; if(f) fiDispFromFile(f); inp.value=""; });
   ["dragenter","dragover"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("dragover"); }));
   ["dragleave","drop"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove("dragover"); }));
-  dz.addEventListener("drop", e=>{ const f=e.dataTransfer && Array.from(e.dataTransfer.files||[]).find(x=>/^image\//.test(x.type)); if(f) fiDispFromImage(f); });
+  dz.addEventListener("drop", e=>{ const f=e.dataTransfer && Array.from(e.dataTransfer.files||[]).find(x=>/^image\//.test(x.type) || /\.(mhtml|mht|html?|eml)$/i.test(x.name)); if(f) fiDispFromFile(f); });
   // 캡처 후 Ctrl+V: 이미지면 OCR, 글자면 텍스트 파싱 (고정인수 탭이 열려 있을 때만)
   document.addEventListener("paste", e=>{
     const view = document.getElementById("view-fixed");
@@ -14908,10 +15187,17 @@ function wireFixedDispatch(){
     const r = _fiDisp.rows[+t.dataset.fdI]; const k = t.dataset.fdK;
     r[k] = k==="pallets" ? (t.value===""?null:+t.value) : k==="skip" ? !t.checked : t.value;
     if(k==="fc") r.fc = String(t.value).toUpperCase().trim();
+    if(r.type==="임박" && ["addr","person","phone","remark"].includes(k)){ if(k==="remark") r.opNote = r.remark; try{ eosCenterSave(r); }catch(_){} }   // build 135
     fiDispSave();
     if(t.tagName==="SELECT" || k==="fc" || k==="type" || k==="skip") fiDispRender(); else fiDispRenderOut();
   });
   // build 124: 도착지 직접 입력 — 입력 중엔 미리보기만, 칸을 벗어나면(엔터·Tab) 선택상자에도 반영
+  box.addEventListener("change", e=>{ const t0 = e.target;   // build 136: 임박식품 칸을 고치면 확인 패널 다시 계산
+    if(_fiDisp && _fiDisp.matchInfo && _fiDisp.matchInfo.eos && t0.classList && t0.classList.contains("fi-dinp") && t0.tagName==="INPUT" && !t0.classList.contains("fi-dfree")){
+      const r = _fiDisp.rows[+t0.dataset.fdI], k = t0.dataset.fdK;
+      if(r && r.src && r.src[k] && new Set(Object.values(r.src[k]).map(_eosNorm)).size > 1){ (_fiDisp.answers = _fiDisp.answers||{})[_eosKey(r)+"|"+k] = String(t0.value); }
+      fiDispSave(); fiDispRender(); return; }
+  });
   box.addEventListener("change", e=>{ const t = e.target; if(t.classList && t.classList.contains("fi-dfree") && _fiDisp){ const r=_fiDisp.rows[+t.dataset.fdI]; r.dest = String(t.value||"").trim(); fiDispSave(); fiDispRender(); } });
   box.addEventListener("click", e=>{
     const b = e.target.closest("button"); if(!b) return;
@@ -14922,6 +15208,11 @@ function wireFixedDispatch(){
     else if(b.id==="fiDispToLedger" && _fiDisp){ const inc=_fiDisp.rows.filter(r=>!r.skip); const msg=document.getElementById("fiDispLedgerMsg"); msg.textContent="추가 중…";
       fiLedgerAdd(inc).then(({res,where})=>{ msg.innerHTML = Object.keys(res).filter(co=>res[co].add||res[co].dup||res[co].upd).map(co=>`${FI_LEDGER_CO[co].label} +${res[co].add}행${res[co].upd?` · 수정 반영 ${res[co].upd}행`:""}${res[co].dup?` (변경 없음/원본에 있음 ${res[co].dup})`:""}${where[co]?` · ${fiLedgerWhere(where[co])}`:""}`).join(" / ") || "추가할 행 없음"; fiLedgerRender(); }); }
     else if(b.id==="fiDispMonth"){ const g=fiDispMonthGroups(); if(g.length) fiDispDownload(g, `배차표_월별누적_${fiDetectDate("")}.xlsx`); }
+    else if(b.dataset.qId && _fiDisp){   // build 136: 확인 질문 답
+      let v = b.dataset.qV;
+      if(b.dataset.qUseIn){ const inp = Array.from(box.querySelectorAll("input[data-q-in]")).find(x=> x.dataset.qIn===b.dataset.qId); v = inp ? inp.value : ""; if(!String(v||"").trim()){ showNotice("값을 입력해 주세요."); return; } }
+      eosDispAnswer(b.dataset.qId, v); }
+    else if(b.dataset.qUndo && _fiDisp){ delete (_fiDisp.answers||{})[b.dataset.qUndo]; fiDispSave(); fiDispRender(); }
     else if((b.id==="fiDispBulkEmpty" || b.id==="fiDispBulkAll") && _fiDisp){   // build 134
       const v = String(document.getElementById("fiDispBulkFree").value||"").trim() || document.getElementById("fiDispBulkSel").value;
       if(!v){ showNotice("도착지를 고르거나 입력해 주세요."); return; }
@@ -14989,6 +15280,23 @@ function fiLedgerHeader(ws){
   }
   return null;
 }
+// build 135: 원장 시트에 "상차지 주소 · 담당자 · 연락처" 머리글 열 찾기(없으면 마지막 머리글 오른쪽에 만든다)
+function fiLedgerEosCols(ws, hdr){
+  if(ws._eosCols) return ws._eosCols;
+  const names = ["상차지 주소","담당자","연락처"];
+  const row = ws.getRow(hdr.row); const found = {};
+  for(let c=1;c<=40;c++){ const t = String(_fiCellVal(row.getCell(c).value)||"").trim(); if(names.includes(t)) found[t] = c; if(t==="주소" && !found["상차지 주소"]) found["상차지 주소"] = c; }
+  let last = Math.max(...Object.values(hdr.map), ...Object.values(found), 0);
+  const ref = row.getCell(hdr.map["비고"] || last);
+  ws._eosCols = names.map((n,i)=>{
+    if(found[n]) return found[n];
+    const c = ++last; const cell = row.getCell(c); cell.value = n; cell.style = _fiStyleCopy(ref.style);
+    if(ref.fill) cell.fill = JSON.parse(JSON.stringify(ref.fill));
+    ws.getColumn(c).width = [46,16,15][i];
+    return c;
+  });
+  return ws._eosCols;
+}
 function fiLedgerLastRow(ws, hdr){
   let last = hdr.row;
   const cols = Object.values(hdr.map);
@@ -15040,7 +15348,7 @@ function fiLedgerWhere(w){
 // 배차 요청 행 → 원장 행
 function fiLedgerRowFrom(r){
   return { co:fiCoOf(r), bidDate:r.bidDate||"", bidcode:r.bidcode||"", group:r.group||"", number:r.number||"", pallets:(r.pallets==null||r.pallets==="")?null:+r.pallets, outboundDate:r.outboundDate||"",
-    outboundAmPm:r.outboundAmPm||"", fc:r.fc||"", dest:r.dest||"", type:r.type||"", remark:r.remark||"", addedAt:new Date().toISOString() };
+    outboundAmPm:r.outboundAmPm||"", fc:r.fc||"", dest:r.dest||"", type:r.type||"", remark:(r.remark!=null&&r.remark!=="")?r.remark:(r.opNote||""), addr:r.addr||"", person:r.person||"", phone:r.phone||"", addedAt:new Date().toISOString() };
 }
 async function fiLedgerAdd(rows){
   await fiLedgerLoad();
@@ -15121,6 +15429,13 @@ async function fiLedgerBuild(co){
       if(k==="낙찰일" && vals[k] instanceof Date && !cell.numFmt) cell.numFmt = "yyyy-mm-dd";
       const v = vals[k]; cell.value = (v===""||v==null) ? null : v;
     });
+    if(r.type==="임박"){   // build 135
+      const ex = fiLedgerEosCols(ws, hdr);
+      [r.addr, r.person, r.phone].forEach((v,i)=>{ const cell = ws.getRow(at).getCell(ex[i]);
+        const ref = ws.getRow(at).getCell(hdr.map["비고"] || hdr.map["FC"]); cell.style = _fiStyleCopy(ref.style);
+        if(i===0) cell.alignment = { horizontal:"left", vertical:"middle", wrapText:true };
+        cell.value = v || null; });
+    }
     n++;
   }
   return { wb, n, total:rows.length, hasBase:!!buf };
