@@ -1072,7 +1072,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 148 · 2026-10-14</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 149 · 2026-10-14</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -13509,10 +13509,9 @@ const FI_DISP_WIDTH = [12,13,14,18,15,9,17,10,14,8,24];
 // build 135: 임박식품 행이 있으면 FC 옆에 상차지 주소 · 담당자 · 연락처 열, 비고(운영 특이사항) 넓게
 function fiDispCols(rows){
   if(!(rows||[]).some(r=> r.type==="임박")) return { hdr:FI_DISP_HDR, keys:FI_DISP_KEYS, width:FI_DISP_WIDTH };
-  const i = FI_DISP_KEYS.indexOf("FC") + 1;
-  const ins = (a, b)=> a.slice(0,i).concat(b, a.slice(i));
-  const width = ins(FI_DISP_WIDTH, [46,16,15]); width[width.length-1] = 42;
-  return { hdr: ins(FI_DISP_HDR, ["상차지 주소","담당자","연락처"]), keys: ins(FI_DISP_KEYS, ["주소","담당자","연락처"]), width };
+  // build 149: 기존 배차표와 같은 열 순서(… FC | 도착지 | 카테. | 비고) 그대로 두고, 상차지 주소 · 담당자 · 연락처는 비고 오른쪽에 붙인다(복사·붙여넣기 그대로)
+  const width = FI_DISP_WIDTH.slice(); width[width.length-1] = 34;
+  return { hdr: FI_DISP_HDR.concat(["상차지 주소","담당자","연락처"]), keys: FI_DISP_KEYS.concat(["주소","담당자","연락처"]), width: width.concat([46,16,15]) };
 }
 function fiDispRender(){
   const wrap = document.getElementById("fiDispResult");
