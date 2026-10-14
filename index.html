@@ -1072,7 +1072,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 132 · 2026-10-14</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 133 · 2026-10-14</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -14340,10 +14340,22 @@ function eosBuildLot(D, lot, date6){
   const others = [...grp.values()].filter(x=> x.g!=="EOS").map(x=>({ g:x.g, fc:x.fc, plt:x.locs.size, label:`${x.fc.replace(/[^A-Z].*$/i,"").toUpperCase()} ${x.g} ${x.locs.size}PLT` }));
   const plt = eosPlt + others.reduce((s,x)=> s+x.plt, 0);
   const centers = eos.map(r=> eosT(r[2])).filter(Boolean);
-  const name = `${date6}_FC_임박식품_${centers.join(" ")}${lot}${plt}${others.map(x=>x.label).join(" ")}PLT`;
+  // build 133: 파일명 조각 = LOT(EOS 센터명 붙여쓰기, nPLT) — 여러 LOT은 한 파일, "_"로 연결
+  const name = `${date6}_FC_임박식품_${lot}(${centers.join("")}, ${plt}PLT)`;
   const tot = raw.reduce((a,r)=>{ a.q += +r[13]||0; a.s += r[16]; a.w += r[18]; return a; }, { q:0, s:0, w:0 });
   const sales = src.reduce((s,r)=> s + (+r[18]||0), 0);
   return { lot, src, raw, eos, centers, eosPlt, others, plt, name, outName: eosSafeFile(name)+".xlsx", rows: src.length, qty: tot.q, shop: tot.s, whole: tot.w, sales, missingRate, guessRate };
+}
+// build 133: 낙찰 LOT 여러 개 → 낙찰파일 1개 (원본/RAW 행·EOS 표를 LOT 입력 순서대로 이어 붙임)
+//   파일명 = YYMMDD_FC_임박식품_C(경기광주1경기광주3경기광주5, 83PLT)_F(인천16인천28…, 43PLT)
+function eosBuildAll(D, lots, date6){
+  const parts = lots.map(l=> eosBuildLot(D, l, date6));
+  const cat = k=> [].concat(...parts.map(b=> b[k]));
+  const sum = k=> parts.reduce((s,b)=> s + (+b[k]||0), 0);
+  const name = `${date6}_FC_임박식품_` + parts.map(b=> `${b.lot}(${b.centers.join("")}, ${b.plt}PLT)`).join("_");
+  return { lot: lots.join(","), parts, src: cat("src"), raw: cat("raw"), eos: cat("eos"), centers: cat("centers"), others: cat("others"),
+    eosPlt: sum("eosPlt"), plt: sum("plt"), name, outName: eosSafeFile(name)+".xlsx", rows: sum("rows"), qty: sum("qty"), shop: sum("shop"), whole: sum("whole"), sales: sum("sales"),
+    missingRate: Object.assign({}, ...parts.map(b=>b.missingRate)), guessRate: Object.assign({}, ...parts.map(b=>b.guessRate)) };
 }
 function eosSafeFile(name){
   let s = String(name).replace(/[\\/:*?"<>|\r\n]+/g," ");
@@ -14420,20 +14432,20 @@ async function eosGenerate(){
     say("엑셀 서식 불러오는 중…"); await liqTick();
     const ExcelJS = await fiLoadScript("https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","ExcelJS");
     const id = Date.now(), files = [];
-    for(const lot of ok){
-      say(`LOT ${lot} 낙찰파일 만드는 중…`); await liqTick();
-      const b = eosBuildLot(D, lot, date6);
+    {
+      say(`LOT ${ok.join(", ")} 낙찰파일 만드는 중…`); await liqTick();
+      const b = eosBuildAll(D, ok, date6);
       const wb = await eosMakeWorkbook(ExcelJS, D, b);
       const bytes = new Uint8Array(await wb.xlsx.writeBuffer());
       files.push({ b, bytes });
-      try{ await idbSet(`eos_file_${id}_${lot}`, { name:b.outName, data:bytes }); }catch(_){}
+      try{ await idbSet(`eos_file_${id}_${b.lot}`, { name:b.outName, data:bytes }); }catch(_){}
     }
     _eosCur = { id, date6, files, notFound, srcName:_eosFile.name, eosFromSheet:D.eosFromSheet, sec:((Date.now()-t0)/1000).toFixed(1) };
     EOS_HISTORY = [{ id, at:new Date(id).toLocaleString("ko-KR"), date:date6, lots:ok, srcName:_eosFile.name,
       files: files.map(({b})=>({ lot:b.lot, name:b.name, outName:b.outName, plt:b.plt, rows:b.rows, qty:b.qty, shop:Math.round(b.shop), whole:Math.round(b.whole), sales:Math.round(b.sales) })) }].concat(EOS_HISTORY);
     EOS_HISTORY.slice(40).forEach(h=> (h.files||[]).forEach(f=>{ try{ idbSet(`eos_file_${h.id}_${f.lot}`, null).catch(()=>{}); }catch(_){} }));
     try{ localStorage.setItem(EOS_LS, JSON.stringify(EOS_HISTORY.slice(0,200))); }catch(_){}
-    say(`✓ 낙찰파일 ${files.length}개 생성 — ${files.reduce((s,x)=>s+x.b.plt,0)}PLT · ${files.reduce((s,x)=>s+x.b.rows,0).toLocaleString()}행 (${_eosCur.sec}초)`);
+    say(`✓ 낙찰파일 생성 (LOT ${ok.join(", ")}) — ${files.reduce((s,x)=>s+x.b.plt,0)}PLT · ${files.reduce((s,x)=>s+x.b.rows,0).toLocaleString()}행 (${_eosCur.sec}초)`);
     eosRender();
   }catch(e){ console.error(e); say("생성 실패: "+escHtml(e && e.message || e), true); }
   finally{ if(btn) btn.disabled = false; }
@@ -14448,14 +14460,13 @@ function eosRender(){
       const c = _eosCur;
       const miss = {}, guess = {}; c.files.forEach(({b})=>{ Object.assign(miss, b.missingRate); Object.assign(guess, b.guessRate); });
       wrap.innerHTML = `<div class="fi-file" style="margin-top:10px">
-        <div class="fi-file-hd"><span class="fi-type" style="border-color:#3A8DDE;color:#3A8DDE">임박</span> <span class="fi-fname">낙찰파일 ${c.files.length}개 (LOT별 1개)</span>
+        <div class="fi-file-hd"><span class="fi-type" style="border-color:#3A8DDE;color:#3A8DDE">임박</span> <span class="fi-fname">${escHtml(c.files[0].b.outName)}</span> <button class="act primary fi-mini" data-eos-dl="0">⬇ 다운로드</button> <button class="act fi-mini" data-eos-copy="0">파일명 복사</button>
           ${c.files.length>1?`<button class="act primary fi-mini" id="eosDlAll">⬇ 모두 받기</button>`:""} <button class="act fi-mini fi-del" id="eosResDel" title="화면에서 결과 지우기 (기록은 아래에서 삭제)">✕</button></div>
         <table class="fi-tbl"><thead><tr><th>LOT</th><th>센터</th><th class="n">PLT</th><th class="n">행</th><th class="n">수량</th><th class="n">판매가(부가세x)</th><th class="n">매장판매가 총액</th><th class="n">도매판매가 총액</th><th></th></tr></thead><tbody>
-        ${c.files.map(({b},i)=>`<tr><td><b>${escHtml(b.lot)}</b></td><td style="white-space:normal">${escHtml(b.centers.join(" "))}</td>
+        ${(c.files[0].b.parts||c.files.map(f=>f.b)).map((b,i)=>`<tr><td><b>${escHtml(b.lot)}</b></td><td style="white-space:normal">${escHtml(b.centers.join(" "))}</td>
           <td class="n"><b>${b.plt}</b>${b.others.length?`<div class="fi-mut" style="font-size:11.5px">EOS ${b.eosPlt} + ${escHtml(b.others.map(x=>x.label).join(", "))}</div>`:""}</td>
           <td class="n">${fiFmt(b.rows)}</td><td class="n">${fiFmt(b.qty)}</td><td class="n">${fiFmt(b.sales)}</td><td class="n">${fiFmt(b.shop)}</td><td class="n">${fiFmt(b.whole)}</td>
-          <td style="white-space:nowrap"><button class="act primary fi-mini" data-eos-dl="${i}">⬇ 다운로드</button> <button class="act fi-mini" data-eos-copy="${i}">파일명 복사</button></td></tr>
-          <tr><td></td><td colspan="8" class="fi-mut" style="white-space:normal;word-break:break-all;font-size:12px">${escHtml(b.outName)}</td></tr>`).join("")}
+          <td></td></tr>`).join("")}
         </tbody></table>
         ${c.notFound.length?`<div style="color:var(--red);font-size:12.5px;margin-top:6px">⚠ 원본에 없는 LOT: ${c.notFound.map(escHtml).join(", ")} — 만들지 않았습니다</div>`:""}
         ${Object.keys(miss).length?`<div style="color:var(--red);font-size:12.5px;margin-top:6px">⚠ 도매요율표에 없는 분류 → 도매가 0 처리: ${Object.keys(miss).map(escHtml).join(", ")}</div>`:""}
