@@ -1072,7 +1072,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 147 · 2026-10-14</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 148 · 2026-10-14</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1583,12 +1583,12 @@
     <div class="agg-card" id="fiLedgerBox">
       <div class="p-hd">
         <span class="store-name">거래처 출고요청서 (누적)</span>
-        <span class="meta">더한 = 김해 외 일반 출고(여주·시흥·고양·인천…) · KPP = 경산 출고 — 원본 보관 + 사이트 추가분 누적 → 전체 다운로드 <button class="act fi-mini" id="fiLedgerReload">↻ 서버에서 다시 읽기</button></span>
+        <span class="meta">거래처 = 더한(모든 출고) — 원본 보관 + 사이트 추가분 누적 → 전체 다운로드 <button class="act fi-mini" id="fiLedgerReload">↻ 서버에서 다시 읽기</button></span>
       </div>
       <div class="fi-body">
         <div id="fiLedgerDrop" class="fi-drop admin-only" role="button" tabindex="0" style="padding:16px">
           <div class="fi-drop-t">누적 출고요청서 원본(더한.2026.xlsx / kpp.2026.xlsx)을 올리면 서버에 저장</div>
-          <div class="fi-drop-s">시트 이름(더한 / KPP)으로 거래처 자동 판별 · 다시 올리면 원본 교체(원본에 이미 들어간 추가분은 자동 정리)</div>
+          <div class="fi-drop-s">더한 누적 엑셀(시트 "더한. 2026 N월") · 다시 올리면 원본 교체(원본에 이미 들어간 추가분은 자동 정리)</div>
         </div>
         <input type="file" id="fiLedgerInput" accept=".xlsx" multiple hidden>
         <div id="fiLedgerStatus" class="fi-status"></div>
@@ -2839,7 +2839,7 @@ function applyStateObject(s){
     // build 111: 고정인수 히스토리는 덮어쓰지 않고 합친다(뷰어 PC에서 만든 기록이 클라우드 동기화로 사라지지 않게)
     if(Array.isArray(s.FIXED_INTAKE_HISTORY)) FIXED_INTAKE_HISTORY = fiMergeHistory(s.FIXED_INTAKE_HISTORY, Array.isArray(FIXED_INTAKE_HISTORY)?FIXED_INTAKE_HISTORY:[]);
     if(s.FI_ELIG && typeof s.FI_ELIG==="object") FI_ELIG = s.FI_ELIG;
-    if(Array.isArray(s.FI_DISPATCH_HISTORY)) FI_DISPATCH_HISTORY = fiMergeHistory(s.FI_DISPATCH_HISTORY, Array.isArray(FI_DISPATCH_HISTORY)?FI_DISPATCH_HISTORY:[]);
+    if(Array.isArray(s.FI_DISPATCH_HISTORY)) FI_DISPATCH_HISTORY = fiMergeHistory(s.FI_DISPATCH_HISTORY, Array.isArray(FI_DISPATCH_HISTORY)?FI_DISPATCH_HISTORY:[]).filter(h=> !fiDispIsDeleted(h.id));   // build 148: 지운 기록은 서버에서 다시 안 살아남
     if(s.FI_SETTINGS_SAVED && typeof s.FI_SETTINGS_SAVED==="object") FI_SETTINGS_SAVED = s.FI_SETTINGS_SAVED;
     if(Array.isArray(s.STOCK_HISTORY) && s.STOCK_HISTORY.length){
       const _dated = s.STOCK_HISTORY.filter(sn=> sn && sn.date && !/전추불|천추불/.test(sn.label||""));
@@ -12977,7 +12977,7 @@ function fiBidStruct(raw){
 function fiDispNormalize(o, type0){
   const L = k => (o[k]||[]).map(v=>String(v==null?"":v));
   const groups = L("group").map(fiParseGroup);
-  const prefix = _fiVote(groups.map(g=>g.prefix).filter(p=>/^(S|D|GH|GD|GE|G|A|B|C|E|W|H|X)$/.test(p)));
+  const prefix = _fiVote(groups.map(g=>g.prefix).filter(p=>/^(S|D|GH|GD|GE|G|A|B|C|E|K|W|H|X)$/.test(p)));
   const gnum = _fiVote(groups.map(g=>g.num).filter(n=>/^\d{6}$/.test(n)));
   const fcRaw = groups.map(g=>g.fcRaw).filter(Boolean);
   const nums = L("number").map(t=>fiFixDigits(t)).filter(n=>n.length===6);
@@ -12990,7 +12990,7 @@ function fiDispNormalize(o, type0){
   let bidcode = "";
   if(bids.length){ bidcode = Array.from({length:10},(_,i)=>_fiVote(bids.map(b=>b[i]))).join(""); }
   else bidcode = fiFixBidcode(L("bidcode")[0]);
-  const type = fiTypeFromText(prefix ? prefix+"(" : "") || ({ A:"XLA", B:"XLB", C:"XLC", E:"XLE" }[prefix]) || "";
+  const type = fiTypeFromText(prefix ? prefix+"(" : "") || ({ A:"XLA", B:"XLB", C:"XLC", E:"XLE", K:"XLK", W:"XLW" }[prefix]) || "";
   if(/^AF.{6}Z/.test(bidcode) && type){ const t9 = { XLS:"S", XLD:"B", XLG:"H" }[type]; if(t9 && /[S5B8H7]/.test(bidcode[9])) bidcode = bidcode.slice(0,9)+t9; }
   const fc = _fiVote(groups.map(g=>g.fc).filter(Boolean));
   return {
@@ -13168,7 +13168,7 @@ function fiDispAssign(rows, entryOverride){
   return rows;
 }
 // 고정인수 외 일반 리퀴데이션(A/B/C/E 그룹 등): 해당 카테고리 매장재고(+미반영) · 센터 거리로 하차지 추천
-const FI_PREFIX_CAT = { A:0, B:1, C:2, E:3, G:4, GD:4, GH:4, GE:4, S:17 };
+const FI_PREFIX_CAT = { A:0, B:1, C:2, E:3, G:4, GD:4, GH:4, GE:4, S:17, K:9, W:8 };   // build 148: K=대형가전(XLK) · W=대형가구(XLW)
 function fiDispSuggest(rows){
   const snap = (typeof fiLatestSnap==="function") ? fiLatestSnap() : null;
   if(!snap) return rows;
@@ -13183,7 +13183,7 @@ function fiDispSuggest(rows){
     const idx = FI_PREFIX_CAT[r.groupPrefix];
     const geo = FI_REGION_GEO[fiCenterRegion(r.fc)];
     if(idx==null || !geo) return;
-    const cat = ["XLA","XLB","XLC","XLE","XLG"][idx] || "XLS";
+    const cat = ({0:"XLA",1:"XLB",2:"XLC",3:"XLE",4:"XLG",8:"XLW",9:"XLK"})[idx] || "XLS";
     let best = null;
     stores.forEach(s=>{
       const a = raw[s] || []; const cur = (+a[idx]||0) + (add[s]||0); const yard = +a[16]||0;
@@ -13479,7 +13479,7 @@ function fiDispDestOptions(r){
 }
 // build 131: 출력 행 순서 = 사용자 배차표와 동일
 //   출고일 → 오전/오후 → 낙찰일 → 유형(XLS, XLG, XLD, XLB, XLE, XLA, XLC …) → FC(여주2, 시흥3, 고양3, 경산2, 인천 …) → 원래 순서
-const FI_ORDER_TYPE = ["XLS","XLG","XLD","XLB","XLE","XLA","XLC"];
+const FI_ORDER_TYPE = ["XLS","XLG","XLD","XLB","XLE","XLA","XLC","XLK","XLW"];
 const FI_ORDER_FC = [/여주|YEO/i, /시흥|SIH/i, /고양|GOY/i, /경산|GYS/i, /인천|INC/i];
 function fiOrderRows(rows){
   const tk = r=>{ const i = FI_ORDER_TYPE.indexOf(String(r.type||"").toUpperCase()); return i<0 ? 99 : i; };
@@ -13527,15 +13527,15 @@ function fiDispRender(){
   // build 134: 모든 행 도착지 한 번에 (임박식품처럼 도착지를 직접 고르는 경우)
   h += `<div style="margin:10px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b style="font-size:13px">모든 행 도착지</b> <select id="fiDispBulkSel">${fiDispDestOptions({ type:(d.rows[0]||{}).type, dest:"" })}</select> <input id="fiDispBulkFree" placeholder="직접 입력" style="width:110px"> <button class="act fi-mini" id="fiDispBulkEmpty">빈 행에만 적용</button> <button class="act fi-mini" id="fiDispBulkAll">전체 행에 적용</button> <span class="fi-mut">행마다 다르면 아래 표에서 고르세요</span></div>`;
   h += `<div class="fi-sec-t" style="margin-top:12px">인식 결과 · 수정 <span class="fi-mut">노란 칸 = 자동 보정/확인 필요</span></div>
-  <div style="overflow-x:auto"><table class="fi-tbl"><thead><tr><th>포함</th><th>거래처</th><th>#</th><th>낙찰일</th><th>입차CODE (BIDCODE)</th><th>Group (메일)</th><th>Group Number</th><th class="n">파렛트</th><th>출고일</th><th>오전/오후</th><th>FC</th><th>도착지</th><th>유형</th><th>확인</th></tr></thead><tbody>
+  <div style="overflow-x:auto"><table class="fi-tbl"><thead><tr><th>포함</th><th>#</th><th>낙찰일</th><th>입차CODE (BIDCODE)</th><th>Group (메일)</th><th>Group Number</th><th class="n">파렛트</th><th>출고일</th><th>오전/오후</th><th>FC</th><th>도착지</th><th>유형</th><th>확인</th></tr></thead><tbody>
   ${d.rows.map((r,i)=>`<tr class="${r.memo?"fi-warnrow":""}" style="${r.skip?"opacity:.45":""}"><td><input type="checkbox" class="fi-dinp" data-fd-i="${i}" data-fd-k="skip" ${r.skip?"":"checked"}></td>
-    <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="co">${Object.keys(FI_LEDGER_CO).map(co=>`<option value="${co}" ${fiCoOf(r)===co?"selected":""}>${FI_LEDGER_CO[co].label}</option>`).join("")}</select></td><td>${i+1}</td>
+    <td>${i+1}</td>
     <td>${ed(r,i,"bidDate",r.bidDate,92)}</td><td>${ed(r,i,"bidcode",r.bidcode,104)}</td><td>${ed(r,i,"group",r.group,130)}</td>
     <td>${ed(r,i,"number",r.number,70)}</td><td class="n">${ed(r,i,"pallets",r.pallets,40)}</td><td>${ed(r,i,"outboundDate",r.outboundDate,92)}</td>
     <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="outboundAmPm">${["오전","오후",""].map(x=>`<option ${x===r.outboundAmPm?"selected":""} value="${x}">${x||"-"}</option>`).join("")}</select></td>
     <td>${ed(r,i,"fc",r.fc,62)} <span class="fi-mut">${escHtml(fiCenterName(r.fc)||"")}</span></td>
     <td style="white-space:nowrap"><select class="fi-dinp" data-fd-i="${i}" data-fd-k="dest">${fiDispDestOptions(r)}</select> <input class="fi-dinp fi-dfree" data-fd-i="${i}" data-fd-k="dest" placeholder="직접 입력" title="목록에 없는 도착지는 여기에 입력" value="${escHtml(r.dest && !fiDispKnownDest(r.dest) ? r.dest : "")}" style="width:96px"></td>
-    <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="type">${["XLG","XLS","XLD","XLA","XLB","XLC","XLE","임박"].concat(r.type&&!["XLG","XLS","XLD","XLA","XLB","XLC","XLE","임박"].includes(r.type)?[r.type]:[]).map(x=>`<option ${x===r.type?"selected":""}>${x}</option>`).join("")}</select></td>
+    <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="type">${["XLG","XLS","XLD","XLA","XLB","XLC","XLE","XLK","XLW","임박"].concat(r.type&&!["XLG","XLS","XLD","XLA","XLB","XLC","XLE","XLK","XLW","임박"].includes(r.type)?[r.type]:[]).map(x=>`<option ${x===r.type?"selected":""}>${x}</option>`).join("")}</select></td>
     <td class="fi-why" style="color:var(--amber);font-size:12px">${escHtml(r.memo||"")}</td></tr>${fiDispEosSubRow(r,i)}`).join("")}
   </tbody></table></div>`;
   h += `<div id="fiDispOut">${fiDispOutHtml(d)}</div>`;
@@ -13546,7 +13546,7 @@ function fiDispEosSubRow(r, i){
   if(r.type!=="임박") return "";
   const f = (k, v, w, ph)=>`<input class="fi-dinp" data-fd-i="${i}" data-fd-k="${k}" value="${escHtml(v==null?"":v)}" placeholder="${ph}" style="width:${w}px;${v?"":"border-color:var(--red,#e5534b)"}">`;
   const nt = r.remark!=null ? r.remark : (r.opNote||"");
-  return `<tr class="fi-eosinfo" style="${r.skip?"opacity:.45":""}"><td></td><td colspan="13" style="padding:0 6px 10px;font-size:12px;white-space:nowrap">
+  return `<tr class="fi-eosinfo" style="${r.skip?"opacity:.45":""}"><td></td><td colspan="12" style="padding:0 6px 10px;font-size:12px;white-space:nowrap">
     <span class="fi-mut">상차지</span> ${f("addr", r.addr, 360, "상차지 주소(필수)")}
     <span class="fi-mut">담당자</span> ${f("person", r.person, 120, "담당자(필수)")}
     <span class="fi-mut">연락처</span> ${f("phone", r.phone, 120, "연락처(필수)")}
@@ -13567,7 +13567,7 @@ function fiComboAdd(id){ if(!id) return; _fiCombo.ids = (_fiCombo.ids||[]).filte
 function fiComboReset(){ _fiCombo = { date:"", off:{}, ids:[], hide:{} }; fiComboSave(); }
 function fiComboEntries(){
   const on = new Set(_fiCombo.ids||[]);
-  return (FI_DISPATCH_HISTORY||[]).filter(h=> on.has(h.id)).sort((a,b)=> (b.updatedAt||b.id) - (a.updatedAt||a.id));
+  return (FI_DISPATCH_HISTORY||[]).filter(h=> on.has(h.id) && !fiDispIsDeleted(h.id)).sort((a,b)=> (b.updatedAt||b.id) - (a.updatedAt||a.id));
 }
 function fiComboDates(){
   const s = new Set(); fiComboEntries().forEach(h=> (h.rows||[]).forEach(r=>{ if(r.outboundDate) s.add(r.outboundDate); }));
@@ -13716,16 +13716,53 @@ function fiDispOutHtml(d){
   <textarea id="fiDispText" class="fi-text" style="min-height:220px" readonly>${escHtml(fiDispTextAll(d))}</textarea>`;
   return h;
 }
+/* build 148: 배차 요청 기록 — 출고일자별로 묶어 보기 · 행마다 ✕ 삭제 · 날짜별 전체 삭제 · 선택 삭제.
+   지운 기록 id는 이 PC에 남겨(fi_dispatch_deleted_v1) 서버 저장본과 합칠 때 다시 살아나지 않게 한다. */
+const FI_DISP_DEL_LS = "fi_dispatch_deleted_v1";
+var _fiDispDel = null;
+function fiDispIsDeleted(id){ if(!_fiDispDel){ try{ _fiDispDel = new Set(JSON.parse(localStorage.getItem(FI_DISP_DEL_LS)||"[]")); }catch(_){ _fiDispDel = new Set(); } } return _fiDispDel.has(+id); }
+function fiDispDeleteIds(ids){
+  fiDispIsDeleted(0);
+  ids.map(Number).forEach(id=>{ _fiDispDel.add(id); if(typeof _fiCombo!=="undefined"){ _fiCombo.ids = (_fiCombo.ids||[]).filter(x=> x!==id); delete (_fiCombo.hide||{})[id]; } });
+  try{ localStorage.setItem(FI_DISP_DEL_LS, JSON.stringify(Array.from(_fiDispDel).slice(-2000))); }catch(_){}
+  const del = new Set(ids.map(Number));
+  FI_DISPATCH_HISTORY = (FI_DISPATCH_HISTORY||[]).filter(h=> !del.has(h.id));
+  if(_fiDisp && del.has(_fiDisp.id)){ _fiDisp = null; const st=document.getElementById("fiDispStatus"); if(st) st.textContent=""; }
+  try{ fiComboSave(); }catch(_){}
+  fiDispPersist(); fiDispRender();
+}
+function fiDispHistDate(h){ const ds = (h.rows||[]).map(r=> r.outboundDate).filter(Boolean).sort(); return ds[0] || ""; }
+function fiDispDestSummary(h){
+  const c = {}; (h.rows||[]).forEach(r=>{ const d = r.dest || "미정"; c[d] = (c[d]||0) + 1; });
+  return Object.entries(c).sort((a,b)=> b[1]-a[1]).map(([d,n])=> n>1 ? `${d}×${n}` : d).join(", ");
+}
+let _fiHistOpen = {};
 function fiDispRenderHistory(){
   const el = document.getElementById("fiDispHistory"); if(!el) return;
-  const list = FI_DISPATCH_HISTORY||[];
+  const list = (FI_DISPATCH_HISTORY||[]).filter(h=> !fiDispIsDeleted(h.id));
   if(!list.length){ el.innerHTML = `<div class="fi-empty">아직 만든 배차 요청서가 없습니다.</div>`; return; }
-  el.innerHTML = `<table class="fi-tbl"><thead><tr><th>작성 일시</th><th>출고일</th><th>건수 · PLT</th><th>도착지</th><th></th></tr></thead><tbody>
-  ${list.slice(0,40).map(h=>`<tr class="${_fiDisp&&_fiDisp.id===h.id?"fi-on":""}"><td>${escHtml(h.at||"")}</td><td>${escHtml(Array.from(new Set(h.rows.map(r=>`${r.outboundDate} ${r.outboundAmPm}`))).join(", "))}</td>
-    <td>${Array.from(new Set(h.rows.map(r=>r.type))).map(fiTypeBadge).join(" ")} ${h.rows.length}건 · ${h.rows.reduce((s,r)=>s+(+r.pallets||0),0)}PLT</td>
-    <td class="fi-why">${escHtml(h.rows.map(r=>r.dest||"?").join(", "))}</td>
-    <td style="white-space:nowrap"><button class="act fi-mini" data-fd-open="${h.id}">열기</button> <button class="act fi-mini admin-only" data-fd-del="${h.id}">✕</button></td></tr>`).join("")}
-  </tbody></table>`;
+  const by = {}; list.forEach(h=>{ const d = fiDispHistDate(h); (by[d] = by[d] || []).push(h); });
+  const dates = Object.keys(by).sort((a,b)=> (b||"0").localeCompare(a||"0"));
+  const wk = d=> d ? `${d}(${fiDispWeekday(d)})` : "출고일 없음";
+  let h = `<div style="display:flex;gap:6px;align-items:center;margin:4px 0 8px;flex-wrap:wrap"><span class="fi-mut">출고일자별 · 같은 날 기록은 접어서 보관 — 체크 후 선택 삭제, 또는 날짜 줄의 "이 날짜 전부 삭제"</span>
+    <button class="act fi-mini fi-del" id="fiHistDelSel" style="margin-left:auto">✕ 선택한 기록 삭제</button></div>`;
+  dates.forEach((d,i)=>{
+    const hs = by[d].sort((a,b)=> (b.updatedAt||b.id)-(a.updatedAt||a.id));
+    const open = _fiHistOpen[d] != null ? _fiHistOpen[d] : i===0;
+    const nRows = hs.reduce((a,x)=> a + x.rows.length, 0), plt = hs.reduce((a,x)=> a + x.rows.reduce((s,r)=> s+(+r.pallets||0),0), 0);
+    h += `<details class="fi-hist-day" data-hday="${escHtml(d)}" ${open?"open":""} style="border:1px solid var(--line,#2a3a4a);border-radius:8px;margin:6px 0;padding:4px 10px">
+      <summary style="cursor:pointer;padding:6px 0;font-weight:700">■ ${escHtml(wk(d))} 출고 <span class="fi-mut" style="font-weight:400">— 기록 ${hs.length}개 · ${nRows}건 · ${plt}PLT</span>
+        <button class="act fi-mini fi-del" data-hday-del="${escHtml(d)}" style="float:right">✕ 이 날짜 전부 삭제</button></summary>
+      <table class="fi-tbl"><thead><tr><th style="width:28px"><input type="checkbox" data-hday-all="${escHtml(d)}" title="이 날짜 전부 선택"></th><th>작성 일시</th><th>유형 · 건수 · PLT</th><th>출고일</th><th>도착지</th><th></th></tr></thead><tbody>
+      ${hs.map(x=>`<tr class="${_fiDisp&&_fiDisp.id===x.id?"fi-on":""}"><td><input type="checkbox" data-hsel="${x.id}" data-hday-of="${escHtml(d)}"></td><td>${escHtml(x.at||"")}</td>
+        <td>${Array.from(new Set(x.rows.map(r=>r.type))).map(fiTypeBadge).join(" ")} ${x.rows.length}건 · ${x.rows.reduce((s,r)=>s+(+r.pallets||0),0)}PLT</td>
+        <td style="font-size:12px">${escHtml(Array.from(new Set(x.rows.map(r=>`${r.outboundDate||""} ${r.outboundAmPm||""}`.trim()))).join(", "))}</td>
+        <td class="fi-why" style="font-size:12px">${escHtml(fiDispDestSummary(x))}</td>
+        <td style="white-space:nowrap"><button class="act fi-mini" data-fd-open="${x.id}">열기</button> <button class="act fi-mini fi-del" data-fd-del="${x.id}">✕ 삭제</button></td></tr>`).join("")}
+      </tbody></table></details>`;
+  });
+  el.innerHTML = h;
+  el.querySelectorAll("details[data-hday]").forEach(dt=> dt.addEventListener("toggle", ()=>{ _fiHistOpen[dt.dataset.hday] = dt.open; }));
 }
 function fiDispTextAll(d){
   const inc = d.rows.filter(r=>!r.skip);
@@ -15457,6 +15494,7 @@ function wireFixedDispatch(){
   // build 124: 도착지 직접 입력 — 입력 중엔 미리보기만, 칸을 벗어나면(엔터·Tab) 선택상자에도 반영
   box.addEventListener("change", e=>{ const t = e.target;   // build 137: 합본 날짜 · 포함 체크
     if(t.id==="fiComboDate"){ _fiCombo.date = t.value; fiComboRender(); }
+    else if(t.dataset && t.dataset.hdayAll!=null){ box.querySelectorAll(`input[data-hday-of="${CSS.escape(t.dataset.hdayAll)}"]`).forEach(x=> x.checked = t.checked); }   // build 148
     else if(t.dataset && t.dataset.comboId){ _fiCombo.off[t.dataset.comboId] = !t.checked; fiComboRender(); } });
   box.addEventListener("change", e=>{ const t0 = e.target;   // build 136: 임박식품 칸을 고치면 확인 패널 다시 계산
     if(_fiDisp && _fiDisp.matchInfo && _fiDisp.matchInfo.eos && t0.classList && t0.classList.contains("fi-dinp") && t0.tagName==="INPUT" && !t0.classList.contains("fi-dfree")){
@@ -15504,7 +15542,12 @@ function wireFixedDispatch(){
     else if(b.id==="fiDispCurDel"){ _fiDisp = null; const st=document.getElementById("fiDispStatus"); if(st) st.textContent=""; fiDispRender(); }
     else if(b.id==="fiDispUseLatest" && _fiDisp){ const en=(FIXED_INTAKE_HISTORY||[]).find(h=>h.id===_fiDisp.matchInfo.latestId); if(en){ fiDispAssign(_fiDisp.rows, en); _fiDisp.rows.forEach(r=>{ r.memo = [r.memo, `최근 기록 ${en.date} 기준 도착지 — 확인`].filter(Boolean).join(" / "); }); _fiDisp.matchInfo = { ok:true, text:`같은 날짜 기록이 없어 최근 고정인수 기록 ${en.date} 분배표로 채웠습니다 — 도착지를 꼭 확인하세요.` }; fiDispSave(); fiDispRender(); } }
     else if(b.dataset.fdOpen){ const h=FI_DISPATCH_HISTORY.find(x=>x.id===+b.dataset.fdOpen); if(h){ _fiDisp = JSON.parse(JSON.stringify(h)); fiComboAdd(h.id); fiDispRender(); } }
-    else if(b.dataset.fdDel){ if(confirm("이 배차 요청 기록을 삭제할까요?")){ const id=+b.dataset.fdDel; FI_DISPATCH_HISTORY=FI_DISPATCH_HISTORY.filter(x=>x.id!==id); if(_fiDisp&&_fiDisp.id===id) _fiDisp=null; fiDispPersist(); fiDispRender(); } }
+    else if(b.dataset.fdDel){ if(confirm("이 배차 요청 기록을 삭제할까요?")) fiDispDeleteIds([+b.dataset.fdDel]); }   // build 148
+    else if(b.dataset.hdayDel!=null){ e.preventDefault(); const d = b.dataset.hdayDel; const ids = (FI_DISPATCH_HISTORY||[]).filter(h=> fiDispHistDate(h)===d).map(h=> h.id);
+      if(ids.length && confirm(`${d||"출고일 없음"} 출고 배차 요청 기록 ${ids.length}개를 모두 삭제할까요?`)) fiDispDeleteIds(ids); }
+    else if(b.id==="fiHistDelSel"){ const ids = Array.from(box.querySelectorAll("input[data-hsel]:checked")).map(x=> +x.dataset.hsel);
+      if(!ids.length){ showNotice("삭제할 기록을 체크해 주세요."); return; }
+      if(confirm(`선택한 배차 요청 기록 ${ids.length}개를 삭제할까요?`)) fiDispDeleteIds(ids); }
   });
   fiDispRender();
 }
@@ -15515,14 +15558,13 @@ function wireFixedDispatch(){
    원본 엑셀(사용자가 올린 누적 파일)은 그대로 보관하고, 사이트에서 추가한 행만 따로 쌓았다가
    다운로드할 때 ExcelJS로 원본을 열어 해당 월 시트 맨 아래에 이어 붙인다(원본 서식·색 유지). */
 const FI_LEDGER_CO = {
-  dehan: { label:"더한", sheet:(y,m)=>`더한. ${y} ${m}월`, file:"더한" , match:/더한/ },
-  kpp:   { label:"KPP",  sheet:(y,m)=>`KPP.${String(y).slice(2)}${String(m).padStart(2,"0")}`, file:"KPP", match:/KPP/i }
-};
+  dehan: { label:"더한", sheet:(y,m)=>`더한. ${y} ${m}월`, file:"더한" , match:/더한/ }
+};   // build 148: KPP 업체 사용 안 함 — 전부 더한
 const FI_LEDGER_HDR = ["NO","낙찰일","입차CODE","낙찰NO","Group Number","PLT수량","출고일시","FC","도착지","카테.","비고"];
 let FI_LEDGER = { dehan:null, kpp:null };   // { meta:{name,uploadedAt,sheets,rowsInBase,keys:[]}, added:[...] }
 let _fiLedgerLoaded = false;
 function fiLedgerRef(path){ try{ return (typeof firebase!=="undefined" && firebase.apps && firebase.apps.length) ? firebase.database().ref("ledger/"+path) : null; }catch(_){ return null; } }
-function fiCoOf(r){ return r.co || (String(r.fc||"").toUpperCase()==="GYS2" ? "kpp" : "dehan"); }
+function fiCoOf(r){ return "dehan"; }   // build 148: 거래처는 더한 한 곳
 function fiLedgerKey(code, num, fc){
   return [String(code||"").toUpperCase().trim(), String(num==null?"":num).replace(/\.0$/,"").trim(), String(fiCenterName(fc)||fc||"").replace(/\s/g,"")].join("|");
 }
@@ -15608,7 +15650,7 @@ async function fiLedgerUpload(file){
     const buf = await file.arrayBuffer();
     const sc = await fiLedgerScan(buf);
     const names = sc.sheets.join(" ")+" "+file.name;
-    const co = /KPP/i.test(names) ? "kpp" : /더한/.test(names) ? "dehan" : null;
+    const co = /더한/.test(names) ? "dehan" : null;   // build 148: KPP 원본은 받지 않음
     if(!co){ say(`<span style="color:var(--red)">⚠ 시트 이름으로 거래처(더한/KPP)를 알 수 없습니다: ${escHtml(sc.sheets.join(", "))}</span>`); return; }
     await fiLedgerLoad();
     const L = FI_LEDGER[co];
@@ -15750,7 +15792,7 @@ function fiLedgerRender(){
         ${pend.length>30?`<div class="fi-mut">… 외 ${pend.length-30}행</div>`:""}` : `<div class="fi-mut">사이트에서 추가한 행 없음</div>`}
     </div>`;
   };
-  el.innerHTML = `<div class="fi-files">${card("dehan")}${card("kpp")}</div>`;
+  el.innerHTML = `<div class="fi-files">${card("dehan")}</div>`;   // build 148: KPP 칸 없음
 }
 function wireFixedLedger(){
   const box = document.getElementById("fiLedgerBox"); if(!box || box._wired) return; box._wired = true;
