@@ -1072,7 +1072,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 143 · 2026-10-14</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 144 · 2026-10-14</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -13590,7 +13590,7 @@ function fiComboRender(){
   h += lock ? `<div class="fi-match bad" style="margin-top:8px">합본 초안 — ${escHtml(lock)}. 위 표에서 '열기'로 마무리하면 엑셀·누적 추가가 열립니다.</div>`
             : `<div class="fi-match ok" style="margin-top:8px">✓ 최종 출고요청서 — 출고일 ${C.byDate.length}일 · ${C.rows.length}건 · ${tot}PLT${C.dup?` (겹친 ${C.dup}행은 한 번만)`:""}</div>`;
   h += `<div class="fi-mut" style="margin:6px 0">${escHtml(sum)}</div>`;
-  h += `<div style="margin:8px 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="act primary fi-mini" id="fiComboXlsx"${dis}>⬇ 합본 엑셀 (출고일자별 시트 ${C.byDate.length}장)</button>
+  h += `<div style="margin:8px 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="act primary" id="fiComboXlsx"${dis} style="font-size:15px;padding:10px 22px;font-weight:700${lock?";opacity:.5;cursor:not-allowed":""}">⬇ 최종 출고요청서 엑셀 다운로드 (출고일자별 시트 ${C.byDate.length}장)</button>
     <button class="act primary fi-mini admin-only" id="fiComboLedger"${dis} title="처음 누르면 추가, 이미 추가한 행은 고친 값으로 갱신">＋ 합본을 누적 출고요청서에 추가/갱신</button> <span id="fiComboMsg" class="fi-mut"></span>
     <span style="margin-left:auto">${hid ? `<button class="act fi-mini" id="fiComboUnhide">뺀 행 ${hid}개 다시 보이기</button> ` : ""}<button class="act fi-mini fi-del" id="fiComboClear" title="합본 화면 비우기 (배차 요청 기록은 그대로)">↺ 합본 화면 초기화</button></span></div>`;
   C.byDate.forEach(g=>{
@@ -13646,7 +13646,7 @@ function fiDispOutHtml(d){
   let lock = "";
   if(d.matchInfo && d.matchInfo.eos){ const Q = eosDispQuestions(d); if(Q.pending.length || Q.destMiss) lock = `확인 질문 ${Q.pending.length}개${Q.destMiss?` · 도착지 미선택 ${Q.destMiss}곳`:""} 남음`; }
   const dis = lock ? ` disabled title="${escHtml(lock)} — 위 교차 검증 칸에서 답하면 열립니다" style="opacity:.5;cursor:not-allowed"` : "";
-  h += `<div class="fi-sec-t">${d.matchInfo && d.matchInfo.eos ? (lock ? `출고요청서 초안 <span style="color:var(--amber,#e0a030);font-size:12px">(${escHtml(lock)})</span>` : `✓ 최종 배차요청서`) : "출고요청서 미리보기"} <button class="act primary fi-mini" id="fiDispXlsx"${dis}>⬇ 이번 요청 엑셀 (출고일자별 시트)</button>
+  h += `<div class="fi-sec-t">${d.matchInfo && d.matchInfo.eos ? (lock ? `출고요청서 초안 <span style="color:var(--amber,#e0a030);font-size:12px">(${escHtml(lock)})</span>` : `✓ 최종 배차요청서`) : "출고요청서 미리보기"} <button class="act primary fi-mini" id="fiDispXlsx"${dis}>⬇ 이 요청만 엑셀</button>
     <button class="act primary fi-mini admin-only" id="fiDispToLedger" title="처음 누르면 추가, 이미 추가한 행은 고친 값으로 갱신"${dis}>＋ 누적 출고요청서에 추가/갱신</button> <span id="fiDispLedgerMsg" class="fi-mut"></span></div>`;
   fiDatedGroups(inc).forEach(g=>{   // build 143: 출고일자별 표 1개(거래처 구분 없음)
     const rs = g.rows;
