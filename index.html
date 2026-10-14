@@ -1072,7 +1072,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 133 · 2026-10-14</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 134 · 2026-10-14</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1552,16 +1552,16 @@
     <div class="agg-card" id="fiDispBox">
       <div class="p-hd">
         <span class="store-name">⑤ 배차 요청서 (입차코드)</span>
-        <span class="meta">쿠팡 출고일정 메일 캡처 → 입차코드·상차일시·도착지 표 + 물류업체 문구 + 엑셀</span>
+        <span class="meta">쿠팡 출고일정 메일 · 임박식품(FC EOS) 입찰 결과 메일 → 입차코드·상차일시·도착지 표 + 물류업체 문구 + 엑셀</span>
       </div>
       <div class="fi-body">
         <div class="fi-disp-in">
           <div id="fiDispDrop" class="fi-drop" role="button" tabindex="0">
             <div class="fi-drop-t">출고일정 메일 캡처 이미지를 끌어다 놓거나 클릭</div>
-            <div class="fi-drop-s">캡처 후 이 탭에서 <b>Ctrl+V</b> 해도 됩니다 · 표(낙찰일자/BIDCODE/GroupNumber/NUMBER/파렛트/Outbound date)가 보이게</div>
+            <div class="fi-drop-s">캡처 후 이 탭에서 <b>Ctrl+V</b> 해도 됩니다 · 표(낙찰일자/BIDCODE/GroupNumber/NUMBER/파렛트/Outbound date)가 보이게 · <b>임박식품(FC EOS)</b> 메일은 "출고 요청" 문장부터 센터별 표(FC/센터/BIDCODE/Pallet)까지</div>
           </div>
           <div class="fi-disp-paste">
-            <textarea id="fiDispPaste" class="fi-text" style="min-height:96px" placeholder="또는 메일 본문(표)을 복사해서 여기에 붙여넣기 → 자동 인식 (이미지보다 정확)"></textarea>
+            <textarea id="fiDispPaste" class="fi-text" style="min-height:96px" placeholder="또는 메일 본문(표)을 복사해서 여기에 붙여넣기 → 자동 인식 (이미지보다 정확) · 임박식품(FC EOS) 입찰 결과 메일은 본문 전체(Ctrl+A → Ctrl+C)를 붙여넣으면 됩니다"></textarea>
             <button class="act fi-mini" id="fiDispParseBtn">붙여넣은 글 인식</button>
           </div>
         </div>
@@ -12101,6 +12101,7 @@ const FI_SETTINGS = { chunk:9, targetXLS:20, targetXLG:10, distXLS:30, yardPer:1
 
 function fiCenterName(fc){
   fc = String(fc||"").trim();
+  if(typeof FI_FC_NAME_EXTRA!=="undefined" && FI_FC_NAME_EXTRA && FI_FC_NAME_EXTRA[fc]) return FI_FC_NAME_EXTRA[fc];   // build 134
   if(FI_REF.fc[fc]) return FI_REF.fc[fc][0];
   const m = fc.match(/^([A-Z]+)(\d+.*)$/);
   if(m && FI_FC_PREFIX[m[1]]) return FI_FC_PREFIX[m[1]] + m[2];
@@ -13147,11 +13148,17 @@ function fiDispText(rows, meta){
     out.push(`■ 상차 ${d}(${fiDispWeekday(d)}) ${ap||""}`.trim());
     by[k].forEach((r,i)=>{
       out.push(`${i+1}. ${fiCenterName(r.fc)||r.fc} → ${r.dest||"(도착지 미정)"} / ${r.pallets||"?"}PLT`);
+      if(r.type==="임박"){   // build 134: 임박식품(FC EOS) — 넘버 없음, 상차지·담당·특이사항
+        out.push(`   입차코드 ${r.bidcode||"?"}${r.lot?` · LOT ${r.lot}`:""}`);
+        if(r.addr) out.push(`   상차지 ${r.addr}`);
+        if(r.person || r.phone) out.push(`   담당 ${[r.person, r.phone].filter(Boolean).join(" ")}`);
+        if(r.opNote) out.push(`   ※ ${r.opNote}`);
+      } else
       out.push(`   입차코드 ${r.bidcode||"?"} · Group ${r.number||"?"} (${r.group||""})`);
     });
     out.push("");
   });
-  out.push("입차 시 위 입차코드(BIDCODE)와 Group Number를 입력해 주세요. 감사합니다.");
+  out.push(rows.length && rows.every(r=>r.type==="임박") ? "입차 시 위 입차코드(BIDCODE)를 입력해 주세요. 감사합니다." : "입차 시 위 입차코드(BIDCODE)와 Group Number를 입력해 주세요. 감사합니다.");
   return out.join("\n");
 }
 // 칸별 검증(읽은 값이 형식에 맞는지) — 안 맞으면 더 크게 확대해서 다시 읽는다
@@ -13325,6 +13332,8 @@ async function fiDispFromImage(file){
     const ocr = async (im, o)=>{ o = o||{}; const wk = o.lang==="eng" ? w.eng : w.kor;
       await wk.setParameters({ tessedit_pageseg_mode: String(o.psm||"7"), tessedit_char_whitelist: o.wl||"" });
       const r = await wk.recognize(fiRgbaToCanvas(im)); return r.data.text||""; };
+    status("표 찾는 중…");
+    if(await eosDispFromImage(img, ocr, status)) return;   // build 134: 임박식품(FC EOS) 메일 표
     status("표 칸별로 글자 인식 중…");
     const res = await fiDispOcrImage(img, ocr, p=> status(`표 칸별로 글자 인식 중… ${Math.round(p*100)}%`));
     if(!res.rows.length) throw new Error("표에서 출고 행을 찾지 못했습니다.");
@@ -13332,20 +13341,23 @@ async function fiDispFromImage(file){
   }catch(e){ status("⚠ " + (e && e.message || e)); }
 }
 function fiDispFromText(text){
+  if(eosDispIsMail(text)){ eosDispFromText(text); return; }   // build 134: 임박식품(FC EOS) 입찰 결과 메일
   const rows = fiDispParseText(text);
   const st = document.getElementById("fiDispStatus");
-  if(!rows.length){ if(st) st.textContent = "⚠ 붙여넣은 내용에서 출고 행(날짜·BIDCODE·GroupNumber)을 찾지 못했습니다."; return; }
+  if(!rows.length){ eosDispFromText(text).then(ok=>{ if(!ok && st) st.textContent = "⚠ 붙여넣은 내용에서 출고 행(날짜·BIDCODE·GroupNumber 또는 FC·센터·Pallet)을 찾지 못했습니다."; }); return; }
   fiDispStart(fiDispPost(rows, text), fiDispNote(text), "텍스트");
 }
-function fiDispStart(rows, note, src){
+function fiDispStart(rows, note, src, opt){
   const r0 = rows[0] || {};
+  if(!(opt && opt.eos)){   // build 134: 임박식품은 도착지를 직접 고름
   fiDispAssign(rows);   // build 116: 행마다 유형(XLS/XLG/XLD)·낙찰일에 맞는 분배표 사용
   fiDispSuggest(rows); // 고정인수 외 행은 재고·거리로 추천
+  }
   const got = rows.filter(r=>r.dest).length, dictN = rows.filter(r=>r.dict).length;
   const ents = Array.from(new Set(rows.map(r=>r.entryDate).filter(Boolean)));
   const hit = fiDispFindHistory(r0.bidDate, null);
   const miss = rows.filter(r=>!r.dest);
-  const matchInfo = got ? { ok: !miss.length, date:ents.join(","), text:`고정인수 분배표(${ents.join(", ")||"-"})로 ${got}/${rows.length}행 도착지 지정 · 고정인수 기록과 일치 ${dictN}행${miss.length?` — 도착지 없는 ${miss.length}행(${miss.map(r=>r.group||r.number).slice(0,4).join(", ")}${miss.length>4?" …":""})은 직접 선택`:""}` }
+  const matchInfo = (opt && opt.matchInfo) ? opt.matchInfo : got ? { ok: !miss.length, date:ents.join(","), text:`고정인수 분배표(${ents.join(", ")||"-"})로 ${got}/${rows.length}행 도착지 지정 · 고정인수 기록과 일치 ${dictN}행${miss.length?` — 도착지 없는 ${miss.length}행(${miss.map(r=>r.group||r.number).slice(0,4).join(", ")}${miss.length>4?" …":""})은 직접 선택`:""}` }
     : { ok:false, latestId: hit.latest && hit.latest.id, latestDate: hit.latest && hit.latest.date,
         text:`낙찰일 ${r0.bidDate||"?"} 과 같은 날짜의 고정인수 분배 기록이 없습니다 — 도착지를 직접 고르세요.` };
   rows.forEach(r=>{ r.memo = (r.warn||[]).concat(r.destNote?[r.destNote]:[]).join(" / "); });
@@ -13359,7 +13371,8 @@ function fiDispSave(){
   if(!_fiDisp) return;
   const e = { id:_fiDisp.id, at:_fiDisp.at, updatedAt:Date.now(), note:_fiDisp.note, matchInfo:_fiDisp.matchInfo,
     rows:_fiDisp.rows.map(r=>({ bidDate:r.bidDate, bidcode:r.bidcode, group:r.group, number:r.number, pallets:r.pallets, outboundDate:r.outboundDate,
-      outboundAmPm:r.outboundAmPm, fc:r.fc, dest:r.dest, type:r.type, memo:r.memo||"", co:fiCoOf(r), skip:!!r.skip })) };
+      outboundAmPm:r.outboundAmPm, fc:r.fc, dest:r.dest, type:r.type, memo:r.memo||"", co:fiCoOf(r), skip:!!r.skip,
+      lot:r.lot||"", addr:r.addr||"", person:r.person||"", phone:r.phone||"", opNote:r.opNote||"", remark:r.remark||"" })) };
   FI_DISPATCH_HISTORY = fiMergeHistory([e], FI_DISPATCH_HISTORY.filter(h=>h.id!==e.id));
   fiDispPersist();
 }
@@ -13390,7 +13403,7 @@ const FI_ORDER_TYPE = ["XLS","XLG","XLD","XLB","XLE","XLA","XLC"];
 const FI_ORDER_FC = [/여주|YEO/i, /시흥|SIH/i, /고양|GOY/i, /경산|GYS/i, /인천|INC/i];
 function fiOrderRows(rows){
   const tk = r=>{ const i = FI_ORDER_TYPE.indexOf(String(r.type||"").toUpperCase()); return i<0 ? 99 : i; };
-  const fk = r=>{ const n = String(fiCenterName(r.fc)||"")+" "+String(r.fc||""); const i = FI_ORDER_FC.findIndex(re=>re.test(n)); return i<0 ? 99 : i; };
+  const fk = r=>{ if(r.type==="임박") return 0; const n = String(fiCenterName(r.fc)||"")+" "+String(r.fc||""); const i = FI_ORDER_FC.findIndex(re=>re.test(n)); return i<0 ? 99 : i; };
   const ak = r=> r.outboundAmPm==="오전" ? 0 : r.outboundAmPm==="오후" ? 1 : 2;
   const dk = v=> String(v||"") || "9999";
   return (rows||[]).map((r,i)=>({ r, i })).sort((a,b)=>
@@ -13406,7 +13419,7 @@ function fiDispSheetRows(rows){
     GroupNumber: /^\d+$/.test(String(r.number||"")) ? +r.number : (r.number||""),
     PLT: r.pallets==null||r.pallets==="" ? "" : +r.pallets,
     출고일시: `${r.outboundDate||""} ${r.outboundAmPm||""}`.trim(),
-    FC: fiCenterName(r.fc)||r.fc, 도착지:r.dest||"", 카테:r.type||"", 비고:""
+    FC: fiCenterName(r.fc)||r.fc, 도착지:r.dest||"", 카테:r.type||"", 비고:r.remark||""
   }));
 }
 const FI_DISP_HDR = ["NO","낙찰일","입차CODE","낙찰NO","Group Number","PLT수량","출고일시","FC","도착지","카테.","비고"];
@@ -13420,6 +13433,8 @@ function fiDispRender(){
   const d = _fiDisp;
   const ed = (r,i,k,val,w)=>`<input class="fi-dinp" data-fd-i="${i}" data-fd-k="${k}" value="${escHtml(val==null?"":val)}" style="width:${w}px">`;
   let h = `<div style="text-align:right;margin-bottom:6px"><button class="act fi-mini fi-del" id="fiDispCurDel" title="화면에서 이번 인식 결과 닫기 (기록은 아래 배차 요청 기록에서 ✕로 삭제)">✕ 인식 결과 닫기</button></div><div class="fi-match ${d.matchInfo.ok?"ok":"bad"}">${escHtml(d.matchInfo.text)}${!d.matchInfo.ok && d.matchInfo.latestId ? ` <button class="act fi-mini" id="fiDispUseLatest">최근 기록(${escHtml(d.matchInfo.latestDate||"")})으로 채우기</button>`:""}</div>`;
+  // build 134: 모든 행 도착지 한 번에 (임박식품처럼 도착지를 직접 고르는 경우)
+  h += `<div style="margin:10px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b style="font-size:13px">모든 행 도착지</b> <select id="fiDispBulkSel">${fiDispDestOptions({ type:(d.rows[0]||{}).type, dest:"" })}</select> <input id="fiDispBulkFree" placeholder="직접 입력" style="width:110px"> <button class="act fi-mini" id="fiDispBulkEmpty">빈 행에만 적용</button> <button class="act fi-mini" id="fiDispBulkAll">전체 행에 적용</button> <span class="fi-mut">행마다 다르면 아래 표에서 고르세요</span></div>`;
   h += `<div class="fi-sec-t" style="margin-top:12px">인식 결과 · 수정 <span class="fi-mut">노란 칸 = 자동 보정/확인 필요</span></div>
   <div style="overflow-x:auto"><table class="fi-tbl"><thead><tr><th>포함</th><th>거래처</th><th>#</th><th>낙찰일</th><th>입차CODE (BIDCODE)</th><th>Group (메일)</th><th>Group Number</th><th class="n">파렛트</th><th>출고일</th><th>오전/오후</th><th>FC</th><th>도착지</th><th>유형</th><th>확인</th></tr></thead><tbody>
   ${d.rows.map((r,i)=>`<tr class="${r.memo?"fi-warnrow":""}" style="${r.skip?"opacity:.45":""}"><td><input type="checkbox" class="fi-dinp" data-fd-i="${i}" data-fd-k="skip" ${r.skip?"":"checked"}></td>
@@ -13429,7 +13444,7 @@ function fiDispRender(){
     <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="outboundAmPm">${["오전","오후",""].map(x=>`<option ${x===r.outboundAmPm?"selected":""} value="${x}">${x||"-"}</option>`).join("")}</select></td>
     <td>${ed(r,i,"fc",r.fc,62)} <span class="fi-mut">${escHtml(fiCenterName(r.fc)||"")}</span></td>
     <td style="white-space:nowrap"><select class="fi-dinp" data-fd-i="${i}" data-fd-k="dest">${fiDispDestOptions(r)}</select> <input class="fi-dinp fi-dfree" data-fd-i="${i}" data-fd-k="dest" placeholder="직접 입력" title="목록에 없는 도착지는 여기에 입력" value="${escHtml(r.dest && !fiDispKnownDest(r.dest) ? r.dest : "")}" style="width:96px"></td>
-    <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="type">${["XLG","XLS","XLD","XLA","XLB","XLC","XLE"].concat(r.type&&!["XLG","XLS","XLD","XLA","XLB","XLC","XLE"].includes(r.type)?[r.type]:[]).map(x=>`<option ${x===r.type?"selected":""}>${x}</option>`).join("")}</select></td>
+    <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="type">${["XLG","XLS","XLD","XLA","XLB","XLC","XLE","임박"].concat(r.type&&!["XLG","XLS","XLD","XLA","XLB","XLC","XLE","임박"].includes(r.type)?[r.type]:[]).map(x=>`<option ${x===r.type?"selected":""}>${x}</option>`).join("")}</select></td>
     <td class="fi-why" style="color:var(--amber);font-size:12px">${escHtml(r.memo||"")}</td></tr>`).join("")}
   </tbody></table></div>`;
   h += `<div id="fiDispOut">${fiDispOutHtml(d)}</div>`;
@@ -14442,7 +14457,8 @@ async function eosGenerate(){
     }
     _eosCur = { id, date6, files, notFound, srcName:_eosFile.name, eosFromSheet:D.eosFromSheet, sec:((Date.now()-t0)/1000).toFixed(1) };
     EOS_HISTORY = [{ id, at:new Date(id).toLocaleString("ko-KR"), date:date6, lots:ok, srcName:_eosFile.name,
-      files: files.map(({b})=>({ lot:b.lot, name:b.name, outName:b.outName, plt:b.plt, rows:b.rows, qty:b.qty, shop:Math.round(b.shop), whole:Math.round(b.whole), sales:Math.round(b.sales) })) }].concat(EOS_HISTORY);
+      files: files.map(({b})=>({ lot:b.lot, name:b.name, outName:b.outName, plt:b.plt, rows:b.rows, qty:b.qty, shop:Math.round(b.shop), whole:Math.round(b.whole), sales:Math.round(b.sales) })),
+      eos: [].concat(...files.map(({b})=> (b.eos||[]).map(r=>[eosT(r[0]).toUpperCase(), eosT(r[1]).toUpperCase(), eosT(r[2]), +r[3]||0]))) }].concat(EOS_HISTORY);   // build 134: 배차 요청서 대조용 EOS 표
     EOS_HISTORY.slice(40).forEach(h=> (h.files||[]).forEach(f=>{ try{ idbSet(`eos_file_${h.id}_${f.lot}`, null).catch(()=>{}); }catch(_){} }));
     try{ localStorage.setItem(EOS_LS, JSON.stringify(EOS_HISTORY.slice(0,200))); }catch(_){}
     say(`✓ 낙찰파일 생성 (LOT ${ok.join(", ")}) — ${files.reduce((s,x)=>s+x.b.plt,0)}PLT · ${files.reduce((s,x)=>s+x.b.rows,0).toLocaleString()}행 (${_eosCur.sec}초)`);
@@ -14526,6 +14542,348 @@ function wireEosLiq(){
   });
   eosRender();
 }
+/* ---- build 134: 임박식품(FC EOS) 출고 메일 → 배차 요청서 ----
+   쿠팡 "[쿠팡_FC EOS] ** MM-DD 마감 입찰 결과" 메일의 센터별 표(NO. | FC | 센터 | 벤더 | BIDCODE | Pallet | 주소 | 담당자 | 연락처 | 운영 특이사항)를
+   글 붙여넣기 또는 캡처 이미지로 받아 배차 요청 행(센터 1곳 = 1행)으로 만든다.
+   - 낙찰일 = BIDCODE(AF + 영문 + yy + 월(1~9,A,B,C) + dd + LOT 2자)에서 계산, 상차일 = 본문 "10/15(목) 오전 출고 요청"
+   - 도착지는 매번 직접 선택(표 위 "모든 행 도착지"로 한 번에 지정 가능)
+   - ③ 임박식품 낙찰파일 기록(같은 LOT·날짜)의 EOS 표와 센터·PLT를 대조(이미지는 이 값으로 글자인식 보정) */
+var FI_FC_NAME_EXTRA = {};
+const FI_FC_EXTRA_LS = "fi_fc_name_extra_v1";
+try{ FI_FC_NAME_EXTRA = JSON.parse(localStorage.getItem(FI_FC_EXTRA_LS)||"{}") || {}; }catch(_){ FI_FC_NAME_EXTRA = {}; }
+function eosDispRememberName(fc, name){
+  fc = String(fc||"").toUpperCase().trim(); name = String(name||"").trim();
+  if(!fc || !name || name===fc) return;
+  const cur = (FI_REF.fc[fc]||[])[0];
+  if(cur === name) return;
+  if(FI_FC_NAME_EXTRA[fc] === name) return;
+  FI_FC_NAME_EXTRA[fc] = name;
+  try{ localStorage.setItem(FI_FC_EXTRA_LS, JSON.stringify(FI_FC_NAME_EXTRA)); }catch(_){}
+}
+const EOS_FC_RE = /^[A-Z]{2,4}\d{1,3}(?:_?CFC)?$/;
+function eosBidInfo(bc){
+  const m = String(bc||"").toUpperCase().match(/^AF[A-Z0-9](\d{2})([1-9ABC])(\d{2})([A-Z]{2})$/);
+  if(!m) return null;
+  const mon = parseInt(m[2],16), day = +m[3];
+  if(day<1 || day>31) return null;
+  return { date:`20${m[1]}-${String(mon).padStart(2,"0")}-${String(day).padStart(2,"0")}`, suf:m[4] };
+}
+// 메일 글이 FC EOS(임박식품) 출고 메일인지
+function eosDispIsMail(text){
+  const t = String(text||"");
+  if(/GroupNumber|Group\s*Number|파렛트/i.test(t) && !/\bEOS\b/i.test(t)) return false;
+  return /\bEOS\b/i.test(t) || (/Pallet/i.test(t) && /센터/.test(t) && /AF[A-Z0-9]{8}/i.test(t));
+}
+// 본문에서 상차(출고) 요청일: "3. 10/15(목) 오전 출고 요청 드립니다"
+function eosDispOutbound(text, bidDate){
+  const t = String(text||"").replace(/\s+/g," ");
+  const m = t.match(/(\d{1,2})\s*[\/.월]\s*(\d{1,2})\s*일?\s*(?:\(\s*([월화수목금토일])\s*\))?\s*(오전|오후|AM|PM)?[^0-9]{0,12}?출고\s*요청/i)
+         || t.match(/(\d{1,2})\s*\/\s*(\d{1,2})\s*(?:\(\s*([월화수목금토일])\s*\))?\s*(오전|오후)?\s*출고/);
+  if(!m) return null;
+  const mon = +m[1], day = +m[2];
+  if(mon<1 || mon>12 || day<1 || day>31) return null;
+  let y = +(String(bidDate||"").slice(0,4)) || new Date().getFullYear();
+  const bm = +(String(bidDate||"").slice(5,7)) || mon;
+  if(mon < bm - 6) y += 1;   // 12월 낙찰 → 1월 출고
+  return { date:`${y}-${String(mon).padStart(2,"0")}-${String(day).padStart(2,"0")}`, ampm: fiFixAmPm(m[4]||""), wd: m[3]||"" };
+}
+function eosDispNote(text){
+  const t = String(text||"");
+  const out = [];
+  const a = t.match(/지정\s*상차[^\n]*?불가[^\n.。]*/); if(a) out.push(a[0].replace(/\s+/g," ").replace(/^\d+\.\s*/,"").trim());
+  const b = t.match(/넘버[^\n]*?공유\s*예정[^\n.。]*/); if(b) out.push(b[0].replace(/\s+/g," ").replace(/^\d+\.\s*/,"").trim());
+  return out.join(" · ") || (/EOS/i.test(t) || !t ? "지정 상차 및 합적 출고 불가(쿠팡 안내)" : "");
+}
+function _eosTok(s){ return String(s==null?"":s).replace(/[ ​\s]+/g," ").trim(); }
+const _eosIsBid = t=> /^AF[A-Z0-9]{8}$/i.test(String(t).replace(/\s/g,""));
+const _eosIsFc  = t=> EOS_FC_RE.test(String(t).toUpperCase().replace(/\s/g,""));
+const _eosIsLot = t=> /^[A-Z]{1,2}$/i.test(String(t));
+const _eosIsPhone = t=> /^0\d{1,2}[-\s.]?\d{3,4}[-\s.]?\d{4}$/.test(String(t));
+// 붙여넣은 글 → 행. 칸이 탭으로 나뉘든(엑셀식 복사) 한 줄에 한 칸이든 같은 방식(토큰 흐름)으로 읽는다.
+function eosDispParseText(text){
+  const toks = String(text||"").split(/\t|\r?\n/).map(_eosTok).filter(Boolean);
+  const rows = [];
+  for(let i=0;i<toks.length;i++){
+    if(!_eosIsBid(toks[i])) continue;
+    const pal = toks[i+1];
+    if(!/^\d{1,3}$/.test(pal||"")) continue;   // 위쪽 요약표(BIDCODE 뒤가 인수가 21,281,487)는 건너뜀
+    let li = -1;
+    for(let k=i-1;k>=Math.max(0,i-5);k--){ if(_eosIsLot(toks[k]) && _eosIsFc(toks[k+1]||"")){ li = k; break; } }
+    let fi = li>=0 ? li+1 : -1;
+    if(fi<0){ for(let k=Math.max(0,i-4);k<i;k++){ if(_eosIsFc(toks[k])){ fi = k; break; } } }
+    if(fi<0) continue;
+    const fc = toks[fi].toUpperCase().replace(/\s/g,"");
+    let center = "";
+    if(fi+1 < i && !/주식회사|\(주\)|㈜|백화점/.test(toks[fi+1])) center = toks[fi+1];
+    const bidcode = toks[i].toUpperCase().replace(/\s/g,"");
+    const bi = eosBidInfo(bidcode);
+    let lot = li>=0 ? toks[li].toUpperCase() : "";
+    if(!lot && bi && bi.suf[0]===bi.suf[1]) lot = bi.suf[0];
+    rows.push({ _i:i, _start: li>=0 ? li : fi, lot, fc, center, bidcode, pallets:+pal });
+  }
+  rows.forEach((r,ri)=>{
+    const end = ri+1<rows.length ? rows[ri+1]._start : toks.length;
+    let tail = toks.slice(r._i+2, end);
+    const stop = tail.findIndex(t=> /^감사합니다|^이전 메일|^다음 메일|^-{3,}|^From:|^보낸 ?사람/.test(t)); if(stop>=0) tail = tail.slice(0, stop);
+    const pi = tail.findIndex(_eosIsPhone);
+    if(pi>=0){ r.addr = tail[0] && pi>0 ? tail[0] : ""; r.person = tail.slice(1, pi).join(" "); r.phone = tail[pi]; r.opNote = tail.slice(pi+1).join(" "); }
+    else { r.addr = tail[0]||""; r.person = tail[1]||""; r.phone = ""; r.opNote = tail.slice(2).join(" "); }
+    delete r._i; delete r._start;
+  });
+  return rows;
+}
+// ③ 임박식품 낙찰파일 기록에서 EOS 표(LOT | FC | 센터 | Pallet) 찾기 — 같은 날짜(YYMMDD)·LOT 우선
+async function eosDispHistTable(date, lots){
+  const ymd6 = String(date||"").replace(/-/g,"").slice(2);
+  const list = (typeof EOS_HISTORY!=="undefined" && Array.isArray(EOS_HISTORY)) ? EOS_HISTORY : [];
+  const want = new Set(lots);
+  const score = h=>{ const hl = new Set(h.lots||[]); let s = 0; want.forEach(l=>{ if(hl.has(l)) s+=2; }); if(h.date===ymd6) s+=3; return s; };
+  const cand = list.filter(h=> (h.lots||[]).some(l=> want.has(l))).sort((a,b)=> score(b)-score(a) || b.id-a.id);
+  for(const h of cand.slice(0,3)){
+    if(h.date!==ymd6 && Math.abs(h.id - Date.parse(date)) > 4*86400000) continue;   // 날짜가 다르면 4일 이내 기록만
+    let tbl = Array.isArray(h.eos) ? h.eos : null;
+    if(!tbl){
+      tbl = [];
+      for(const f of (h.files||[])){
+        try{
+          const o = await idbGet(`eos_file_${h.id}_${f.lot}`); if(!o || !o.data || typeof XLSX==="undefined") continue;
+          const wb = XLSX.read(o.data, { type:"array", sheets:["원본"] });
+          const ws = wb.Sheets["원본"] || wb.Sheets[wb.SheetNames[0]]; if(!ws) continue;
+          const aoa = XLSX.utils.sheet_to_json(ws, { header:1, range:"U1:X400", raw:true, defval:null });
+          let on = false;
+          aoa.forEach(v=>{ const a=_eosTok(v[0]), b=_eosTok(v[1]);
+            if(a.toUpperCase()==="NO." && b.toUpperCase()==="FC"){ on = true; return; }
+            if(on && a && b) tbl.push([a.toUpperCase(), b.toUpperCase(), _eosTok(v[2]), +v[3]||0]); });
+        }catch(_){}
+      }
+    }
+    if(tbl && tbl.length){
+      const plt = (h.files||[]).reduce((s,f)=> s + (+f.plt||0), 0);
+      return { h, tbl, plt };
+    }
+  }
+  return null;
+}
+// 행 마무리: 낙찰일·상차일·유형·경고, 낙찰파일 EOS 표와 대조
+async function eosDispFinish(rows, text, fromImage){
+  const bis = rows.map(r=> eosBidInfo(r.bidcode));
+  const bidDate = _fiVote(bis.filter(Boolean).map(b=>b.date));
+  const ob = eosDispOutbound(text, bidDate);
+  const lots = Array.from(new Set(rows.map(r=>r.lot).filter(Boolean)));
+  const hist = await eosDispHistTable(bidDate, lots);
+  const histNote = [];
+  rows.forEach((r,i)=>{
+    r.warn = [];
+    const bi = bis[i];
+    r.bidDate = bi ? bi.date : bidDate;
+    if(!bi) r.warn.push("입차코드(BIDCODE) 확인");
+    if(ob){ r.outboundDate = ob.date; r.outboundAmPm = ob.ampm; }
+    else {
+      const d = new Date((r.bidDate||fiDetectDate("").replace(/(\d{4})(\d\d)(\d\d)/,"$1-$2-$3"))+"T00:00:00"); d.setDate(d.getDate()+1);
+      r.outboundDate = isNaN(d) ? "" : `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; r.outboundAmPm = "오전";
+      r.warn.push("상차일을 본문에서 못 찾음 — 낙찰 다음날 오전으로 가정(확인)");
+    }
+    r.type = "임박"; r.eos = true;
+    r.group = r.lot ? `임박 ${r.lot}` : "임박";
+    r.number = "";
+    r.fcName = r.center || fiCenterName(r.fc);
+    if(r.center && !fromImage) eosDispRememberName(r.fc, r.center);   // 이미지 글자인식 센터명은 기억하지 않음
+    r.remark = r.opNote || "";
+    r.dest = ""; r.destNote = "";
+    // 운영 특이사항의 상차 불가 요일
+    const wd = fiDispWeekday(r.outboundDate);
+    const nm = String(r.opNote||"").match(/([월화수목금토일](?:요일)?[\s,·/]*)+[^가-힣]*상차\s*불가/);
+    if(wd && nm && nm[0].replace(/요일/g,"").includes(wd)) r.warn.push(`⚠ ${wd}요일 상차 불가 센터(운영 특이사항) — 상차일 조정 필요`);
+    if(/오전/.test(r.opNote||"") && /오후/.test(r.outboundAmPm||"")) r.warn.push("운영 특이사항: 오전 상차 — 확인");
+  });
+  if(hist){
+    const map = {}; hist.tbl.forEach(t=>{ map[t[0]+"|"+t[1].replace(/_/g,"")] = t; });
+    const used = new Set();
+    rows.forEach(r=>{
+      const key = (r.lot||"")+"|"+String(r.fc||"").replace(/_/g,"");
+      let t = map[key];
+      if(!t && fromImage){
+        // 글자인식이 틀린 FC: 같은 LOT 안에서 편집거리/센터명이 가장 가까운 것
+        let best=null, bd=9;
+        hist.tbl.forEach(x=>{ if(x[0]!==r.lot || used.has(x)) return; const d = Math.min(_fiLev(String(r.fc||""), x[1].replace(/_/g,"")), r.center ? _fiLev(String(r.center), x[2]) : 9); if(d<bd){ bd=d; best=x; } });
+        if(best && bd<=2) t = best;
+      }
+      if(!t){ r.warn.push(`낙찰파일(${hist.h.date}) EOS 표에 없는 센터 — 확인`); return; }
+      used.add(t);
+      const diff = [];
+      const code = t[1].replace(/_/g,"");
+      if(code !== r.fc){ diff.push(`FC ${r.fc||"?"}→${code}`); r.fc = code; }
+      if(t[2] && t[2] !== r.center){ if(fromImage || !r.center){ if(r.center) diff.push(`센터 ${r.center}→${t[2]}`); r.center = r.fcName = t[2]; eosDispRememberName(code, t[2]); } }
+      if(+t[3] !== +r.pallets){
+        if(fromImage){ diff.push(`PLT ${r.pallets==null?"?":r.pallets}→${t[3]}`); r.pallets = +t[3]; }
+        else r.warn.push(`PLT 메일 ${r.pallets} / 낙찰파일 ${t[3]} — 메일 값 사용(확인)`);
+      }
+      r.warn.unshift(`✓ 낙찰파일 EOS 표와 일치${diff.length?` (글자인식 보정: ${diff.join(", ")})`:""}`);
+    });
+    const miss = hist.tbl.filter(t=> lots.includes(t[0]) && !used.has(t));
+    if(miss.length) histNote.push(`⚠ 낙찰파일 EOS 표에는 있는데 인식 안 된 센터: ${miss.map(t=>`${t[0]} ${t[2]||t[1]} ${t[3]}PLT`).join(", ")}`);
+    const eosSum = hist.tbl.filter(t=> lots.includes(t[0])).reduce((s,t)=> s + (+t[3]||0), 0);
+    const other = hist.plt - hist.tbl.reduce((s,t)=> s + (+t[3]||0), 0);
+    histNote.unshift(`낙찰파일 ${hist.h.date} (${(hist.h.lots||[]).join(",")}) EOS 표 ${eosSum}PLT와 대조`);
+    if(other > 0) histNote.push(`EOS 외 그룹(XLA·XLB 등) ${other}PLT는 이 메일에 없음 — 쿠팡이 넘버 공유 후 별도 출고`);
+  } else {
+    rows.forEach(r=>{ if(fromImage) r.warn.push("PLT·FC 글자인식 — 메일과 대조(같은 PC에서 ③ 임박식품 낙찰파일을 먼저 만들면 자동 보정)"); });
+  }
+  rows.forEach(r=>{ if(!r.pallets) r.warn.push("파렛트 수 확인"); if(!r.fc) r.warn.push("FC 확인");
+    if(r.palCut && !(r.warn[0]||"").startsWith("✓")) r.warn.push("⚠ 캡처 오른쪽이 Pallet 칸에서 잘림 — 숫자가 안 보였을 수 있으니 Pallet 칸 끝까지 캡처하거나 PLT 확인"); });
+  const byLot = {}; rows.forEach(r=>{ const k=r.lot||"?"; (byLot[k]=byLot[k]||{ n:0, p:0 }); byLot[k].n++; byLot[k].p += +r.pallets||0; });
+  const tot = rows.reduce((s,r)=> s + (+r.pallets||0), 0);
+  const od = rows[0] ? `${rows[0].outboundDate}(${fiDispWeekday(rows[0].outboundDate)}) ${rows[0].outboundAmPm||""}`.trim() : "";
+  const bad = rows.some(r=> (r.warn||[]).some(w=> /⚠|확인/.test(w) && !/^✓/.test(w)));
+  const matchInfo = { ok: !bad, eos:true, text:
+    `임박식품(FC EOS) 낙찰 ${Object.keys(byLot).map(k=>`${k} ${byLot[k].n}곳 ${byLot[k].p}PLT`).join(" · ")} = ${rows.length}곳 ${tot}PLT · 상차 ${od}`
+    + (histNote.length ? ` — ${histNote.join(" / ")}` : "")
+    + ` — 도착지는 직접 선택(표 위 "모든 행 도착지"로 한 번에 지정 가능)` };
+  return { rows, matchInfo, note: eosDispNote(text) };
+}
+async function eosDispFromText(text){
+  const st = document.getElementById("fiDispStatus");
+  const rows = eosDispParseText(text);
+  if(!rows.length){ if(st) st.textContent = "⚠ 임박식품(FC EOS) 메일 표(FC · 센터 · BIDCODE · Pallet)를 찾지 못했습니다. 메일 본문 전체를 복사해서 붙여넣어 주세요."; return false; }
+  const res = await eosDispFinish(rows, text, false);
+  fiDispStart(res.rows, res.note, "임박식품 메일 글", { eos:true, matchInfo:res.matchInfo });
+  return true;
+}
+// ---- 이미지: 메일 캡처에 표가 2개(요약표·센터별 표) 있으므로 표마다 따로 찾아 행이 가장 많은 표를 쓴다 ----
+function eosDispGrids(g0, w, h){
+  const red = g0.red;
+  const dark = i => g0[i] < 150 || (red && red[i]);
+  const lines = [];
+  for(let y=0;y<h;y++){
+    let run=0, best=0, end=0;
+    for(let x=0;x<w;x++){ if(dark(y*w+x)){ run++; if(run>best){ best=run; end=x; } } else run=0; }
+    if(best >= Math.max(120, w*0.3)){
+      const L = lines[lines.length-1];
+      if(L && y <= L.y1+2 && Math.abs(L.x1-end) <= 6){ L.y1 = y; }
+      else lines.push({ y0:y, y1:y, x0:end-best+1, x1:end });
+    }
+  }
+  const tables = [];
+  lines.forEach(L=>{
+    const T = tables[tables.length-1];
+    const P = T && T.h[T.h.length-1];
+    if(T && Math.abs(P.x0-L.x0) <= 8 && Math.abs(P.x1-L.x1) <= 8 && L.y0 - P.y1 <= 90) T.h.push(L);
+    else tables.push({ h:[L] });
+  });
+  const out = [];
+  tables.filter(T=> T.h.length >= 3).forEach(T=>{
+    const top = T.h[0].y0, bot = T.h[T.h.length-1].y1, x0 = T.h[0].x0, x1 = T.h[0].x1;
+    const cols = [];
+    for(let x=x0;x<=x1;x++){ let c=0; for(let y=top;y<=bot;y++) if(dark(y*w+x)) c++; if(c >= (bot-top+1)*0.7) cols.push(x); }
+    let vl = _fiGroupLines(cols);
+    // 오른쪽이 잘린 캡처: 마지막 세로선이 없으면 표 끝(x1)을 경계로
+    let cutRight = false;
+    if(vl.length && x1 - vl[vl.length-1][1] > 20){ vl.push([x1, x1]); cutRight = true; }
+    if(vl.length && vl[0][0] - x0 > 20) vl.unshift([x0, x0]);
+    if(vl.length < 3) return;
+    out.push({ h: T.h.map(L=>[L.y0, L.y1]), v: vl, top, bot, x0, x1, cutRight });
+  });
+  return out.sort((a,b)=> b.h.length - a.h.length);
+}
+function eosDispColRole(t){
+  t = String(t||"").toUpperCase().replace(/\s/g,"");
+  if(/PALL|PALET|PAL|파렛|PLT/.test(t)) return "pallets";
+  if(/BID|CODE/.test(t)) return "bidcode";
+  if(/센터|센/.test(t)) return "center";
+  if(/벤더|VEND/.test(t)) return "vendor";
+  if(/주소/.test(t)) return "addr";
+  if(/담당/.test(t)) return "person";
+  if(/연락|전화/.test(t)) return "phone";
+  if(/운영|특이/.test(t)) return "opNote";
+  if(/^N[O0]\.?$|^NO/.test(t)) return "lot";
+  if(/^FC$|FC/.test(t)) return "fc";
+  return "";
+}
+const EOS_OCR_PLANS = {
+  lot:     [{ lang:"eng", s:4, thr:0, wl:"ABCDEFGHIJKLMNOPQRSTUVWXYZ", psm:"8", trim:1 }, { lang:"eng", s:4, thr:170, wl:"ABCDEFGHIJKLMNOPQRSTUVWXYZ", psm:"10", trim:1 }],
+  fc:      [{ lang:"eng", s:4, thr:0, wl:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_" }, { lang:"eng", s:4, thr:170, wl:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_" }, { lang:"eng", s:3, thr:0, wl:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_" }],
+  center:  [{ lang:"kor", s:3, thr:165 }],
+  bidcode: FI_OCR_PLANS.bidcode,
+  pallets: FI_OCR_PLANS.pallets,
+  addr:    [{ lang:"kor", s:3, thr:165 }],
+  person:  [{ lang:"kor", s:3, thr:165 }],
+  phone:   [{ lang:"eng", s:3, thr:0, wl:"0123456789-" }],
+  opNote:  [{ lang:"kor", s:3, thr:165 }],
+  vendor:  []
+};
+// 이미지에서 FC EOS 표를 찾으면 { rows, head }, 아니면 null(기존 출고일정 표로 처리)
+async function eosDispOcrImage(img, ocrFn, onProgress){
+  const g = fiDispGray(img);
+  const grids = eosDispGrids(g, img.width, img.height);
+  if(!grids.length) return null;
+  const read = async (c, p) => String(await ocrFn(fiDispCrop(g, img.width, c.x0, c.y0, c.x1, c.y1, p.s, p.thr, p.trim), { psm:p.psm||"7", lang:p.lang, wl:p.wl||"" })).trim();
+  let grid = null, roles = null, cells = null;
+  for(const gr of grids.slice(0,2)){
+    const cs = fiDispCells(gr); if(!cs.length) continue;
+    const r0 = cs[0].r; const hdr = cs.filter(c=>c.r===r0);
+    const ht = []; for(const c of hdr) ht[c.c] = await read(c, { lang:"kor", s:3, thr:165 });
+    const ro = ht.map(eosDispColRole);
+    if(ro.includes("pallets") && ro.includes("bidcode") && (ro.includes("fc") || ro.includes("center"))){ grid = gr; roles = ro; cells = cs.filter(c=>c.r!==r0); break; }
+  }
+  if(!grid) return null;
+  const total = cells.reduce((s,c)=> s + Math.max(1,(EOS_OCR_PLANS[roles[c.c]]||[]).length), 0);
+  let done = 0;
+  const texts = {};
+  for(const c of cells){
+    const plans = EOS_OCR_PLANS[roles[c.c]] || [];
+    const cands = [];
+    for(const p of plans){ cands.push(await read(c, p)); done++; if(onProgress) onProgress(done/total); }
+    if(!plans.length) done++;
+    (texts[c.r] = texts[c.r] || {})[roles[c.c]||("c"+c.c)] = cands;
+  }
+  let head = "";
+  if(grid.top > 12) head = await ocrFn(fiDispCrop(g, img.width, 0, 0, img.width-1, grid.top-3, 2), { psm:"6", lang:"kor" });
+  const known = fiKnownFCs().concat(Object.keys(FI_FC_NAME_EXTRA||{}));
+  const nameToCode = {}; Object.keys(FI_REF.fc).forEach(k=>{ nameToCode[String(FI_REF.fc[k][0]).replace(/[_\s]/g,"")] = k; });
+  Object.keys(FI_FC_NAME_EXTRA||{}).forEach(k=>{ nameToCode[String(FI_FC_NAME_EXTRA[k]).replace(/[_\s]/g,"")] = k; });
+  const prefs = new Set(known.map(k=> (String(k).match(/^[A-Z]+/)||[""])[0]).filter(Boolean));
+  const palCol = roles.indexOf("pallets");
+  const palCut = grid.cutRight && palCol === grid.v.length - 2;
+  const rows = [];
+  Object.keys(texts).map(Number).sort((a,b)=>a-b).forEach(ri=>{
+    const o = texts[ri]; const L = k=> (o[k]||[]).map(v=> String(v||"").trim());
+    const bids = L("bidcode").map(fiBidStruct).filter(Boolean);
+    const bidcode = bids.length ? Array.from({length:10},(_,i)=>_fiVote(bids.map(b=>b[i]))).join("") : fiFixBidcode(L("bidcode")[0]);
+    const palC = L("pallets").map(t=>fiFixDigits(t)).filter(n=>/^\d{1,3}$/.test(n) && +n>0);
+    // 센터 칸(한글 OCR)은 알려진 센터명과 맞을 때만 쓰고, WF13·VF178처럼 코드가 그대로 적힌 칸은 FC 후보로도 쓴다
+    const cenC = L("center").map(_fiTrimKor);
+    const fcC = L("fc").concat(cenC.filter(t=> /^(VF|WF|XRC|XHM)\d{1,3}$/i.test(t))).map(t=> t.toUpperCase().replace(/[^A-Z0-9_]/g,"")).filter(t=> t.length>=3);
+    let fc = _fiVote(fcC.filter(t=> EOS_FC_RE.test(t))) || _fiVote(fcC);
+    let byName = ""; cenC.forEach(c=>{ const k = nameToCode[c.replace(/[_\s]/g,"")]; if(k && !byName) byName = k; });
+    if(byName && (!fc || _fiLev(fc.replace(/_/g,""), byName.replace(/_/g,"")) <= 2)) fc = byName;
+    // 영문 앞부분이 알려진 FC 접두어가 아니면(WEF25 → WF25) 가장 가까운 접두어로
+    if(fc && EOS_FC_RE.test(fc)){ const m = fc.match(/^([A-Z]+)(\d.*)$/); if(m && !prefs.has(m[1])){ let b=null, bd=9; prefs.forEach(p=>{ const d=_fiLev(m[1],p); if(d<bd){bd=d;b=p;} }); if(b && bd<=1) fc = b + m[2]; } }
+    if(false){}
+    else if(fc && !EOS_FC_RE.test(fc)){ let b=null, bd=9; known.forEach(x=>{ const d=_fiLev(fc,x); if(d<bd){bd=d;b=x;} }); if(b && bd<=1) fc = b; }   // 형식이 깨진 코드만 알려진 FC로 맞춤(WF25 같은 새 센터는 그대로)
+    fc = String(fc||"").replace(/_/g,"");
+    const center = byName ? (FI_FC_NAME_EXTRA[byName] || (FI_REF.fc[byName]||[])[0] || "") : "";
+    const bi = eosBidInfo(bidcode);
+    let lot = _fiVote(L("lot").map(t=> t.toUpperCase().replace(/[^A-Z]/g,"")).filter(t=> /^[A-Z]{1,2}$/.test(t)));
+    if(bi && bi.suf[0]===bi.suf[1] && lot !== bi.suf[0]) lot = bi.suf[0];
+    if(!bidcode && !fc && !palC.length) return;
+    rows.push({ lot, fc, center, bidcode, pallets: palC.length ? +_fiVote(palC) : null,
+      addr: _fiVote(L("addr")).replace(/\s+/g," "), person: _fiVote(L("person")).replace(/\s+/g," "),
+      palCut, phone: (_fiVote(L("phone")).match(/0\d{1,2}-?\d{3,4}-?\d{4}/)||[""])[0], opNote: _fiVote(L("opNote")).replace(/\s+/g," ") });
+  });
+  // 같은 LOT의 입차코드는 하나 — 다수결로 통일
+  const byLot = {}; rows.forEach(r=>{ if(r.lot) (byLot[r.lot]=byLot[r.lot]||[]).push(r.bidcode); });
+  rows.forEach(r=>{ const l = byLot[r.lot]; if(l && l.length>1){ const v = Array.from({length:10},(_,i)=>_fiVote(l.filter(Boolean).map(b=>b[i]||""))).join(""); if(/^AF[A-Z0-9]{8}$/.test(v)) r.bidcode = v; } });
+  return { rows, head };
+}
+function _fiTrimKor(s){ return String(s||"").replace(/\s+/g,"").replace(/[|\[\]{}()'"`~.,:;]/g,""); }
+async function eosDispFromImage(img, ocr, status){
+  const res = await eosDispOcrImage(img, ocr, p=> status(`임박식품 표 칸별로 글자 인식 중… ${Math.round(p*100)}%`));
+  if(!res) return false;
+  if(!res.rows.length) throw new Error("임박식품(FC EOS) 표에서 센터 행을 찾지 못했습니다.");
+  const out = await eosDispFinish(res.rows, res.head, true);
+  fiDispStart(out.rows, out.note, "임박식품 메일 이미지", { eos:true, matchInfo:out.matchInfo });
+  return true;
+}
 function wireFixedDispatch(){
   const box = document.getElementById("fiDispBox");
   if(!box || box._wired) return; box._wired = true;
@@ -14564,6 +14922,11 @@ function wireFixedDispatch(){
     else if(b.id==="fiDispToLedger" && _fiDisp){ const inc=_fiDisp.rows.filter(r=>!r.skip); const msg=document.getElementById("fiDispLedgerMsg"); msg.textContent="추가 중…";
       fiLedgerAdd(inc).then(({res,where})=>{ msg.innerHTML = Object.keys(res).filter(co=>res[co].add||res[co].dup||res[co].upd).map(co=>`${FI_LEDGER_CO[co].label} +${res[co].add}행${res[co].upd?` · 수정 반영 ${res[co].upd}행`:""}${res[co].dup?` (변경 없음/원본에 있음 ${res[co].dup})`:""}${where[co]?` · ${fiLedgerWhere(where[co])}`:""}`).join(" / ") || "추가할 행 없음"; fiLedgerRender(); }); }
     else if(b.id==="fiDispMonth"){ const g=fiDispMonthGroups(); if(g.length) fiDispDownload(g, `배차표_월별누적_${fiDetectDate("")}.xlsx`); }
+    else if((b.id==="fiDispBulkEmpty" || b.id==="fiDispBulkAll") && _fiDisp){   // build 134
+      const v = String(document.getElementById("fiDispBulkFree").value||"").trim() || document.getElementById("fiDispBulkSel").value;
+      if(!v){ showNotice("도착지를 고르거나 입력해 주세요."); return; }
+      _fiDisp.rows.forEach(r=>{ if(r.skip) return; if(b.id==="fiDispBulkAll" || !r.dest) r.dest = v; });
+      fiDispSave(); fiDispRender(); }
     else if(b.id==="fiDispCurDel"){ _fiDisp = null; const st=document.getElementById("fiDispStatus"); if(st) st.textContent=""; fiDispRender(); }
     else if(b.id==="fiDispUseLatest" && _fiDisp){ const en=(FIXED_INTAKE_HISTORY||[]).find(h=>h.id===_fiDisp.matchInfo.latestId); if(en){ fiDispAssign(_fiDisp.rows, en); _fiDisp.rows.forEach(r=>{ r.memo = [r.memo, `최근 기록 ${en.date} 기준 도착지 — 확인`].filter(Boolean).join(" / "); }); _fiDisp.matchInfo = { ok:true, text:`같은 날짜 기록이 없어 최근 고정인수 기록 ${en.date} 분배표로 채웠습니다 — 도착지를 꼭 확인하세요.` }; fiDispSave(); fiDispRender(); } }
     else if(b.dataset.fdOpen){ const h=FI_DISPATCH_HISTORY.find(x=>x.id===+b.dataset.fdOpen); if(h){ _fiDisp = JSON.parse(JSON.stringify(h)); fiDispRender(); } }
@@ -14677,7 +15040,7 @@ function fiLedgerWhere(w){
 // 배차 요청 행 → 원장 행
 function fiLedgerRowFrom(r){
   return { co:fiCoOf(r), bidDate:r.bidDate||"", bidcode:r.bidcode||"", group:r.group||"", number:r.number||"", pallets:(r.pallets==null||r.pallets==="")?null:+r.pallets, outboundDate:r.outboundDate||"",
-    outboundAmPm:r.outboundAmPm||"", fc:r.fc||"", dest:r.dest||"", type:r.type||"", addedAt:new Date().toISOString() };
+    outboundAmPm:r.outboundAmPm||"", fc:r.fc||"", dest:r.dest||"", type:r.type||"", remark:r.remark||"", addedAt:new Date().toISOString() };
 }
 async function fiLedgerAdd(rows){
   await fiLedgerLoad();
@@ -14749,7 +15112,7 @@ async function fiLedgerBuild(co){
       "NO":"", "낙찰일": (/^\d{4}-\d{2}-\d{2}$/.test(r.bidDate) ? (()=>{ const [yy,mm,dd]=r.bidDate.split("-").map(Number); return new Date(Date.UTC(yy,mm-1,dd)); })() : r.bidDate),
       "입차CODE": r.bidcode, "낙찰NO": r.type==="XLG" ? (fiCenterName(r.fc)||r.group) : r.group,
       "Group Number": /^\d+$/.test(String(r.number)) ? +r.number : r.number, "PLT수량": r.pallets==null||r.pallets==="" ? null : +r.pallets,
-      "출고일시": `${r.outboundDate||""} ${r.outboundAmPm||""}`.trim(), "FC": fiCenterName(r.fc)||r.fc, "도착지": r.dest||"", "카테.": r.type||"", "비고": ""
+      "출고일시": `${r.outboundDate||""} ${r.outboundAmPm||""}`.trim(), "FC": fiCenterName(r.fc)||r.fc, "도착지": r.dest||"", "카테.": r.type||"", "비고": r.remark||""
     };
     Object.entries(hdr.map).forEach(([k,c])=>{
       const cell = ws.getRow(at).getCell(c);
