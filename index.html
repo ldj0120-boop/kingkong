@@ -1072,7 +1072,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 136 · 2026-10-14</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 137 · 2026-10-14</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1568,6 +1568,7 @@
         <input type="file" id="fiDispInput" accept="image/*,.mhtml,.mht,.html,.htm,.eml" hidden>
         <div id="fiDispStatus" class="fi-status"></div>
         <div id="fiDispResult"></div>
+        <div id="fiDispCombo"></div>
         <div class="fi-sec-t">배차 요청 기록</div>
         <div id="fiDispHistory"></div>
       </div>
@@ -13440,6 +13441,7 @@ function fiDispRender(){
   const wrap = document.getElementById("fiDispResult");
   if(!wrap) return;
   fiDispRenderHistory();
+  try{ fiComboRender(); }catch(e){ console.error(e); }   // build 137
   if(!_fiDisp){ wrap.innerHTML = ""; return; }
   const d = _fiDisp;
   const ed = (r,i,k,val,w)=>`<input class="fi-dinp" data-fd-i="${i}" data-fd-k="${k}" value="${escHtml(val==null?"":val)}" style="width:${w}px">`;
@@ -13474,7 +13476,77 @@ function fiDispEosSubRow(r, i){
     <span class="fi-mut">비고</span> <input class="fi-dinp" data-fd-i="${i}" data-fd-k="remark" value="${escHtml(nt)}" placeholder="운영 특이사항(없으면 비움)" style="width:320px"></td></tr>`;
 }
 // build 117: 미리보기·문구만 따로 다시 그림 — 표의 칸(PLT 등)을 고치는 즉시 반영(입력 중인 칸 포커스 유지)
-function fiDispRenderOut(){ const el=document.getElementById("fiDispOut"); if(el && _fiDisp) el.innerHTML = fiDispOutHtml(_fiDisp); }
+function fiDispRenderOut(){ const el=document.getElementById("fiDispOut"); if(el && _fiDisp) el.innerHTML = fiDispOutHtml(_fiDisp); try{ fiComboRender(); }catch(_){} }
+/* build 137: 최종 출고요청서(같은 상차일 합본) — 고정인수 · 일반 리퀴 · 임박식품 배차 요청이 같은 날 겹치면 한 장으로 합친다.
+   배차 요청 기록(FI_DISPATCH_HISTORY)에서 상차일이 같은 요청을 모아(체크로 빼기 가능) 거래처(더한/KPP)별 표 · 엑셀 · 물류 문구 · 누적 출고요청서 추가.
+   같은 행(입차코드·Group·FC·유형)이 두 요청에 있으면 최근 것 하나만. 임박식품 요청에 확인 질문이 남았거나 도착지가 비면 잠금. */
+let _fiCombo = { date:"", off:{} };
+function fiComboEntries(){ return (FI_DISPATCH_HISTORY||[]).slice().sort((a,b)=> (b.updatedAt||b.id) - (a.updatedAt||a.id)); }
+function fiComboDates(){
+  const s = new Set(); fiComboEntries().forEach(h=> (h.rows||[]).forEach(r=>{ if(r.outboundDate) s.add(r.outboundDate); }));
+  return Array.from(s).sort().reverse().slice(0,30);
+}
+function fiComboLabel(h){ const t = Array.from(new Set((h.rows||[]).map(r=> r.type).filter(Boolean))); return t.join("·") || "배차"; }
+function fiComboState(h, date){
+  const rows = (h.rows||[]).filter(r=> r.outboundDate===date && !r.skip);
+  const destMiss = rows.filter(r=> !String(r.dest||"").trim()).length;
+  let pending = 0;
+  if(h.matchInfo && h.matchInfo.eos){ try{ pending = eosDispQuestions(JSON.parse(JSON.stringify(h))).pending.length; }catch(_){} }
+  return { pending, destMiss, n: rows.length, plt: rows.reduce((a,r)=> a + (+r.pallets||0), 0) };
+}
+function fiComboBuild(){
+  const dates = fiComboDates();
+  let date = _fiCombo.date;
+  if(!date || !dates.includes(date)){ const cur = _fiDisp && (_fiDisp.rows||[]).find(r=> r.outboundDate); date = (cur && cur.outboundDate) || dates[0] || ""; }
+  _fiCombo.date = date;
+  const ents = fiComboEntries().filter(h=> (h.rows||[]).some(r=> r.outboundDate===date));
+  const inc = ents.filter(h=> !_fiCombo.off[h.id]);
+  const seen = new Set(), rows = []; let dup = 0;
+  inc.forEach(h=> (h.rows||[]).forEach(r=>{
+    if(r.outboundDate!==date || r.skip) return;
+    const k = fiLedgerKey(r.bidcode, r.number, r.fc) + "|" + (r.type||"");
+    if(seen.has(k)){ dup++; return; } seen.add(k); rows.push(r);
+  }));
+  const notes = Array.from(new Set(inc.filter(h=> h.note && (h.rows||[]).some(r=> r.outboundDate===date && !r.skip)).map(h=> `${fiComboLabel(h)}: ${h.note}`)));
+  return { dates, date, ents, inc, rows, dup, notes };
+}
+function fiComboTextAll(C){
+  return Object.keys(FI_LEDGER_CO).map(co=>{ const rs = fiOrderRows(C.rows.filter(r=> fiCoOf(r)===co)); return rs.length ? `【${FI_LEDGER_CO[co].label}】\n` + fiDispText(rs, { note: C.notes.join(" · ") }) : ""; }).filter(Boolean).join("\n\n────────\n\n");
+}
+function fiComboRender(){
+  const el = document.getElementById("fiDispCombo"); if(!el) return;
+  const C = fiComboBuild();
+  if(!C.date){ el.innerHTML = ""; return; }
+  const st = C.ents.map(h=> ({ h, s: fiComboState(h, C.date) }));
+  const locks = st.filter(x=> !_fiCombo.off[x.h.id] && (x.s.pending || x.s.destMiss));
+  const lock = locks.map(x=> `${fiComboLabel(x.h)}(${x.h.at||""}): ${[x.s.pending?`확인 질문 ${x.s.pending}개`:"", x.s.destMiss?`도착지 미선택 ${x.s.destMiss}곳`:""].filter(Boolean).join(" · ")}`).join(" / ");
+  const dis = lock ? ` disabled title="${escHtml(lock)}" style="opacity:.5;cursor:not-allowed"` : "";
+  const tot = C.rows.reduce((a,r)=> a + (+r.pallets||0), 0);
+  const types = Array.from(new Set(C.rows.map(r=> r.type).filter(Boolean)));
+  let h = `<div style="margin-top:22px;border-top:2px solid var(--line,#2a3a4a);padding-top:12px">
+    <div class="fi-sec-t" style="margin-top:0">최종 출고요청서 (같은 상차일 합본) <select id="fiComboDate">${C.dates.map(d=>`<option value="${escHtml(d)}" ${d===C.date?"selected":""}>${escHtml(d)}(${fiDispWeekday(d)})</option>`).join("")}</select>
+      <span class="fi-mut">고정인수 · 일반 리퀴 · 임박식품 배차 요청이 같은 날 겹치면 여기서 한 장으로 합칩니다 — 빼려면 체크를 끄세요</span></div>
+    <table class="fi-tbl"><thead><tr><th>포함</th><th>배차 요청</th><th>작성</th><th>이 날 건수 · PLT</th><th>상태</th><th></th></tr></thead><tbody>
+    ${st.map(({h:e,s:x})=>`<tr style="${_fiCombo.off[e.id]?"opacity:.45":""}"><td><input type="checkbox" data-combo-id="${e.id}" ${_fiCombo.off[e.id]?"":"checked"}></td>
+      <td>${Array.from(new Set((e.rows||[]).map(r=>r.type).filter(Boolean))).map(fiTypeBadge).join(" ")}</td><td>${escHtml(e.at||"")}</td><td>${x.n}건 · ${x.plt}PLT</td>
+      <td style="font-size:12px">${x.pending||x.destMiss ? `<span style="color:var(--amber,#e0a030)">${[x.pending?`확인 질문 ${x.pending}개 남음`:"", x.destMiss?`도착지 미선택 ${x.destMiss}곳`:""].filter(Boolean).join(" · ")}</span>` : `<span style="color:var(--green,#33c784)">✓ 완료</span>`}</td>
+      <td><button class="act fi-mini" data-fd-open="${e.id}">열기</button></td></tr>`).join("")}
+    </tbody></table>`;
+  h += lock ? `<div class="fi-match bad" style="margin-top:8px">합본 초안 — ${escHtml(lock)}. 위에서 그 배차 요청을 열어 끝내면 엑셀·누적 추가가 열립니다.</div>`
+            : `<div class="fi-match ok" style="margin-top:8px">✓ 최종 출고요청서 — ${escHtml(C.date)}(${fiDispWeekday(C.date)}) ${types.join("·")} ${C.rows.length}건 · ${tot}PLT${C.dup?` (두 요청에 같이 있던 ${C.dup}행은 한 번만)`:""}</div>`;
+  h += `<div style="margin:8px 0"><button class="act primary fi-mini" id="fiComboXlsx"${dis}>⬇ 합본 엑셀 (더한·KPP 시트)</button>
+    <button class="act primary fi-mini admin-only" id="fiComboLedger"${dis} title="처음 누르면 추가, 이미 추가한 행은 고친 값으로 갱신">＋ 합본을 누적 출고요청서에 추가/갱신</button> <span id="fiComboMsg" class="fi-mut"></span></div>`;
+  Object.keys(FI_LEDGER_CO).forEach(co=>{
+    const rs = C.rows.filter(r=> fiCoOf(r)===co); if(!rs.length) return;
+    const cols = fiDispCols(rs);
+    h += `<div class="fi-mut" style="margin:8px 0 4px"><b style="color:var(--text)">${FI_LEDGER_CO[co].label}</b> ${rs.length}건 · ${rs.reduce((a,r)=>a+(+r.pallets||0),0)}PLT</div>
+    <div class="fi-xprev"><table><thead><tr>${cols.hdr.map(x=>`<th>${escHtml(x)}</th>`).join("")}</tr></thead><tbody>
+    ${fiDispSheetRows(rs).map(o=>`<tr>${cols.keys.map(k=>`<td${/^(주소|비고)$/.test(k)?' style="text-align:left;white-space:normal;min-width:180px"':""}>${escHtml(o[k]==null?"":o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  });
+  h += `<div class="fi-sec-t">합본 물류업체 전달 문구 <button class="act primary fi-mini" id="fiComboCopy">복사</button> <span id="fiComboCopyMsg" class="fi-mut"></span></div>
+    <textarea id="fiComboText" class="fi-text" style="min-height:200px" readonly>${escHtml(fiComboTextAll(C))}</textarea></div>`;
+  el.innerHTML = h;
+}
 function fiDispOutHtml(d){
   let h = "";
   // build 114: 거래처별(더한 = 경산 외 / KPP = 경산) 출고요청서 — 포함 체크된 행만
@@ -15192,6 +15264,9 @@ function wireFixedDispatch(){
     if(t.tagName==="SELECT" || k==="fc" || k==="type" || k==="skip") fiDispRender(); else fiDispRenderOut();
   });
   // build 124: 도착지 직접 입력 — 입력 중엔 미리보기만, 칸을 벗어나면(엔터·Tab) 선택상자에도 반영
+  box.addEventListener("change", e=>{ const t = e.target;   // build 137: 합본 날짜 · 포함 체크
+    if(t.id==="fiComboDate"){ _fiCombo.date = t.value; fiComboRender(); }
+    else if(t.dataset && t.dataset.comboId){ _fiCombo.off[t.dataset.comboId] = !t.checked; fiComboRender(); } });
   box.addEventListener("change", e=>{ const t0 = e.target;   // build 136: 임박식품 칸을 고치면 확인 패널 다시 계산
     if(_fiDisp && _fiDisp.matchInfo && _fiDisp.matchInfo.eos && t0.classList && t0.classList.contains("fi-dinp") && t0.tagName==="INPUT" && !t0.classList.contains("fi-dfree")){
       const r = _fiDisp.rows[+t0.dataset.fdI], k = t0.dataset.fdK;
@@ -15208,6 +15283,13 @@ function wireFixedDispatch(){
     else if(b.id==="fiDispToLedger" && _fiDisp){ const inc=_fiDisp.rows.filter(r=>!r.skip); const msg=document.getElementById("fiDispLedgerMsg"); msg.textContent="추가 중…";
       fiLedgerAdd(inc).then(({res,where})=>{ msg.innerHTML = Object.keys(res).filter(co=>res[co].add||res[co].dup||res[co].upd).map(co=>`${FI_LEDGER_CO[co].label} +${res[co].add}행${res[co].upd?` · 수정 반영 ${res[co].upd}행`:""}${res[co].dup?` (변경 없음/원본에 있음 ${res[co].dup})`:""}${where[co]?` · ${fiLedgerWhere(where[co])}`:""}`).join(" / ") || "추가할 행 없음"; fiLedgerRender(); }); }
     else if(b.id==="fiDispMonth"){ const g=fiDispMonthGroups(); if(g.length) fiDispDownload(g, `배차표_월별누적_${fiDetectDate("")}.xlsx`); }
+    else if(b.id==="fiComboXlsx"){   // build 137: 합본
+      const C = fiComboBuild();
+      const groups = Object.keys(FI_LEDGER_CO).map(co=>({ name:`${FI_LEDGER_CO[co].label} 출고요청${co==="kpp"?"(경산)":""}`, rows:C.rows.filter(r=>fiCoOf(r)===co) })).filter(g=>g.rows.length);
+      if(groups.length) fiDispDownload(groups, `출고요청서_합본_${Array.from(new Set(C.rows.map(r=>r.type))).join("")}_${C.date.replace(/-/g,"")}.xlsx`); }
+    else if(b.id==="fiComboLedger"){ const C = fiComboBuild(); const msg=document.getElementById("fiComboMsg"); msg.textContent="추가 중…";
+      fiLedgerAdd(C.rows).then(({res,where})=>{ msg.innerHTML = Object.keys(res).filter(co=>res[co].add||res[co].dup||res[co].upd).map(co=>`${FI_LEDGER_CO[co].label} +${res[co].add}행${res[co].upd?` · 수정 반영 ${res[co].upd}행`:""}${res[co].dup?` (변경 없음/원본에 있음 ${res[co].dup})`:""}${where[co]?` · ${fiLedgerWhere(where[co])}`:""}`).join(" / ") || "추가할 행 없음"; fiLedgerRender(); }); }
+    else if(b.id==="fiComboCopy") fiCopyText(document.getElementById("fiComboText").value, document.getElementById("fiComboCopyMsg"));
     else if(b.dataset.qId && _fiDisp){   // build 136: 확인 질문 답
       let v = b.dataset.qV;
       if(b.dataset.qUseIn){ const inp = Array.from(box.querySelectorAll("input[data-q-in]")).find(x=> x.dataset.qIn===b.dataset.qId); v = inp ? inp.value : ""; if(!String(v||"").trim()){ showNotice("값을 입력해 주세요."); return; } }
