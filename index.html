@@ -1072,7 +1072,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 130 · 2026-10-13</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 132 · 2026-10-14</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1504,10 +1504,39 @@
         <div id="liqHistory"></div>
       </div>
     </div>
+    <!-- build 132: 임박식품(FC EOS 리퀴데이션) 낙찰파일 생성 (원본 + 낙찰 LOT 알파벳 → LOT별 원본/RAW 낙찰파일) -->
+    <div class="agg-card" id="eosBox">
+      <div class="p-hd">
+        <span class="store-name">③ 임박식품(FC EOS) · 낙찰파일 생성기</span>
+        <span class="meta">FC_EOS_Liquidation 원본 + 낙찰 LOT 알파벳(A, C, E …) → LOT별 낙찰파일(원본 / RAW)</span>
+      </div>
+      <div class="fi-body">
+        <div class="fi-disp-in">
+          <div id="eosDrop" class="fi-drop" role="button" tabindex="0">
+            <div class="fi-drop-t">임박식품 원본 파일(FC_EOS_Liquidation_YYYYMMDD-V….xlsx)을 끌어다 놓거나 클릭</div>
+            <div class="fi-drop-s">RAW 시트(No. = LOT 알파벳)와 EOS 시트(NO./FC/센터/Pallet)를 읽습니다</div>
+            <div id="eosFileInfo" style="margin-top:8px;font-size:12.5px"></div>
+          </div>
+          <div class="fi-disp-paste">
+            <textarea id="eosLots" class="fi-text" style="min-height:96px" placeholder="낙찰된 LOT 알파벳 (쉼표·점·띄어쓰기로 구분)&#10;예) C, E, G"></textarea>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <label class="fi-mut">낙찰일 <input id="eosDate" class="fi-sel" style="width:80px" placeholder="YYMMDD"></label>
+              <span class="fi-mut">파일명 맨 앞(YYMMDD) — 기본 오늘</span>
+              <button class="act primary fi-mini" id="eosGo" style="margin-left:auto">낙찰파일 생성</button>
+            </div>
+          </div>
+        </div>
+        <input type="file" id="eosInput" accept=".xlsx,.xlsm,.xlsb" hidden>
+        <div id="eosStatus" class="fi-status"></div>
+        <div id="eosResult"></div>
+        <div class="fi-sec-t">임박식품 낙찰파일 기록</div>
+        <div id="eosHistory"></div>
+      </div>
+    </div>
     <!-- build 111: 고정인수 — 쿠팡 리퀴데이션 고정 리스트(XLG/XLS/기저귀) → 낙찰파일(원본/종합/RAW) + 직출 분배표 + 카톡 문구 + 히스토리 -->
     <div class="agg-card">
       <div class="p-hd">
-        <span class="store-name">③ 고정인수 · 낙찰파일 생성 & 직출 분배표</span>
+        <span class="store-name">④ 고정인수 · 낙찰파일 생성 & 직출 분배표</span>
         <span class="meta" id="fiMeta"></span>
       </div>
       <div class="fi-body">
@@ -1522,7 +1551,7 @@
     </div>
     <div class="agg-card" id="fiDispBox">
       <div class="p-hd">
-        <span class="store-name">④ 배차 요청서 (입차코드)</span>
+        <span class="store-name">⑤ 배차 요청서 (입차코드)</span>
         <span class="meta">쿠팡 출고일정 메일 캡처 → 입차코드·상차일시·도착지 표 + 물류업체 문구 + 엑셀</span>
       </div>
       <div class="fi-body">
@@ -5268,7 +5297,7 @@ function selectTab(which){
   if(which==="agg"){ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }
   if(which==="sales"){ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); }
   if(which==="goals"){ renderGoals(); }
-  if(which==="fixed"){ try{ wireFixedIntake(); fiRender(); wireLiqSum(); wireLiquidation(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } }
+  if(which==="fixed"){ try{ wireFixedIntake(); fiRender(); wireLiqSum(); wireLiquidation(); wireEosLiq(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } }
 }
 tabAgg.onclick=()=>selectTab("agg");
 tabSales.onclick=()=>selectTab("sales");
@@ -13355,9 +13384,23 @@ function fiDispDestOptions(r){
     + `<optgroup label="${top.length?"그 외 전체 매장":"전체 매장"}">${all.map(opt).join("")}</optgroup>`
     + (cur.includes(", ") ? `<option selected value="${escHtml(cur)}">${escHtml(cur)}</option>` : "");
 }
+// build 131: 출력 행 순서 = 사용자 배차표와 동일
+//   출고일 → 오전/오후 → 낙찰일 → 유형(XLS, XLG, XLD, XLB, XLE, XLA, XLC …) → FC(여주2, 시흥3, 고양3, 경산2, 인천 …) → 원래 순서
+const FI_ORDER_TYPE = ["XLS","XLG","XLD","XLB","XLE","XLA","XLC"];
+const FI_ORDER_FC = [/여주|YEO/i, /시흥|SIH/i, /고양|GOY/i, /경산|GYS/i, /인천|INC/i];
+function fiOrderRows(rows){
+  const tk = r=>{ const i = FI_ORDER_TYPE.indexOf(String(r.type||"").toUpperCase()); return i<0 ? 99 : i; };
+  const fk = r=>{ const n = String(fiCenterName(r.fc)||"")+" "+String(r.fc||""); const i = FI_ORDER_FC.findIndex(re=>re.test(n)); return i<0 ? 99 : i; };
+  const ak = r=> r.outboundAmPm==="오전" ? 0 : r.outboundAmPm==="오후" ? 1 : 2;
+  const dk = v=> String(v||"") || "9999";
+  return (rows||[]).map((r,i)=>({ r, i })).sort((a,b)=>
+    dk(a.r.outboundDate).localeCompare(dk(b.r.outboundDate)) || ak(a.r)-ak(b.r) ||
+    dk(a.r.bidDate).localeCompare(dk(b.r.bidDate)) || tk(a.r)-tk(b.r) || fk(a.r)-fk(b.r) || a.i-b.i
+  ).map(x=>x.r);
+}
 // 엑셀 예시(더한 배차표) 열 구성: NO | 낙찰일 | 입차CODE | 낙찰NO | Group Number | PLT수량 | 출고일시 | FC | 도착지 | 카테. | 비고
 function fiDispSheetRows(rows){
-  return rows.map(r=>({
+  return fiOrderRows(rows).map(r=>({
     NO:"", 낙찰일:r.bidDate, 입차CODE:r.bidcode,
     낙찰NO: r.type==="XLG" ? (fiCenterName(r.fc)||r.group) : r.group,
     GroupNumber: /^\d+$/.test(String(r.number||"")) ? +r.number : (r.number||""),
@@ -13423,7 +13466,7 @@ function fiDispRenderHistory(){
 }
 function fiDispTextAll(d){
   const inc = d.rows.filter(r=>!r.skip);
-  return Object.keys(FI_LEDGER_CO).map(co=>{ const rs=inc.filter(r=>fiCoOf(r)===co); return rs.length ? `【${FI_LEDGER_CO[co].label}】\n` + fiDispText(rs, { note:d.note }) : ""; }).filter(Boolean).join("\n\n────────\n\n");
+  return Object.keys(FI_LEDGER_CO).map(co=>{ const rs=fiOrderRows(inc.filter(r=>fiCoOf(r)===co)); return rs.length ? `【${FI_LEDGER_CO[co].label}】\n` + fiDispText(rs, { note:d.note }) : ""; }).filter(Boolean).join("\n\n────────\n\n");
 }
 async function fiDispWorkbook(groups){
   const ExcelJS = await fiLoadScript("https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js", "ExcelJS");
@@ -13464,7 +13507,7 @@ function fiDispMonthGroups(){
   }));
   return Object.keys(by).sort().map(m=>{
     const [y,mm] = m.split("-");
-    const rows = by[m].slice().sort((a,b)=> (`${a.outboundDate} ${a.outboundAmPm==="오전"?0:1}`).localeCompare(`${b.outboundDate} ${b.outboundAmPm==="오전"?0:1}`));
+    const rows = fiOrderRows(by[m]);   // build 131
     return { name: mm ? `배차 ${y} ${+mm}월` : m, rows };
   });
 }
@@ -14205,6 +14248,273 @@ function wireLiquidation(){
   });
   liqRender();
 }
+/* build 132: ③ 임박식품(FC EOS 리퀴데이션) 낙찰파일 생성
+   - 원본 = FC_EOS_Liquidation_YYYYMMDD-V….xlsx (RAW 시트 A~S + EOS 시트 NO./FC/센터/Pallet).
+   - 낙찰 LOT 알파벳(A, C, E …)마다 낙찰파일 1개: 예시 "261007_FC_임박식품_인천28 인천4 … 창원4E37CHA XLB 18PLTPLT.xlsx"와 같은 구성
+     · 원본 시트: RAW에서 No.=LOT 행의 A~S 그대로(원본 순서), 1행 SUBTOTAL P~S, U~X = EOS 시트의 그 LOT 행(NO./FC/센터/Pallet)
+     · RAW 시트: No.,FC,unit1,unit2,cate2~5,로케이션,외부 SKU ID,SKU ID,상품 바코드(텍스트),★_상품명,수량,면세유무,
+       매장판매가(=판매단가(부가세x)×(면세 Y 1.0 / N 1.1)),매장판매가 총액,도매가(=매장판매가×VLOOKUP(cate4) 도매요율 = 일반 리퀴와 같은 LIQ_RATE4),
+       도매판매가 총액, 1행 SUBTOTAL N·O·Q·S, U~X = 같은 EOS 표
+   - PLT = EOS 시트 Pallet 합 + EOS 외 그룹(XLA/XLB/XLC…)은 FC별 로케이션 개수. 파일명 = YYMMDD_FC_임박식품_{센터 띄어쓰기}{LOT}{PLT}{기타 "CHA XLB 18PLT"}PLT */
+const EOS_LS = "eos_history_v1";
+let EOS_HISTORY = [];
+try{ EOS_HISTORY = JSON.parse(localStorage.getItem(EOS_LS)||"[]") || []; }catch(_){ EOS_HISTORY = []; }
+let _eosFile = null, _eosData = null, _eosCur = null;
+const EOS_RAW_PICK = [1,2,4,5,6,7,8,9,10,11,12,13,14,15,16];   // 원본 A~S 중 RAW 시트로 가는 열 (Grouping·Groupnm 제외)
+const EOS_RAW_EXTRA = ["매장판매가","매장판매가 총액","도매가","도매판매가 총액"];
+const eosT = v => v==null ? "" : String(v).replace(/[ \s]+/g," ").trim();
+function eosParseLots(text){
+  const out = [];
+  String(text||"").toUpperCase().split(/[^A-Z]+/).forEach(s=>{ if(/^[A-Z]{1,2}$/.test(s) && !out.includes(s)) out.push(s); });
+  return out;
+}
+// 원본 워크북(aoa) → { hdr, rows, eosHdr, eos[], sheet }
+function eosReadAoa(sheets){
+  const names = Object.keys(sheets);
+  let raw = null, rawName = null;
+  const order = names.slice().sort((a,b)=> (eosT(b).toUpperCase()==="RAW") - (eosT(a).toUpperCase()==="RAW"));
+  for(const sn of order){
+    const aoa = sheets[sn]; if(!aoa) continue;
+    for(let i=0;i<Math.min(aoa.length,12);i++){
+      const s = Array.from(aoa[i]||[], eosT);
+      if(s[1]==="No." && /판매단가/.test(s[17]||"") && s[14]==="상품명"){ raw = { hi:i, aoa }; rawName = sn; break; }
+    }
+    if(raw) break;
+  }
+  if(!raw) throw new Error('RAW 시트(2행 머리글 Grouping · No. · FC … 상품명 · 수량 · 면세유무 · 판매단가(부가세x))를 찾지 못했습니다');
+  const hdr = (raw.aoa[raw.hi]||[]).slice(0,19); while(hdr.length<19) hdr.push(null);
+  const rows = [];
+  for(let i=raw.hi+1;i<raw.aoa.length;i++){
+    const v = raw.aoa[i]||[]; const no = eosT(v[1]).toUpperCase(); if(!no) continue;
+    const r = v.slice(0,19); while(r.length<19) r.push(null);
+    rows.push(r);
+  }
+  // EOS 표: EOS 시트(NO. | FC | 센터 | Pallet). 없으면 RAW U~W(NO. | FC | Pallet) + 센터명 추정
+  let eosHdr = null, eos = [];
+  const es = names.find(n=> eosT(n).toUpperCase()==="EOS");
+  if(es && sheets[es]){
+    const aoa = sheets[es];
+    for(let i=0;i<Math.min(aoa.length,10);i++){ const s = Array.from(aoa[i]||[], eosT); if(s[0]==="NO." && s[1]==="FC"){ eosHdr = (aoa[i]||[]).slice(0,4);
+      for(let j=i+1;j<aoa.length;j++){ const v=aoa[j]||[]; if(!eosT(v[0]) || !eosT(v[1])) continue; eos.push(v.slice(0,4)); }
+      break; } }
+  }
+  if(!eosHdr){
+    const s = Array.from(raw.aoa[raw.hi]||[], eosT); const u = s.indexOf("NO.", 19);
+    if(u>=0){ eosHdr = ["NO.","FC"," 센터 "," Pallet "];
+      for(let i=raw.hi+1;i<raw.aoa.length;i++){ const v=raw.aoa[i]||[]; if(!eosT(v[u]) || !eosT(v[u+1])) continue;
+        const fc = eosT(v[u+1]); const nm = (typeof fiCenterName==="function" ? fiCenterName(fc) : fc) || fc;
+        eos.push([" "+eosT(v[u])+" ", fc, " "+nm+" ", v[u+2]==null?null:+v[u+2]]); } }
+  }
+  return { hdr, rows, eosHdr: eosHdr || ["NO.","FC"," 센터 "," Pallet "], eos, sheet: rawName, eosFromSheet: !!es };
+}
+function eosRateOf(cate2, cate3, cate4){
+  const o = { CATE2:cate2, CATE3:cate3, CATE4:cate4 };
+  let r = liqRate(o); if(r!=null) return { r };
+  const s = liqSiblingRate(o); if(s!=null) return { r:s, guess:true };
+  return { r:0, miss:true };
+}
+function eosYYMMDD(s){ const d = String(s||"").replace(/\D/g,""); return d.length===8 ? d.slice(2) : d.length===6 ? d : ""; }
+// LOT 하나 → 낙찰파일 내용
+function eosBuildLot(D, lot, date6){
+  const src = D.rows.filter(r=> eosT(r[1]).toUpperCase()===lot);
+  const eos = D.eos.filter(r=> eosT(r[0]).toUpperCase()===lot);
+  const missingRate = {}, guessRate = {};
+  const raw = src.map(r=>{
+    const q = +r[15] || 0, unit = +r[17] || 0;
+    const shop = unit * (eosT(r[16]).toUpperCase()==="Y" ? 1.0 : 1.1);
+    const k = `${eosT(r[6])} > ${eosT(r[7])} > ${eosT(r[8])}`;
+    const rt = eosRateOf(r[6], r[7], r[8]);
+    if(rt.miss) missingRate[k] = (missingRate[k]||0)+1; else if(rt.guess) guessRate[k] = rt.r;
+    const whole = shop * rt.r;
+    const o = EOS_RAW_PICK.map(i=> r[i]);
+    o[11] = r[13]==null || r[13]==="" ? r[13] : (typeof r[13]==="number" ? r[13].toFixed(0) : String(r[13]));   // 상품 바코드 → 텍스트
+    o[12] = "★_" + (r[14]==null ? "" : r[14]);
+    return o.concat([shop, shop*q, whole, whole*q]);
+  });
+  // PLT: EOS = EOS 표 Pallet 합(없으면 로케이션 개수), 그 외 그룹 = (Grouping, FC)별 로케이션 개수
+  const grp = new Map();
+  src.forEach(r=>{ const g = eosT(r[0]).toUpperCase() || "EOS", fc = eosT(r[2]); const key = g==="EOS" ? "EOS" : g+"|"+fc;
+    if(!grp.has(key)) grp.set(key, { g, fc, locs:new Set() }); const l = eosT(r[10]); if(l) grp.get(key).locs.add(l); });
+  const eosPltTbl = eos.reduce((s,r)=> s + (+r[3]||0), 0);
+  const eosPlt = eos.length ? eosPltTbl : (grp.get("EOS") ? grp.get("EOS").locs.size : 0);
+  const others = [...grp.values()].filter(x=> x.g!=="EOS").map(x=>({ g:x.g, fc:x.fc, plt:x.locs.size, label:`${x.fc.replace(/[^A-Z].*$/i,"").toUpperCase()} ${x.g} ${x.locs.size}PLT` }));
+  const plt = eosPlt + others.reduce((s,x)=> s+x.plt, 0);
+  const centers = eos.map(r=> eosT(r[2])).filter(Boolean);
+  const name = `${date6}_FC_임박식품_${centers.join(" ")}${lot}${plt}${others.map(x=>x.label).join(" ")}PLT`;
+  const tot = raw.reduce((a,r)=>{ a.q += +r[13]||0; a.s += r[16]; a.w += r[18]; return a; }, { q:0, s:0, w:0 });
+  const sales = src.reduce((s,r)=> s + (+r[18]||0), 0);
+  return { lot, src, raw, eos, centers, eosPlt, others, plt, name, outName: eosSafeFile(name)+".xlsx", rows: src.length, qty: tot.q, shop: tot.s, whole: tot.w, sales, missingRate, guessRate };
+}
+function eosSafeFile(name){
+  let s = String(name).replace(/[\\/:*?"<>|\r\n]+/g," ");
+  if(s.length > 200) s = s.slice(0, 196) + "…";
+  return s;
+}
+// ExcelJS 워크북 (예시 낙찰파일 서식: 맑은 고딕 10, 회계 서식, EOS 표 Aptos·하늘색 머리글·굵은 테두리, 확대 85%)
+async function eosMakeWorkbook(ExcelJS, D, b){
+  const wb = new ExcelJS.Workbook();
+  const ACC = '_-* #,##0_-;\\-* #,##0_-;_-* "-"_-;_-@_-', NUM0 = '0_);[Red]\\(0\\)';
+  const F10 = { name:"맑은 고딕", size:10 }, F10B = { name:"맑은 고딕", size:10, bold:true }, F11 = { name:"맑은 고딕", size:11 };
+  const MB = { style:"medium" };
+  const eosBlock = (ws, startRow)=>{
+    const put = (r, vals, head)=> vals.forEach((v,j)=>{ const c = ws.getCell(r, 21+j); c.value = v==null ? null : v;
+      c.font = { name:"Aptos", size:10, bold:!!head }; c.border = { left:j===0?MB:undefined, right:MB, top:head?MB:undefined, bottom:MB };
+      if(head){ c.fill = { type:"pattern", pattern:"solid", fgColor:{ argb:"FFC0E6F5" } }; c.alignment = { horizontal:"center" }; } });
+    put(startRow, D.eosHdr, true);
+    b.eos.forEach((r,i)=> put(startRow+1+i, r, false));
+  };
+  const sub = (ws, col, n, sum)=>{ const c = ws.getCell(1, col); c.value = { formula:`SUBTOTAL(9,${ws.getColumn(col).letter}3:${ws.getColumn(col).letter}1048576)`, result:sum }; c.font = F10B; c.numFmt = ACC; };
+  // 원본
+  const w1 = wb.addWorksheet("원본", { views:[{ zoomScale:85 }] });
+  [9,9,9,9,null,null,null,null,null,null,19.2,16.6,20.7,13.3,17.8,14.6,null,null,null,9].forEach((w,i)=>{ if(w) w1.getColumn(i+1).width = w; });
+  for(let j=1;j<=19;j++){ const c = w1.getCell(2,j); if(D.hdr[j-1]!=null) c.value = D.hdr[j-1]; c.font = F10B; c.border = { bottom:{ style:"thin" } }; if(j===13||j===14) c.numFmt = NUM0; if(j>=16) c.numFmt = ACC; }
+  b.src.forEach((r,i)=>{ const row = w1.getRow(3+i); r.forEach((v,j)=>{ if(v==null || v==="") return; const c = row.getCell(j+1); c.value = v; c.font = F10;
+    if(j===12||j===13) c.numFmt = NUM0; else if(j>=15) c.numFmt = ACC; }); });
+  const colSum = (arr, j)=> arr.reduce((s,r)=> s + (typeof r[j]==="number" ? r[j] : 0), 0);
+  [16,17,18,19].forEach(col=> sub(w1, col, b.src.length, colSum(b.src, col-1)));
+  eosBlock(w1, 2);
+  // RAW
+  const w2 = wb.addWorksheet("RAW", { views:[{ zoomScale:85 }] });
+  [9,9,9,null,null,null,null,null,19.2,16.6,20.7,13.3,13.3,14.6,null,11.7,14.2,10.1,14.2,9].forEach((w,i)=>{ if(w) w2.getColumn(i+1).width = w; });
+  const h2 = EOS_RAW_PICK.map(i=> D.hdr[i]).concat(EOS_RAW_EXTRA);
+  for(let j=1;j<=19;j++){ const c = w2.getCell(2,j); if(h2[j-1]!=null) c.value = h2[j-1]; c.font = F10B; c.border = { bottom:{ style:"thin" } };
+    if(j===11) c.numFmt = NUM0; else if(j===12) c.numFmt = "@"; else if(j>=14 && j<=15) c.numFmt = ACC; else if(j>=16){ c.numFmt = ACC; c.font = { name:"맑은 고딕", size:9, bold:true }; c.alignment = { horizontal:"center" }; c.border = {}; } }
+  b.raw.forEach((r,i)=>{ const row = w2.getRow(3+i); r.forEach((v,j)=>{ if(v==null || v==="") return; const c = row.getCell(j+1); c.value = v;
+    if(j>=15){ c.font = F11; c.numFmt = ACC; c.alignment = { horizontal:"center" }; }
+    else { c.font = F10; if(j===10) c.numFmt = NUM0; else if(j===11) c.numFmt = "@"; else if(j===12) c.numFmt = NUM0; else if(j===13||j===14) c.numFmt = ACC; } }); });
+  [14,15,17,19].forEach(col=> sub(w2, col, b.raw.length, colSum(b.raw, col-1)));
+  eosBlock(w2, 2);
+  return wb;
+}
+async function eosLoadFile(f, say){
+  say(`원본 읽는 중… (${(f.size/1048576).toFixed(1)}MB, 10초 안팎)`); await liqTick();
+  const buf = await f.arrayBuffer();
+  const names = XLSX.read(buf, { type:"array", bookSheets:true }).SheetNames;
+  const want = names.filter(n=> /^(RAW|EOS)$/i.test(eosT(n)));
+  const wb = XLSX.read(buf, { type:"array", sheets: want.length ? want : names, dense:true });
+  const sheets = {}; Object.keys(wb.Sheets).forEach(n=>{ sheets[n] = XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1, defval:null, raw:true }); });
+  return eosReadAoa(sheets);
+}
+function eosLotList(D){
+  const m = new Map();
+  D.rows.forEach(r=>{ const k = eosT(r[1]).toUpperCase(); m.set(k, (m.get(k)||0)+1); });
+  return [...m.keys()].sort();
+}
+async function eosGenerate(){
+  const st = document.getElementById("eosStatus"), dEl = document.getElementById("eosDate");
+  const say = (m, bad)=>{ st.innerHTML = bad ? `<span style="color:var(--red)">${m}</span>` : m; };
+  const lots = eosParseLots(document.getElementById("eosLots").value);
+  if(!_eosFile){ say("먼저 임박식품 원본 파일(FC_EOS_Liquidation_….xlsx)을 올려 주세요.", true); return; }
+  if(!lots.length){ say("낙찰된 LOT 알파벳을 입력해 주세요 (예: C, E, G).", true); return; }
+  const btn = document.getElementById("eosGo"); if(btn) btn.disabled = true;
+  const t0 = Date.now();
+  try{
+    if(!_eosData || _eosData._file !== _eosFile){ _eosData = await eosLoadFile(_eosFile, say); _eosData._file = _eosFile; }
+    const D = _eosData;
+    let date6 = eosYYMMDD(dEl.value);
+    if(!date6){ date6 = eosYYMMDD(fiDetectDate("")); dEl.value = date6; }
+    const have = new Set(eosLotList(D));
+    const notFound = lots.filter(l=> !have.has(l));
+    const ok = lots.filter(l=> have.has(l));
+    if(!ok.length){ say(`원본에 입력한 LOT(${lots.join(", ")})가 없습니다. 원본 LOT: ${[...have].join(", ")}`, true); return; }
+    say("엑셀 서식 불러오는 중…"); await liqTick();
+    const ExcelJS = await fiLoadScript("https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","ExcelJS");
+    const id = Date.now(), files = [];
+    for(const lot of ok){
+      say(`LOT ${lot} 낙찰파일 만드는 중…`); await liqTick();
+      const b = eosBuildLot(D, lot, date6);
+      const wb = await eosMakeWorkbook(ExcelJS, D, b);
+      const bytes = new Uint8Array(await wb.xlsx.writeBuffer());
+      files.push({ b, bytes });
+      try{ await idbSet(`eos_file_${id}_${lot}`, { name:b.outName, data:bytes }); }catch(_){}
+    }
+    _eosCur = { id, date6, files, notFound, srcName:_eosFile.name, eosFromSheet:D.eosFromSheet, sec:((Date.now()-t0)/1000).toFixed(1) };
+    EOS_HISTORY = [{ id, at:new Date(id).toLocaleString("ko-KR"), date:date6, lots:ok, srcName:_eosFile.name,
+      files: files.map(({b})=>({ lot:b.lot, name:b.name, outName:b.outName, plt:b.plt, rows:b.rows, qty:b.qty, shop:Math.round(b.shop), whole:Math.round(b.whole), sales:Math.round(b.sales) })) }].concat(EOS_HISTORY);
+    EOS_HISTORY.slice(40).forEach(h=> (h.files||[]).forEach(f=>{ try{ idbSet(`eos_file_${h.id}_${f.lot}`, null).catch(()=>{}); }catch(_){} }));
+    try{ localStorage.setItem(EOS_LS, JSON.stringify(EOS_HISTORY.slice(0,200))); }catch(_){}
+    say(`✓ 낙찰파일 ${files.length}개 생성 — ${files.reduce((s,x)=>s+x.b.plt,0)}PLT · ${files.reduce((s,x)=>s+x.b.rows,0).toLocaleString()}행 (${_eosCur.sec}초)`);
+    eosRender();
+  }catch(e){ console.error(e); say("생성 실패: "+escHtml(e && e.message || e), true); }
+  finally{ if(btn) btn.disabled = false; }
+}
+function eosRender(){
+  const f = document.getElementById("eosFileInfo");
+  if(f) f.innerHTML = _eosFile ? `원본: <b>${escHtml(_eosFile.name)}</b> <span class="fi-mut">(${(_eosFile.size/1048576).toFixed(1)}MB)${_eosData && _eosData._file===_eosFile ? ` · LOT ${eosLotList(_eosData).join(", ")}` : ""} — LOT만 바꿔 다시 만들 때는 파일을 다시 올릴 필요 없음</span> <button class="act fi-mini fi-del" id="eosFileDel" title="올린 원본 빼기">✕ 원본 삭제</button>` : `<span class="fi-mut">원본 파일 없음</span>`;
+  const wrap = document.getElementById("eosResult");
+  if(wrap){
+    if(!_eosCur) wrap.innerHTML = "";
+    else {
+      const c = _eosCur;
+      const miss = {}, guess = {}; c.files.forEach(({b})=>{ Object.assign(miss, b.missingRate); Object.assign(guess, b.guessRate); });
+      wrap.innerHTML = `<div class="fi-file" style="margin-top:10px">
+        <div class="fi-file-hd"><span class="fi-type" style="border-color:#3A8DDE;color:#3A8DDE">임박</span> <span class="fi-fname">낙찰파일 ${c.files.length}개 (LOT별 1개)</span>
+          ${c.files.length>1?`<button class="act primary fi-mini" id="eosDlAll">⬇ 모두 받기</button>`:""} <button class="act fi-mini fi-del" id="eosResDel" title="화면에서 결과 지우기 (기록은 아래에서 삭제)">✕</button></div>
+        <table class="fi-tbl"><thead><tr><th>LOT</th><th>센터</th><th class="n">PLT</th><th class="n">행</th><th class="n">수량</th><th class="n">판매가(부가세x)</th><th class="n">매장판매가 총액</th><th class="n">도매판매가 총액</th><th></th></tr></thead><tbody>
+        ${c.files.map(({b},i)=>`<tr><td><b>${escHtml(b.lot)}</b></td><td style="white-space:normal">${escHtml(b.centers.join(" "))}</td>
+          <td class="n"><b>${b.plt}</b>${b.others.length?`<div class="fi-mut" style="font-size:11.5px">EOS ${b.eosPlt} + ${escHtml(b.others.map(x=>x.label).join(", "))}</div>`:""}</td>
+          <td class="n">${fiFmt(b.rows)}</td><td class="n">${fiFmt(b.qty)}</td><td class="n">${fiFmt(b.sales)}</td><td class="n">${fiFmt(b.shop)}</td><td class="n">${fiFmt(b.whole)}</td>
+          <td style="white-space:nowrap"><button class="act primary fi-mini" data-eos-dl="${i}">⬇ 다운로드</button> <button class="act fi-mini" data-eos-copy="${i}">파일명 복사</button></td></tr>
+          <tr><td></td><td colspan="8" class="fi-mut" style="white-space:normal;word-break:break-all;font-size:12px">${escHtml(b.outName)}</td></tr>`).join("")}
+        </tbody></table>
+        ${c.notFound.length?`<div style="color:var(--red);font-size:12.5px;margin-top:6px">⚠ 원본에 없는 LOT: ${c.notFound.map(escHtml).join(", ")} — 만들지 않았습니다</div>`:""}
+        ${Object.keys(miss).length?`<div style="color:var(--red);font-size:12.5px;margin-top:6px">⚠ 도매요율표에 없는 분류 → 도매가 0 처리: ${Object.keys(miss).map(escHtml).join(", ")}</div>`:""}
+        ${Object.keys(guess).length?`<div style="color:var(--amber);font-size:12.5px;margin-top:6px">ⓘ 도매요율표에 없는 소분류 → 같은 상위 분류 요율로 계산: ${Object.entries(guess).map(([k,v])=>escHtml(k)+" = "+v).join(", ")}</div>`:""}
+        ${c.eosFromSheet?"":`<div style="color:var(--amber);font-size:12.5px;margin-top:6px">ⓘ 원본에 EOS 시트가 없어 RAW 시트 오른쪽 LOT 목록(NO./FC/Pallet)으로 센터 표를 만들었습니다</div>`}
+        <div class="fi-mut" style="margin-top:6px">시트: 원본(RAW A~S 그대로 + EOS 센터표) · RAW(매장판매가·도매가 계산, ★_상품명) — 도매요율은 일반 리퀴와 같은 cate4 요율표</div>
+      </div>`;
+    }
+  }
+  const hEl = document.getElementById("eosHistory"); if(!hEl) return;
+  if(!EOS_HISTORY.length){ hEl.innerHTML = `<div class="fi-empty">아직 만든 임박식품 낙찰파일이 없습니다.</div>`; return; }
+  hEl.innerHTML = `<table class="fi-tbl"><thead><tr><th>작성 일시</th><th>낙찰일</th><th>낙찰파일명</th><th class="n">PLT</th><th class="n">매장판매가 총액</th><th></th></tr></thead><tbody>${
+    EOS_HISTORY.slice(0,30).map(h=> (h.files||[]).map((x,i)=>`<tr><td>${i?"":escHtml(h.at)}</td><td>${i?"":escHtml(h.date||"")}</td>
+      <td style="white-space:normal;word-break:break-all">${escHtml(x.outName)}</td><td class="n">${x.plt}</td><td class="n">${fiFmt(x.shop)}</td>
+      <td style="white-space:nowrap"><button class="act fi-mini" data-eos-hdl="${h.id}|${x.lot}">⬇ 다시 받기</button> <button class="act fi-mini" data-eos-hcopy="${h.id}|${x.lot}">파일명 복사</button>
+      ${i?"":`<button class="act fi-mini" data-eos-lots="${h.id}">LOT 다시 입력</button> <button class="act fi-mini" data-eos-del="${h.id}">✕</button>`}</td></tr>`).join("")).join("")
+  }</tbody></table>`;
+}
+function eosSetFile(f){
+  if(!f) return;
+  if(!/\.xls[xmb]?$/i.test(f.name)){ document.getElementById("eosStatus").innerHTML = `<span style="color:var(--red)">엑셀(.xlsx) 파일을 올려 주세요.</span>`; return; }
+  _eosFile = f; _eosData = null; _eosCur = null;
+  document.getElementById("eosStatus").textContent = "";
+  eosRender();
+  const say = m=>{ document.getElementById("eosStatus").innerHTML = m; };
+  eosLoadFile(f, say).then(D=>{ if(_eosFile!==f) return; D._file = f; _eosData = D; say(`원본 확인 — RAW ${D.rows.length.toLocaleString()}행 · LOT ${eosLotList(D).join(", ")}`); eosRender();
+    if(eosParseLots(document.getElementById("eosLots").value).length) eosGenerate(); })
+    .catch(e=>{ console.error(e); say(`<span style="color:var(--red)">원본을 읽지 못했습니다: ${escHtml(e && e.message || e)}</span>`); });
+}
+function wireEosLiq(){
+  const box = document.getElementById("eosBox");
+  if(!box || box._wired) return; box._wired = true;
+  const dz = document.getElementById("eosDrop"), inp = document.getElementById("eosInput");
+  dz.addEventListener("click", e=>{ if(e.target.closest("button")) return; inp.click(); });
+  dz.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); inp.click(); } });
+  inp.addEventListener("change", ()=>{ eosSetFile(inp.files && inp.files[0]); inp.value=""; });
+  ["dragenter","dragover"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("dragover"); }));
+  ["dragleave","drop"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove("dragover"); }));
+  dz.addEventListener("drop", e=> eosSetFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]));
+  const dEl = document.getElementById("eosDate"); if(dEl && !dEl.value) dEl.value = eosYYMMDD(fiDetectDate(""));
+  const histFile = async (key)=>{ const [hid, lot] = String(key).split("|"); try{ const v = await idbGet(`eos_file_${hid}_${lot}`); if(v && v.data) fiDownloadBytes(v.name, v.data); else showNotice("이 브라우저에는 그 낙찰파일 보관본이 없습니다. 원본을 올리고 \"LOT 다시 입력\"으로 다시 만들어 주세요."); }catch(_){} };
+  box.addEventListener("click", async e=>{
+    const t = e.target.closest("button"); if(!t) return;
+    const flash = (msg, back)=>{ t.textContent = msg; setTimeout(()=>{ t.textContent = back; }, 1500); };
+    if(t.id==="eosFileDel"){ e.stopPropagation(); _eosFile = null; _eosData = null; _eosCur = null; document.getElementById("eosStatus").textContent = "원본 파일을 뺐습니다."; eosRender(); }
+    else if(t.id==="eosResDel"){ _eosCur = null; document.getElementById("eosStatus").textContent = ""; eosRender(); }
+    else if(t.id==="eosGo") eosGenerate();
+    else if(t.id==="eosDlAll" && _eosCur){ _eosCur.files.forEach(({b,bytes},i)=> setTimeout(()=> fiDownloadBytes(b.outName, bytes), i*400)); }
+    else if(t.dataset.eosDl!=null && _eosCur){ const x = _eosCur.files[+t.dataset.eosDl]; if(x) fiDownloadBytes(x.b.outName, x.bytes); }
+    else if(t.dataset.eosCopy!=null && _eosCur){ const x = _eosCur.files[+t.dataset.eosCopy]; if(x){ fiCopyText(x.b.outName.replace(/\.xlsx$/,""), null); flash("복사됨 ✓","파일명 복사"); } }
+    else if(t.dataset.eosHdl) histFile(t.dataset.eosHdl);
+    else if(t.dataset.eosHcopy){ const [hid, lot] = t.dataset.eosHcopy.split("|"); const h = EOS_HISTORY.find(x=>x.id===+hid); const x = h && (h.files||[]).find(y=>y.lot===lot); if(x){ fiCopyText(x.outName.replace(/\.xlsx$/,""), null); flash("복사됨 ✓","파일명 복사"); } }
+    else if(t.dataset.eosLots){ const h = EOS_HISTORY.find(x=>x.id===+t.dataset.eosLots); if(h){ document.getElementById("eosLots").value = (h.lots||[]).join(", "); document.getElementById("eosDate").value = h.date||""; } }
+    else if(t.dataset.eosDel){ if(confirm("이 기록을 삭제할까요?")){ const id=+t.dataset.eosDel; const h = EOS_HISTORY.find(x=>x.id===id);
+      (h && h.files || []).forEach(f=>{ try{ idbSet(`eos_file_${id}_${f.lot}`, null).catch(()=>{}); }catch(_){} });
+      EOS_HISTORY = EOS_HISTORY.filter(x=>x.id!==id); try{ localStorage.setItem(EOS_LS, JSON.stringify(EOS_HISTORY.slice(0,200))); }catch(_){} eosRender(); } }
+  });
+  eosRender();
+}
 function wireFixedDispatch(){
   const box = document.getElementById("fiDispBox");
   if(!box || box._wired) return; box._wired = true;
@@ -14400,8 +14710,7 @@ async function fiLedgerBuild(co){
   const wb = new ExcelJS.Workbook();
   if(buf) await wb.xlsx.load(buf);
   const baseKeys = new Set((L.meta && L.meta.keys) || []);
-  const rows = L.added.filter(r=> !baseKeys.has(fiLedgerKey(r.bidcode, r.number, r.fc)))
-    .slice().sort((a,b)=> (`${a.outboundDate} ${a.outboundAmPm==="오전"?0:1}`).localeCompare(`${b.outboundDate} ${b.outboundAmPm==="오전"?0:1}`));
+  const rows = fiOrderRows(L.added.filter(r=> !baseKeys.has(fiLedgerKey(r.bidcode, r.number, r.fc))));   // build 131
   let n = 0;
   for(const r of rows){
     const d = String(r.outboundDate||r.bidDate||"");
