@@ -1072,7 +1072,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 144 · 2026-10-14</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 146 · 2026-10-14</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1459,7 +1459,7 @@
   </section>
 
   <section id="view-fixed" role="tabpanel" aria-labelledby="tab-fixed" hidden>
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin:0 0 10px"><button class="act fi-mini fi-del" data-reset="all" title="①~⑤에 올린 원본 · 입력칸 · 화면 결과를 모두 지웁니다 (각 기록은 그대로)">↺ 이 탭 업로드 자료 전체 초기화</button></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin:0 0 10px"><button class="act primary" data-all-dl="1" style="font-weight:700;margin-right:auto" title="⑤ 배차 요청서에 넣은 것 전부를 출고일자별 시트로 한 파일에">⬇ 전체 출고요청서 다운로드</button><button class="act fi-mini fi-del" data-reset="all" title="①~⑤에 올린 원본 · 입력칸 · 화면 결과를 모두 지웁니다 (각 기록은 그대로)">↺ 이 탭 업로드 자료 전체 초기화</button></div>
     <!-- build 125: 아리바 비딩 요약본 생성기 (일반 리퀴 원본 / 바이나우 원본 → 요약본, 원본 종류 자동 판별) -->
     <div class="agg-card" id="lsBox">
       <div class="p-hd">
@@ -1557,6 +1557,7 @@
     <div class="agg-card" id="fiDispBox">
       <div class="p-hd">
         <span class="store-name">⑤ 배차 요청서 (입차코드)</span>
+        <button class="act primary" data-all-dl="1" style="font-size:14px;padding:8px 18px;font-weight:700" title="넣은 배차 요청 전부(고정인수·일반 리퀴·임박식품)를 출고일자별 시트로 한 파일에">⬇ 전체 출고요청서 다운로드</button>
         <span class="meta">쿠팡 출고일정 메일 · 임박식품(FC EOS) 입찰 결과 메일 → 입차코드·상차일시·도착지 표 + 물류업체 문구 + 엑셀</span>
         <button class="act fi-mini fi-del" data-reset="disp" style="margin-left:auto" title="붙여넣은 글 · 인식 결과 · 합본 화면을 지웁니다 (배차 요청 기록은 그대로)">↺ 초기화</button>
       </div>
@@ -13019,7 +13020,11 @@ function fiDispParseText(text){
     const number = nums.find(n=>n.length>=5) || "";
     const pal = nums.find(n=>n.length<=3 && n!==number);
     const o = { bidDate:[d[0]], bidcode:[bc?bc[0]:""], group:[g[0]], number:[number], pallets:[pal||""], outbound:[(d[1]||d[0]) + " " + (l.match(/오전|오후/g)||[""]).pop()] };
-    const nr = fiDispNormalize(o, type0); nr.fromText = true; rows.push(nr);
+    const nr = fiDispNormalize(o, type0); nr.fromText = true;
+    if(/^\d{4,7}$/.test(number)) nr.number = number;   // build 146: 메일 NUMBER 그대로(83135를 083135로 바꾸지 않음)
+    if(bc && /^AF[A-Z0-9]{8}$/i.test(bc[0])) nr.bidcode = bc[0].toUpperCase();   // 메일 BIDCODE 그대로
+    if(pal && /^\d{1,3}$/.test(pal)) nr.pallets = +pal;
+    rows.push(nr);
   });
   return rows;
 }
@@ -13058,6 +13063,7 @@ function fiDispResolve(rows){
     let sc = 0;
     const nc = (r.numCands||[]).concat(r.number?[r.number]:[]);
     const nd = nc.length ? Math.min(...nc.map(n=>_fiLev(n,g.num))) : 9;
+    if(r.fromText && (String(r.number)!==String(g.num) || String(r.fc||"").toUpperCase()!==String(g.fc||"").toUpperCase())) return;   // build 146: 글은 NUMBER·FC 정확히 같을 때만
     if(nd===0) sc += 10; else if(nd===1) sc += 6; else if(nd===2) sc += 2; else return;
     const fcs = [r.fc].concat(r.fcRaw||[]).filter(Boolean);
     const fd = fcs.length ? Math.min(...fcs.map(f=>_fiLev(String(f).toUpperCase(), g.fc))) : 4;
@@ -13074,6 +13080,15 @@ function fiDispResolve(rows){
     if(p.sc < 11 || usedR.has(p.ri) || usedG.has(p.gi)) return;
     usedR.add(p.ri); usedG.add(p.gi);
     const r = rows[p.ri], g = dict[p.gi];
+    if(r.fromText){   // build 146: 메일 값 그대로 — 다른 칸만 알림
+      const d2 = [];
+      if(r.bidcode!==g.bidcode) d2.push(`입차코드 메일 ${r.bidcode} / 낙찰파일 ${g.bidcode}`);
+      if(r.pallets!=null && g.type!=="XLG" && +r.pallets!==+g.plt) d2.push(`파렛트 메일 ${r.pallets} / 낙찰파일 LOT ${g.plt}`);
+      if(!r.type) r.type = g.type; if(!r.groupPrefix) r.groupPrefix = g.prefix;
+      r.dict = true; r.warn = (r.warn||[]).filter(w=>!/NUMBER|그룹/.test(w));
+      r.warn.unshift(d2.length ? `⚠ 고정인수 기록과 다름(메일 값 사용): ${d2.join(", ")}` : "✓ 고정인수 기록과 일치");
+      return;
+    }
     const diff = [];
     if(r.number!==g.num) diff.push(`NUMBER ${r.number||"?"}→${g.num}`);
     if(r.bidcode!==g.bidcode) diff.push(`입차코드 ${r.bidcode||"?"}→${g.bidcode}`);
@@ -13252,6 +13267,13 @@ function fiLiqLots(){
 function fiDispGeneralFix(r){
   const bi = fiBidInfo(r.bidcode);
   if(!bi) return;
+  if(r.fromText){   // build 146: 메일 글/파일은 값 그대로 — 기록과 대조만
+    const ymd0 = bi.date.replace(/-/g,"");
+    const lots = fiLiqLots().filter(x=> /^\d{5}[A-Z]{2}$/.test(String(x.lot||"")) && String(x.lot)[4]===bi.d);
+    const exact = lots.find(x=> String(x.lot).slice(5)===bi.suf && (!x.date || x.date===ymd0)) || lots.find(x=> String(x.lot).slice(5)===bi.suf);
+    if(exact){ r.liqLot = exact.lot; r.warn = r.warn||[]; r.warn.unshift(`✓ 일반 리퀴 LOT ${exact.lot}(${exact.src})` + (exact.plt && r.pallets!=null && +exact.plt!==+r.pallets ? ` — 파렛트 메일 ${r.pallets} / 기록 ${exact.plt}(메일 값 사용)` : "")); }
+    return;
+  }
   const notes = [];
   if(!r.fromText && r.bidDate !== bi.date){ notes.push(`낙찰일 ${r.bidDate||"?"}→${bi.date}(입차코드 기준)`); r.bidDate = bi.date; }
   const lots = fiLiqLots().filter(x=> /^\d{5}[A-Z]{2}$/.test(String(x.lot||"")));
@@ -15340,6 +15362,17 @@ function fiResetCard(k){
     fiDispRender();
   }
 }
+// build 145: 전체 출고요청서 다운로드 — 합본(출고일자별 시트)과 같은 파일
+document.addEventListener("click", e=>{
+  const b = e.target.closest && e.target.closest("button[data-all-dl]"); if(!b) return;
+  e.preventDefault(); e.stopPropagation();
+  const C = fiComboBuild();
+  if(!C.rows.length){ showNotice("받을 출고요청이 없습니다 — ⑤ 배차 요청서에 메일(.mhtml)·글·캡처를 넣거나, 배차 요청 기록에서 '열기'로 올려 주세요."); return; }
+  const lk = C.ents.filter(h=> !_fiCombo.off[h.id]).map(h=>({ h, s:fiComboState(h) })).filter(x=> x.s.pending || x.s.destMiss);
+  if(lk.length){ showNotice("아직 끝나지 않은 배차 요청이 있습니다 — " + lk.map(x=> `${fiComboLabel(x.h)}: ${[x.s.pending?`확인 질문 ${x.s.pending}개`:"", x.s.destMiss?`도착지 미선택 ${x.s.destMiss}곳`:""].filter(Boolean).join(" · ")}`).join(" / ")); const el=document.getElementById("fiDispCombo"); if(el) el.scrollIntoView({behavior:"smooth"}); return; }
+  const ds = C.dates.filter(Boolean), tag = ds.length ? (ds.length>1 ? `${ds[0].replace(/-/g,"")}-${ds[ds.length-1].slice(5).replace(/-/g,"")}` : ds[0].replace(/-/g,"")) : "날짜미정";
+  fiComboWorkbook(C).then(wb=> wb.xlsx.writeBuffer()).then(buf=> fiDownloadBytes(`출고요청서_전체_${tag}.xlsx`, buf)).catch(err=> showNotice("엑셀 만들기 실패: " + (err && err.message || err)));
+}, true);
 document.addEventListener("click", e=>{
   const b = e.target.closest && e.target.closest("button[data-reset]"); if(!b) return;
   e.preventDefault(); e.stopPropagation();
