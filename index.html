@@ -1072,7 +1072,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 146 · 2026-10-14</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 147 · 2026-10-14</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -13006,10 +13006,43 @@ function fiDispNormalize(o, type0){
   };
 }
 // 메일 본문을 복사해 붙여넣은 텍스트(탭/공백 구분) 파싱
+// build 147: 표를 머리글(낙찰일자 | BIDCODE | GroupNumber | NUMBER | 파렛트 | 업체명 | 출고예정일) 칸 위치로 읽는다 — 숫자 짐작 금지
+function fiDispParseTable(text){
+  const lines = String(text||"").split(/\r?\n/);
+  const out = [];
+  let map = null;
+  const roleOf = t=>{ t = String(t||"").replace(/\s/g,"").toUpperCase();
+    if(/^낙찰일|낙찰일자/.test(t)) return "bidDate"; if(/BIDCODE|입차/.test(t)) return "bidcode"; if(/GROUP/.test(t)) return "group";
+    if(/^NUMBER$|^NO\.?$|넘버/.test(t)) return "number"; if(/파렛|PALLET|PLT/.test(t)) return "pallets"; if(/업체|VENDOR/.test(t)) return "vendor";
+    if(/출고|OUTBOUND/.test(t)) return "outbound"; return ""; };
+  lines.forEach(line=>{
+    if(!/\t/.test(line)) return;
+    const cells = line.split("\t").map(c=> String(c).replace(/[\u00a0\s]+/g," ").trim());
+    const roles = cells.map(roleOf);
+    if(roles.filter(Boolean).length >= 4 && roles.includes("bidcode") && roles.includes("pallets")){ map = {}; roles.forEach((r,i)=>{ if(r && map[r]==null) map[r] = i; }); return; }
+    if(!map) return;
+    const v = k=> map[k]!=null ? (cells[map[k]]||"") : "";
+    if(!/^AF[A-Z0-9]{8}$/i.test(v("bidcode").replace(/\s/g,""))) return;
+    out.push({ bidDate:v("bidDate"), bidcode:v("bidcode").replace(/\s/g,"").toUpperCase(), group:v("group"), number:v("number").replace(/\D/g,""), pallets:v("pallets"), outbound:v("outbound"), line:cells.join(" | ") });
+  });
+  return out;
+}
 function fiDispParseText(text){
   const lines = String(text||"").split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
   const type0 = fiTypeFromText(text);
   const rows = [];
+  const tbl = fiDispParseTable(text);   // build 147: 머리글이 있는 표면 칸 위치 그대로
+  if(tbl.length){
+    tbl.forEach(t=>{
+      const o = { bidDate:[t.bidDate], bidcode:[t.bidcode], group:[t.group], number:[t.number], pallets:[t.pallets], outbound:[t.outbound] };
+      const nr = fiDispNormalize(o, type0); nr.fromText = true; nr.srcLine = t.line;
+      nr.bidcode = t.bidcode; if(/^\d{4,7}$/.test(t.number)) nr.number = t.number;
+      const p = String(t.pallets).replace(/[^\d.]/g,""); nr.pallets = p==="" ? null : +p;
+      nr.bidDate = fiFixDate(t.bidDate) || nr.bidDate; nr.outboundDate = fiFixDate(t.outbound) || nr.outboundDate; nr.outboundAmPm = fiFixAmPm(t.outbound) || nr.outboundAmPm;
+      rows.push(nr);
+    });
+    return rows;
+  }
   lines.forEach(l=>{
     const d = l.match(/20\d{2}[-.\/]\d{1,2}[-.\/]\d{1,2}/g);
     const g = l.match(/[A-Z]{1,3}\(\d{5,7}\)_?[A-Z]{2,4}\d{1,2}/i);
@@ -13292,6 +13325,8 @@ function fiDispGeneralFix(r){
     if(r.pallets===3) r.warn.push("파렛트 3 — 9를 3으로 잘못 읽는 경우가 있어 확인(② 일반 리퀴 낙찰파일을 먼저 만들면 자동으로 맞춤)");
   }
 }
+const FI_PLT_MAX = 40;
+function fiDispPltOdd(r){ return r.type!=="임박" && !r.palOk && (r.pallets==null || r.pallets==="" || !(+r.pallets>0) || +r.pallets > FI_PLT_MAX); }
 function fiDispPost(rows, head){
   const date0 = _fiVote(rows.map(r=>r.bidDate));
   const out0 = _fiVote(rows.map(r=>r.outboundDate));
@@ -13305,6 +13340,7 @@ function fiDispPost(rows, head){
   });
   fiDispResolve(rows);
   rows.forEach(r=>{ if(!r.dict) fiDispGeneralFix(r); });
+  rows.forEach(r=>{ if(fiDispPltOdd(r)) r.warn.unshift(`⚠ 파렛트 ${r.pallets==null||r.pallets===""?"없음":r.pallets} — 보통 1~${FI_PLT_MAX}입니다. 메일 원문 확인 후 고치거나 합본에서 'PLT 그대로 확정'${r.srcLine?` (원문: ${r.srcLine})`:""}`); });   // build 147
   rows.forEach(r=>{
     if(!r.dict && !r.liqLot){
       r.warn.push(/^AF[A-Z0-9]{8}$/.test(r.bidcode||"") ? "고정인수 기록에 없음 — 입차코드·NUMBER 메일과 대조" : "입차코드 확인");
@@ -13414,7 +13450,7 @@ function fiDispSave(){
   const e = { id:_fiDisp.id, at:_fiDisp.at, updatedAt:Date.now(), note:_fiDisp.note, matchInfo:_fiDisp.matchInfo,
     rows:_fiDisp.rows.map(r=>({ bidDate:r.bidDate, bidcode:r.bidcode, group:r.group, number:r.number, pallets:r.pallets, outboundDate:r.outboundDate,
       outboundAmPm:r.outboundAmPm, fc:r.fc, dest:r.dest, type:r.type, memo:r.memo||"", co:fiCoOf(r), skip:!!r.skip,
-      lot:r.lot||"", addr:r.addr||"", person:r.person||"", phone:r.phone||"", opNote:r.opNote||"", remark:r.remark||"",
+      lot:r.lot||"", addr:r.addr||"", person:r.person||"", phone:r.phone||"", opNote:r.opNote||"", remark:r.remark||"", palOk:!!r.palOk, srcLine:r.srcLine||"",
       eos:!!r.eos, src:r.src||null, srcs:r.srcs||null, histPlt:r.histPlt==null?null:r.histPlt, wdBad:r.wdBad||null, dirFilled:r.dirFilled||null, onlyIn:r.onlyIn||null, missingIn:r.missingIn||null, warn:r.warn||[], center:r.center||"" })),
     srcs:_fiDisp.srcs||null, answers:_fiDisp.answers||null };
   FI_DISPATCH_HISTORY = fiMergeHistory([e], FI_DISPATCH_HISTORY.filter(h=>h.id!==e.id));
@@ -13542,7 +13578,7 @@ function fiComboLabel(h){ const t = Array.from(new Set((h.rows||[]).map(r=> r.ty
 function fiComboState(h){
   const rows = (h.rows||[]).filter(r=> !r.skip);
   const destMiss = rows.filter(r=> !String(r.dest||"").trim()).length;
-  let pending = 0;
+  let pending = rows.filter(fiDispPltOdd).length;   // build 147: 파렛트 이상값(확인 전)
   if(h.matchInfo && h.matchInfo.eos){ try{ pending = eosDispQuestions(JSON.parse(JSON.stringify(h))).pending.length; }catch(_){} }
   const dates = Array.from(new Set(rows.map(r=> r.outboundDate).filter(Boolean))).sort();
   return { pending, destMiss, n: rows.length, plt: rows.reduce((a,r)=> a + (+r.pallets||0), 0), dates };
@@ -13605,7 +13641,7 @@ function fiComboRender(){
     ${st.map(({h:e,s:x})=>`<tr style="${_fiCombo.off[e.id]?"opacity:.45":""}"><td><input type="checkbox" data-combo-id="${e.id}" ${_fiCombo.off[e.id]?"":"checked"}></td>
       <td>${Array.from(new Set((e.rows||[]).map(r=>r.type).filter(Boolean))).map(fiTypeBadge).join(" ")}</td><td>${escHtml(e.at||"")}</td>
       <td style="font-size:12px">${x.dates.map(fiComboDateLabel).join(", ")}</td><td>${x.n}건 · ${x.plt}PLT</td>
-      <td style="font-size:12px">${x.pending||x.destMiss ? `<span style="color:var(--amber,#e0a030)">${[x.pending?`확인 질문 ${x.pending}개 남음`:"", x.destMiss?`도착지 미선택 ${x.destMiss}곳`:""].filter(Boolean).join(" · ")}</span>` : `<span style="color:var(--green,#33c784)">✓ 완료</span>`}</td>
+      <td style="font-size:12px">${x.pending||x.destMiss ? `<span style="color:var(--amber,#e0a030)">${[x.pending?`확인 ${x.pending}건 남음(질문·PLT)`:"", x.destMiss?`도착지 미선택 ${x.destMiss}곳`:""].filter(Boolean).join(" · ")}</span>${(e.rows||[]).some(r=>!r.skip && fiDispPltOdd(r)) ? ` <button class="act fi-mini" data-palok="${e.id}" title="메일 원문을 확인했고 파렛트 값이 맞으면">PLT 그대로 확정</button>` : ""}` : `<span style="color:var(--green,#33c784)">✓ 완료</span>`}</td>
       <td style="white-space:nowrap"><button class="act fi-mini" data-fd-open="${e.id}">열기</button> <button class="act fi-mini fi-del" data-combo-delh="${e.id}" title="합본 화면에서 빼기 (배차 요청 기록은 그대로)">✕ 빼기</button></td></tr>`).join("")}
     </tbody></table>`;
   const sum = C.byDate.map(g=> `${fiComboDateLabel(g.date)} ${g.rows.length}건 · ${g.rows.reduce((a,r)=>a+(+r.pallets||0),0)}PLT`).join("  /  ");
@@ -15448,6 +15484,10 @@ function wireFixedDispatch(){
       fiComboDelRow(hid, p.join("|")); }
     else if(b.dataset.comboDelh){ const h = (FI_DISPATCH_HISTORY||[]).find(x=> x.id===+b.dataset.comboDelh);
       if(h) fiComboDelEntry(h.id); }
+    else if(b.dataset.palok){   // build 147
+      const hid = +b.dataset.palok; const odd = r=> fiDispPltOdd(r);
+      const tgt = (_fiDisp && _fiDisp.id===hid) ? _fiDisp : (FI_DISPATCH_HISTORY||[]).find(x=> x.id===hid);
+      if(tgt){ const list = tgt.rows.filter(r=> !r.skip && odd(r)); if(confirm(`파렛트 값을 그대로 확정할까요?\n${list.map(r=>`${r.bidcode} ${r.group} → ${r.pallets}PLT`).join("\n")}`)){ list.forEach(r=> r.palOk = true); if(tgt===_fiDisp) fiDispSave(); else { tgt.updatedAt = Date.now(); fiDispPersist(); } fiDispRender(); } } }
     else if(b.id==="fiComboUnhide"){ _fiCombo.hide = {}; fiComboSave(); fiComboRender(); }
     else if(b.id==="fiComboClear"){ fiComboReset(); fiComboRender(); }   // build 141: 합본 화면만 비움(기록 유지)
     else if(b.id==="fiComboCopy") fiCopyText(document.getElementById("fiComboText").value, document.getElementById("fiComboCopyMsg"));
