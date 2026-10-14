@@ -1072,7 +1072,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 137 · 2026-10-14</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 140 · 2026-10-14</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1459,11 +1459,13 @@
   </section>
 
   <section id="view-fixed" role="tabpanel" aria-labelledby="tab-fixed" hidden>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin:0 0 10px"><button class="act fi-mini fi-del" data-reset="all" title="①~⑤에 올린 원본 · 입력칸 · 화면 결과를 모두 지웁니다 (각 기록은 그대로)">↺ 이 탭 업로드 자료 전체 초기화</button></div>
     <!-- build 125: 아리바 비딩 요약본 생성기 (일반 리퀴 원본 / 바이나우 원본 → 요약본, 원본 종류 자동 판별) -->
     <div class="agg-card" id="lsBox">
       <div class="p-hd">
-        <span class="store-name">① 아리바 비딩 요약본 생성기</span>
+        <span class="store-name">① 일반 리퀴데이션(일일 정기비딩) · 요약본 생성기</span>
         <span class="meta">일반 리퀴 원본 · 바이나우 원본(.xlsb)을 놓으면 종류를 자동 판별 → 요약본(종합 피벗 · PLT CATE · RAW · ★리퀴 요약) 엑셀</span>
+        <button class="act fi-mini fi-del" data-reset="ls" style="margin-left:auto" title="올린 원본 · 입력칸 · 화면 결과를 지웁니다 (기록은 그대로)">↺ 초기화</button>
       </div>
       <div class="fi-body">
         <div id="lsDrop" class="fi-drop" role="button" tabindex="0">
@@ -1478,8 +1480,9 @@
     <!-- build 118 (build 122부터 탭 맨 위): 일반 리퀴데이션 낙찰파일 생성 (아리바 비딩 원본 + 낙찰 LOT No → 원본/RAW/총액) -->
     <div class="agg-card" id="liqBox">
       <div class="p-hd">
-        <span class="store-name">② 일반 리퀴데이션 · 낙찰파일 생성기</span>
+        <span class="store-name">② 일반 리퀴데이션(일일 정기비딩) · 낙찰파일 생성기</span>
         <span class="meta">아리바 비딩 원본(AR_Bidding_Liquidation) + 낙찰 LOT No → 원본 / RAW / 총액 낙찰파일</span>
+        <button class="act fi-mini fi-del" data-reset="liq" style="margin-left:auto" title="올린 원본 · 입력칸 · 화면 결과를 지웁니다 (기록은 그대로)">↺ 초기화</button>
       </div>
       <div class="fi-body">
         <div class="fi-disp-in">
@@ -1509,6 +1512,7 @@
       <div class="p-hd">
         <span class="store-name">③ 임박식품(FC EOS) · 낙찰파일 생성기</span>
         <span class="meta">FC_EOS_Liquidation 원본 + 낙찰 LOT 알파벳(A, C, E …) → LOT별 낙찰파일(원본 / RAW)</span>
+        <button class="act fi-mini fi-del" data-reset="eos" style="margin-left:auto" title="올린 원본 · 입력칸 · 화면 결과를 지웁니다 (기록은 그대로)">↺ 초기화</button>
       </div>
       <div class="fi-body">
         <div class="fi-disp-in">
@@ -1538,6 +1542,7 @@
       <div class="p-hd">
         <span class="store-name">④ 고정인수 · 낙찰파일 생성 & 직출 분배표</span>
         <span class="meta" id="fiMeta"></span>
+        <button class="act fi-mini fi-del" data-reset="fi" style="margin-left:auto" title="화면의 이번 결과를 지웁니다 (분배 히스토리는 그대로)">↺ 초기화</button>
       </div>
       <div class="fi-body">
         <div id="fiDrop" class="fi-drop" role="button" tabindex="0">
@@ -1553,6 +1558,8 @@
       <div class="p-hd">
         <span class="store-name">⑤ 배차 요청서 (입차코드)</span>
         <span class="meta">쿠팡 출고일정 메일 · 임박식품(FC EOS) 입찰 결과 메일 → 입차코드·상차일시·도착지 표 + 물류업체 문구 + 엑셀</span>
+        <button class="act fi-mini fi-del" data-reset="disp" style="margin-left:auto" title="붙여넣은 글 · 인식 결과를 지웁니다 (배차 요청 기록은 그대로)">↺ 초기화</button>
+        <button class="act fi-mini fi-del" data-reset="dispAll" title="출력 대기 중인 배차 요청 기록(합본 대상)까지 모두 삭제">↺ 배차 요청 기록까지 전체 초기화</button>
       </div>
       <div class="fi-body">
         <div class="fi-disp-in">
@@ -13502,13 +13509,38 @@ function fiComboBuild(){
   const ents = fiComboEntries().filter(h=> (h.rows||[]).some(r=> r.outboundDate===date));
   const inc = ents.filter(h=> !_fiCombo.off[h.id]);
   const seen = new Set(), rows = []; let dup = 0;
+  const own = new Map();   // build 138: 행 → 배차 요청 id (행 삭제용)
   inc.forEach(h=> (h.rows||[]).forEach(r=>{
     if(r.outboundDate!==date || r.skip) return;
     const k = fiLedgerKey(r.bidcode, r.number, r.fc) + "|" + (r.type||"");
-    if(seen.has(k)){ dup++; return; } seen.add(k); rows.push(r);
+    if(seen.has(k)){ dup++; return; } seen.add(k); rows.push(r); own.set(r, h.id);
   }));
   const notes = Array.from(new Set(inc.filter(h=> h.note && (h.rows||[]).some(r=> r.outboundDate===date && !r.skip)).map(h=> `${fiComboLabel(h)}: ${h.note}`)));
-  return { dates, date, ents, inc, rows, dup, notes };
+  return { dates, date, ents, inc, rows, dup, notes, own };
+}
+// build 138: 합본에서 삭제 — 행 하나 / 배차 요청 통째
+function fiComboRowKey(r){ return [r.bidcode||"", r.number||"", r.fc||"", r.type||"", r.outboundDate||"", r.pallets==null?"":r.pallets].join("~"); }
+function fiComboDelRow(hid, key){
+  hid = +hid;
+  const cut = rows=>{ const i = (rows||[]).findIndex(r=> fiComboRowKey(r)===key); if(i>=0) rows.splice(i,1); return i>=0; };
+  if(_fiDisp && _fiDisp.id===hid){
+    cut(_fiDisp.rows);
+    if(!_fiDisp.rows.length){ FI_DISPATCH_HISTORY = FI_DISPATCH_HISTORY.filter(x=> x.id!==hid); _fiDisp = null; fiDispPersist(); }
+    else fiDispSave();
+  } else {
+    const h = (FI_DISPATCH_HISTORY||[]).find(x=> x.id===hid); if(!h) return;
+    cut(h.rows);
+    if(!h.rows.length) FI_DISPATCH_HISTORY = FI_DISPATCH_HISTORY.filter(x=> x.id!==hid); else h.updatedAt = Date.now();
+    fiDispPersist();
+  }
+  fiDispRender();
+}
+function fiComboDelEntry(hid){
+  hid = +hid;
+  FI_DISPATCH_HISTORY = (FI_DISPATCH_HISTORY||[]).filter(x=> x.id!==hid);
+  if(_fiDisp && _fiDisp.id===hid){ _fiDisp = null; const st = document.getElementById("fiDispStatus"); if(st) st.textContent = ""; }
+  delete _fiCombo.off[hid];
+  fiDispPersist(); fiDispRender();
 }
 function fiComboTextAll(C){
   return Object.keys(FI_LEDGER_CO).map(co=>{ const rs = fiOrderRows(C.rows.filter(r=> fiCoOf(r)===co)); return rs.length ? `【${FI_LEDGER_CO[co].label}】\n` + fiDispText(rs, { note: C.notes.join(" · ") }) : ""; }).filter(Boolean).join("\n\n────────\n\n");
@@ -13530,18 +13562,19 @@ function fiComboRender(){
     ${st.map(({h:e,s:x})=>`<tr style="${_fiCombo.off[e.id]?"opacity:.45":""}"><td><input type="checkbox" data-combo-id="${e.id}" ${_fiCombo.off[e.id]?"":"checked"}></td>
       <td>${Array.from(new Set((e.rows||[]).map(r=>r.type).filter(Boolean))).map(fiTypeBadge).join(" ")}</td><td>${escHtml(e.at||"")}</td><td>${x.n}건 · ${x.plt}PLT</td>
       <td style="font-size:12px">${x.pending||x.destMiss ? `<span style="color:var(--amber,#e0a030)">${[x.pending?`확인 질문 ${x.pending}개 남음`:"", x.destMiss?`도착지 미선택 ${x.destMiss}곳`:""].filter(Boolean).join(" · ")}</span>` : `<span style="color:var(--green,#33c784)">✓ 완료</span>`}</td>
-      <td><button class="act fi-mini" data-fd-open="${e.id}">열기</button></td></tr>`).join("")}
+      <td style="white-space:nowrap"><button class="act fi-mini" data-fd-open="${e.id}">열기</button> <button class="act fi-mini fi-del" data-combo-delh="${e.id}" title="이 배차 요청을 통째로 삭제(기록에서도 삭제)">✕ 삭제</button></td></tr>`).join("")}
     </tbody></table>`;
   h += lock ? `<div class="fi-match bad" style="margin-top:8px">합본 초안 — ${escHtml(lock)}. 위에서 그 배차 요청을 열어 끝내면 엑셀·누적 추가가 열립니다.</div>`
             : `<div class="fi-match ok" style="margin-top:8px">✓ 최종 출고요청서 — ${escHtml(C.date)}(${fiDispWeekday(C.date)}) ${types.join("·")} ${C.rows.length}건 · ${tot}PLT${C.dup?` (두 요청에 같이 있던 ${C.dup}행은 한 번만)`:""}</div>`;
   h += `<div style="margin:8px 0"><button class="act primary fi-mini" id="fiComboXlsx"${dis}>⬇ 합본 엑셀 (더한·KPP 시트)</button>
-    <button class="act primary fi-mini admin-only" id="fiComboLedger"${dis} title="처음 누르면 추가, 이미 추가한 행은 고친 값으로 갱신">＋ 합본을 누적 출고요청서에 추가/갱신</button> <span id="fiComboMsg" class="fi-mut"></span></div>`;
+    <button class="act primary fi-mini admin-only" id="fiComboLedger"${dis} title="처음 누르면 추가, 이미 추가한 행은 고친 값으로 갱신">＋ 합본을 누적 출고요청서에 추가/갱신</button> <span id="fiComboMsg" class="fi-mut"></span>
+    <button class="act fi-mini fi-del" id="fiComboClear" style="float:right" title="이 상차일의 배차 요청을 모두 삭제">↺ 이 상차일 합본 초기화</button></div>`;
   Object.keys(FI_LEDGER_CO).forEach(co=>{
-    const rs = C.rows.filter(r=> fiCoOf(r)===co); if(!rs.length) return;
+    const rs = fiOrderRows(C.rows.filter(r=> fiCoOf(r)===co)); if(!rs.length) return;
     const cols = fiDispCols(rs);
-    h += `<div class="fi-mut" style="margin:8px 0 4px"><b style="color:var(--text)">${FI_LEDGER_CO[co].label}</b> ${rs.length}건 · ${rs.reduce((a,r)=>a+(+r.pallets||0),0)}PLT</div>
-    <div class="fi-xprev"><table><thead><tr>${cols.hdr.map(x=>`<th>${escHtml(x)}</th>`).join("")}</tr></thead><tbody>
-    ${fiDispSheetRows(rs).map(o=>`<tr>${cols.keys.map(k=>`<td${/^(주소|비고)$/.test(k)?' style="text-align:left;white-space:normal;min-width:180px"':""}>${escHtml(o[k]==null?"":o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+    h += `<div class="fi-mut" style="margin:8px 0 4px"><b style="color:var(--text)">${FI_LEDGER_CO[co].label}</b> ${rs.length}건 · ${rs.reduce((a,r)=>a+(+r.pallets||0),0)}PLT <span class="fi-mut">· 행 왼쪽 ✕ = 그 행 삭제</span></div>
+    <div class="fi-xprev"><table><thead><tr><th style="width:28px"></th>${cols.hdr.map(x=>`<th>${escHtml(x)}</th>`).join("")}</tr></thead><tbody>
+    ${fiDispSheetRows(rs).map((o,i)=>`<tr><td style="padding:0 2px"><button class="act fi-mini fi-del" style="padding:1px 6px" data-combo-del="${C.own.get(rs[i])}|${escHtml(fiComboRowKey(rs[i]))}" title="이 행을 배차 요청에서 삭제">✕</button></td>${cols.keys.map(k=>`<td${/^(주소|비고)$/.test(k)?' style="text-align:left;white-space:normal;min-width:180px"':""}>${escHtml(o[k]==null?"":o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   });
   h += `<div class="fi-sec-t">합본 물류업체 전달 문구 <button class="act primary fi-mini" id="fiComboCopy">복사</button> <span id="fiComboCopyMsg" class="fi-mut"></span></div>
     <textarea id="fiComboText" class="fi-text" style="min-height:200px" readonly>${escHtml(fiComboTextAll(C))}</textarea></div>`;
@@ -15235,6 +15268,37 @@ async function fiDispFromFile(f){
     else { const ta = document.getElementById("fiDispPaste"); if(ta) ta.value = text; fiDispFromText(text); }
   }catch(e){ if(st) st.textContent = "⚠ " + (e && e.message || e); }
 }
+/* build 139: 초기화 — 올려 둔(출력 대기 중인) 원본 · 입력칸 · 화면 결과 지우기. 각 기록(히스토리)은 그대로, ⑤ "전체 초기화"만 배차 요청 기록까지 삭제 */
+function fiResetCard(k){
+  const clr = id=>{ const e = document.getElementById(id); if(e) e.textContent = ""; };
+  const val = id=>{ const e = document.getElementById(id); if(e) e.value = ""; };
+  if(k==="ls"){ try{ _lsCur = null; }catch(_){} clr("lsStatus"); const i=document.getElementById("lsInput"); if(i) i.value=""; try{ lsRender(); }catch(_){} }
+  if(k==="liq"){ try{ _liqFile = null; _liqCur = null; }catch(_){} val("liqLots"); const d=document.getElementById("liqDate"); if(d){ d.value=""; d.dataset.auto="1"; } clr("liqStatus"); val("liqInput"); try{ liqRender(); }catch(_){} }
+  if(k==="eos"){ try{ _eosFile = null; _eosData = null; _eosCur = null; }catch(_){} val("eosLots"); val("eosDate"); clr("eosStatus"); val("eosInput"); try{ eosRender(); }catch(_){} }
+  if(k==="fi"){ try{ _fiCur = null; }catch(_){} clr("fiStatus"); val("fiInput"); try{ fiRender(); }catch(_){} }
+  if(k==="disp" || k==="dispAll"){
+    _fiDisp = null; val("fiDispPaste"); clr("fiDispStatus"); val("fiDispInput"); _fiCombo = { date:"", off:{} };
+    if(k==="dispAll"){ FI_DISPATCH_HISTORY = []; fiDispPersist(); }
+    fiDispRender();
+  }
+}
+document.addEventListener("click", e=>{
+  const b = e.target.closest && e.target.closest("button[data-reset]"); if(!b) return;
+  e.preventDefault(); e.stopPropagation();
+  const k = b.dataset.reset;
+  const name = { ls:"① 요약본 생성기", liq:"② 낙찰파일 생성기", eos:"③ 임박식품 낙찰파일 생성기", fi:"④ 고정인수", disp:"⑤ 배차 요청서" }[k];
+  if(k==="all"){
+    if(!confirm("①~⑤에 올린 원본 파일 · 입력한 LOT · 화면 결과를 모두 지울까요?\n(낙찰파일 기록 · 분배 히스토리 · 배차 요청 기록은 그대로 남습니다)")) return;
+    ["ls","liq","eos","fi","disp"].forEach(fiResetCard); if(typeof flash==="function") flash("초기화 완료 ✓", "업로드 자료"); return;
+  }
+  if(k==="dispAll"){
+    const n = (FI_DISPATCH_HISTORY||[]).length;
+    if(!confirm(`⑤ 배차 요청서를 전체 초기화할까요?\n인식 결과 · 붙여넣은 글과 함께 배차 요청 기록 ${n}개(합본 대상)를 모두 삭제합니다.`)) return;
+    fiResetCard("dispAll"); return;
+  }
+  if(!confirm(`${name}의 올린 원본 · 입력칸 · 화면 결과를 지울까요? (기록은 그대로)`)) return;
+  fiResetCard(k);
+}, true);
 function wireFixedDispatch(){
   const box = document.getElementById("fiDispBox");
   if(!box || box._wired) return; box._wired = true;
@@ -15289,6 +15353,21 @@ function wireFixedDispatch(){
       if(groups.length) fiDispDownload(groups, `출고요청서_합본_${Array.from(new Set(C.rows.map(r=>r.type))).join("")}_${C.date.replace(/-/g,"")}.xlsx`); }
     else if(b.id==="fiComboLedger"){ const C = fiComboBuild(); const msg=document.getElementById("fiComboMsg"); msg.textContent="추가 중…";
       fiLedgerAdd(C.rows).then(({res,where})=>{ msg.innerHTML = Object.keys(res).filter(co=>res[co].add||res[co].dup||res[co].upd).map(co=>`${FI_LEDGER_CO[co].label} +${res[co].add}행${res[co].upd?` · 수정 반영 ${res[co].upd}행`:""}${res[co].dup?` (변경 없음/원본에 있음 ${res[co].dup})`:""}${where[co]?` · ${fiLedgerWhere(where[co])}`:""}`).join(" / ") || "추가할 행 없음"; fiLedgerRender(); }); }
+    else if(b.dataset.comboDel){ const p = b.dataset.comboDel.split("|"); const hid = p.shift();
+      const tr = b.closest("tr"); const lab = tr ? Array.from(tr.children).slice(1,5).map(td=>td.textContent).join(" ") : "";
+      if(confirm(`이 행을 삭제할까요?\n${lab}\n(그 배차 요청 기록에서도 빠집니다)`)) fiComboDelRow(hid, p.join("|")); }
+    else if(b.dataset.comboDelh){ const h = (FI_DISPATCH_HISTORY||[]).find(x=> x.id===+b.dataset.comboDelh);
+      if(h && confirm(`이 배차 요청(${fiComboLabel(h)} ${h.rows.length}건 · ${h.at||""})을 통째로 삭제할까요?`)) fiComboDelEntry(h.id); }
+    else if(b.id==="fiComboClear"){ const C = fiComboBuild();   // build 139
+      if(C.ents.length && confirm(`${C.date}(${fiDispWeekday(C.date)}) 상차 배차 요청 ${C.ents.length}개(${C.rows.length}건)를 모두 삭제할까요?\n(배차 요청 기록에서도 지워집니다)`)){
+        const ids = new Set(C.ents.map(h=> h.id));
+        // 다른 날짜 행이 섞인 요청은 이 날짜 행만 지운다
+        C.ents.forEach(h=>{ if((h.rows||[]).every(r=> r.outboundDate===C.date)) return; ids.delete(h.id);
+          const keep = r=> r.outboundDate!==C.date;
+          if(_fiDisp && _fiDisp.id===h.id){ _fiDisp.rows = _fiDisp.rows.filter(keep); fiDispSave(); } else { h.rows = h.rows.filter(keep); h.updatedAt = Date.now(); } });
+        FI_DISPATCH_HISTORY = FI_DISPATCH_HISTORY.filter(h=> !ids.has(h.id));
+        if(_fiDisp && ids.has(_fiDisp.id)) _fiDisp = null;
+        _fiCombo = { date:"", off:{} }; fiDispPersist(); fiDispRender(); } }
     else if(b.id==="fiComboCopy") fiCopyText(document.getElementById("fiComboText").value, document.getElementById("fiComboCopyMsg"));
     else if(b.dataset.qId && _fiDisp){   // build 136: 확인 질문 답
       let v = b.dataset.qV;
