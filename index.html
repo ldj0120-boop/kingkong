@@ -5,7 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script>/* build 158: 휴대폰·작은 태블릿은 PC 화면 폭(1400px)으로 그려서 레이아웃이 깨지지 않게 — 두 손가락으로 확대해서 보기 */
 (function(){ try{ var w = Math.min(screen.width||9999, screen.height||9999);
-  if(w < 900 || /Android.+Mobile|iPhone|iPod/i.test(navigator.userAgent)){ document.querySelector('meta[name="viewport"]').setAttribute("content","width=1400, user-scalable=yes"); document.documentElement.classList.add("kk-mobile"); } }catch(_){} })();</script>
+  if(w < 900 || /Android.+Mobile|iPhone|iPod/i.test(navigator.userAgent)){ document.querySelector('meta[name="viewport"]').setAttribute("content","width=1400, user-scalable=yes"); document.documentElement.classList.add("kk-mobile"); } }catch(_){} })();
+/* build 160: 카카오톡 등 앱 안 브라우저는 파일 다운로드(엑셀)가 안 됨("지원하지 않는 파일 형식") → 기본 브라우저(크롬)로 열기 */
+(function(){ try{ var ua = navigator.userAgent || "", url = location.href;
+  window.KK_INAPP = /KAKAOTALK/i.test(ua) ? "kakao" : /\bLine\//i.test(ua) ? "line" : /NAVER\(inapp|Instagram|FBAN|FBAV|DaumApps|everytimeApp|; wv\)/i.test(ua) ? "other" : "";
+  window.kkOpenExternal = function(){ var u = location.href;
+    if(KK_INAPP==="kakao"){ location.href = "kakaotalk://web/openExternal?url=" + encodeURIComponent(u); return; }
+    if(KK_INAPP==="line"){ location.href = u + (u.indexOf("?")<0 ? "?" : "&") + "openExternalBrowser=1"; return; }
+    if(/Android/i.test(ua)){ location.href = "intent://" + u.replace(/^https?:\/\//, "") + "#Intent;scheme=https;package=com.android.chrome;end"; return; }
+    try{ navigator.clipboard.writeText(u); }catch(_){} alert("주소를 복사했습니다. Safari/크롬에 붙여넣어 열어 주세요."); };
+  if(KK_INAPP==="kakao" && !/kk_noext=1/.test(url)){ setTimeout(function(){ location.href = "kakaotalk://web/openExternal?url=" + encodeURIComponent(url); }, 50); }
+  if(KK_INAPP) document.addEventListener("DOMContentLoaded", function(){
+    var b = document.createElement("div"); b.id = "kkInappBar";
+    b.style.cssText = "position:sticky;top:0;z-index:9999;background:#f5b70a;color:#111;font:700 26px/1.3 sans-serif;padding:16px 20px;display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap";
+    b.innerHTML = '⚠ 앱 안 브라우저(카카오톡 등)에서는 엑셀 다운로드가 안 됩니다 <button type="button" style="font:800 26px sans-serif;padding:10px 22px;border-radius:10px;border:0;background:#111;color:#f5b70a">크롬으로 열기</button>';
+    b.querySelector("button").onclick = window.kkOpenExternal; document.body.insertBefore(b, document.body.firstChild); });
+}catch(_){} })();</script>
 <title>PLT 출고 관리</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -532,7 +547,9 @@
   .agg-card .p-hd .store-name{font-size:16.5px;}
   /* build 156: 낙찰파일 생성기 ①~④ 카드 제목 4배(16.5px → 66px) — 사용자 요청 */
   #lsBox .p-hd, #liqBox .p-hd, #esBox .p-hd, #eosBox .p-hd{flex-wrap:wrap;row-gap:6px;}
-  #lsBox .p-hd .store-name, #liqBox .p-hd .store-name, #esBox .p-hd .store-name, #eosBox .p-hd .store-name{font-size:66px;line-height:1.15;flex-basis:100%;}
+  /* build 160: 절반(33px)으로, ⑤·⑥ 등 이 탭의 모든 카드 제목을 같은 크기로 */
+  #view-fixed .agg-card > .p-hd{flex-wrap:wrap;row-gap:6px;}
+  #view-fixed .agg-card > .p-hd > .store-name{font-size:33px;line-height:1.2;flex-basis:100%;}
   /* 2026-08-31: 카드마다 내부 스크롤(72vh)이 따로 있어서 페이지 스크롤 안에 스크롤이 중첩되는 게
      너무 불편하다는 피드백 — 세로 스크롤/높이 제한은 없애서 표가 페이지 흐름대로 쭉 늘어나게 한다.
      ★ 주의: 처음엔 overflow:visible로 통째로 풀었더니, 부모 .agg-card가 overflow:hidden이라
@@ -1106,7 +1123,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 159 · 2026-10-15</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 160 · 2026-10-15</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
