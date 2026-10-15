@@ -1123,7 +1123,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 160 · 2026-10-15</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 162 · 2026-10-15</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -12685,6 +12685,18 @@ function fiDistKm(a,b){
   const h=Math.sin(dLat/2)**2 + Math.cos(a[0]*t)*Math.cos(b[0]*t)*Math.sin(dLng/2)**2;
   return Math.round(2*R*Math.asin(Math.sqrt(h))*1.25);
 }
+// build 161: 출고센터 → 하차지 거리(km) — 하차지를 바꿀 때마다 다시 계산해서 보여 준다
+function fiKmTo(regionOrFc, store){
+  let geo = FI_REGION_GEO[regionOrFc];
+  if(!geo){ const rg = fiCenterRegion(regionOrFc); geo = rg && FI_REGION_GEO[rg]; }
+  const sg = FI_STORE_GEO[String(store||"").trim()];
+  return geo && sg ? fiDistKm(geo, sg) : null;
+}
+function fiKmLabel(regionOrFc, store, centerName){
+  if(!store) return "";
+  const parts = String(store).split(", ").map(st=>{ const k = fiKmTo(regionOrFc, st); return k==null ? `${st} 거리 미확인` : `${st} ${k}km`; });
+  return `${centerName||fiCenterName(regionOrFc)||regionOrFc}에서 ` + parts.join(" · ");
+}
 function fiDetectType(fileName, rows){
   // 1순위: LOT_FULL_NAME 안의 유형 코드(예: 199-XLS269-405-8, 199-XLGH269-..., 199-XLD269-...)
   const cnt = { XLG:0, XLS:0, XLD:0 };
@@ -12900,6 +12912,39 @@ function fiStockMap(snap){
   });
   return out;
 }
+/* build 162: 하차지 추천 순서 (사용자 지정)
+   1순위 = 매장 재고(해당 카테고리 재고 + 오늘 이미 배정한 PLT) 적은 순
+   2순위 = "거리" = 사용자가 지금까지 그 출고센터에서 실제로 보낸 지점 이력(배차 요청 기록 · 거래처 출고요청서 원장 · 고정인수 분배 기록)
+           → 그 센터에서 자주 보낸 매장일수록 가까운 것으로 본다. 이력이 없는 매장은 그 뒤에 좌표 거리 순.
+   3순위 = 좌표 거리(km), 4순위 = 야적 적은 순 */
+function fiCKey(fc){ return String(fiCenterName(fc)||fc||"").replace(/\s/g,"").toUpperCase(); }
+let _fiHistPairsCache = null, _fiHistPairsAt = 0;
+function fiHistPairs(){
+  if(_fiHistPairsCache && Date.now()-_fiHistPairsAt < 3000) return _fiHistPairsCache;
+  const out = {};
+  const add = (fc, dest, n)=>{ const c = fiCKey(fc); if(!c) return; String(dest||"").split(/,\s*/).map(x=>x.trim()).filter(Boolean).forEach(st=>{
+    const s2 = (typeof resolveStoreName==="function" && resolveStoreName(st)) || st; (out[c] = out[c] || {})[s2] = (out[c][s2]||0) + (n>0 ? 1 : 1); }); };
+  try{ (FI_DISPATCH_HISTORY||[]).forEach(h=>{ if(typeof fiDispIsDeleted==="function" && fiDispIsDeleted(h.id)) return; (h.rows||[]).forEach(r=>{ if(!r.skip) add(r.fc, r.dest, +r.pallets||1); }); }); }catch(_){}
+  try{ const L = (typeof FI_LEDGER!=="undefined" && FI_LEDGER.dehan) || null;
+    if(L){ (L.added||[]).forEach(r=> add(r.fc, r.dest, +r.pallets||1));
+      const bp = L.meta && L.meta.pairs; if(bp) Object.keys(bp).forEach(c=> Object.keys(bp[c]).forEach(st=>{ const k=fiCKey(c); (out[k]=out[k]||{})[st] = (out[k][st]||0) + bp[c][st]; })); } }catch(_){}
+  try{ (FIXED_INTAKE_HISTORY||[]).forEach(h=> ["XLS","XLG","XLD"].forEach(t=> ((h.plan||{})[t]||[]).forEach(r=> (r.alloc||[]).forEach(a=> add(r.fc||r.name, a.store, +a.plt||1)))) ); }catch(_){}
+  _fiHistPairsCache = out; _fiHistPairsAt = Date.now();
+  return out;
+}
+// 그 센터 → 매장 이력 횟수 (없으면 0)
+function fiHistCount(fc, store){ const m = fiHistPairs()[fiCKey(fc)]; return m && m[store] || 0; }
+// 정렬 키 비교: 재고 → 이력(많을수록 앞) → km → 야적
+function fiRankCmp(a, b){
+  if(a.cur !== b.cur) return a.cur - b.cur;
+  if(a.hist !== b.hist) return b.hist - a.hist;
+  const da = a.dist==null ? 9999 : a.dist, db = b.dist==null ? 9999 : b.dist;
+  if(da !== db) return da - db;
+  return (a.yard||0) - (b.yard||0);
+}
+function fiRankWhy(type, sc, centerName){
+  return `${type}재고 ${sc.curTxt!=null?sc.curTxt:sc.cur}PLT(1순위) · ${centerName} 이력 ${sc.hist}회(2순위)${sc.dist!=null?` · ${sc.dist}km`:""}${sc.yard?` · 야적 ${sc.yard}`:""}`;
+}
 // build 121: XLG(XLGH 포함) 센터 → 매장 고정 직출(당분간). 키 = FC 코드 또는 센터명. 해제하려면 항목을 지우면 된다.
 const FI_XLG_FIXED = { "YEO2":"이천점" };   // 여주2센터 XLG·XLGH → 이천점
 // 분배 계획. builds = fiBuild 결과 배열. 반환: { XLS:[{fc,name,plt,region,alloc:[{store,plt,why}]}], XLG:[...], XLD:[...] }
@@ -12921,8 +12966,10 @@ function fiPlan(builds, stockMap, opt){
     const distPen = dist==null ? 99 : dist / (type==="XLS" ? S.distXLS : S.distXLGn);
     // XLG는 센터 1곳 = 매장 1곳이 원칙이라, 같은 날 이미 XLG를 받은 매장은 다른 센터 물량을 덜 받게 한다
     const rep = (type==="XLG" && assigned.XLG[store]) ? S.repeatXLG : 0;
-    return { s: need - distPen - yardPen - rep, cur, raw, p, dist, yard, need };
+    const todayAdd = assigned[type][store]||0;   // build 162: 오늘 이미 배정한 PLT도 재고로 본다
+    return { s: need - distPen - yardPen - rep, cur: cur + todayAdd, curTxt: todayAdd ? `${fiStockWhy(type,{cur,raw,p})}+오늘${todayAdd}` : null, raw, p, dist, yard, need, hist:0 };
   };
+  const rankOf = (type, store, fcGeo, fc)=>{ const sc = score(type, store, fcGeo); sc.hist = fiHistCount(fc, store); return sc; };
   builds.forEach(b=>{
     if(!b.type || !plan[b.type]) return;
     b.centers.forEach(c=>{
@@ -12941,10 +12988,10 @@ function fiPlan(builds, stockMap, opt){
     const geo = FI_REGION_GEO[r.region];
     if(!geo){ r.alloc=[{ store:FI_JINCHEON, plt:r.plt, why:"센터 위치 미확인 → 진천센터(수정 필요)" }]; return; }
     let best=null;
-    stores.filter(s=>fiEligible(s,"XLG",elig)).forEach(s=>{ const sc=score("XLG",s,geo); if(!best||sc.s>best.sc.s) best={s,sc}; });
+    stores.filter(s=>fiEligible(s,"XLG",elig)).forEach(s=>{ const sc=rankOf("XLG",s,geo,r.fc||r.name); if(!best||fiRankCmp(sc,best.sc)<0) best={s,sc}; });
     if(!best){ r.alloc=[{ store:FI_JINCHEON, plt:r.plt, why:"후보 매장 없음" }]; return; }
     assigned.XLG[best.s] = (assigned.XLG[best.s]||0) + r.plt;
-    r.alloc=[{ store:best.s, plt:r.plt, why:`${fiStockWhy("XLG",best.sc)} · ${best.sc.dist}km${best.sc.yard?` · 야적 ${best.sc.yard}`:""}` }];
+    r.alloc=[{ store:best.s, plt:r.plt, why: fiRankWhy("XLG", best.sc, r.name) }];
   });
   // XLS: 9PLT(차량 1대) 단위 묶음. 전체 묶음 중 점수가 가장 높은 (묶음, 매장) 쌍부터 확정 → 가까운 센터가 가까운 매장을 먼저 잡고,
   //       먼 센터(경산 등)는 남은 매장 중 재고가 가장 부족한 곳으로 간다.
@@ -12961,12 +13008,12 @@ function fiPlan(builds, stockMap, opt){
     let best=null;
     open.forEach(ch=>{
       if(!ch.geo) return;
-      cand.forEach(s=>{ const sc=score("XLS",s,ch.geo); if(!best||sc.s>best.sc.s) best={ch,s,sc}; });
+      cand.forEach(s=>{ const sc=rankOf("XLS",s,ch.geo,ch.row.fc||ch.row.name); if(!best||fiRankCmp(sc,best.sc)<0) best={ch,s,sc}; });
     });
     if(!best){ open.forEach(ch=> ch.row.alloc.push({ store:FI_JINCHEON, plt:ch.plt, why:"센터 위치 미확인 → 진천센터(수정 필요)" })); break; }
     assigned.XLS[best.s] = (assigned.XLS[best.s]||0) + best.ch.plt;
     const ex = best.ch.row.alloc.find(a=>a.store===best.s);
-    const why = `${fiStockWhy("XLS",best.sc)} · ${best.sc.dist}km${best.sc.yard?` · 야적 ${best.sc.yard}`:""}`;
+    const why = fiRankWhy("XLS", best.sc, best.ch.row.name);
     if(ex) ex.plt += best.ch.plt; else best.ch.row.alloc.push({ store:best.s, plt:best.ch.plt, why });
     open = open.filter(x=>x!==best.ch);
   }
@@ -13149,7 +13196,7 @@ function fiRenderPlanTable(type, rows, editable){
         <td>${editable && type!=="XLD" ? `<select class="fi-sel" data-fi-t="${type}" data-fi-r="${ri}" data-fi-a="${ai}">${fiStoreOptions(type,a.store)}</select>` : `<b>${escHtml(a.store)}</b>`}</td>
         ${type!=="XLD" ? stockCell(a.store) : ""}
         <td class="n">${editable && type==="XLS" ? `<input class="fi-plt" type="number" min="0" step="1" value="${a.plt}" data-fi-t="${type}" data-fi-r="${ri}" data-fi-a="${ai}">` : a.plt}</td>
-        <td class="fi-mut fi-why">${escHtml(a.why||"")}</td></tr>`;
+        <td class="fi-mut fi-why">${escHtml(/km/.test(a.why||"") || a.store===undefined ? (a.why||"") : [a.why, fiKmLabel(r.region || r.fc, a.store, r.name)].filter(Boolean).join(" · "))}</td></tr>`;
     });
     if(editable && type==="XLS") h += `<tr class="fi-addrow"><td colspan="6"><button class="act fi-mini" data-fi-add="${ri}">+ ${escHtml(r.name)} 하차지 추가</button>
       ${(()=>{ const s=r.alloc.reduce((x,a)=>x+(+a.plt||0),0); return s!==r.plt ? `<span style="color:var(--red);margin-left:8px">배정 합계 ${s}PLT ≠ 센터 ${r.plt}PLT</span>` : ""; })()}</td></tr>`;
@@ -13252,14 +13299,9 @@ function fiRenderSettings(){
   const S = fiSettings(), E = fiEligMap();
   const stores = Object.keys(E);
   el.innerHTML = `<div class="fi-set-grid">
-    <label>XLS 목표 재고(PLT)<input type="number" data-fi-set="targetXLS" value="${S.targetXLS}"></label>
-    <label>XLG 목표 재고(PLT)<input type="number" data-fi-set="targetXLG" value="${S.targetXLG}"></label>
-    <label>XLS 거리 가중 (km당 1PLT 부족분 = N km)<input type="number" data-fi-set="distXLS" value="${S.distXLS}"></label>
-    <label>XLG 거리 가중 (N km)<input type="number" data-fi-set="distXLGn" value="${S.distXLGn}"></label>
-    <label>야적 패널티 (야적 N PLT당 −1, 최대 ${S.yardCap})<input type="number" data-fi-set="yardPer" value="${S.yardPer}"></label>
     <label>차량 1대 PLT(XLS 묶음 단위)<input type="number" data-fi-set="chunk" value="${S.chunk}"></label>
   </div>
-  <div class="fi-mut" style="margin:8px 0 4px">점수 = (목표 재고 − 현재 재고 − 오늘 이미 배정) − 거리/가중 − 야적 패널티 → 점수 높은 매장부터 배정. XLG는 같은 날 이미 XLG를 받은 매장에 −${S.repeatXLG}.</div>
+  <div class="fi-mut" style="margin:8px 0 4px">하차지 추천 순서(모든 유형·카테고리 공통, build 162): <b>① 매장 재고 적은 순</b>(해당 카테고리 재고 + 오늘 이미 배정한 PLT) → <b>② 그 출고센터에서 지금까지 보낸 지점 이력 많은 순</b>(배차 요청 기록 · 거래처 출고요청서 원장 · 분배 기록) → ③ 좌표 거리(km) → ④ 야적 적은 순. 고정 규칙(XLD 전부 진천센터 · XLG 경산 → 진천센터 · 여주2 XLG → 이천점)은 그대로.</div>
   <table class="fi-tbl fi-elig"><thead><tr><th>매장 (통합 문서1 · 취급 가능) — 대소점·평택점은 폐점 예정으로 자동 분배 제외</th><th>XLG</th><th>XLS</th><th>XLD</th></tr></thead><tbody>
   ${stores.map(s=>`<tr><td>${escHtml(s)}</td>${[0,1,2].map(k=>`<td><input type="checkbox" data-fi-elig="${escHtml(s)}" data-fi-k="${k}" ${E[s][k]==="O"?"checked":""}></td>`).join("")}</tr>`).join("")}
   </tbody></table>
@@ -13308,11 +13350,13 @@ function wireFixedIntake(){
     const t = e.target;
     if(t.classList.contains("fi-sel") && _fiCur){
       const a = _fiCur.plan[t.dataset.fiT][+t.dataset.fiR].alloc[+t.dataset.fiA];
-      a.store = t.value; a.why = "수동 변경";
+      const rr = _fiCur.plan[t.dataset.fiT][+t.dataset.fiR];
+      a.store = t.value; a.why = "수동 변경 · " + fiKmLabel(rr.region || rr.fc, a.store, rr.name);
       fiAfterEdit();
     } else if(t.classList.contains("fi-plt") && _fiCur){
       const a = _fiCur.plan[t.dataset.fiT][+t.dataset.fiR].alloc[+t.dataset.fiA];
-      a.plt = Math.max(0, Math.round(+t.value||0)); a.why = "수동 변경";
+      const rr = _fiCur.plan[t.dataset.fiT][+t.dataset.fiR];
+      a.plt = Math.max(0, Math.round(+t.value||0)); a.why = "수동 변경 · " + fiKmLabel(rr.region || rr.fc, a.store, rr.name);
       fiAfterEdit();
     } else if(t.dataset.fiSet){
       FI_SETTINGS_SAVED = Object.assign({}, FI_SETTINGS_SAVED||{}, { [t.dataset.fiSet]: +t.value });
@@ -13756,18 +13800,22 @@ function fiDispSuggest(rows){
     const geo = FI_REGION_GEO[fiCenterRegion(r.fc)];
     if(idx==null || !geo) return;
     const cat = ({0:"XLA",1:"XLB",2:"XLC",3:"XLE",4:"XLG",8:"XLW",9:"XLK"})[idx] || "XLS";
-    let best = null;
+    let best = null;   // build 162: 재고 적은 순 → 그 센터에서 보낸 이력 많은 순 → km → 야적
     stores.forEach(s=>{
       const a = raw[s] || []; const cur = (+a[idx]||0) + (add[s]||0); const yard = +a[16]||0;
-      const dist = fiDistKm(geo, FI_STORE_GEO[s]); if(dist==null) return;
-      const sc = (20 - cur) - dist/30 - Math.min(10, yard/10);
-      if(!best || sc > best.sc) best = { s, sc, cur, dist, yard };
+      const dist = fiDistKm(geo, FI_STORE_GEO[s]);
+      const sc = { s, cur, dist, yard, hist: fiHistCount(r.fc, s) };
+      if(!best || fiRankCmp(sc, best) < 0) best = sc;
     });
     if(!best) return;
     r.dest = best.s; add[best.s] = (add[best.s]||0) + (+r.pallets||0);
-    r.destNote = `추천: ${cat} 재고 ${best.cur}PLT · ${fiCenterName(r.fc)}에서 ${best.dist}km${best.yard?` · 야적 ${best.yard}`:""} — 고정인수 외 출고라 확인 필요`;
+    r.destNote = `추천: ${fiRankWhy(cat, best, fiCenterName(r.fc))} — 고정인수 외 출고라 확인 필요`;
   });
   return rows;
+}
+function fiDispDestChanged(r){   // build 161: 하차지를 바꾸면 거리 메모도 새 하차지 기준으로
+  r.destNote = r.dest ? `하차지 변경 — ${fiKmLabel(r.fc, r.dest)}` : "";
+  r.memo = (r.warn||[]).concat(r.destNote?[r.destNote]:[]).join(" / ");
 }
 function fiDispWeekday(dateStr){
   const d = new Date(dateStr+"T00:00:00"); if(isNaN(d)) return "";
@@ -13959,10 +14007,45 @@ async function fiOcrWorker(status){
   _fiOcrWorker = { kor, eng };
   return _fiOcrWorker;
 }
+// build 161: 휴대폰 사진 — 파일 이름·형식표시(type)를 믿지 않고 실제 바이트로 형식을 판별해서 읽는다.
+//   Android 사진 선택기는 "1000037395.jpg"처럼 이름만 jpg이고 실제는 HEIC(삼성 고효율 사진)이거나 type이 비어 있는 경우가 있다.
+function fiSniffImg(u8){
+  const h = (i,n)=> Array.from(u8.subarray(i,i+n)).map(b=>String.fromCharCode(b)).join("");
+  if(u8[0]===0xFF && u8[1]===0xD8) return "image/jpeg";
+  if(u8[0]===0x89 && h(1,3)==="PNG") return "image/png";
+  if(h(0,4)==="RIFF" && h(8,4)==="WEBP") return "image/webp";
+  if(h(0,3)==="GIF") return "image/gif";
+  if(h(0,2)==="BM") return "image/bmp";
+  if(h(4,4)==="ftyp"){ const b = h(8,4); if(/avif|avis/.test(b)) return "image/avif"; if(/heic|heix|hevc|hevx|heim|heis|mif1|msf1/.test(b)) return "image/heic"; }
+  return "";
+}
+async function fiDecodeBlob(blob){
+  try{ return await createImageBitmap(blob); }catch(_){}
+  return await new Promise((ok,no)=>{ const im = new Image(), u = URL.createObjectURL(blob);
+    im.onload=()=>{ URL.revokeObjectURL(u); ok(im); }; im.onerror=()=>{ URL.revokeObjectURL(u); no(new Error("decode")); }; im.src = u; });
+}
 async function fiImageData(file){
-  let bmp; try{ bmp = await createImageBitmap(file); }
-  catch(_){ bmp = await new Promise((ok,no)=>{ const im = new Image(), u = URL.createObjectURL(file); im.onload=()=>{ URL.revokeObjectURL(u); ok(im); }; im.onerror=()=>{ URL.revokeObjectURL(u); no(new Error("이 사진 형식을 읽지 못했습니다 — 휴대폰에서 스크린샷(PNG/JPG)으로 다시 캡처해 주세요.")); }; im.src = u; }); }   // build 158
-  const c = document.createElement("canvas"); c.width=bmp.width; c.height=bmp.height;
+  let buf;
+  try{ buf = await file.arrayBuffer(); }
+  catch(e){ throw new Error("휴대폰이 사진 파일을 넘겨주지 않았습니다(" + (e && e.name || "읽기 실패") + ") — 사진을 다시 고르거나, '갤러리' 대신 '내 파일'에서 골라 주세요."); }
+  if(!buf || !buf.byteLength) throw new Error("사진 파일이 비어 있습니다(0바이트) — 다시 골라 주세요.");
+  const u8 = new Uint8Array(buf), kind = fiSniffImg(u8);
+  let bmp = null;
+  if(kind !== "image/heic"){ try{ bmp = await fiDecodeBlob(new Blob([buf], { type: kind || file.type || "image/jpeg" })); }catch(_){} }
+  if(!bmp && (kind === "image/heic" || !kind)){   // 삼성 고효율 사진(HEIC) → JPG로 변환해서 읽기
+    try{
+      fiPhotoMsg("고효율 사진(HEIC)을 JPG로 바꾸는 중… (처음 한 번 몇 초)", "");
+      const H = await fiLoadScript("https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js", "heic2any");
+      let out = await H({ blob: new Blob([buf], { type:"image/heic" }), toType:"image/jpeg", quality:0.95 });
+      if(Array.isArray(out)) out = out[0];
+      bmp = await fiDecodeBlob(out);
+    }catch(_){}
+  }
+  if(!bmp){
+    const hex = Array.from(u8.subarray(0,12)).map(b=>b.toString(16).padStart(2,"0")).join(" ");
+    throw new Error(`이 사진을 읽지 못했습니다 — 실제 형식 ${kind || "알 수 없음"} (${file.name||"사진"}, ${Math.round(buf.byteLength/1024)}KB, 머리 ${hex}). 휴대폰 '스크린샷'(전원+볼륨↓)으로 찍은 사진을 골라 주세요.`);
+  }
+  const c = document.createElement("canvas"); c.width = bmp.width || bmp.naturalWidth; c.height = bmp.height || bmp.naturalHeight;
   const ctx = c.getContext("2d"); ctx.drawImage(bmp,0,0);
   return ctx.getImageData(0,0,c.width,c.height);
 }
@@ -14133,7 +14216,7 @@ function fiDispRender(){
     <td>${ed(r,i,"number",r.number,70)}</td><td class="n">${ed(r,i,"pallets",r.pallets,40)}</td><td>${ed(r,i,"outboundDate",r.outboundDate,92)}</td>
     <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="outboundAmPm">${["오전","오후",""].map(x=>`<option ${x===r.outboundAmPm?"selected":""} value="${x}">${x||"-"}</option>`).join("")}</select></td>
     <td>${ed(r,i,"fc",r.fc,62)} <span class="fi-mut">${escHtml(fiCenterName(r.fc)||"")}</span></td>
-    <td style="white-space:nowrap"><select class="fi-dinp" data-fd-i="${i}" data-fd-k="dest">${fiDispDestOptions(r)}</select> <input class="fi-dinp fi-dfree" data-fd-i="${i}" data-fd-k="dest" placeholder="직접 입력" title="목록에 없는 도착지는 여기에 입력" value="${escHtml(r.dest && !fiDispKnownDest(r.dest) ? r.dest : "")}" style="width:96px"></td>
+    <td style="white-space:nowrap"><select class="fi-dinp" data-fd-i="${i}" data-fd-k="dest">${fiDispDestOptions(r)}</select> <input class="fi-dinp fi-dfree" data-fd-i="${i}" data-fd-k="dest" placeholder="직접 입력" title="목록에 없는 도착지는 여기에 입력" value="${escHtml(r.dest && !fiDispKnownDest(r.dest) ? r.dest : "")}" style="width:96px">${r.dest && r.fc ? `<div class="fi-mut" style="font-size:11.5px;margin-top:2px">📍 ${escHtml(fiKmLabel(r.fc, r.dest))}</div>` : ""}</td>
     <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="type">${["XLG","XLS","XLD","XLA","XLB","XLC","XLE","XLK","XLW","임박"].concat(r.type&&!["XLG","XLS","XLD","XLA","XLB","XLC","XLE","XLK","XLW","임박"].includes(r.type)?[r.type]:[]).map(x=>`<option ${x===r.type?"selected":""}>${x}</option>`).join("")}</select></td>
     <td class="fi-why" style="color:var(--amber);font-size:12px">${escHtml(r.memo||"")}</td></tr>${fiDispEosSubRow(r,i)}`).join("")}
   </tbody></table></div>`;
@@ -16389,6 +16472,7 @@ function wireFixedDispatch(){
     const t = e.target; if(!t.classList.contains("fi-dinp") || !_fiDisp) return;
     const r = _fiDisp.rows[+t.dataset.fdI]; const k = t.dataset.fdK;
     r[k] = k==="pallets" ? (t.value===""?null:+t.value) : k==="skip" ? !t.checked : t.value;
+    if(k==="dest" && !t.classList.contains("fi-dfree")) fiDispDestChanged(r);   // build 161
     if(k==="fc") r.fc = String(t.value).toUpperCase().trim();
     if(r.type==="임박" && ["addr","person","phone","remark"].includes(k)){ if(k==="remark") r.opNote = r.remark; try{ eosCenterSave(r); }catch(_){} }   // build 135
     fiDispSave();
@@ -16412,7 +16496,7 @@ function wireFixedDispatch(){
       if(r && r.src && r.src[k] && new Set(Object.values(r.src[k]).map(_eosNorm)).size > 1){ (_fiDisp.answers = _fiDisp.answers||{})[_eosKey(r)+"|"+k] = String(t0.value); }
       fiDispSave(); fiDispRender(); return; }
   });
-  box.addEventListener("change", e=>{ const t = e.target; if(t.classList && t.classList.contains("fi-dfree") && _fiDisp){ const r=_fiDisp.rows[+t.dataset.fdI]; r.dest = String(t.value||"").trim(); fiDispSave(); fiDispRender(); } });
+  box.addEventListener("change", e=>{ const t = e.target; if(t.classList && t.classList.contains("fi-dfree") && _fiDisp){ const r=_fiDisp.rows[+t.dataset.fdI]; r.dest = String(t.value||"").trim(); fiDispDestChanged(r); fiDispSave(); fiDispRender(); } });
   box.addEventListener("click", e=>{
     const b = e.target.closest("button"); if(!b) return;
     if(b.id==="fiDispCopy") fiCopyText(document.getElementById("fiDispText").value, document.getElementById("fiDispCopyMsg"));
@@ -16488,6 +16572,9 @@ async function fiLedgerLoad(force){
     if(!Array.isArray(FI_LEDGER[co].added)) FI_LEDGER[co].added = [];
   }
   _fiLedgerLoaded = true;
+  // build 162: 예전에 올린 원본에는 센터→도착지 이력이 없으니, 보관된 원본 파일로 한 번 계산해 둔다
+  for(const co of Object.keys(FI_LEDGER_CO)){ const L = FI_LEDGER[co];
+    if(L && L.meta && !L.meta.pairs){ (async()=>{ try{ const buf = await fiLedgerFileBuf(co); if(!buf) return; const sc = await fiLedgerScan(buf); L.meta.pairs = sc.pairs; _fiHistPairsCache = null; await fiLedgerSave(co, false); }catch(_){} })(); } }
 }
 async function fiLedgerSave(co, withFile, b64){
   const L = FI_LEDGER[co];
@@ -16541,7 +16628,7 @@ function fiLedgerLastRow(ws, hdr){
 async function fiLedgerScan(buf){
   const ExcelJS = await fiLoadScript("https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","ExcelJS");
   const wb = new ExcelJS.Workbook(); await wb.xlsx.load(buf);
-  const keys = new Set(); let rows = 0;
+  const keys = new Set(); let rows = 0; const pairs = {};   // build 162: 센터 → 도착지 이력(하차지 추천 2순위)
   wb.worksheets.forEach(ws=>{
     const hdr = fiLedgerHeader(ws); if(!hdr) return;
     ws.eachRow({ includeEmpty:false }, (row,n)=>{
@@ -16549,9 +16636,11 @@ async function fiLedgerScan(buf){
       const g = k=> _fiCellVal(row.getCell(hdr.map[k]||0).value);
       const code = g("입차CODE"); if(!code) return;
       rows++; keys.add(fiLedgerKey(code, g("Group Number"), g("FC")));
+      const fcn = String(g("FC")||"").trim(), dst = String(g("도착지")||"").trim();
+      if(fcn && dst) dst.split(/[,\/]\s*/).map(x=>x.trim()).filter(Boolean).forEach(d=>{ const st = (typeof resolveStoreName==="function" && resolveStoreName(d)) || d; (pairs[fcn] = pairs[fcn] || {})[st] = (pairs[fcn][st]||0) + 1; });
     });
   });
-  return { wb, keys:Array.from(keys), rows, sheets: wb.worksheets.map(w=>w.name) };
+  return { wb, keys:Array.from(keys), rows, pairs, sheets: wb.worksheets.map(w=>w.name) };
 }
 async function fiLedgerUpload(file){
   const st = document.getElementById("fiLedgerStatus"); const say = t=>{ if(st) st.innerHTML = t; };
@@ -16567,7 +16656,7 @@ async function fiLedgerUpload(file){
     const keys = new Set(sc.keys);
     const before = L.added.length;
     L.added = L.added.filter(r=> !keys.has(fiLedgerKey(r.bidcode, r.number, r.fc)));   // 새 원본에 이미 들어간 추가분은 정리
-    L.meta = { name:file.name, uploadedAt:new Date().toISOString(), sheets:sc.sheets, rowsInBase:sc.rows, keys:sc.keys, size:buf.byteLength };
+    L.meta = { name:file.name, uploadedAt:new Date().toISOString(), sheets:sc.sheets, rowsInBase:sc.rows, keys:sc.keys, pairs:sc.pairs, size:buf.byteLength };
     const b64 = _fiB64FromBuf(buf);
     const where = await fiLedgerSave(co, true, b64);
     say(`✓ ${FI_LEDGER_CO[co].label} 원본 저장 — ${escHtml(file.name)} · 시트 ${sc.sheets.length}개 · 기존 행 ${sc.rows.toLocaleString()}개${before!==L.added.length?` · 원본에 이미 있는 추가분 ${before-L.added.length}행 정리`:""} · ${fiLedgerWhere(where)}`);
