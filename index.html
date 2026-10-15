@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>/* build 158: 휴대폰·작은 태블릿은 PC 화면 폭(1400px)으로 그려서 레이아웃이 깨지지 않게 — 두 손가락으로 확대해서 보기 */
+(function(){ try{ var w = Math.min(screen.width||9999, screen.height||9999);
+  if(w < 900 || /Android.+Mobile|iPhone|iPod/i.test(navigator.userAgent)){ document.querySelector('meta[name="viewport"]').setAttribute("content","width=1400, user-scalable=yes"); document.documentElement.classList.add("kk-mobile"); } }catch(_){} })();</script>
 <title>PLT 출고 관리</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -509,6 +512,10 @@
   .fi-file{overflow-x:auto;}
   .fi-disp-in{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch;}
   @media (max-width:900px){ .fi-disp-in{grid-template-columns:1fr;} }
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}   /* build 158: 휴대폰 글자 자동 확대(폰트 부스팅) 끄기 — PC와 같은 크기 */
+  .kk-photo-btn{display:inline-block;margin:10px auto 4px;padding:12px 22px;font-size:17px;font-weight:800;border-radius:10px;border:0;background:#f5b70a;color:#111;cursor:pointer;}
+  .kk-photo-btn:hover{filter:brightness(1.07);}
+  html.kk-mobile .kk-photo-btn{font-size:28px;padding:20px 34px;}
   .fi-disp-paste{display:flex;flex-direction:column;gap:6px;}
   .fi-match{padding:8px 12px;border-radius:8px;font-size:13px;margin-top:10px;}
   .fi-match.ok{background:var(--green-dim);color:var(--green);} .fi-match.bad{background:var(--amber-dim);color:var(--amber);}
@@ -1097,7 +1104,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 157 · 2026-10-15</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 158 · 2026-10-15</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1619,6 +1626,7 @@
         <div class="fi-disp-in">
           <div id="fiDispDrop" class="fi-drop" role="button" tabindex="0">
             <div class="fi-drop-t">출고일정 메일 캡처 이미지 또는 저장한 메일 파일(.mhtml)을 끌어다 놓거나 클릭</div>
+            <button type="button" class="kk-photo-btn" id="fiDispPhotoBtn">📷 휴대폰 캡처 사진 선택 (눌러서 앨범·파일에서 고르기)</button>
             <div class="fi-drop-s">캡처 후 이 탭에서 <b>Ctrl+V</b> 해도 됩니다 · 표(낙찰일자/BIDCODE/GroupNumber/NUMBER/파렛트/Outbound date)가 보이게 · <b>임박식품(FC EOS)</b> 메일은 "출고 요청" 문장부터 센터별 표(FC/센터/BIDCODE/Pallet)까지</div>
           </div>
           <div class="fi-disp-paste">
@@ -1627,6 +1635,7 @@
           </div>
         </div>
         <input type="file" id="fiDispInput" accept="image/*,.mhtml,.mht,.html,.htm,.eml" hidden>
+        <input type="file" id="fiDispPhoto" accept="image/*" hidden>
         <div id="fiDispStatus" class="fi-status"></div>
         <div id="fiDispResult"></div>
         <div id="fiDispCombo"></div>
@@ -13915,7 +13924,8 @@ async function fiOcrWorker(status){
   return _fiOcrWorker;
 }
 async function fiImageData(file){
-  const bmp = await createImageBitmap(file);
+  let bmp; try{ bmp = await createImageBitmap(file); }
+  catch(_){ bmp = await new Promise((ok,no)=>{ const im = new Image(), u = URL.createObjectURL(file); im.onload=()=>{ URL.revokeObjectURL(u); ok(im); }; im.onerror=()=>{ URL.revokeObjectURL(u); no(new Error("이 사진 형식을 읽지 못했습니다 — 휴대폰에서 스크린샷(PNG/JPG)으로 다시 캡처해 주세요.")); }; im.src = u; }); }   // build 158
   const c = document.createElement("canvas"); c.width=bmp.width; c.height=bmp.height;
   const ctx = c.getContext("2d"); ctx.drawImage(bmp,0,0);
   return ctx.getImageData(0,0,c.width,c.height);
@@ -16234,7 +16244,8 @@ function mailHtmlToText(html){
   return out.join("").replace(/[ \u00a0]+/g," ").replace(/\n\s*\n+/g,"\n");
 }
 async function fiDispFromFile(f){
-  if(/^image\//.test(f.type) && !/\.(mhtml|mht|html?|eml)$/i.test(f.name)) return fiDispFromImage(f);
+  const isMail = /\.(mhtml|mht|html?|eml)$/i.test(f.name||"");   // build 158: 휴대폰 사진은 type이 비어 있거나 확장자만 있는 경우가 있음
+  if(!isMail && (/^image\//.test(f.type) || /\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(f.name||"") || !f.type)) return fiDispFromImage(f);
   const st = document.getElementById("fiDispStatus");
   try{
     if(st) st.textContent = "메일 파일 읽는 중…";
@@ -16293,7 +16304,9 @@ function wireFixedDispatch(){
   const box = document.getElementById("fiDispBox");
   if(!box || box._wired) return; box._wired = true;
   const dz = document.getElementById("fiDispDrop"), inp = document.getElementById("fiDispInput"), ta = document.getElementById("fiDispPaste");
-  dz.addEventListener("click", ()=> inp.click());
+  const ph = document.getElementById("fiDispPhoto");   // build 158: 휴대폰 — 이미지 전용 선택창(앨범/사진이 바로 뜸)
+  dz.addEventListener("click", e=>{ if(e.target.closest("#fiDispPhotoBtn")){ e.stopPropagation(); ph.click(); return; } inp.click(); });
+  ph.addEventListener("change", ()=>{ const f=ph.files&&ph.files[0]; if(f) fiDispFromImage(f); ph.value=""; });
   inp.addEventListener("change", ()=>{ const f=inp.files&&inp.files[0]; if(f) fiDispFromFile(f); inp.value=""; });
   ["dragenter","dragover"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("dragover"); }));
   ["dragleave","drop"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove("dragover"); }));
