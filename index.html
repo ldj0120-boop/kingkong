@@ -1097,7 +1097,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 156 · 2026-10-15</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 157 · 2026-10-15</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -14269,14 +14269,15 @@ function fiDispRenderHistory(){
   const by = {}; list.forEach(h=>{ const d = fiDispHistDate(h); (by[d] = by[d] || []).push(h); });
   const dates = Object.keys(by).sort((a,b)=> (b||"0").localeCompare(a||"0"));
   const wk = d=> d ? `${d}(${fiDispWeekday(d)})` : "출고일 없음";
-  let h = `<div style="display:flex;gap:6px;align-items:center;margin:4px 0 8px;flex-wrap:wrap"><span class="fi-mut">출고일자별 · 같은 날 기록은 접어서 보관 — 체크 후 선택 삭제, 또는 날짜 줄의 "이 날짜 전부 삭제"</span>
-    <button class="act fi-mini fi-del" id="fiHistDelSel" style="margin-left:auto">✕ 선택한 기록 삭제</button></div>`;
+  let h = `<div style="display:flex;gap:6px;align-items:center;margin:4px 0 8px;flex-wrap:wrap"><label style="display:inline-flex;align-items:center;gap:5px;font-weight:700;cursor:pointer"><input type="checkbox" data-hall="1" style="width:18px;height:18px"> 전체 선택</label>
+    <span class="fi-mut">날짜 앞 ☐ = 그 날짜 전부 선택(일괄) · 줄 앞 ☐ = 기록 하나씩 선택(부분) → "선택한 기록 삭제"</span>
+    <button class="act fi-mini fi-del" id="fiHistDelSel" style="margin-left:auto">✕ 선택한 기록 삭제 (<span id="fiHistSelN">0</span>)</button></div>`;
   dates.forEach((d,i)=>{
     const hs = by[d].sort((a,b)=> (b.updatedAt||b.id)-(a.updatedAt||a.id));
     const open = _fiHistOpen[d] != null ? _fiHistOpen[d] : i===0;
     const nRows = hs.reduce((a,x)=> a + x.rows.length, 0), plt = hs.reduce((a,x)=> a + x.rows.reduce((s,r)=> s+(+r.pallets||0),0), 0);
     h += `<details class="fi-hist-day" data-hday="${escHtml(d)}" ${open?"open":""} style="border:1px solid var(--line,#2a3a4a);border-radius:8px;margin:6px 0;padding:4px 10px">
-      <summary style="cursor:pointer;padding:6px 0;font-weight:700">■ ${escHtml(wk(d))} 출고 <span class="fi-mut" style="font-weight:400">— 기록 ${hs.length}개 · ${nRows}건 · ${plt}PLT</span>
+      <summary style="cursor:pointer;padding:6px 0;font-weight:700"><input type="checkbox" data-hday-chk="${escHtml(d)}" title="이 날짜 기록 전부 선택" style="width:18px;height:18px;vertical-align:middle;margin:0 6px 0 0;cursor:pointer"> ${escHtml(wk(d))} 출고 <span class="fi-mut" style="font-weight:400">— 기록 ${hs.length}개 · ${nRows}건 · ${plt}PLT</span>
         <button class="act fi-mini fi-del" data-hday-del="${escHtml(d)}" style="float:right">✕ 이 날짜 전부 삭제</button></summary>
       <table class="fi-tbl"><thead><tr><th style="width:28px"><input type="checkbox" data-hday-all="${escHtml(d)}" title="이 날짜 전부 선택"></th><th>작성 일시</th><th>유형 · 건수 · PLT</th><th>출고일</th><th>도착지</th><th></th></tr></thead><tbody>
       ${hs.map(x=>`<tr class="${_fiDisp&&_fiDisp.id===x.id?"fi-on":""}"><td><input type="checkbox" data-hsel="${x.id}" data-hday-of="${escHtml(d)}"></td><td>${escHtml(x.at||"")}</td>
@@ -14287,7 +14288,20 @@ function fiDispRenderHistory(){
       </tbody></table></details>`;
   });
   el.innerHTML = h;
+  fiHistSyncSel();
   el.querySelectorAll("details[data-hday]").forEach(dt=> dt.addEventListener("toggle", ()=>{ _fiHistOpen[dt.dataset.hday] = dt.open; }));
+}
+// build 157: 배차 요청 기록 체크 상태 동기화 — 날짜 체크(일괄) · 줄 체크(부분) · 전체 선택 · 선택 개수
+function fiHistSyncSel(){
+  const el = document.getElementById("fiDispHistory"); if(!el) return;
+  const all = Array.from(el.querySelectorAll("input[data-hsel]"));
+  const setTri = (cb, rows)=>{ if(!cb) return; const n = rows.filter(x=> x.checked).length; cb.checked = rows.length>0 && n===rows.length; cb.indeterminate = n>0 && n<rows.length; };
+  el.querySelectorAll("details[data-hday]").forEach(dt=>{ const d = dt.dataset.hday;
+    const rows = all.filter(x=> x.dataset.hdayOf===d);
+    setTri(dt.querySelector("input[data-hday-chk]"), rows); setTri(dt.querySelector("input[data-hday-all]"), rows);
+    dt.style.borderColor = rows.some(x=> x.checked) ? "#e5534b" : ""; });
+  setTri(el.querySelector("input[data-hall]"), all);
+  const n = all.filter(x=> x.checked).length, sp = document.getElementById("fiHistSelN"); if(sp) sp.textContent = n;
 }
 function fiDispTextAll(d){
   const inc = d.rows.filter(r=>!r.skip);
@@ -16304,9 +16318,16 @@ function wireFixedDispatch(){
     if(t.tagName==="SELECT" || k==="fc" || k==="type" || k==="skip") fiDispRender(); else fiDispRenderOut();
   });
   // build 124: 도착지 직접 입력 — 입력 중엔 미리보기만, 칸을 벗어나면(엔터·Tab) 선택상자에도 반영
+  box.addEventListener("click", e=>{ const cb = e.target;   // build 157: 날짜 줄 체크 — 펼침/접힘 없이 그 날짜 기록 전부 선택/해제
+    if(!(cb && cb.dataset && cb.dataset.hdayChk!=null)) return;
+    e.preventDefault(); e.stopPropagation();
+    const want = cb.checked;   // 클릭 처리 중엔 이미 바뀐 값
+    setTimeout(()=>{ box.querySelectorAll(`#fiDispHistory input[data-hday-of="${CSS.escape(cb.dataset.hdayChk)}"]`).forEach(x=> x.checked = want); fiHistSyncSel(); }, 0); }, true);
   box.addEventListener("change", e=>{ const t = e.target;   // build 137: 합본 날짜 · 포함 체크
     if(t.id==="fiComboDate"){ _fiCombo.date = t.value; fiComboRender(); }
-    else if(t.dataset && t.dataset.hdayAll!=null){ box.querySelectorAll(`input[data-hday-of="${CSS.escape(t.dataset.hdayAll)}"]`).forEach(x=> x.checked = t.checked); }   // build 148
+    else if(t.dataset && t.dataset.hdayAll!=null){ box.querySelectorAll(`input[data-hday-of="${CSS.escape(t.dataset.hdayAll)}"]`).forEach(x=> x.checked = t.checked); fiHistSyncSel(); }   // build 148
+    else if(t.dataset && t.dataset.hall!=null){ box.querySelectorAll("#fiDispHistory input[data-hsel]").forEach(x=> x.checked = t.checked); fiHistSyncSel(); }   // build 157
+    else if(t.dataset && t.dataset.hsel!=null){ fiHistSyncSel(); }
     else if(t.dataset && t.dataset.comboId){ _fiCombo.off[t.dataset.comboId] = !t.checked; fiComboRender(); } });
   box.addEventListener("change", e=>{ const t0 = e.target;   // build 136: 임박식품 칸을 고치면 확인 패널 다시 계산
     if(_fiDisp && _fiDisp.matchInfo && _fiDisp.matchInfo.eos && t0.classList && t0.classList.contains("fi-dinp") && t0.tagName==="INPUT" && !t0.classList.contains("fi-dfree")){
