@@ -1094,7 +1094,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 154 · 2026-10-15</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 155 · 2026-10-15</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1492,7 +1492,7 @@
   </section>
 
   <section id="view-fixed" role="tabpanel" aria-labelledby="tab-fixed" hidden>
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin:0 0 10px"><button class="act primary" data-all-dl="1" style="font-weight:700;margin-right:auto" title="⑤ 배차 요청서에 넣은 것 전부를 출고일자별 시트로 한 파일에">⬇ 전체 출고요청서 다운로드</button><button class="act fi-mini fi-del" data-reset="all" title="①~⑤에 올린 원본 · 입력칸 · 화면 결과를 모두 지웁니다 (각 기록은 그대로)">↺ 이 탭 업로드 자료 전체 초기화</button></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin:0 0 10px"><button class="act primary" data-all-dl="1" style="font-weight:700;margin-right:auto" title="⑥ 배차 요청서에 넣은 것 전부를 출고일자별 시트로 한 파일에">⬇ 전체 출고요청서 다운로드</button><button class="act fi-mini fi-del" data-reset="all" title="①~⑥에 올린 원본 · 입력칸 · 화면 결과를 모두 지웁니다 (각 기록은 그대로)">↺ 이 탭 업로드 자료 전체 초기화</button></div>
     <!-- build 125: 아리바 비딩 요약본 생성기 (일반 리퀴 원본 / 바이나우 원본 → 요약본, 원본 종류 자동 판별) -->
     <div class="agg-card" id="lsBox">
       <div class="p-hd">
@@ -1540,10 +1540,28 @@
         <div id="liqHistory"></div>
       </div>
     </div>
+    <!-- build 155: 임박식품(FC EOS) 요약본 생성기 (원본 → ★임박 요약 · 종합/Sheet1/Sheet2 피벗 · RAW · EOS) -->
+    <div class="agg-card" id="esBox">
+      <div class="p-hd">
+        <span class="store-name">③ 임박식품(FC EOS) · 요약본 생성기</span>
+        <span class="meta">임박식품 원본(FC_EOS_Liquidation … - 원본.xlsx)을 놓으면 → 임박요약(★임박 요약 · 종합 피벗 · Sheet1 · Sheet2 · RAW · EOS) 엑셀</span>
+        <button class="act fi-mini fi-del" data-reset="es" style="margin-left:auto" title="올린 원본 · 화면 결과를 지웁니다">↺ 초기화</button>
+      </div>
+      <div class="fi-body">
+        <div id="esDrop" class="fi-drop" role="button" tabindex="0">
+          <div class="fi-drop-t">임박식품 원본 파일(FC_EOS_Liquidation_YYYYMMDD - 원본.xlsx)을 끌어다 놓거나 클릭</div>
+          <div class="fi-drop-s">RAW 시트(오른쪽 LOT 표 NO · PLT · MIN BID 포함)와 EOS 시트를 읽습니다 · 같은 원본이 아래 ④ 낙찰파일 생성기에도 자동으로 들어갑니다</div>
+          <div id="esFileInfo" style="margin-top:8px;font-size:12.5px"></div>
+        </div>
+        <input type="file" id="esInput" accept=".xlsx,.xlsm" hidden>
+        <div id="esStatus" class="fi-status"></div>
+        <div id="esResult"></div>
+      </div>
+    </div>
     <!-- build 132: 임박식품(FC EOS 리퀴데이션) 낙찰파일 생성 (원본 + 낙찰 LOT 알파벳 → LOT별 원본/RAW 낙찰파일) -->
     <div class="agg-card" id="eosBox">
       <div class="p-hd">
-        <span class="store-name">③ 임박식품(FC EOS) · 낙찰파일 생성기</span>
+        <span class="store-name">④ 임박식품(FC EOS) · 낙찰파일 생성기</span>
         <span class="meta">FC_EOS_Liquidation 원본 + 낙찰 LOT 알파벳(A, C, E …) → LOT별 낙찰파일(원본 / RAW)</span>
         <button class="act fi-mini fi-del" data-reset="eos" style="margin-left:auto" title="올린 원본 · 입력칸 · 화면 결과를 지웁니다 (기록은 그대로)">↺ 초기화</button>
       </div>
@@ -1573,7 +1591,7 @@
     <!-- build 111: 고정인수 — 쿠팡 리퀴데이션 고정 리스트(XLG/XLS/기저귀) → 낙찰파일(원본/종합/RAW) + 직출 분배표 + 카톡 문구 + 히스토리 -->
     <div class="agg-card">
       <div class="p-hd">
-        <span class="store-name">④ 고정인수 · 낙찰파일 생성 & 직출 분배표</span>
+        <span class="store-name">⑤ 고정인수 · 낙찰파일 생성 & 직출 분배표</span>
         <span class="meta" id="fiMeta"></span>
         <button class="act fi-mini fi-del" data-reset="fi" style="margin-left:auto" title="화면의 이번 결과를 지웁니다 (분배 히스토리는 그대로)">↺ 초기화</button>
       </div>
@@ -1589,7 +1607,7 @@
     </div>
     <div class="agg-card" id="fiDispBox">
       <div class="p-hd">
-        <span class="store-name">⑤ 배차 요청서 (입차코드)</span>
+        <span class="store-name">⑥ 배차 요청서 (입차코드)</span>
         <button class="act primary" data-all-dl="1" style="font-size:14px;padding:8px 18px;font-weight:700" title="넣은 배차 요청 전부(고정인수·일반 리퀴·임박식품)를 출고일자별 시트로 한 파일에">⬇ 전체 출고요청서 다운로드</button>
         <span class="meta">쿠팡 출고일정 메일 · 임박식품(FC EOS) 입찰 결과 메일 → 입차코드·상차일시·도착지 표 + 물류업체 문구 + 엑셀</span>
         <button class="act fi-mini fi-del" data-reset="disp" style="margin-left:auto" title="붙여넣은 글 · 인식 결과 · 합본 화면을 지웁니다 (배차 요청 기록은 그대로)">↺ 초기화</button>
@@ -5436,7 +5454,7 @@ function selectTab(which){
   if(which==="agg"){ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }
   if(which==="sales"){ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); }
   if(which==="goals"){ renderGoals(); }
-  if(which==="fixed"){ try{ wireFixedIntake(); fiRender(); wireLiqSum(); wireLiquidation(); wireEosLiq(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } }
+  if(which==="fixed"){ try{ wireFixedIntake(); fiRender(); wireLiqSum(); wireLiquidation(); wireEsSum(); wireEosLiq(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } }
 }
 tabAgg.onclick=()=>selectTab("agg");
 tabSales.onclick=()=>selectTab("sales");
@@ -15053,7 +15071,7 @@ function wireLiquidation(){
   });
   liqRender();
 }
-/* build 132: ③ 임박식품(FC EOS 리퀴데이션) 낙찰파일 생성
+/* build 132: ④ 임박식품(FC EOS 리퀴데이션) 낙찰파일 생성
    - 원본 = FC_EOS_Liquidation_YYYYMMDD-V….xlsx (RAW 시트 A~S + EOS 시트 NO./FC/센터/Pallet).
    - 낙찰 LOT 알파벳(A, C, E …)마다 낙찰파일 1개: 예시 "261007_FC_임박식품_인천28 인천4 … 창원4E37CHA XLB 18PLTPLT.xlsx"와 같은 구성
      · 원본 시트: RAW에서 No.=LOT 행의 A~S 그대로(원본 순서), 1행 SUBTOTAL P~S, U~X = EOS 시트의 그 LOT 행(NO./FC/센터/Pallet)
@@ -15061,6 +15079,292 @@ function wireLiquidation(){
        매장판매가(=판매단가(부가세x)×(면세 Y 1.0 / N 1.1)),매장판매가 총액,도매가(=매장판매가×VLOOKUP(cate4) 도매요율 = 일반 리퀴와 같은 LIQ_RATE4),
        도매판매가 총액, 1행 SUBTOTAL N·O·Q·S, U~X = 같은 EOS 표
    - PLT = EOS 시트 Pallet 합 + EOS 외 그룹(XLA/XLB/XLC…)은 FC별 로케이션 개수. 파일명 = YYMMDD_FC_임박식품_{센터 띄어쓰기}{LOT}{PLT}{기타 "CHA XLB 18PLT"}PLT */
+/* ================= build 155: ③ 임박식품(FC EOS) · 요약본 생성기 =================
+   FC_EOS_Liquidation_YYYYMMDD - 원본.xlsx(RAW + EOS 시트) → "… - 임박요약.xlsx"와 같은 양식:
+   ★임박 요약(LOT별 센터·PLT·최소입찰가·판매가 총액·임박 금액·TOP1~4 카테고리 + 행 수식) · 종합(피벗: No.>cate2>cate4 / 수량·판매가)
+   · Sheet1(피벗: No.×cate2 / 판매가) · Sheet2(피벗: No.>cate2 / 수량·판매가) · RAW(원본 그대로) · EOS(NO.→센터 순 정렬 + 센터 묶음)
+   서식(styles·theme·열 너비)은 사용자가 준 "FC_EOS_Liquidation_20260929 - 임박요약.xlsx"에서 그대로 가져왔다(ES_TPL).
+   피벗은 ① 요약본과 같은 방식(캐시 정의 + refreshOnLoad, 자리는 비움) — 엑셀이 열 때 채운다.
+   값 규칙(2026-09-29 원본 ↔ 임박요약 대조로 확인):
+     C 센터명 = EOS 시트의 그 LOT 센터를 이름순(글자 코드순)으로 띄어쓰기 연결
+     D PLT = RAW 오른쪽 LOT 표(AA~AC)의 PLT, EOS 시트에 없는 FC 줄(XLW · XLA(GYS2) 등)은 "(XLW 48PLT)"·"(GYS XLA 27PLT)"로 덧붙임
+     E 최소입찰가 = 같은 표 MIN BID AMT · F 판매가 총액 = RAW 판매가(부가세x) 합 · N = Grouping "EOS" 행의 판매가 합 · H = F − N
+     O~R = cate2별 판매가 상위 4개 "카테고리 (수량EA ₩금액)" */
+const ES_TPL = {"styles": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" mc:Ignorable=\"x14ac x16r2 xr\" xmlns:x14ac=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac\" xmlns:x16r2=\"http://schemas.microsoft.com/office/spreadsheetml/2015/02/main\" xmlns:xr=\"http://schemas.microsoft.com/office/spreadsheetml/2014/revision\"><numFmts count=\"4\"><numFmt numFmtId=\"41\" formatCode=\"_-* #,##0_-;\\-* #,##0_-;_-* &quot;-&quot;_-;_-@_-\"/><numFmt numFmtId=\"176\" formatCode=\"0_);[Red]\\(0\\)\"/><numFmt numFmtId=\"177\" formatCode=\"_(* #,##0.00_);_(* \\(#,##0.00\\);_(* &quot;-&quot;??_);_(@_)\"/><numFmt numFmtId=\"178\" formatCode=\"_(* #,##0_);_(* \\(#,##0\\);_(* &quot;-&quot;??_);_(@_)\"/></numFmts><fonts count=\"36\"><font><sz val=\"11\"/><color theme=\"1\"/><name val=\"맑은 고딕\"/><family val=\"2\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><sz val=\"11\"/><color theme=\"1\"/><name val=\"맑은 고딕\"/><family val=\"2\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><sz val=\"10\"/><color theme=\"1\"/><name val=\"맑은 고딕\"/><family val=\"2\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><sz val=\"8\"/><name val=\"맑은 고딕\"/><family val=\"2\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><sz val=\"10\"/><color theme=\"1\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><b/><sz val=\"10\"/><color rgb=\"FFFF0000\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><b/><sz val=\"10\"/><color theme=\"1\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><sz val=\"10\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><b/><sz val=\"9\"/><color theme=\"1\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><sz val=\"9\"/><color theme=\"1\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><b/><sz val=\"9\"/><color theme=\"1\"/><name val=\"Arial\"/><family val=\"2\"/></font><font><sz val=\"10\"/><color theme=\"1\"/><name val=\"Aptos\"/><family val=\"2\"/></font><font><sz val=\"9\"/><color theme=\"1\"/><name val=\"Arial\"/><family val=\"2\"/></font><font><sz val=\"10\"/><color theme=\"1\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/></font><font><sz val=\"10\"/><color rgb=\"FF000000\"/><name val=\"Aptos\"/><family val=\"2\"/></font><font><b/><sz val=\"10\"/><color rgb=\"FF000000\"/><name val=\"Aptos\"/><family val=\"2\"/></font><font><b/><sz val=\"10\"/><color rgb=\"FF000000\"/><name val=\"굴림\"/><family val=\"3\"/><charset val=\"129\"/></font><font><sz val=\"10\"/><color rgb=\"FF000000\"/><name val=\"굴림\"/><family val=\"3\"/><charset val=\"129\"/></font><font><sz val=\"11\"/><color indexed=\"8\"/><name val=\"맑은 고딕\"/><family val=\"2\"/><scheme val=\"minor\"/></font><font><b/><sz val=\"48\"/><color indexed=\"8\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><sz val=\"36\"/><color indexed=\"8\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><b/><sz val=\"36\"/><color rgb=\"FF000000\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/></font><font><b/><sz val=\"36\"/><color theme=\"1\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><b/><sz val=\"27\"/><color indexed=\"8\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><sz val=\"30\"/><color indexed=\"8\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><b/><sz val=\"28\"/><color theme=\"1\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><b/><sz val=\"36\"/><color indexed=\"8\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><b/><sz val=\"72\"/><color indexed=\"8\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><sz val=\"36\"/><color theme=\"1\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><sz val=\"72\"/><color theme=\"1\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><sz val=\"8\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><sz val=\"11\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><sz val=\"72\"/><color indexed=\"8\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font><font><sz val=\"22\"/><color indexed=\"8\"/><name val=\"맑은 고딕\"/><family val=\"2\"/><scheme val=\"minor\"/></font><font><sz val=\"72\"/><color indexed=\"8\"/><name val=\"맑은 고딕\"/><family val=\"2\"/><scheme val=\"minor\"/></font><font><b/><sz val=\"26\"/><color theme=\"1\"/><name val=\"맑은 고딕\"/><family val=\"3\"/><charset val=\"129\"/><scheme val=\"minor\"/></font></fonts><fills count=\"11\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill><fill><patternFill patternType=\"solid\"><fgColor theme=\"3\" tint=\"0.89999084444715716\"/><bgColor indexed=\"64\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor theme=\"0\"/><bgColor indexed=\"64\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFC0E6F5\"/><bgColor indexed=\"64\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor theme=\"4\" tint=\"0.79998168889431442\"/><bgColor indexed=\"64\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor theme=\"9\" tint=\"0.79998168889431442\"/><bgColor indexed=\"64\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor theme=\"5\" tint=\"0.79998168889431442\"/><bgColor indexed=\"64\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor theme=\"7\" tint=\"0.79998168889431442\"/><bgColor indexed=\"64\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor theme=\"2\" tint=\"-9.9978637043366805E-2\"/><bgColor indexed=\"64\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor theme=\"7\" tint=\"0.59999389629810485\"/><bgColor indexed=\"64\"/></patternFill></fill></fills><borders count=\"26\"><border><left/><right/><top/><bottom/><diagonal/></border><border><left/><right/><top/><bottom style=\"thin\"><color indexed=\"64\"/></bottom><diagonal/></border><border><left style=\"thin\"><color indexed=\"64\"/></left><right style=\"thin\"><color indexed=\"64\"/></right><top style=\"thin\"><color indexed=\"64\"/></top><bottom style=\"thin\"><color indexed=\"64\"/></bottom><diagonal/></border><border><left style=\"thin\"><color indexed=\"64\"/></left><right style=\"thin\"><color indexed=\"64\"/></right><top/><bottom style=\"thin\"><color indexed=\"64\"/></bottom><diagonal/></border><border><left style=\"thin\"><color indexed=\"64\"/></left><right style=\"thin\"><color indexed=\"64\"/></right><top style=\"thin\"><color indexed=\"64\"/></top><bottom/><diagonal/></border><border><left style=\"thin\"><color indexed=\"64\"/></left><right style=\"thin\"><color indexed=\"64\"/></right><top/><bottom/><diagonal/></border><border><left style=\"medium\"><color indexed=\"64\"/></left><right style=\"medium\"><color indexed=\"64\"/></right><top style=\"medium\"><color indexed=\"64\"/></top><bottom style=\"medium\"><color indexed=\"64\"/></bottom><diagonal/></border><border><left/><right style=\"medium\"><color indexed=\"64\"/></right><top style=\"medium\"><color indexed=\"64\"/></top><bottom style=\"medium\"><color indexed=\"64\"/></bottom><diagonal/></border><border><left style=\"medium\"><color indexed=\"64\"/></left><right style=\"medium\"><color indexed=\"64\"/></right><top/><bottom style=\"medium\"><color indexed=\"64\"/></bottom><diagonal/></border><border><left/><right style=\"medium\"><color indexed=\"64\"/></right><top/><bottom style=\"medium\"><color indexed=\"64\"/></bottom><diagonal/></border><border><left style=\"medium\"><color indexed=\"64\"/></left><right/><top style=\"medium\"><color indexed=\"64\"/></top><bottom/><diagonal/></border><border><left/><right/><top style=\"medium\"><color indexed=\"64\"/></top><bottom/><diagonal/></border><border><left/><right style=\"medium\"><color indexed=\"64\"/></right><top style=\"medium\"><color indexed=\"64\"/></top><bottom/><diagonal/></border><border><left style=\"medium\"><color indexed=\"64\"/></left><right style=\"thin\"><color indexed=\"64\"/></right><top/><bottom style=\"thin\"><color indexed=\"64\"/></bottom><diagonal/></border><border><left style=\"thin\"><color indexed=\"64\"/></left><right/><top/><bottom style=\"thin\"><color indexed=\"64\"/></bottom><diagonal/></border><border><left style=\"medium\"><color indexed=\"64\"/></left><right style=\"thin\"><color indexed=\"64\"/></right><top style=\"medium\"><color indexed=\"64\"/></top><bottom style=\"thin\"><color indexed=\"64\"/></bottom><diagonal/></border><border><left style=\"thin\"><color indexed=\"64\"/></left><right style=\"medium\"><color indexed=\"64\"/></right><top style=\"medium\"><color indexed=\"64\"/></top><bottom style=\"thin\"><color indexed=\"64\"/></bottom><diagonal/></border><border><left/><right style=\"thin\"><color indexed=\"64\"/></right><top style=\"medium\"><color indexed=\"64\"/></top><bottom style=\"thin\"><color indexed=\"64\"/></bottom><diagonal/></border><border><left/><right style=\"thin\"><color indexed=\"64\"/></right><top/><bottom style=\"thin\"><color indexed=\"64\"/></bottom><diagonal/></border><border><left style=\"thin\"><color indexed=\"64\"/></left><right style=\"medium\"><color indexed=\"64\"/></right><top/><bottom style=\"thin\"><color indexed=\"64\"/></bottom><diagonal/></border><border><left style=\"medium\"><color indexed=\"64\"/></left><right style=\"thin\"><color indexed=\"64\"/></right><top style=\"thin\"><color indexed=\"64\"/></top><bottom style=\"thin\"><color indexed=\"64\"/></bottom><diagonal/></border><border><left/><right style=\"thin\"><color indexed=\"64\"/></right><top style=\"thin\"><color indexed=\"64\"/></top><bottom style=\"thin\"><color indexed=\"64\"/></bottom><diagonal/></border><border><left style=\"thin\"><color indexed=\"64\"/></left><right/><top style=\"thin\"><color indexed=\"64\"/></top><bottom style=\"thin\"><color indexed=\"64\"/></bottom><diagonal/></border><border><left style=\"thin\"><color indexed=\"64\"/></left><right style=\"medium\"><color indexed=\"64\"/></right><top style=\"thin\"><color indexed=\"64\"/></top><bottom style=\"thin\"><color indexed=\"64\"/></bottom><diagonal/></border><border><left style=\"medium\"><color indexed=\"64\"/></left><right/><top/><bottom style=\"medium\"><color indexed=\"64\"/></bottom><diagonal/></border><border><left/><right/><top/><bottom style=\"medium\"><color indexed=\"64\"/></bottom><diagonal/></border></borders><cellStyleXfs count=\"10\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"1\" fillId=\"0\" borderId=\"0\" applyFont=\"0\" applyFill=\"0\" applyBorder=\"0\" applyAlignment=\"0\" applyProtection=\"0\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"9\" fontId=\"1\" fillId=\"0\" borderId=\"0\" applyFont=\"0\" applyFill=\"0\" applyBorder=\"0\" applyAlignment=\"0\" applyProtection=\"0\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"18\" fillId=\"0\" borderId=\"0\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"1\" fillId=\"0\" borderId=\"0\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"1\" fillId=\"0\" borderId=\"0\" applyFont=\"0\" applyFill=\"0\" applyBorder=\"0\" applyAlignment=\"0\" applyProtection=\"0\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"9\" fontId=\"1\" fillId=\"0\" borderId=\"0\" applyFont=\"0\" applyFill=\"0\" applyBorder=\"0\" applyAlignment=\"0\" applyProtection=\"0\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"1\" fillId=\"0\" borderId=\"0\" applyFont=\"0\" applyFill=\"0\" applyBorder=\"0\" applyAlignment=\"0\" applyProtection=\"0\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"177\" fontId=\"18\" fillId=\"0\" borderId=\"0\" applyFont=\"0\" applyFill=\"0\" applyBorder=\"0\" applyAlignment=\"0\" applyProtection=\"0\"/><xf numFmtId=\"41\" fontId=\"18\" fillId=\"0\" borderId=\"0\" applyFont=\"0\" applyFill=\"0\" applyBorder=\"0\" applyAlignment=\"0\" applyProtection=\"0\"><alignment vertical=\"center\"/></xf></cellStyleXfs><cellXfs count=\"103\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"2\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"4\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"3\" fontId=\"4\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"9\" fontId=\"4\" fillId=\"0\" borderId=\"0\" xfId=\"2\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"176\" fontId=\"4\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"4\" fillId=\"0\" borderId=\"0\" xfId=\"1\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"5\" fillId=\"0\" borderId=\"0\" xfId=\"1\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"6\" fillId=\"0\" borderId=\"1\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"176\" fontId=\"6\" fillId=\"0\" borderId=\"1\" xfId=\"0\" applyNumberFormat=\"1\" applyFont=\"1\" applyBorder=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"6\" fillId=\"0\" borderId=\"1\" xfId=\"1\" applyFont=\"1\" applyBorder=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"6\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"7\" fillId=\"0\" borderId=\"0\" xfId=\"1\" applyFont=\"1\" applyFill=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"4\" fillId=\"0\" borderId=\"0\" xfId=\"1\" applyFont=\"1\" applyFill=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"176\" fontId=\"2\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"2\" fillId=\"0\" borderId=\"0\" xfId=\"1\" applyFont=\"1\" applyFill=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"9\" fillId=\"0\" borderId=\"2\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"9\" fillId=\"0\" borderId=\"2\" xfId=\"1\" applyFont=\"1\" applyBorder=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"10\" fillId=\"0\" borderId=\"2\" xfId=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"12\" fillId=\"3\" borderId=\"2\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"12\" fillId=\"0\" borderId=\"2\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"3\" fontId=\"12\" fillId=\"3\" borderId=\"2\" xfId=\"0\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"14\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"15\" fillId=\"4\" borderId=\"6\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"15\" fillId=\"4\" borderId=\"7\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"16\" fillId=\"4\" borderId=\"7\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"14\" fillId=\"0\" borderId=\"8\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"14\" fillId=\"0\" borderId=\"9\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"17\" fillId=\"0\" borderId=\"9\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"3\" fontId=\"14\" fillId=\"0\" borderId=\"9\" xfId=\"0\" applyNumberFormat=\"1\" applyFont=\"1\" applyBorder=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"8\" fillId=\"2\" borderId=\"2\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"10\" fillId=\"0\" borderId=\"2\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"3\" fontId=\"2\" fillId=\"0\" borderId=\"4\" xfId=\"0\" applyNumberFormat=\"1\" applyFont=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"2\" fillId=\"0\" borderId=\"5\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"2\" fillId=\"0\" borderId=\"3\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" pivotButton=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyAlignment=\"1\"><alignment horizontal=\"left\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyAlignment=\"1\"><alignment horizontal=\"left\" vertical=\"center\" indent=\"1\"/></xf><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyNumberFormat=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"1\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyAlignment=\"1\"><alignment horizontal=\"left\" vertical=\"center\" indent=\"2\"/></xf><xf numFmtId=\"0\" fontId=\"18\" fillId=\"0\" borderId=\"0\" xfId=\"3\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"18\" fillId=\"0\" borderId=\"0\" xfId=\"1\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"18\" fillId=\"0\" borderId=\"0\" xfId=\"3\" applyAlignment=\"1\"><alignment vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"0\" fontId=\"19\" fillId=\"5\" borderId=\"10\" xfId=\"3\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"19\" fillId=\"5\" borderId=\"11\" xfId=\"3\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"19\" fillId=\"5\" borderId=\"12\" xfId=\"3\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"20\" fillId=\"0\" borderId=\"0\" xfId=\"1\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"20\" fillId=\"0\" borderId=\"0\" xfId=\"3\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"21\" fillId=\"6\" borderId=\"13\" xfId=\"4\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"21\" fillId=\"6\" borderId=\"3\" xfId=\"4\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"21\" fillId=\"6\" borderId=\"14\" xfId=\"5\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"21\" fillId=\"6\" borderId=\"15\" xfId=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"10\" fontId=\"21\" fillId=\"6\" borderId=\"16\" xfId=\"6\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"21\" fillId=\"6\" borderId=\"17\" xfId=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"10\" fontId=\"21\" fillId=\"6\" borderId=\"18\" xfId=\"6\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"10\" fontId=\"21\" fillId=\"6\" borderId=\"3\" xfId=\"6\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"10\" fontId=\"21\" fillId=\"6\" borderId=\"14\" xfId=\"6\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"21\" fillId=\"6\" borderId=\"16\" xfId=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"22\" fillId=\"6\" borderId=\"18\" xfId=\"4\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"0\" fontId=\"22\" fillId=\"6\" borderId=\"3\" xfId=\"4\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"0\" fontId=\"22\" fillId=\"6\" borderId=\"19\" xfId=\"4\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"0\" fontId=\"23\" fillId=\"0\" borderId=\"0\" xfId=\"3\" applyFont=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"24\" fillId=\"0\" borderId=\"0\" xfId=\"3\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"24\" fillId=\"0\" borderId=\"0\" xfId=\"1\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"25\" fillId=\"0\" borderId=\"20\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"0\" fontId=\"25\" fillId=\"0\" borderId=\"21\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"0\" fontId=\"25\" fillId=\"7\" borderId=\"22\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"41\" fontId=\"22\" fillId=\"8\" borderId=\"20\" xfId=\"7\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"26\" fillId=\"0\" borderId=\"20\" xfId=\"1\" applyFont=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"10\" fontId=\"22\" fillId=\"0\" borderId=\"23\" xfId=\"2\" applyNumberFormat=\"1\" applyFont=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"41\" fontId=\"26\" fillId=\"0\" borderId=\"21\" xfId=\"1\" applyFont=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"41\" fontId=\"22\" fillId=\"8\" borderId=\"21\" xfId=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"10\" fontId=\"22\" fillId=\"7\" borderId=\"2\" xfId=\"2\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"41\" fontId=\"22\" fillId=\"8\" borderId=\"2\" xfId=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"10\" fontId=\"22\" fillId=\"7\" borderId=\"22\" xfId=\"2\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"41\" fontId=\"26\" fillId=\"0\" borderId=\"23\" xfId=\"1\" applyFont=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"41\" fontId=\"22\" fillId=\"7\" borderId=\"21\" xfId=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"41\" fontId=\"22\" fillId=\"0\" borderId=\"2\" xfId=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"41\" fontId=\"22\" fillId=\"7\" borderId=\"2\" xfId=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"41\" fontId=\"22\" fillId=\"0\" borderId=\"23\" xfId=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"0\" fontId=\"27\" fillId=\"0\" borderId=\"0\" xfId=\"3\" applyFont=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"0\" fontId=\"28\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"23\" fillId=\"0\" borderId=\"0\" xfId=\"3\" applyFont=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"0\" fontId=\"29\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"23\" fillId=\"9\" borderId=\"24\" xfId=\"3\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"23\" fillId=\"9\" borderId=\"25\" xfId=\"3\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"23\" fillId=\"9\" borderId=\"25\" xfId=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"23\" fillId=\"9\" borderId=\"24\" xfId=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"10\" fontId=\"23\" fillId=\"9\" borderId=\"9\" xfId=\"2\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"10\" fontId=\"23\" fillId=\"9\" borderId=\"25\" xfId=\"2\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"23\" fillId=\"9\" borderId=\"25\" xfId=\"7\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"41\" fontId=\"23\" fillId=\"9\" borderId=\"9\" xfId=\"7\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"41\" fontId=\"27\" fillId=\"0\" borderId=\"0\" xfId=\"1\" applyFont=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"27\" fillId=\"0\" borderId=\"0\" xfId=\"3\" applyFont=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"178\" fontId=\"31\" fillId=\"0\" borderId=\"0\" xfId=\"8\" applyNumberFormat=\"1\" applyFont=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"left\" vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"32\" fillId=\"0\" borderId=\"0\" xfId=\"1\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"32\" fillId=\"0\" borderId=\"0\" xfId=\"3\" applyFont=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"33\" fillId=\"0\" borderId=\"0\" xfId=\"3\" applyFont=\"1\" applyAlignment=\"1\"><alignment vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"0\" fontId=\"34\" fillId=\"0\" borderId=\"0\" xfId=\"3\" applyFont=\"1\" applyAlignment=\"1\"><alignment vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"0\" fontId=\"35\" fillId=\"10\" borderId=\"0\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\"><alignment vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyAlignment=\"1\"><alignment vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"41\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"9\" applyFont=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf></cellXfs><cellStyles count=\"10\"><cellStyle name=\"Comma [0] 2\" xfId=\"7\" xr:uid=\"{6390EFCE-1032-4BE3-8F2D-E32F84C3BD85}\"/><cellStyle name=\"백분율\" xfId=\"2\" builtinId=\"5\"/><cellStyle name=\"백분율 2\" xfId=\"6\" xr:uid=\"{A7C2DE9E-2069-4F86-A678-AEF6C7F6F287}\"/><cellStyle name=\"쉼표 [0]\" xfId=\"1\" builtinId=\"6\"/><cellStyle name=\"쉼표 [0] 2 2\" xfId=\"5\" xr:uid=\"{742C8289-04BA-4B11-B836-ED5EA0B6696F}\"/><cellStyle name=\"쉼표 [0] 3 2\" xfId=\"9\" xr:uid=\"{2555D1CB-2439-4E44-ABA6-2707BA300121}\"/><cellStyle name=\"쉼표 2 2\" xfId=\"8\" xr:uid=\"{DA0A1527-92A4-4B30-B143-012DB0E97340}\"/><cellStyle name=\"표준\" xfId=\"0\" builtinId=\"0\"/><cellStyle name=\"표준 2 2\" xfId=\"3\" xr:uid=\"{10F5B7E4-1AC8-4DD1-B587-659822F7D394}\"/><cellStyle name=\"표준 2 2 2\" xfId=\"4\" xr:uid=\"{D9A879B4-714B-4C0B-87F1-481E2E30C5AD}\"/></cellStyles><dxfs count=\"0\"/><tableStyles count=\"0\" defaultTableStyle=\"TableStyleMedium2\" defaultPivotStyle=\"PivotStyleLight16\"/><extLst><ext uri=\"{EB79DEF2-80B8-43e5-95BD-54CBDDF9020C}\" xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\"><x14:slicerStyles defaultSlicerStyle=\"SlicerStyleLight1\"/></ext><ext uri=\"{9260A510-F301-46a8-8635-F512D64BE5F5}\" xmlns:x15=\"http://schemas.microsoft.com/office/spreadsheetml/2010/11/main\"><x15:timelineStyles defaultTimelineStyle=\"TimeSlicerStyleLight1\"/></ext></extLst></styleSheet>", "theme": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<a:theme xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" name=\"Office 테마\"><a:themeElements><a:clrScheme name=\"Office 2013 - 2022\"><a:dk1><a:sysClr val=\"windowText\" lastClr=\"000000\"/></a:dk1><a:lt1><a:sysClr val=\"window\" lastClr=\"FFFFFF\"/></a:lt1><a:dk2><a:srgbClr val=\"44546A\"/></a:dk2><a:lt2><a:srgbClr val=\"E7E6E6\"/></a:lt2><a:accent1><a:srgbClr val=\"4472C4\"/></a:accent1><a:accent2><a:srgbClr val=\"ED7D31\"/></a:accent2><a:accent3><a:srgbClr val=\"A5A5A5\"/></a:accent3><a:accent4><a:srgbClr val=\"FFC000\"/></a:accent4><a:accent5><a:srgbClr val=\"5B9BD5\"/></a:accent5><a:accent6><a:srgbClr val=\"70AD47\"/></a:accent6><a:hlink><a:srgbClr val=\"0563C1\"/></a:hlink><a:folHlink><a:srgbClr val=\"954F72\"/></a:folHlink></a:clrScheme><a:fontScheme name=\"Office\"><a:majorFont><a:latin typeface=\"Aptos Display\" panose=\"02110004020202020204\"/><a:ea typeface=\"\"/><a:cs typeface=\"\"/><a:font script=\"Jpan\" typeface=\"游ゴシック Light\"/><a:font script=\"Hang\" typeface=\"맑은 고딕\"/><a:font script=\"Hans\" typeface=\"等线 Light\"/><a:font script=\"Hant\" typeface=\"新細明體\"/><a:font script=\"Arab\" typeface=\"Times New Roman\"/><a:font script=\"Hebr\" typeface=\"Times New Roman\"/><a:font script=\"Thai\" typeface=\"Tahoma\"/><a:font script=\"Ethi\" typeface=\"Nyala\"/><a:font script=\"Beng\" typeface=\"Vrinda\"/><a:font script=\"Gujr\" typeface=\"Shruti\"/><a:font script=\"Khmr\" typeface=\"MoolBoran\"/><a:font script=\"Knda\" typeface=\"Tunga\"/><a:font script=\"Guru\" typeface=\"Raavi\"/><a:font script=\"Cans\" typeface=\"Euphemia\"/><a:font script=\"Cher\" typeface=\"Plantagenet Cherokee\"/><a:font script=\"Yiii\" typeface=\"Microsoft Yi Baiti\"/><a:font script=\"Tibt\" typeface=\"Microsoft Himalaya\"/><a:font script=\"Thaa\" typeface=\"MV Boli\"/><a:font script=\"Deva\" typeface=\"Mangal\"/><a:font script=\"Telu\" typeface=\"Gautami\"/><a:font script=\"Taml\" typeface=\"Latha\"/><a:font script=\"Syrc\" typeface=\"Estrangelo Edessa\"/><a:font script=\"Orya\" typeface=\"Kalinga\"/><a:font script=\"Mlym\" typeface=\"Kartika\"/><a:font script=\"Laoo\" typeface=\"DokChampa\"/><a:font script=\"Sinh\" typeface=\"Iskoola Pota\"/><a:font script=\"Mong\" typeface=\"Mongolian Baiti\"/><a:font script=\"Viet\" typeface=\"Times New Roman\"/><a:font script=\"Uigh\" typeface=\"Microsoft Uighur\"/><a:font script=\"Geor\" typeface=\"Sylfaen\"/><a:font script=\"Armn\" typeface=\"Arial\"/><a:font script=\"Bugi\" typeface=\"Leelawadee UI\"/><a:font script=\"Bopo\" typeface=\"Microsoft JhengHei\"/><a:font script=\"Java\" typeface=\"Javanese Text\"/><a:font script=\"Lisu\" typeface=\"Segoe UI\"/><a:font script=\"Mymr\" typeface=\"Myanmar Text\"/><a:font script=\"Nkoo\" typeface=\"Ebrima\"/><a:font script=\"Olck\" typeface=\"Nirmala UI\"/><a:font script=\"Osma\" typeface=\"Ebrima\"/><a:font script=\"Phag\" typeface=\"Phagspa\"/><a:font script=\"Syrn\" typeface=\"Estrangelo Edessa\"/><a:font script=\"Syrj\" typeface=\"Estrangelo Edessa\"/><a:font script=\"Syre\" typeface=\"Estrangelo Edessa\"/><a:font script=\"Sora\" typeface=\"Nirmala UI\"/><a:font script=\"Tale\" typeface=\"Microsoft Tai Le\"/><a:font script=\"Talu\" typeface=\"Microsoft New Tai Lue\"/><a:font script=\"Tfng\" typeface=\"Ebrima\"/></a:majorFont><a:minorFont><a:latin typeface=\"Aptos Narrow\" panose=\"02110004020202020204\"/><a:ea typeface=\"\"/><a:cs typeface=\"\"/><a:font script=\"Jpan\" typeface=\"游ゴシック\"/><a:font script=\"Hang\" typeface=\"맑은 고딕\"/><a:font script=\"Hans\" typeface=\"等线\"/><a:font script=\"Hant\" typeface=\"新細明體\"/><a:font script=\"Arab\" typeface=\"Arial\"/><a:font script=\"Hebr\" typeface=\"Arial\"/><a:font script=\"Thai\" typeface=\"Tahoma\"/><a:font script=\"Ethi\" typeface=\"Nyala\"/><a:font script=\"Beng\" typeface=\"Vrinda\"/><a:font script=\"Gujr\" typeface=\"Shruti\"/><a:font script=\"Khmr\" typeface=\"DaunPenh\"/><a:font script=\"Knda\" typeface=\"Tunga\"/><a:font script=\"Guru\" typeface=\"Raavi\"/><a:font script=\"Cans\" typeface=\"Euphemia\"/><a:font script=\"Cher\" typeface=\"Plantagenet Cherokee\"/><a:font script=\"Yiii\" typeface=\"Microsoft Yi Baiti\"/><a:font script=\"Tibt\" typeface=\"Microsoft Himalaya\"/><a:font script=\"Thaa\" typeface=\"MV Boli\"/><a:font script=\"Deva\" typeface=\"Mangal\"/><a:font script=\"Telu\" typeface=\"Gautami\"/><a:font script=\"Taml\" typeface=\"Latha\"/><a:font script=\"Syrc\" typeface=\"Estrangelo Edessa\"/><a:font script=\"Orya\" typeface=\"Kalinga\"/><a:font script=\"Mlym\" typeface=\"Kartika\"/><a:font script=\"Laoo\" typeface=\"DokChampa\"/><a:font script=\"Sinh\" typeface=\"Iskoola Pota\"/><a:font script=\"Mong\" typeface=\"Mongolian Baiti\"/><a:font script=\"Viet\" typeface=\"Arial\"/><a:font script=\"Uigh\" typeface=\"Microsoft Uighur\"/><a:font script=\"Geor\" typeface=\"Sylfaen\"/><a:font script=\"Armn\" typeface=\"Arial\"/><a:font script=\"Bugi\" typeface=\"Leelawadee UI\"/><a:font script=\"Bopo\" typeface=\"Microsoft JhengHei\"/><a:font script=\"Java\" typeface=\"Javanese Text\"/><a:font script=\"Lisu\" typeface=\"Segoe UI\"/><a:font script=\"Mymr\" typeface=\"Myanmar Text\"/><a:font script=\"Nkoo\" typeface=\"Ebrima\"/><a:font script=\"Olck\" typeface=\"Nirmala UI\"/><a:font script=\"Osma\" typeface=\"Ebrima\"/><a:font script=\"Phag\" typeface=\"Phagspa\"/><a:font script=\"Syrn\" typeface=\"Estrangelo Edessa\"/><a:font script=\"Syrj\" typeface=\"Estrangelo Edessa\"/><a:font script=\"Syre\" typeface=\"Estrangelo Edessa\"/><a:font script=\"Sora\" typeface=\"Nirmala UI\"/><a:font script=\"Tale\" typeface=\"Microsoft Tai Le\"/><a:font script=\"Talu\" typeface=\"Microsoft New Tai Lue\"/><a:font script=\"Tfng\" typeface=\"Ebrima\"/></a:minorFont></a:fontScheme><a:fmtScheme name=\"Office\"><a:fillStyleLst><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill><a:gradFill rotWithShape=\"1\"><a:gsLst><a:gs pos=\"0\"><a:schemeClr val=\"phClr\"><a:lumMod val=\"110000\"/><a:satMod val=\"105000\"/><a:tint val=\"67000\"/></a:schemeClr></a:gs><a:gs pos=\"50000\"><a:schemeClr val=\"phClr\"><a:lumMod val=\"105000\"/><a:satMod val=\"103000\"/><a:tint val=\"73000\"/></a:schemeClr></a:gs><a:gs pos=\"100000\"><a:schemeClr val=\"phClr\"><a:lumMod val=\"105000\"/><a:satMod val=\"109000\"/><a:tint val=\"81000\"/></a:schemeClr></a:gs></a:gsLst><a:lin ang=\"5400000\" scaled=\"0\"/></a:gradFill><a:gradFill rotWithShape=\"1\"><a:gsLst><a:gs pos=\"0\"><a:schemeClr val=\"phClr\"><a:satMod val=\"103000\"/><a:lumMod val=\"102000\"/><a:tint val=\"94000\"/></a:schemeClr></a:gs><a:gs pos=\"50000\"><a:schemeClr val=\"phClr\"><a:satMod val=\"110000\"/><a:lumMod val=\"100000\"/><a:shade val=\"100000\"/></a:schemeClr></a:gs><a:gs pos=\"100000\"><a:schemeClr val=\"phClr\"><a:lumMod val=\"99000\"/><a:satMod val=\"120000\"/><a:shade val=\"78000\"/></a:schemeClr></a:gs></a:gsLst><a:lin ang=\"5400000\" scaled=\"0\"/></a:gradFill></a:fillStyleLst><a:lnStyleLst><a:ln w=\"12700\" cap=\"flat\" cmpd=\"sng\" algn=\"ctr\"><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill><a:prstDash val=\"solid\"/><a:miter lim=\"800000\"/></a:ln><a:ln w=\"19050\" cap=\"flat\" cmpd=\"sng\" algn=\"ctr\"><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill><a:prstDash val=\"solid\"/><a:miter lim=\"800000\"/></a:ln><a:ln w=\"25400\" cap=\"flat\" cmpd=\"sng\" algn=\"ctr\"><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill><a:prstDash val=\"solid\"/><a:miter lim=\"800000\"/></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst><a:outerShdw blurRad=\"57150\" dist=\"19050\" dir=\"5400000\" algn=\"ctr\" rotWithShape=\"0\"><a:srgbClr val=\"000000\"><a:alpha val=\"63000\"/></a:srgbClr></a:outerShdw></a:effectLst></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill><a:solidFill><a:schemeClr val=\"phClr\"><a:tint val=\"95000\"/><a:satMod val=\"170000\"/></a:schemeClr></a:solidFill><a:gradFill rotWithShape=\"1\"><a:gsLst><a:gs pos=\"0\"><a:schemeClr val=\"phClr\"><a:tint val=\"93000\"/><a:satMod val=\"150000\"/><a:shade val=\"98000\"/><a:lumMod val=\"102000\"/></a:schemeClr></a:gs><a:gs pos=\"50000\"><a:schemeClr val=\"phClr\"><a:tint val=\"98000\"/><a:satMod val=\"130000\"/><a:shade val=\"90000\"/><a:lumMod val=\"103000\"/></a:schemeClr></a:gs><a:gs pos=\"100000\"><a:schemeClr val=\"phClr\"><a:shade val=\"63000\"/><a:satMod val=\"120000\"/></a:schemeClr></a:gs></a:gsLst><a:lin ang=\"5400000\" scaled=\"0\"/></a:gradFill></a:bgFillStyleLst></a:fmtScheme></a:themeElements><a:objectDefaults><a:lnDef><a:spPr/><a:bodyPr/><a:lstStyle/><a:style><a:lnRef idx=\"2\"><a:schemeClr val=\"accent1\"/></a:lnRef><a:fillRef idx=\"0\"><a:schemeClr val=\"accent1\"/></a:fillRef><a:effectRef idx=\"1\"><a:schemeClr val=\"accent1\"/></a:effectRef><a:fontRef idx=\"minor\"><a:schemeClr val=\"tx1\"/></a:fontRef></a:style></a:lnDef></a:objectDefaults><a:extraClrSchemeLst/><a:extLst><a:ext uri=\"{05A4C25C-085E-4340-85A3-A5531E510DB2}\"><thm15:themeFamily xmlns:thm15=\"http://schemas.microsoft.com/office/thememl/2012/main\" name=\"Office Theme\" id=\"{2E142A2C-CD16-42D6-873A-C26D2A0506FA}\" vid=\"{1BDDFF52-6CD6-40A5-AB3C-68EB2F1E4D0A}\"/></a:ext></a:extLst></a:theme>", "cols": {"sum": "<cols><col min=\"1\" max=\"1\" width=\"1.19921875\" style=\"41\" customWidth=\"1\"/><col min=\"2\" max=\"2\" width=\"27.796875\" style=\"41\" customWidth=\"1\"/><col min=\"3\" max=\"3\" width=\"112.69921875\" style=\"41\" customWidth=\"1\"/><col min=\"4\" max=\"4\" width=\"40.796875\" style=\"41\" customWidth=\"1\"/><col min=\"5\" max=\"5\" width=\"40.19921875\" style=\"41\" customWidth=\"1\"/><col min=\"6\" max=\"6\" width=\"50.5\" style=\"42\" bestFit=\"1\" customWidth=\"1\" collapsed=\"1\"/><col min=\"7\" max=\"7\" width=\"74.19921875\" style=\"41\" customWidth=\"1\"/><col min=\"8\" max=\"8\" width=\"50.5\" style=\"42\" customWidth=\"1\" collapsed=\"1\"/><col min=\"9\" max=\"9\" width=\"67.3984375\" style=\"41\" customWidth=\"1\"/><col min=\"10\" max=\"12\" width=\"40.19921875\" style=\"41\" hidden=\"1\" customWidth=\"1\" outlineLevel=\"1\"/><col min=\"13\" max=\"13\" width=\"53\" style=\"41\" hidden=\"1\" customWidth=\"1\" outlineLevel=\"1\"/><col min=\"14\" max=\"14\" width=\"50.5\" style=\"42\" customWidth=\"1\" collapsed=\"1\"/><col min=\"15\" max=\"18\" width=\"107.69921875\" style=\"43\" customWidth=\"1\"/><col min=\"19\" max=\"19\" width=\"101.3984375\" style=\"42\" customWidth=\"1\"/><col min=\"20\" max=\"20\" width=\"34.69921875\" style=\"41\" bestFit=\"1\" customWidth=\"1\"/><col min=\"21\" max=\"21\" width=\"97.19921875\" style=\"41\" customWidth=\"1\"/><col min=\"22\" max=\"22\" width=\"38.3984375\" style=\"42\" bestFit=\"1\" customWidth=\"1\"/><col min=\"23\" max=\"23\" width=\"19\" style=\"41\" customWidth=\"1\"/><col min=\"24\" max=\"16384\" width=\"9\" style=\"41\"/></cols>", "p1": "<cols><col min=\"1\" max=\"1\" width=\"35.69921875\" bestFit=\"1\" customWidth=\"1\"/><col min=\"2\" max=\"2\" width=\"10.296875\" style=\"39\" bestFit=\"1\" customWidth=\"1\"/><col min=\"3\" max=\"3\" width=\"21.19921875\" style=\"39\" bestFit=\"1\" customWidth=\"1\"/></cols>", "p2": "<cols><col min=\"1\" max=\"1\" width=\"21.19921875\" bestFit=\"1\" customWidth=\"1\"/><col min=\"2\" max=\"2\" width=\"15.19921875\" bestFit=\"1\" customWidth=\"1\"/><col min=\"3\" max=\"3\" width=\"10.3984375\" bestFit=\"1\" customWidth=\"1\"/><col min=\"4\" max=\"5\" width=\"13.296875\" bestFit=\"1\" customWidth=\"1\"/><col min=\"6\" max=\"7\" width=\"12.59765625\" bestFit=\"1\" customWidth=\"1\"/><col min=\"8\" max=\"8\" width=\"15.19921875\" bestFit=\"1\" customWidth=\"1\"/><col min=\"9\" max=\"9\" width=\"12.59765625\" bestFit=\"1\" customWidth=\"1\"/><col min=\"10\" max=\"10\" width=\"9.3984375\" bestFit=\"1\" customWidth=\"1\"/><col min=\"11\" max=\"11\" width=\"10.3984375\" bestFit=\"1\" customWidth=\"1\"/><col min=\"12\" max=\"12\" width=\"9.3984375\" bestFit=\"1\" customWidth=\"1\"/><col min=\"13\" max=\"13\" width=\"12.59765625\" bestFit=\"1\" customWidth=\"1\"/><col min=\"14\" max=\"15\" width=\"8.59765625\" bestFit=\"1\" customWidth=\"1\"/><col min=\"16\" max=\"16\" width=\"12.59765625\" bestFit=\"1\" customWidth=\"1\"/></cols>", "p3": "<cols><col min=\"1\" max=\"1\" width=\"19.796875\" bestFit=\"1\" customWidth=\"1\"/><col min=\"2\" max=\"2\" width=\"10.296875\" style=\"39\" bestFit=\"1\" customWidth=\"1\"/><col min=\"3\" max=\"3\" width=\"21.19921875\" style=\"39\" bestFit=\"1\" customWidth=\"1\"/><col min=\"13\" max=\"13\" width=\"23.796875\" customWidth=\"1\"/></cols>", "raw": "<cols><col min=\"1\" max=\"2\" width=\"9\" style=\"1\"/><col min=\"3\" max=\"3\" width=\"9\" style=\"1\" customWidth=\"1\"/><col min=\"4\" max=\"10\" width=\"9\" style=\"1\"/><col min=\"11\" max=\"11\" width=\"19.19921875\" style=\"1\" customWidth=\"1\"/><col min=\"12\" max=\"12\" width=\"16.59765625\" style=\"1\" customWidth=\"1\"/><col min=\"13\" max=\"13\" width=\"20.69921875\" style=\"14\" customWidth=\"1\"/><col min=\"14\" max=\"14\" width=\"13.296875\" style=\"14\" bestFit=\"1\" customWidth=\"1\"/><col min=\"15\" max=\"15\" width=\"17.796875\" style=\"1\" customWidth=\"1\"/><col min=\"16\" max=\"19\" width=\"14.59765625\" style=\"15\" customWidth=\"1\"/><col min=\"20\" max=\"24\" width=\"9\" style=\"1\"/><col min=\"25\" max=\"25\" width=\"9.3984375\" style=\"1\" bestFit=\"1\" customWidth=\"1\"/><col min=\"26\" max=\"28\" width=\"9\" style=\"1\"/><col min=\"29\" max=\"29\" width=\"12.09765625\" style=\"1\" customWidth=\"1\"/><col min=\"30\" max=\"30\" width=\"12.8984375\" style=\"1\" bestFit=\"1\" customWidth=\"1\"/><col min=\"31\" max=\"16384\" width=\"9\" style=\"1\"/></cols>", "eos": "<cols><col min=\"12\" max=\"12\" width=\"45.69921875\" customWidth=\"1\"/></cols>"}};
+let _esFile = null, _esCur = null;
+function esT(v){ return v==null ? "" : String(v).replace(/[ \s]+/g," ").trim(); }
+async function esLoad(f, say){
+  say(`원본 읽는 중… (${(f.size/1048576).toFixed(1)}MB, 10초 안팎)`); await liqTick();
+  const buf = await f.arrayBuffer();
+  const names = XLSX.read(buf, { type:"array", bookSheets:true }).SheetNames;
+  const want = names.filter(n=> /^(RAW|EOS)$/i.test(esT(n)));
+  const wb = XLSX.read(buf, { type:"array", sheets: want.length ? want : names, dense:true });
+  const get = n=>{ const ws = wb.Sheets[n]; if(!ws || !ws["!ref"]) return null; const rg = XLSX.utils.decode_range(ws["!ref"]);
+    const aoa = XLSX.utils.sheet_to_json(ws, { header:1, defval:null, raw:true }); return { aoa, r0: rg.s.r, c0: rg.s.c }; };
+  let raw = null, rawName = null;
+  for(const n of Object.keys(wb.Sheets).sort((a,b)=> (esT(b).toUpperCase()==="RAW") - (esT(a).toUpperCase()==="RAW"))){
+    const S = get(n); if(!S || S.c0!==0) continue;
+    for(let i=0;i<Math.min(S.aoa.length,12);i++){ const s = Array.from(S.aoa[i]||[], esT);
+      if(s[1]==="No." && s[14]==="상품명" && /판매가/.test(s[18]||"")){ raw = Object.assign(S, { hi:i }); rawName = n; break; } }
+    if(raw) break;
+  }
+  if(!raw) throw new Error('RAW 시트(2행 머리글 Grouping · No. · FC … 상품명 · 수량 · 면세유무 · 판매단가 · 판매가)를 찾지 못했습니다');
+  const en = Object.keys(wb.Sheets).find(n=> esT(n).toUpperCase()==="EOS");
+  const eos = en ? get(en) : null;
+  return { raw, rawName, eos, eosName: en || null };
+}
+function esAnalyze(D){
+  const A = D.raw.aoa, hi = D.raw.hi, H = Array.from(A[hi]||[], esT);
+  const rows = []; for(let i=hi+1;i<A.length;i++){ const v = A[i]||[]; if(esT(v[1])) rows.push(v); }
+  // LOT 목록 표(오른쪽): V~Y = NO. | FC | PLT | Min Bid,  AA~AC = NO | PLT | MIN BID AMT
+  const iV = H.indexOf("NO.", 19), iA = H.findIndex((h,i)=> i>19 && i!==iV && h==="NO");
+  const vList = [], aList = [];
+  if(iV>=0) for(let i=hi+1;i<A.length;i++){ const v=A[i]||[]; const no=esT(v[iV]).toUpperCase(); if(!no) continue; vList.push({ no, fc:esT(v[iV+1]), plt:+v[iV+2]||0, bid: v[iV+3]==null||v[iV+3]===""?null:+v[iV+3] }); }
+  if(iA>=0) for(let i=hi+1;i<A.length;i++){ const v=A[i]||[]; const no=esT(v[iA]).toUpperCase(); if(!no) continue; aList.push({ no, plt:+v[iA+1]||0, bid: v[iA+2]==null||v[iA+2]===""?null:+v[iA+2] }); }
+  // EOS 시트 (NO. | FC | 센터 | Unit | Pallet …)
+  let eosHdr = ["NO.","FC","센터","Unit"," Pallet "], eosRows = [];
+  if(D.eos){ const E = D.eos.aoa;
+    for(let i=0;i<Math.min(E.length,10);i++){ const s = Array.from(E[i]||[], esT); if(s[0]==="NO." && s[1]==="FC"){ eosHdr = (E[i]||[]).slice(0,5);
+      for(let j=i+1;j<E.length;j++){ const v=E[j]||[]; if(!esT(v[0]) || !esT(v[1])) continue; eosRows.push(v.slice(0,5)); } break; } } }
+  eosRows.sort((a,b)=>{ const x=esT(a[0]).toUpperCase(), y=esT(b[0]).toUpperCase(); if(x!==y) return x<y?-1:1; const c=esT(a[2]), d=esT(b[2]); return c<d?-1:c>d?1:0; });
+  const lotSet = new Set(rows.map(r=> esT(r[1]).toUpperCase()));
+  const order = aList.length ? aList.map(x=>x.no).filter(n=> lotSet.has(n)) : [...lotSet].sort();
+  lotSet.forEach(n=>{ if(!order.includes(n)) order.push(n); });
+  const lots = order.map(no=>{
+    const src = rows.filter(r=> esT(r[1]).toUpperCase()===no);
+    const er = eosRows.filter(r=> esT(r[0]).toUpperCase()===no);
+    const centers = er.map(r=> esT(r[2])).filter(Boolean);
+    const eosFc = new Set(er.map(r=> esT(r[1]).toUpperCase()));
+    const vs = vList.filter(x=> x.no===no), aa = aList.find(x=> x.no===no);
+    let plt, extras;
+    if(vs.length || aa){
+      plt = aa ? aa.plt : vs.reduce((s,x)=> s+x.plt, 0);
+      extras = vs.filter(x=> !eosFc.has(x.fc.toUpperCase())).map(x=>{ const m = /^(XL[A-Z])\s*\(\s*([A-Z]+)\d*\s*\)$/i.exec(x.fc); return { label: m ? `${m[2].toUpperCase()} ${m[1].toUpperCase()}` : x.fc, plt:x.plt }; });
+    } else {   // 표가 없으면 ④ 낙찰파일과 같은 계산(EOS Pallet 합 + EOS 외 그룹 로케이션 수)
+      const grp = new Map(); src.forEach(r=>{ const g = esT(r[0]).toUpperCase()||"EOS"; if(g==="EOS") return; const k=g+"|"+esT(r[2]); if(!grp.has(k)) grp.set(k,{ g, fc:esT(r[2]), locs:new Set() }); const l=esT(r[10]); if(l) grp.get(k).locs.add(l); });
+      extras = [...grp.values()].map(x=>({ label: x.g==="XLW" ? "XLW" : `${x.fc.replace(/\d.*$/,"").toUpperCase()} ${x.g}`, plt:x.locs.size }));
+      plt = er.reduce((s,r)=> s+(+r[4]||0), 0) + extras.reduce((s,x)=> s+x.plt, 0);
+    }
+    const bid = aa && aa.bid!=null ? aa.bid : ((vs.find(x=> x.bid!=null)||{}).bid ?? null);
+    let F = 0, N = 0, Q = 0; const cat = new Map();
+    src.forEach(r=>{ const s = +r[18]||0, q = +r[15]||0; F += s; Q += q; if(esT(r[0]).toUpperCase()==="EOS") N += s;
+      const c = esT(r[6]) || "(비어 있음)"; const o = cat.get(c) || { q:0, s:0 }; o.q += q; o.s += s; cat.set(c, o); });
+    const cats = [...cat.entries()].map(([c,o])=>({ c, q:o.q, s:o.s })).sort((a,b)=> b.s-a.s);
+    const pltText = extras.length ? `${plt}\n(${extras.map(x=>`${x.label} ${x.plt}PLT`).join(", ")})` : plt;
+    return { no, centers, centerText: centers.join(" "), plt, extras, pltText, bid, F, N, H: F-N, Q, rows: src.length, cats,
+             top: cats.slice(0,4).map(x=> `${x.c} (${Math.round(x.q)}EA ₩${Math.round(x.s).toLocaleString("en-US")})`) };
+  });
+  return { H, hi, rows, lots, eosHdr, eosRows, vList, aList, iV, iA };
+}
+async function esBuild(ff, D, srcName, prog){
+  prog = prog || function(){};
+  const tick = ()=> new Promise(r=> setTimeout(r,0));
+  prog("원본 분석 중…"); await tick();
+  const Z = esAnalyze(D), T = ES_TPL, N = Z.lots.length;
+  if(!N) throw new Error("RAW 시트에 LOT(No.) 행이 없습니다");
+  const out = [], zip = new ff.Zip((err,dat)=>{ if(err) throw err; out.push(dat); });
+  const enc = new TextEncoder(), LV = 3;
+  const addText = (name,str)=>{ const f = new ff.ZipDeflate(name,{ level:LV }); zip.add(f); f.push(enc.encode(str), true); };
+  const stream = name=>{ const f = new ff.ZipDeflate(name,{ level:LV }); zip.add(f); let buf=[], len=0;
+    return { w:s=>{ buf.push(s); len+=s.length; if(len>(1<<21)){ f.push(enc.encode(buf.join(""))); buf=[]; len=0; } }, end:()=>{ f.push(enc.encode(buf.join("")), true); } }; };
+  const sst = new LsSst(), C = lsCell, L = lsCol;
+  const head = (cols, view, fmt)=> '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet '+LS_NS+'><sheetViews>'+view+'</sheetViews>'+(fmt||'<sheetFormatPr defaultRowHeight="17.399999999999999"/>')+(cols||"")+'<sheetData>';
+  const tail = (extra)=> '</sheetData>'+(extra||"")+'<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/></worksheet>';
+  const today = fmtDate(new Date()).replace(/-/g,"");
+  // ---- 1) ★임박 요약
+  prog("요약 시트 작성 중…"); await tick();
+  (function(){
+    const s = stream("xl/worksheets/sheet1.xml");
+    s.w(head(T.cols.sum, '<sheetView tabSelected="1" zoomScale="25" zoomScaleNormal="25" workbookViewId="0"><pane xSplit="2" ySplit="3" topLeftCell="C4" activePane="bottomRight" state="frozen"/><selection pane="bottomRight" activeCell="J4" sqref="J4"/></sheetView>',
+      '<sheetFormatPr defaultColWidth="9" defaultRowHeight="17.399999999999999" outlineLevelCol="1"/>'));
+    s.w('<row r="1" ht="18" customHeight="1"/>');
+    let x = C("B2", { f:'(TEXT(TODAY(),"yyyymmdd")&"_FC 아리바 비딩건(임박)")', v:`${today}_FC 아리바 비딩건(임박)` }, 44, sst);
+    "CDEFGHIJKLMNOPQ".split("").forEach(c=> x += C(c+"2", null, 45, sst)); x += C("R2", null, 46, sst) + C("S2", null, 47, sst) + C("V2", null, 47, sst);
+    s.w('<row r="2" s="48" customFormat="1" ht="69.900000000000006" customHeight="1">'+x+'</row>');
+    const h3 = [["B","NO",49],["C","센터명",50],["D"," PLT ",51],["E","최소입찰가",52],["F","판매가 총액",52],["G","최소입찰가/판매가 총액",53],["H","임박 금액",54],["I","최소입찰가/임박 금액",53],
+      ["J","상한가",55],["K","상한가요율",56],["L","현재입찰가",56],["M","현재입찰가요율",57],["N","임박 이외 금액",58],["O","TOP 1",59],["P","TOP 2",60],["Q","TOP 3",60],["R","TOP 4",61],["S",null,62],["T",null,62],["V",null,64]];
+    s.w('<row r="3" s="63" customFormat="1" ht="54.9" customHeight="1">'+h3.map(a=> C(a[0]+"3", a[1], a[2], sst)).join("")+'</row>');
+    Z.lots.forEach((o,i)=>{
+      const r = 4+i;
+      const u = `${o.centerText}(${o.no},${o.pltText}PLT)`;
+      let y = C("B"+r, o.no, 65, sst) + C("C"+r, o.centerText, 66, sst) + C("D"+r, o.pltText, 67, sst) + C("E"+r, o.bid, 68, sst) + C("F"+r, o.F, 69, sst)
+        + C("G"+r, { f:`E${r}/F${r}`, v: o.bid!=null && o.F ? o.bid/o.F : 0 }, 70, sst) + C("H"+r, { f:`F${r}-N${r}`, v:o.F-o.N }, 71, sst)
+        + C("I"+r, { f:`E${r}/H${r}`, v: o.bid!=null && (o.F-o.N) ? o.bid/(o.F-o.N) : 0 }, 70, sst)
+        + C("J"+r, null, 72, sst) + C("K"+r, { f:`J${r}/F${r}`, v:0 }, 73, sst) + C("L"+r, null, 74, sst) + C("M"+r, { f:`L${r}/F${r}`, v:0 }, 75, sst)
+        + C("N"+r, o.N, 76, sst) + ["O","P","Q","R"].map((c,j)=> C(c+r, o.top[j]||null, 77+j, sst)).join("")
+        + C("S"+r, null, 81, sst) + C("T"+r, null, 81, sst) + C("U"+r, { f:`C${r}&("("&(B${r}&","&D${r}&"PLT"&")"))`, v:u }, 82, sst);
+      for(let c=21;c<=45;c++) y += C(L(c)+r, null, 81, sst);
+      s.w('<row r="'+r+'" s="83" customFormat="1" ht="126.6" customHeight="1">'+y+'</row>');
+    });
+    const t = 4+N, a = 4, b = 3+N, sum = k=> Z.lots.reduce((s,o)=> s+(+o[k]||0), 0);
+    const avg = f=> N ? Z.lots.reduce((s,o)=> s+f(o), 0)/N : 0;
+    let z = C("B"+t, "총합계", 85, sst) + C("C"+t, { f:`COUNTA(C${a}:C${b})&"건"`, v:`${N}건` }, 86, sst) + C("D"+t, { f:`SUM(D${a}:D${b})`, v:Z.lots.reduce((s,o)=> s+(typeof o.pltText==="number"?o.pltText:0),0) }, 87, sst)
+      + C("E"+t, { f:`SUM(E${a}:E${b})`, v:sum("bid") }, 88, sst) + C("F"+t, { f:`SUM(F${a}:F${b})`, v:sum("F") }, 88, sst)
+      + C("G"+t, { f:`SUBTOTAL(9,G${a}:G${b})/COUNTA(G${a}:G${b})`, v:avg(o=> o.bid!=null && o.F ? o.bid/o.F : 0) }, 89, sst)
+      + C("H"+t, { f:`SUM(H${a}:H${b})`, v:sum("H") }, 87, sst)
+      + C("I"+t, { f:`SUBTOTAL(9,I${a}:I${b})/COUNTA(I${a}:I${b})`, v:avg(o=> o.bid!=null && o.H ? o.bid/o.H : 0) }, 90, sst)
+      + ["J","K","L","M"].map(c=> C(c+t, null, 90, sst)).join("") + C("N"+t, { f:`SUM(N${a}:N${b})`, v:sum("N") }, 88, sst)
+      + ["O","P","Q"].map(c=> C(c+t, { f:`SUBTOTAL(9,${c}${a}:${c}${b})`, v:0 }, 91, sst)).join("") + C("R"+t, { f:`SUBTOTAL(9,R${a}:R${b})`, v:0 }, 92, sst)
+      + C("S"+t, null, 93, sst) + C("T"+t, null, 94, sst) + C("U"+t, null, 84, sst);
+    for(let c=21;c<=45;c++) z += C(L(c)+t, null, 94, sst);
+    s.w('<row r="'+t+'" s="62" customFormat="1" ht="49.5" customHeight="1">'+z+'</row>');
+    s.w(tail('<mergeCells count="1"><mergeCell ref="B2:R2"/></mergeCells>')); s.end();
+  })();
+  // ---- 2~4) 피벗 시트 (자리는 비움 — 엑셀이 열 때 피벗이 채움)
+  [["sheet2.xml",T.cols.p1],["sheet3.xml",T.cols.p2],["sheet4.xml",T.cols.p3]].forEach(([fn,cols])=>{ const s = stream("xl/worksheets/"+fn); s.w(head(cols,'<sheetView workbookViewId="0"/>')); s.w(tail()); s.end(); });
+  // ---- 5) RAW (원본 그대로 · 1행 SUBTOTAL · 오른쪽 LOT 표)
+  prog("RAW 작성 중… (행이 많아 몇 초 걸립니다)"); await tick();
+  const A = D.raw.aoa, r0 = D.raw.r0, hi = Z.hi;
+  const rawTot = [15,16,17,18].map(j=> Z.rows.reduce((s,v)=> s+(typeof v[j]==="number"?v[j]:0), 0));
+  const S2 = [8,8,8,8,8,8,8,8,8,8,8,8,9,9,8,10,10,10,10], SD = [1,2,2,2,2,2,2,2,2,2,2,2,2,5,2,12,13,13,13];
+  (function(){
+    const s = stream("xl/worksheets/sheet5.xml");
+    s.w(head(T.cols.raw, '<sheetView zoomScale="85" zoomScaleNormal="85" workbookViewId="0"/>', '<sheetFormatPr defaultColWidth="9" defaultRowHeight="15.6"/>'));
+    const lastRow = r0 + A.length;
+    for(let i=0;i<A.length;i++){
+      const r = r0+i+1, v = A[i]||[];
+      let x = "";
+      if(i<hi){ if(r===1) [15,16,17,18].forEach((j,k)=>{ x += C(L(j)+"1", { f:`SUBTOTAL(9,${L(j)}3:${L(j)}1048576)`, v:rawTot[k] }, 7, sst); }); s.w('<row r="'+r+'">'+x+'</row>'); continue; }
+      if(i===hi){
+        for(let c=0;c<v.length;c++){ if(v[c]==null) continue; const st = c<19 ? S2[c] : (c>=Z.iV && c<Z.iV+4 ? 30 : (c===Z.iA ? 31 : 18)); x += C(L(c)+r, v[c], st, sst); }
+        s.w('<row r="'+r+'" s="11" customFormat="1">'+x+'</row>'); continue;
+      }
+      for(let c=0;c<v.length;c++){
+        let val = v[c]; if(val==null || val==="") continue;
+        let st = c<19 ? SD[c] : 81;
+        if(Z.iV>=0 && c>=Z.iV && c<Z.iV+4) st = c===Z.iV+3 ? 32 : 16;
+        if(Z.iA>=0 && c>=Z.iA && c<Z.iA+3){ st = [19,20,21][c-Z.iA]; if(c===Z.iA+1) val = { f:`SUMIFS(${L(Z.iV+2)}:${L(Z.iV+2)},${L(Z.iV)}:${L(Z.iV)},${L(Z.iA)}${r})`, v:val }; }
+        x += C(L(c)+r, val, st, sst);
+      }
+      s.w('<row r="'+r+'">'+x+'</row>');
+    }
+    s.w(tail('<autoFilter ref="A'+(r0+hi+1)+':S'+lastRow+'"/>')); s.end();
+  })();
+  const lastRawRow = r0 + A.length;
+  // ---- 6) EOS (NO. → 센터 순 정렬 · G = 그 LOT 센터 묶음 · L = LOT별 센터 묶음 목록)
+  prog("EOS 시트 작성 중…"); await tick();
+  (function(){
+    const s = stream("xl/worksheets/sheet6.xml");
+    s.w(head(T.cols.eos, '<sheetView workbookViewId="0"/>'));
+    s.w('<row r="1" ht="18" customHeight="1">'+C("A1", null, 22, sst)+'</row>');
+    s.w('<row r="2" ht="18" customHeight="1">'+[23,24,25,24,24].map((st,j)=> C(L(j)+"2", Z.eosHdr[j]==null?null:Z.eosHdr[j], st, sst)).join("")+'</row>');
+    const byLot = new Map(Z.lots.map(o=> [o.no, o.centerText]));
+    const n = Math.max(Z.eosRows.length, Z.lots.length);
+    for(let i=0;i<n;i++){
+      const r = 3+i, v = Z.eosRows[i]; let x = "";
+      if(v){ x += C("A"+r, v[0], 26, sst) + C("B"+r, v[1], 27, sst) + C("C"+r, v[2], 28, sst) + C("D"+r, v[3]==null?null:+v[3], 29, sst) + C("E"+r, v[4]==null?null:+v[4], 27, sst)
+        + C("G"+r, byLot.get(esT(v[0]).toUpperCase())||"", 101, sst); }
+      if(i<Z.lots.length) x += C("L"+r, Z.lots[i].centerText, null, sst);
+      s.w('<row r="'+r+'"'+(v?' ht="70.2" customHeight="1"':'')+'>'+x+'</row>');
+    }
+    s.w(tail()); s.end();
+  })();
+  // ---- 피벗 캐시 1개 + 피벗 3개
+  prog("피벗 · 파일 마무리 중…"); await tick();
+  const H = Array.from(A[hi]||[]).slice(0,19); const seen = {};
+  const fields = H.map((h,i)=>{ let n = h==null||String(h).trim()==="" ? "열"+(i+1) : String(h); let k=n, j=2; while(seen[k]) k=n+j++; seen[k]=1; return k; });
+  while(fields.length<19) fields.push("열"+(fields.length+1));
+  const NUMF = new Set([15,17,18]);
+  addText("xl/pivotCache/pivotCacheDefinition1.xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotCacheDefinition '+LS_NS+' r:id="rId1" refreshOnLoad="1" createdVersion="6" refreshedVersion="6" minRefreshableVersion="3" recordCount="0"><cacheSource type="worksheet"><worksheetSource ref="A'+(r0+hi+1)+':S'+lastRawRow+'" sheet="RAW"/></cacheSource><cacheFields count="19">'
+    + fields.map((n,i)=> '<cacheField name="'+lsX(n)+'" numFmtId="0"><sharedItems'+(NUMF.has(i)?' containsSemiMixedTypes="0" containsString="0" containsNumber="1"':'')+'/></cacheField>').join("")+'</cacheFields></pivotCacheDefinition>');
+  addText("xl/pivotCache/pivotCacheRecords1.xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotCacheRecords '+LS_NS+' count="0"/>');
+  addText("xl/pivotCache/_rels/pivotCacheDefinition1.xml.rels",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/pivotCacheRecords" Target="pivotCacheRecords1.xml"/></Relationships>');
+  const sortScope = '<autoSortScope><pivotArea dataOnly="0" outline="0" fieldPosition="0"><references count="1"><reference field="4294967294" count="1" selected="0"><x v="DI"/></reference></references></pivotArea></autoSortScope>';
+  const pivotXml = (name, rowsF, colsF, dataF, sortF, loc)=>{
+    const pf = fields.map((n,i)=>{
+      const nf = NUMF.has(i) ? ' numFmtId="41"' : "";
+      if(rowsF.includes(i)) return sortF.includes(i) ? '<pivotField axis="axisRow" showAll="0" sortType="descending"><items count="1"><item t="default"/></items>'+sortScope.replace("DI", String(dataF.length-1))+'</pivotField>' : '<pivotField axis="axisRow" showAll="0"><items count="1"><item t="default"/></items></pivotField>';
+      if(colsF.includes(i)) return '<pivotField axis="axisCol" showAll="0"><items count="1"><item t="default"/></items></pivotField>';
+      if(dataF.some(d=> d[0]===i)) return '<pivotField dataField="1"'+nf+' showAll="0"/>';
+      return '<pivotField'+nf+' showAll="0"/>'; }).join("");
+    const cf = colsF.length ? '<colFields count="'+colsF.length+'">'+colsF.map(i=> '<field x="'+i+'"/>').join("")+'</colFields>' : (dataF.length>1 ? '<colFields count="1"><field x="-2"/></colFields>' : "");
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotTableDefinition xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" name="'+name+'" cacheId="1" applyNumberFormats="0" applyBorderFormats="0" applyFontFormats="0" applyPatternFormats="0" applyAlignmentFormats="0" applyWidthHeightFormats="1" dataCaption="값" updatedVersion="6" minRefreshableVersion="3" useAutoFormatting="1" itemPrintTitles="1" createdVersion="6" indent="0" outline="1" outlineData="1" multipleFieldFilters="0">'
+      +'<location ref="'+loc+'" firstHeaderRow="1" firstDataRow="1" firstDataCol="1"/><pivotFields count="19">'+pf+'</pivotFields>'
+      +'<rowFields count="'+rowsF.length+'">'+rowsF.map(i=> '<field x="'+i+'"/>').join("")+'</rowFields>'+cf
+      +'<dataFields count="'+dataF.length+'">'+dataF.map(d=> '<dataField name="'+lsX(d[1])+'" fld="'+d[0]+'" baseField="0" baseItem="0" numFmtId="41"/>').join("")+'</dataFields>'
+      +'<pivotTableStyleInfo name="PivotStyleLight16" showRowHeaders="1" showColHeaders="1" showRowStripes="0" showColStripes="0" showLastColumn="1"/></pivotTableDefinition>';
+  };
+  const dQ = [15, "합계 : "+fields[15]], dS = [18, "합계 : "+fields[18]];
+  addText("xl/pivotTables/pivotTable1.xml", pivotXml("피벗 테이블1",[1,6,8],[],[dQ,dS],[6,8],"A3:C4"));
+  addText("xl/pivotTables/pivotTable2.xml", pivotXml("피벗 테이블2",[1],[6],[dS],[],"A3:B5"));
+  addText("xl/pivotTables/pivotTable3.xml", pivotXml("피벗 테이블3",[1,6],[],[dQ,dS],[6],"A3:C4"));
+  const pcRel = '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/pivotCacheDefinition" Target="../pivotCache/pivotCacheDefinition1.xml"/>';
+  const RELS = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';
+  [1,2,3].forEach(k=>{ addText("xl/pivotTables/_rels/pivotTable"+k+".xml.rels", RELS+pcRel+'</Relationships>');
+    addText("xl/worksheets/_rels/sheet"+(k+1)+".xml.rels", RELS+'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/pivotTable" Target="../pivotTables/pivotTable'+k+'.xml"/></Relationships>'); });
+  (function(){ const s = stream("xl/sharedStrings.xml"); s.w('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="'+sst.n+'" uniqueCount="'+sst.a.length+'">');
+    for(let i=0;i<sst.a.length;i++){ const t = sst.a[i]; s.w('<si><t'+(/^\s|\s$|\n/.test(t)?' xml:space="preserve"':'')+'>'+lsX(t)+'</t></si>'); } s.w('</sst>'); s.end(); })();
+  addText("xl/styles.xml", T.styles);
+  addText("xl/theme/theme1.xml", T.theme);
+  const names = ["★임박 요약","종합","Sheet1","Sheet2","RAW","EOS"];
+  addText("xl/workbook.xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook '+LS_NS+'><bookViews><workbookView activeTab="0"/></bookViews><sheets>'+names.map((n,i)=> '<sheet name="'+lsX(n)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>').join("")
+    +'</sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="4" hidden="1">RAW!$A$'+(r0+hi+1)+':$S$'+lastRawRow+'</definedName></definedNames><calcPr calcId="191029" fullCalcOnLoad="1"/><pivotCaches><pivotCache cacheId="1" r:id="rId'+(names.length+4)+'"/></pivotCaches></workbook>');
+  addText("xl/_rels/workbook.xml.rels", RELS+names.map((n,i)=> '<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>').join("")
+    +'<Relationship Id="rId'+(names.length+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId'+(names.length+2)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/><Relationship Id="rId'+(names.length+3)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/><Relationship Id="rId'+(names.length+4)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/pivotCacheDefinition" Target="pivotCache/pivotCacheDefinition1.xml"/></Relationships>');
+  addText("_rels/.rels", RELS+'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+  const CT = 'application/vnd.openxmlformats-officedocument.spreadsheetml.';
+  addText("[Content_Types].xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'
+    +'<Override PartName="/xl/workbook.xml" ContentType="'+CT+'sheet.main+xml"/>'+names.map((n,i)=> '<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="'+CT+'worksheet+xml"/>').join("")
+    +'<Override PartName="/xl/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/><Override PartName="/xl/styles.xml" ContentType="'+CT+'styles+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="'+CT+'sharedStrings+xml"/>'
+    +[1,2,3].map(k=> '<Override PartName="/xl/pivotTables/pivotTable'+k+'.xml" ContentType="'+CT+'pivotTable+xml"/>').join("")
+    +'<Override PartName="/xl/pivotCache/pivotCacheDefinition1.xml" ContentType="'+CT+'pivotCacheDefinition+xml"/><Override PartName="/xl/pivotCache/pivotCacheRecords1.xml" ContentType="'+CT+'pivotCacheRecords+xml"/></Types>');
+  zip.end();
+  const total = out.reduce((a,b)=> a+b.length, 0), res = new Uint8Array(total); let o2 = 0; out.forEach(b=>{ res.set(b,o2); o2 += b.length; });
+  const base = String(srcName||"FC_EOS_Liquidation").replace(/\.xls[bxm]?$/i,"");
+  const outName = (/원본/.test(base) ? base.replace(/원본/,"임박요약") : base+" - 임박요약") + ".xlsx";
+  return { bytes:res, name:outName, lots:Z.lots, rows:Z.rows.length, eos:Z.eosRows.length, hasList: Z.aList.length>0 || Z.vList.length>0 };
+}
+// ---- 화면
+async function esHandleFile(f){
+  const st = document.getElementById("esStatus"); if(!f) return;
+  if(!/\.xls[xm]$/i.test(f.name)){ st.innerHTML = '<span style="color:var(--red)">임박식품 원본 .xlsx 파일을 올려 주세요 (FC_EOS_Liquidation_… - 원본)</span>'; return; }
+  _esFile = f; _esCur = null; esRender();
+  const say = m=>{ st.textContent = m; };
+  try{
+    const ff = await fiLoadScript(LIQ_FFLATE_URL, "fflate");
+    const t0 = Date.now();
+    const D = await esLoad(f, say);
+    const r = await esBuild(ff, D, f.name, say);
+    r.sec = ((Date.now()-t0)/1000).toFixed(1); r.srcName = f.name; _esCur = r;
+    st.innerHTML = `✓ 임박 요약본 생성 완료 (${r.sec}초) — 아래에서 받으세요`;
+    esRender();
+    // ④ 낙찰파일 생성기에도 같은 원본을 넣어 둔다(LOT만 입력하면 바로 생성)
+    try{ if(typeof eosSetFile==="function" && (!_eosFile || _eosFile.name!==f.name || _eosFile.size!==f.size)) eosSetFile(f); }catch(_){}
+  }catch(e){ console.error(e); st.innerHTML = '<span style="color:var(--red)">생성 실패: '+escHtml(e && e.message || e)+'</span>'; }
+}
+function esRender(){
+  const el = document.getElementById("esResult"); if(!el) return;
+  const fi = document.getElementById("esFileInfo"); if(fi) fi.innerHTML = _esFile ? `원본: <b>${escHtml(_esFile.name)}</b> <span class="fi-mut">(${(_esFile.size/1048576).toFixed(1)}MB)</span>` : "";
+  if(!_esCur){ el.innerHTML = ""; return; }
+  const r = _esCur, won = v=> v==null ? "-" : Math.round(v).toLocaleString();
+  const tot = k=> r.lots.reduce((s,o)=> s+(+o[k]||0), 0);
+  el.innerHTML = `<div class="fi-file" style="margin-top:10px">
+    <div class="fi-file-hd"><span class="fi-type" style="border-color:#3A8DDE;color:#3A8DDE">임박 요약</span> <span class="fi-fname">${escHtml(r.name)}</span>
+      <button class="act primary fi-mini" id="esDl">⬇ 다운로드</button> <button class="act fi-mini fi-del" id="esDel" title="화면에서 결과 지우기">✕</button></div>
+    <table class="fi-tbl"><thead><tr><th>NO</th><th>센터명</th><th class="n">PLT</th><th class="n">최소입찰가</th><th class="n">판매가 총액</th><th class="n">최소입찰가/판매가</th><th>TOP 1</th><th>TOP 2</th></tr></thead><tbody>
+    ${r.lots.map(o=>`<tr><td><b>${escHtml(o.no)}</b></td><td style="white-space:normal">${escHtml(o.centerText)}</td><td class="n" style="white-space:pre-line">${escHtml(String(o.pltText))}</td>
+      <td class="n">${won(o.bid)}</td><td class="n">${won(o.F)}</td><td class="n">${o.bid!=null&&o.F?(o.bid/o.F*100).toFixed(1)+"%":"-"}</td>
+      <td style="white-space:normal;font-size:11.5px">${escHtml(o.top[0]||"")}</td><td style="white-space:normal;font-size:11.5px">${escHtml(o.top[1]||"")}</td></tr>`).join("")}
+    <tr style="font-weight:700"><td>합계</td><td>${r.lots.length}건</td><td class="n">${fiFmt(tot("plt"))}</td><td class="n">${won(tot("bid"))}</td><td class="n">${won(tot("F"))}</td><td></td><td></td><td></td></tr></tbody></table>
+    <div class="fi-mut" style="margin-top:6px">시트: ★임박 요약(상한가 · 현재입찰가 칸은 비워 둠 — 입력하면 요율 자동) · 종합 · Sheet1 · Sheet2(피벗 — 엑셀이 열 때 채움) · RAW · EOS · RAW ${fiFmt(r.rows)}행${r.hasList?"":" · ⚠ RAW 오른쪽 LOT 표가 없어 PLT·최소입찰가는 EOS 시트 기준으로 계산"}</div>
+    <div class="fi-mut" style="margin-top:4px">같은 원본이 ④ 임박식품 낙찰파일 생성기에도 들어갔습니다 — 낙찰 LOT 알파벳만 넣으면 됩니다.</div>
+  </div>`;
+}
+function wireEsSum(){
+  const box = document.getElementById("esBox"); if(!box || box._wired) return; box._wired = true;
+  const dz = document.getElementById("esDrop"), inp = document.getElementById("esInput");
+  dz.addEventListener("click", e=>{ if(e.target.closest("button")) return; inp.click(); });
+  dz.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); inp.click(); } });
+  inp.addEventListener("change", ()=>{ esHandleFile(inp.files && inp.files[0]); inp.value = ""; });
+  ["dragenter","dragover"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("dragover"); }));
+  ["dragleave","drop"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove("dragover"); }));
+  dz.addEventListener("drop", e=> esHandleFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]));
+  box.addEventListener("click", e=>{ const t = e.target.closest("button"); if(!t) return;
+    if(t.id==="esDl" && _esCur) fiDownloadBytes(_esCur.name, _esCur.bytes);
+    else if(t.id==="esDel"){ _esCur = null; _esFile = null; document.getElementById("esStatus").textContent = ""; esRender(); } });
+  esRender();
+}
+
 const EOS_LS = "eos_history_v1";
 let EOS_HISTORY = [];
 try{ EOS_HISTORY = JSON.parse(localStorage.getItem(EOS_LS)||"[]") || []; }catch(_){ EOS_HISTORY = []; }
@@ -15337,7 +15641,7 @@ function wireEosLiq(){
    글 붙여넣기 또는 캡처 이미지로 받아 배차 요청 행(센터 1곳 = 1행)으로 만든다.
    - 낙찰일 = BIDCODE(AF + 영문 + yy + 월(1~9,A,B,C) + dd + LOT 2자)에서 계산, 상차일 = 본문 "10/15(목) 오전 출고 요청"
    - 도착지는 매번 직접 선택(표 위 "모든 행 도착지"로 한 번에 지정 가능)
-   - ③ 임박식품 낙찰파일 기록(같은 LOT·날짜)의 EOS 표와 센터·PLT를 대조(이미지는 이 값으로 글자인식 보정) */
+   - ④ 임박식품 낙찰파일 기록(같은 LOT·날짜)의 EOS 표와 센터·PLT를 대조(이미지는 이 값으로 글자인식 보정) */
 var FI_FC_NAME_EXTRA = {};
 const FI_FC_EXTRA_LS = "fi_fc_name_extra_v1";
 try{ FI_FC_NAME_EXTRA = JSON.parse(localStorage.getItem(FI_FC_EXTRA_LS)||"{}") || {}; }catch(_){ FI_FC_NAME_EXTRA = {}; }
@@ -15422,7 +15726,7 @@ function eosDispParseText(text){
   });
   return rows;
 }
-// ③ 임박식품 낙찰파일 기록에서 EOS 표(LOT | FC | 센터 | Pallet) 찾기 — 같은 날짜(YYMMDD)·LOT 우선
+// ④ 임박식품 낙찰파일 기록에서 EOS 표(LOT | FC | 센터 | Pallet) 찾기 — 같은 날짜(YYMMDD)·LOT 우선
 async function eosDispHistTable(date, lots){
   const ymd6 = String(date||"").replace(/-/g,"").slice(2);
   const list = (typeof EOS_HISTORY!=="undefined" && Array.isArray(EOS_HISTORY)) ? EOS_HISTORY : [];
@@ -15537,7 +15841,7 @@ async function eosDispFinish(rows, text, fromImage){
     histNote.unshift(`낙찰파일 ${hist.h.date} (${(hist.h.lots||[]).join(",")}) EOS 표 ${eosSum}PLT와 대조`);
     if(other > 0) histNote.push(`EOS 외 그룹(XLA·XLB 등) ${other}PLT는 이 메일에 없음 — 쿠팡이 넘버 공유 후 별도 출고`);
   } else {
-    rows.forEach(r=>{ if(fromImage) r.warn.push("PLT·FC 글자인식 — 메일과 대조(같은 PC에서 ③ 임박식품 낙찰파일을 먼저 만들면 자동 보정)"); });
+    rows.forEach(r=>{ if(fromImage) r.warn.push("PLT·FC 글자인식 — 메일과 대조(같은 PC에서 ④ 임박식품 낙찰파일을 먼저 만들면 자동 보정)"); });
   }
   // build 135: 상차지 주소 · 담당자 · 연락처 · 비고 — 글은 기억, 이미지는 기억한 값으로 채움, 없으면 경고
   rows.forEach(r=>{
@@ -15812,7 +16116,7 @@ function eosDispQuestions(d){
       add({ id:k+"|"+f, i, type:"pick", field:f, text:`${nm(r)} · ${EOS_FLD[f]} — 자료마다 값이 다릅니다`, opts, input:true });
     });
     if(r.histPlt!=null && +r.histPlt !== +(r.src && r.src.pallets ? Object.values(r.src.pallets)[0] : r.pallets))
-      add({ id:k+"|hist", i, type:"pick", field:"pallets", text:`${nm(r)} · PLT — 메일 ${Object.values((r.src||{}).pallets||{})[0] ?? r.pallets} / ③ 낙찰파일 ${r.histPlt}`, opts:[[`${Object.values((r.src||{}).pallets||{})[0] ?? r.pallets} (메일)`, String(Object.values((r.src||{}).pallets||{})[0] ?? r.pallets)],[`${r.histPlt} (낙찰파일)`, String(r.histPlt)]], input:true });
+      add({ id:k+"|hist", i, type:"pick", field:"pallets", text:`${nm(r)} · PLT — 메일 ${Object.values((r.src||{}).pallets||{})[0] ?? r.pallets} / ④ 낙찰파일 ${r.histPlt}`, opts:[[`${Object.values((r.src||{}).pallets||{})[0] ?? r.pallets} (메일)`, String(Object.values((r.src||{}).pallets||{})[0] ?? r.pallets)],[`${r.histPlt} (낙찰파일)`, String(r.histPlt)]], input:true });
     if(r.wdBad)
       add({ id:k+"|wd", i, type:"pick", field:"outboundDate", text:`${nm(r)} — 비고 "${r.remark||r.opNote||""}" 인데 상차일이 ${r.outboundDate}(${r.wdBad})입니다. 상차일을 어떻게 할까요?`, opts:[[`그대로 ${r.outboundDate} (쿠팡 요청일)`, r.outboundDate]], input:true, ph:"YYYY-MM-DD" });
     if(r.dirFilled && !(r.srcs||[]).some(l=> !_eosIsImg(l)))
@@ -15925,12 +16229,13 @@ async function fiDispFromFile(f){
     else { const ta = document.getElementById("fiDispPaste"); if(ta) ta.value = text; fiDispFromText(text); }
   }catch(e){ if(st) st.textContent = "⚠ " + (e && e.message || e); }
 }
-/* build 139: 초기화 — 올려 둔(출력 대기 중인) 원본 · 입력칸 · 화면 결과 지우기. 각 기록(히스토리)은 그대로, ⑤ "전체 초기화"만 배차 요청 기록까지 삭제 */
+/* build 139: 초기화 — 올려 둔(출력 대기 중인) 원본 · 입력칸 · 화면 결과 지우기. 각 기록(히스토리)은 그대로, ⑥ "전체 초기화"만 배차 요청 기록까지 삭제 */
 function fiResetCard(k){
   const clr = id=>{ const e = document.getElementById(id); if(e) e.textContent = ""; };
   const val = id=>{ const e = document.getElementById(id); if(e) e.value = ""; };
   if(k==="ls"){ try{ _lsCur = null; }catch(_){} clr("lsStatus"); const i=document.getElementById("lsInput"); if(i) i.value=""; try{ lsRender(); }catch(_){} }
   if(k==="liq"){ try{ _liqFile = null; _liqCur = null; }catch(_){} val("liqLots"); const d=document.getElementById("liqDate"); if(d){ d.value=""; d.dataset.auto="1"; } clr("liqStatus"); val("liqInput"); try{ liqRender(); }catch(_){} }
+  if(k==="es"){ try{ _esFile = null; _esCur = null; }catch(_){} clr("esStatus"); val("esInput"); try{ esRender(); }catch(_){} }
   if(k==="eos"){ try{ _eosFile = null; _eosData = null; _eosCur = null; }catch(_){} val("eosLots"); val("eosDate"); clr("eosStatus"); val("eosInput"); try{ eosRender(); }catch(_){} }
   if(k==="fi"){ try{ _fiCur = null; }catch(_){} clr("fiStatus"); val("fiInput"); try{ fiRender(); }catch(_){} }
   if(k==="disp" || k==="dispAll"){
@@ -15944,7 +16249,7 @@ document.addEventListener("click", e=>{
   const b = e.target.closest && e.target.closest("button[data-all-dl]"); if(!b) return;
   e.preventDefault(); e.stopPropagation();
   const C = fiComboBuild();
-  if(!C.rows.length){ showNotice("받을 출고요청이 없습니다 — ⑤ 배차 요청서에 메일(.mhtml)·글·캡처를 넣거나, 배차 요청 기록에서 '열기'로 올려 주세요."); return; }
+  if(!C.rows.length){ showNotice("받을 출고요청이 없습니다 — ⑥ 배차 요청서에 메일(.mhtml)·글·캡처를 넣거나, 배차 요청 기록에서 '열기'로 올려 주세요."); return; }
   const lk = C.ents.filter(h=> !_fiCombo.off[h.id]).map(h=>({ h, s:fiComboState(h) })).filter(x=> x.s.pending || x.s.destMiss);
   if(lk.length){ showNotice("아직 끝나지 않은 배차 요청이 있습니다 — " + lk.map(x=> `${fiComboLabel(x.h)}: ${[x.s.pending?`확인 질문 ${x.s.pending}개`:"", x.s.destMiss?`도착지 미선택 ${x.s.destMiss}곳`:""].filter(Boolean).join(" · ")}`).join(" / ")); const el=document.getElementById("fiDispCombo"); if(el) el.scrollIntoView({behavior:"smooth"}); return; }
   const ds = C.dates.filter(Boolean), tag = ds.length ? (ds.length>1 ? `${ds[0].replace(/-/g,"")}-${ds[ds.length-1].slice(5).replace(/-/g,"")}` : ds[0].replace(/-/g,"")) : "날짜미정";
@@ -15954,14 +16259,14 @@ document.addEventListener("click", e=>{
   const b = e.target.closest && e.target.closest("button[data-reset]"); if(!b) return;
   e.preventDefault(); e.stopPropagation();
   const k = b.dataset.reset;
-  const name = { ls:"① 요약본 생성기", liq:"② 낙찰파일 생성기", eos:"③ 임박식품 낙찰파일 생성기", fi:"④ 고정인수", disp:"⑤ 배차 요청서" }[k];
+  const name = { ls:"① 요약본 생성기", liq:"② 낙찰파일 생성기", es:"③ 임박식품 요약본 생성기", eos:"④ 임박식품 낙찰파일 생성기", fi:"⑤ 고정인수", disp:"⑥ 배차 요청서" }[k];
   if(k==="all"){
-    if(!confirm("①~⑤에 올린 원본 파일 · 입력한 LOT · 화면 결과를 모두 지울까요?\n(낙찰파일 기록 · 분배 히스토리 · 배차 요청 기록은 그대로 남습니다)")) return;
-    ["ls","liq","eos","fi","disp"].forEach(fiResetCard); if(typeof flash==="function") flash("초기화 완료 ✓", "업로드 자료"); return;
+    if(!confirm("①~⑥에 올린 원본 파일 · 입력한 LOT · 화면 결과를 모두 지울까요?\n(낙찰파일 기록 · 분배 히스토리 · 배차 요청 기록은 그대로 남습니다)")) return;
+    ["ls","liq","es","eos","fi","disp"].forEach(fiResetCard); if(typeof flash==="function") flash("초기화 완료 ✓", "업로드 자료"); return;
   }
   if(k==="dispAll"){
     const n = (FI_DISPATCH_HISTORY||[]).length;
-    if(!confirm(`⑤ 배차 요청서를 전체 초기화할까요?\n인식 결과 · 붙여넣은 글과 함께 배차 요청 기록 ${n}개(합본 대상)를 모두 삭제합니다.`)) return;
+    if(!confirm(`⑥ 배차 요청서를 전체 초기화할까요?\n인식 결과 · 붙여넣은 글과 함께 배차 요청 기록 ${n}개(합본 대상)를 모두 삭제합니다.`)) return;
     fiResetCard("dispAll"); return;
   }
   if(!confirm(`${name}의 올린 원본 · 입력칸 · 화면 결과를 지울까요? (기록은 그대로)`)) return;
