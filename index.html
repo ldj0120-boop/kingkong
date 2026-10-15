@@ -1094,7 +1094,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 152 · 2026-10-15</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 153 · 2026-10-15</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -3125,7 +3125,10 @@ function freshInfo(){
     daily("카테고리 매출", maxDate(SALES_HISTORY)),
     daily("매장 재고", maxDate(STOCK_HISTORY), "재고 파일은 최종입력일 열의 가장 늦은 날짜 기준입니다."),
     monthly("본사 출고", HQ_M, maxKey(HQ_D)),
-    monthly("센터 출고", CENTER_M, maxKey(CENTER_D)),
+    (()=>{ const c = monthly("센터 출고", CENTER_M, maxKey(CENTER_D));   // build 153: 승현 사이트에서 받았으면 표시
+      const sp = PLT_LIVE_META && PLT_LIVE_META.ship;
+      if(sp && sp.last){ c.tip += ` · 승현 사이트(출고내역서 올리기)에서 ${new Date(sp.at).toLocaleString("ko-KR")}에 받음 — ${sp.first}~${sp.last} ${sp.days}일치`; }
+      return c; })(),
     (()=>{ const c = monthly("신선 공급", FRESH_M, null);   // build 152: 승현 사이트에서 받았으면 받은 시각을 같이
       const fz = PLT_LIVE_META && PLT_LIVE_META.fresh; const cm = fmtDate(new Date()).slice(0,7);
       if(fz && fz.months && fz.months.includes(cm)){ const d = new Date(fz.at); c.txt = `${+cm.slice(5)}월 · ${d.toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}`; c.tip += ` · 승현 사이트(리퀴데이션 분배관리 · 신선)에서 ${d.toLocaleString("ko-KR")}에 받음`; }
@@ -12343,6 +12346,63 @@ function pltFreshApply(res){
   return { months, total: Math.round(total*10)/10 };
 }
 
+/* build 153: 승현 사이트 "출고내역서 올리기"(센터 출고내역서_26년_N월.xlsx를 날짜별로 적재) → 이 사이트 "센터 출고내역서".
+   검증(2026-10-15): 승현 사이트 파서는 이 사이트와 같은 센터 출고내역서 양식을 읽는다 — 하차지 블록 중 "OO점 직 출"은 ship_type=직출,
+   나머지는 센터(창고 경유) 출고. 즉 승현 데이터 = 창고 경유 + 매장 직출 전부이고, 사용자가 따로 올리는 직출건 엑셀과 직출 부분이 겹친다.
+   그래서 더하지 않고 이 사이트의 기존 날짜 단위 중복 제거 구조에 그대로 넣는다:
+     창고 경유 → CENTER_D[날짜](센터 출고내역서 자리) · 직출 → DIRECT_MAIN_D[날짜](센터 본 파일 직출 자리)
+     → rebuildCenterDirectM()이 같은 날짜에 직출건 파일(DIRECT_FILE_D)이 있으면 그것을 쓰고 본 파일 직출은 버린다(이중 집계 없음).
+   10월 매장×코드 화면 대조: 인천점 XLA 36 = 본사 18 + 직출 18, XLB 22 = 4 + 18 등 이 사이트 값과 일치.
+   대상: liquidation_rows_effective 중 신선(fresh) 제외, 행선지가 매장(store·franchise)인 행, qty 있는 행(벌크 "+n"건은 PLT 미상이라 제외). */
+const PLT_SHIP_CODE_MAP = { XLA:"XLA", XLB:"XLB", XLC:"XLC", XLE:"XLE", XLG:"XLG", XLS:"생수/탄산수", XLW:"대형가구", XLK:"대형가전",
+  XLD:"기저귀_분유", FC:"FC파손", "임박":"임박", "사입":"사입" };
+const PLT_SHIP_SRC_TAG = "승현 사이트(리퀴데이션 분배관리 · 출고내역서)";
+async function pltShipFetch(){
+  const sb = pltLiveClient, now = new Date();
+  const months = [2,1,0].map(k=> pltMonthKey(new Date(now.getFullYear(), now.getMonth()-k, 1)));
+  const rows = [];
+  for(let off=0; off<200000; off+=1000){
+    const { data, error } = await sb.from("liquidation_rows_effective").select("date,store,dest,dest_kind,ship_type,code,qty,source")
+      .gte("date", `${months[0]}-01`).order("date").order("id").range(off, off+999);
+    if(error) throw error;
+    (data||[]).forEach(r=> rows.push(r));
+    if(!data || data.length < 1000) break;
+  }
+  const center = {}, direct = {}, days = new Set(), unmatched = {}, unmapped = {}; let bulk = 0, used = 0;
+  rows.forEach(r=>{
+    const d = String(r.date||"").slice(0,10); if(!/^\d{4}-\d{2}-\d{2}$/.test(d) || !months.includes(d.slice(0,7))) return;
+    const code = String(r.code==null?"":r.code).trim();
+    if(r.source==="fresh" || code==="신선") return;              // 신선은 pltFreshFetch 담당
+    days.add(d);                                                  // 승현에 이 날짜 출고내역이 있다 = 이 날짜는 승현 값으로 교체
+    const kind = String(r.dest_kind||"store");
+    if(kind==="center" || kind==="donation") return;              // 센터 간 이관·기부는 매장 공급 아님
+    if(r.qty==null || r.qty===""){ bulk++; return; }
+    const q = Number(r.qty); if(!isFinite(q) || !q) return;
+    const cat = PLT_SHIP_CODE_MAP[code.toUpperCase()] || PLT_SHIP_CODE_MAP[code];
+    if(!cat){ unmapped[code||"(빈칸)"] = (unmapped[code||"(빈칸)"]||0) + q; return; }
+    const raw = r.store || r.dest; const st = resolveStoreName(String(raw||"").trim());
+    if(!st || STORES.indexOf(st) < 0){ unmatched[raw] = (unmatched[raw]||0) + q; return; }
+    const tgt = /직\s*출/.test(String(r.ship_type||"")) ? direct : center;
+    const o = ((tgt[d] || (tgt[d] = {}))[st] || (tgt[d][st] = {}));
+    o[cat] = (o[cat]||0) + q; used++;
+  });
+  return { center, direct, days:[...days].sort(), rowCount: rows.length, used, bulk, unmatched, unmapped };
+}
+function pltShipApply(res){
+  const t = Date.now(); let cTot = 0, dTot = 0;
+  res.days.forEach(d=>{
+    CENTER_D[d] = res.center[d] || {};       DAY_SRC.center[d] = { t, f: PLT_SHIP_SRC_TAG };
+    DIRECT_MAIN_D[d] = res.direct[d] || {};  DAY_SRC.dmain[d]  = { t, f: PLT_SHIP_SRC_TAG };
+    Object.values(CENTER_D[d]).forEach(o=> Object.values(o).forEach(v=> cTot += +v||0));
+    Object.values(DIRECT_MAIN_D[d]).forEach(o=> Object.values(o).forEach(v=> dTot += +v||0));
+  });
+  const months = [...new Set(res.days.map(d=>d.slice(0,7)))].sort();
+  rebuildMonthsFromDays(CENTER_M, CENTER_D, months);
+  rebuildCenterDirectM();
+  try{ _g11Cache.key = ""; }catch(_){}
+  return { months, center: Math.round(cTot*10)/10, direct: Math.round(dTot*10)/10 };
+}
+
 // build 151: 오늘 날짜 "(승현 실시간)" 재고 스냅샷 — 매장재고를 쓰는 화면(05 상세표·06 매장 분석·고정인수 분배 등)은
 //   STOCK_HISTORY 최신 스냅샷을 보므로 여기에도 넣는다. 승현 사이트에 없는 열(임박식품·사입 등)은 가장 최근 엑셀 스냅샷 값을 이어 쓴다.
 function pltLiveUpsertSnapshot(result){
@@ -12403,6 +12463,14 @@ async function pltLiveSync(){
            fresh = { at:new Date().toISOString(), months: ap.months, total: ap.total, rows: fr.rowCount, unmatched: Object.keys(fr.unmatched) }; }
       catch(e){ freshErr = (e && e.message) || String(e); }
       pltLiveStatus.fresh = fresh; pltLiveStatus.freshError = freshErr;
+      // build 153: 센터 출고내역서(창고 경유 + 직출)도 같은 로그인으로
+      let ship = null, shipErr = null;
+      try{ const sr = await pltShipFetch(); const ap = pltShipApply(sr);
+           ship = { at:new Date().toISOString(), months: ap.months, days: sr.days.length, first: sr.days[0]||null, last: sr.days[sr.days.length-1]||null,
+                    center: ap.center, direct: ap.direct, bulk: sr.bulk, unmatched: Object.keys(sr.unmatched), unmapped: Object.keys(sr.unmapped) }; }
+      catch(e){ shipErr = (e && e.message) || String(e); }
+      pltLiveStatus.ship = ship; pltLiveStatus.shipError = shipErr;
+      if(ship && ship.days) PLT_LIVE_META = Object.assign({}, PLT_LIVE_META||{}, { ship });
       if(n>0 || (fresh && fresh.months.length)) PLT_LIVE_META = Object.assign({}, PLT_LIVE_META||{},
         n>0 ? { at:new Date().toISOString(), storeCount:n } : {},
         { by:(pltLiveSession.user && pltLiveSession.user.email) || "" },
@@ -12427,7 +12495,7 @@ function pltAuthRender(){
   const t = pltMetaTimeStr();
   if(email){
     const fz = PLT_LIVE_META && PLT_LIVE_META.fresh;
-    st.innerHTML = `<span style="color:var(--green)">● ${escHtml(email)}</span>${t?` · 마지막 받음 ${escHtml(t)}`:""}${fz?` · 신선 ${escHtml(fz.months.map(m=>(+m.slice(5))+"월").join("·"))} 반영`:""}${pltLiveStatus.freshError?` · <span style="color:var(--amber)">신선 받기 실패: ${escHtml(pltLiveStatus.freshError)}</span>`:""}${pltLiveStatus.state==="empty"?` · <span style="color:var(--amber)">받은 매장 0곳(계정 권한 확인)</span>`:""}${pltLiveStatus.state==="error"?` · <span style="color:var(--red)">${escHtml(String(pltLiveStatus.error||""))}</span>`:""}`;
+    st.innerHTML = `<span style="color:var(--green)">● ${escHtml(email)}</span>${t?` · 마지막 받음 ${escHtml(t)}`:""}${fz?` · 신선 ${escHtml(fz.months.map(m=>(+m.slice(5))+"월").join("·"))} 반영`:""}${pltLiveStatus.freshError?` · <span style="color:var(--amber)">신선 받기 실패: ${escHtml(pltLiveStatus.freshError)}</span>`:""}${(PLT_LIVE_META&&PLT_LIVE_META.ship)?` · 센터 출고 ~${escHtml(String(PLT_LIVE_META.ship.last||"").slice(5).replace("-","/"))} 반영`:""}${pltLiveStatus.shipError?` · <span style="color:var(--amber)">센터 출고 받기 실패: ${escHtml(pltLiveStatus.shipError)}</span>`:""}${pltLiveStatus.state==="empty"?` · <span style="color:var(--amber)">받은 매장 0곳(계정 권한 확인)</span>`:""}${pltLiveStatus.state==="error"?` · <span style="color:var(--red)">${escHtml(String(pltLiveStatus.error||""))}</span>`:""}`;
     if(open) open.hidden = true; if(out) out.hidden = false; if(sync) sync.hidden = false; if(form) form.hidden = true;
   } else {
     st.innerHTML = `<span style="color:var(--muted2)">로그인 안 됨</span>${t?` · 공유된 값 ${escHtml(t)}`:""}`;
@@ -12451,7 +12519,8 @@ function pltAuthWire(){
       pltLiveSession = data.session || null; pltAuthRender();
       await pltLiveSync();
       showNotice(pltLiveStatus.state==="ok"
-        ? `승현 사이트 매장 PLT 재고 ${pltLiveStatus.storeCount}개 매장을 받았습니다.` + (pltLiveStatus.fresh ? ` 신선 공급 PLT도 ${pltLiveStatus.fresh.months.map(m=>(+m.slice(5))+"월").join("·")}분(이번 달 ${(()=>{ const cm = pltMonthKey(new Date()); let t=0; Object.values(FRESH_M[cm]||{}).forEach(o=>{ t += +(o["신선식품"]||0); }); return (Math.round(t*10)/10).toLocaleString(); })()} PLT)을 반영했습니다.` : (pltLiveStatus.freshError ? ` (신선 공급은 받지 못함: ${pltLiveStatus.freshError})` : "")) + ` 앞으로 이 브라우저가 열려 있는 동안 실시간으로 갱신되고, 모든 사람 화면에 공유됩니다.`
+        ? `승현 사이트 매장 PLT 재고 ${pltLiveStatus.storeCount}개 매장을 받았습니다.` + (pltLiveStatus.fresh ? ` 신선 공급 PLT도 ${pltLiveStatus.fresh.months.map(m=>(+m.slice(5))+"월").join("·")}분(이번 달 ${(()=>{ const cm = pltMonthKey(new Date()); let t=0; Object.values(FRESH_M[cm]||{}).forEach(o=>{ t += +(o["신선식품"]||0); }); return (Math.round(t*10)/10).toLocaleString(); })()} PLT)을 반영했습니다.` : (pltLiveStatus.freshError ? ` (신선 공급은 받지 못함: ${pltLiveStatus.freshError})` : ""))
+          + (pltLiveStatus.ship ? ` 센터 출고내역서 ${pltLiveStatus.ship.first}~${pltLiveStatus.ship.last} ${pltLiveStatus.ship.days}일치(창고 경유 ${pltLiveStatus.ship.center.toLocaleString()} · 직출 ${pltLiveStatus.ship.direct.toLocaleString()} PLT — 직출은 직출건 엑셀이 있는 날짜는 엑셀 값 우선)도 반영했습니다.` : (pltLiveStatus.shipError ? ` (센터 출고는 받지 못함: ${pltLiveStatus.shipError})` : "")) + ` 앞으로 이 브라우저가 열려 있는 동안 실시간으로 갱신되고, 모든 사람 화면에 공유됩니다.`
         : "로그인은 됐지만 받은 매장 데이터가 없습니다 — 이 계정이 매장 PLT 현황을 볼 수 있는지 확인해 주세요.");
     }catch(e){
       msg.textContent = "로그인 실패: " + ((e && e.message) || e);
