@@ -1094,7 +1094,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 153 · 2026-10-15</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 154 · 2026-10-15</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -12357,6 +12357,19 @@ function pltFreshApply(res){
 const PLT_SHIP_CODE_MAP = { XLA:"XLA", XLB:"XLB", XLC:"XLC", XLE:"XLE", XLG:"XLG", XLS:"생수/탄산수", XLW:"대형가구", XLK:"대형가전",
   XLD:"기저귀_분유", FC:"FC파손", "임박":"임박", "사입":"사입" };
 const PLT_SHIP_SRC_TAG = "승현 사이트(리퀴데이션 분배관리 · 출고내역서)";
+// build 154: 실데이터에서 코드 대신 분류 이름(대형가구·롯데사입·패션사입·칼라파타르·자연나무몰·타이어 등)이 오는 행이 있어 버려지고 있었다.
+//   ① 코드표 ② 이 사이트 카테고리 이름 그대로 ③ 사용자가 지정해 둔 출고 카테고리 지정(SHIP_CAT_MAP, "칼라파타르 7월"처럼 뒤에 월이 붙은 이름 포함)
+//   ④ 사입·패션 계열은 사입 ⑤ 그래도 모르면 원래 이름 그대로(버리지 않고 "계획 외"로 보이게) 순서로 맞춘다.
+function pltShipCat(code){
+  const c = String(code||"").trim(); if(!c || c==="전산추적불가") return null;
+  const m = PLT_SHIP_CODE_MAP[c.toUpperCase()] || PLT_SHIP_CODE_MAP[c]; if(m) return m;
+  if(Array.isArray(CATEGORIES) && CATEGORIES.includes(c)) return c;
+  const map = (typeof SHIP_CAT_MAP==="object" && SHIP_CAT_MAP) || {};
+  if(map[c]) return map[c];
+  const k = Object.keys(map).find(x=> x.replace(/\s*\d+월$/,"").trim()===c || x.startsWith(c+" ")); if(k) return map[k];
+  if(/사입|패션/.test(c)) return "사입";
+  return c;
+}
 async function pltShipFetch(){
   const sb = pltLiveClient, now = new Date();
   const months = [2,1,0].map(k=> pltMonthKey(new Date(now.getFullYear(), now.getMonth()-k, 1)));
@@ -12378,7 +12391,7 @@ async function pltShipFetch(){
     if(kind==="center" || kind==="donation") return;              // 센터 간 이관·기부는 매장 공급 아님
     if(r.qty==null || r.qty===""){ bulk++; return; }
     const q = Number(r.qty); if(!isFinite(q) || !q) return;
-    const cat = PLT_SHIP_CODE_MAP[code.toUpperCase()] || PLT_SHIP_CODE_MAP[code];
+    const cat = pltShipCat(code);
     if(!cat){ unmapped[code||"(빈칸)"] = (unmapped[code||"(빈칸)"]||0) + q; return; }
     const raw = r.store || r.dest; const st = resolveStoreName(String(raw||"").trim());
     if(!st || STORES.indexOf(st) < 0){ unmatched[raw] = (unmatched[raw]||0) + q; return; }
