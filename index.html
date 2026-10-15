@@ -1123,7 +1123,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 164 · 2026-10-15</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 165 · 2026-10-15</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -14205,7 +14205,7 @@ function fiDispSheetRows(rows){
     PLT: r.pallets==null||r.pallets==="" ? "" : +r.pallets,
     출고일시: `${r.outboundDate||""} ${r.outboundAmPm||""}`.trim(),
     FC: fiCenterName(r.fc)||r.fc, 주소:r.addr||"", 담당자:r.person||"", 연락처:r.phone||"", 도착지:r.dest||"", 카테:r.type||"",
-    비고: r.remark!=null && r.remark!=="" ? r.remark : (r.opNote||"")
+    비고: fiRemarkOf(r)
   }));
 }
 const FI_DISP_HDR = ["NO","낙찰일","입차CODE","낙찰NO","Group Number","PLT수량","출고일시","FC","도착지","카테.","비고"];
@@ -14244,6 +14244,14 @@ function fiDispRender(){
   </tbody></table></div>`;
   h += `<div id="fiDispOut">${fiDispOutHtml(d)}</div>`;
   wrap.innerHTML = h;
+}
+// build 165: 출고요청서 비고 기본값 — XLS "물/탄산수", XLG·XLD(XLGD) "센터 최우선 입차가능" (직접 쓴 비고가 있으면 그대로)
+const FI_REMARK_DEFAULT = { XLS:"물/탄산수", XLG:"센터 최우선 입차가능", XLD:"센터 최우선 입차가능" };
+function fiRemarkOf(r){
+  if(r.remark!=null && String(r.remark).trim()!=="") return r.remark;
+  if(r.type==="임박") return r.opNote||"";
+  const t = String(r.type||"").toUpperCase();
+  return FI_REMARK_DEFAULT[t] || (/^XLG/.test(t) ? FI_REMARK_DEFAULT.XLG : /^XLD/.test(t) ? FI_REMARK_DEFAULT.XLD : (r.opNote||""));
 }
 // build 135: 임박식품 행 — 상차지 주소 · 담당자 · 연락처 · 비고(필수) 입력줄
 function fiDispEosSubRow(r, i){
@@ -16696,7 +16704,7 @@ function fiLedgerWhere(w){
 // 배차 요청 행 → 원장 행
 function fiLedgerRowFrom(r){
   return { co:fiCoOf(r), bidDate:r.bidDate||"", bidcode:r.bidcode||"", group:r.group||"", number:r.number||"", pallets:(r.pallets==null||r.pallets==="")?null:+r.pallets, outboundDate:r.outboundDate||"",
-    outboundAmPm:r.outboundAmPm||"", fc:r.fc||"", dest:r.dest||"", type:r.type||"", remark:(r.remark!=null&&r.remark!=="")?r.remark:(r.opNote||""), addr:r.addr||"", person:r.person||"", phone:r.phone||"", addedAt:new Date().toISOString() };
+    outboundAmPm:r.outboundAmPm||"", fc:r.fc||"", dest:r.dest||"", type:r.type||"", remark:fiRemarkOf(r), addr:r.addr||"", person:r.person||"", phone:r.phone||"", addedAt:new Date().toISOString() };
 }
 async function fiLedgerAdd(rows){
   await fiLedgerLoad();
