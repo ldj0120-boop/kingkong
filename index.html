@@ -516,6 +516,8 @@
   .kk-photo-btn{display:inline-block;margin:10px auto 4px;padding:12px 22px;font-size:17px;font-weight:800;border-radius:10px;border:0;background:#f5b70a;color:#111;cursor:pointer;}
   .kk-photo-btn:hover{filter:brightness(1.07);}
   html.kk-mobile .kk-photo-btn{font-size:28px;padding:20px 34px;}
+  .kk-photo-msg{margin:8px auto;padding:10px 14px;border:2px solid #4a7bb7;border-radius:8px;font-size:16px;font-weight:700;color:#fff;max-width:92%;white-space:pre-wrap;}
+  html.kk-mobile .kk-photo-msg{font-size:24px;}
   .fi-disp-paste{display:flex;flex-direction:column;gap:6px;}
   .fi-match{padding:8px 12px;border-radius:8px;font-size:13px;margin-top:10px;}
   .fi-match.ok{background:var(--green-dim);color:var(--green);} .fi-match.bad{background:var(--amber-dim);color:var(--amber);}
@@ -1104,7 +1106,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 158 · 2026-10-15</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 159 · 2026-10-15</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1627,6 +1629,8 @@
           <div id="fiDispDrop" class="fi-drop" role="button" tabindex="0">
             <div class="fi-drop-t">출고일정 메일 캡처 이미지 또는 저장한 메일 파일(.mhtml)을 끌어다 놓거나 클릭</div>
             <button type="button" class="kk-photo-btn" id="fiDispPhotoBtn">📷 휴대폰 캡처 사진 선택 (눌러서 앨범·파일에서 고르기)</button>
+            <div id="fiDispPhotoMsg" class="kk-photo-msg" hidden></div>
+            <div id="fiDispPhotoPrev" hidden style="margin:6px 0"></div>
             <div class="fi-drop-s">캡처 후 이 탭에서 <b>Ctrl+V</b> 해도 됩니다 · 표(낙찰일자/BIDCODE/GroupNumber/NUMBER/파렛트/Outbound date)가 보이게 · <b>임박식품(FC EOS)</b> 메일은 "출고 요청" 문장부터 센터별 표(FC/센터/BIDCODE/Pallet)까지</div>
           </div>
           <div class="fi-disp-paste">
@@ -13331,16 +13335,23 @@ function _fiGroupLines(idx){
   return out;
 }
 // 표 격자 찾기: 가로선 = 어두운 픽셀이 폭의 35% 이상 연속, 세로선 = 표 높이의 75% 이상 어두움
-function fiDispGrid(g0, w, h){
-  const red = g0.red;
-    const dark = (v,i) => v < 150 || (red && red[i]);
-  const rows=[];
+function fiDispGrid(g0, w, h, opt){
+  opt = opt || {};
+  const red = g0.red, T = opt.thr || 150;
+    const dark = (v,i) => v < T || (red && red[i]);
+  const rows=[]; let full = null;
   for(let y=0;y<h;y++){
     let run=0, best=0;
     for(let x=0;x<w;x++){ if(dark(g0[y*w+x],y*w+x)){ run++; if(run>best) best=run; } else run=0; }
     if(best >= w*0.35) rows.push(y);
+    if(best >= w*0.95) (full = full || new Set()).add(y);
   }
-  const hl = _fiGroupLines(rows);
+  let hl = _fiGroupLines(rows);
+  // build 159: 화면 맨 위·아래 끝까지 꽉 찬 두꺼운 띠(휴대폰 앱 상단바·하단바)는 표 선이 아님
+  const thick = ([a,b])=> b-a+1 > Math.max(6, Math.round(h*0.006)), isBar = ln=> thick(ln) && full && full.has(ln[0]+1);
+  while(hl.length && isBar(hl[0])) hl.shift();
+  while(hl.length && isBar(hl[hl.length-1])) hl.pop();
+  if(opt.dropThick) hl = hl.filter(([a,b])=> b-a+1 <= Math.max(6, Math.round(h*0.006)));   // build 159: 앱 상단바·색칠된 띠는 선이 아님
   if(hl.length < 2) return null;
   const top = hl[0][0], bot = hl[hl.length-1][1];
   // 표 가로 범위: 첫 가로선의 가장 긴 어두운 구간
@@ -13353,6 +13364,15 @@ function fiDispGrid(g0, w, h){
   const vl = _fiGroupLines(cols);
   if(vl.length < 3) return null;
   return { h: hl, v: vl, top, bot, x0, x1 };
+}
+// build 159: 휴대폰 캡처 대응 — 다크모드(검은 바탕·흰 글자)는 반전, 흐린 회색 선은 기준을 올려서, 두꺼운 띠(앱 상단바)는 빼고 다시 찾기
+function fiDispGridAuto(g, w, h){
+  let sum = 0, n = 0; for(let i=0;i<g.length;i+=97){ sum += g[i]; n++; }
+  const vars = [g];
+  if(n && sum/n < 110){ const inv = new Uint8Array(g.length); for(let i=0;i<g.length;i++) inv[i] = 255 - g[i]; inv.red = g.red; vars.unshift(inv); }
+  const tries = [{}, { dropThick:true }, { thr:200 }, { thr:200, dropThick:true }, { thr:235, dropThick:true }, { thr:235 }];   // 235 = 흐린 회색 선(휴대폰 화면 축소)
+  for(const gv of vars) for(const o of tries){ const grid = fiDispGrid(gv, w, h, o); if(grid) return { g:gv, grid }; }
+  return { g, grid:null };
 }
 // 칸 하나를 잘라 scale배 확대 + 이진화한 RGBA 이미지로
 function fiDispCrop(g, w, x0, y0, x1, y1, scale, thr, trim){
@@ -13782,8 +13802,7 @@ const FI_OCR_PLANS = {
   vendor:   []
 };
 async function fiDispOcrImage(img, ocrFn, onProgress){
-  const g = fiDispGray(img);
-  const grid = fiDispGrid(g, img.width, img.height);
+  const { g, grid } = fiDispGridAuto(fiDispGray(img), img.width, img.height);   // build 159: 다크모드·흐린 선·상단바(휴대폰 캡처)
   if(!grid) throw new Error("표(테두리 선)를 찾지 못했습니다. 메일의 표 부분이 보이게 캡처해 주세요.");
   const cells = fiDispCells(grid);
   const read = async (c, p) => String(await ocrFn(fiDispCrop(g, img.width, c.x0, c.y0, c.x1, c.y1, p.s, p.thr, p.trim), { psm:p.psm||"7", lang:p.lang, wl:p.wl||"" })).trim();
@@ -13935,12 +13954,32 @@ function fiRgbaToCanvas(im){
   c.getContext("2d").putImageData(new ImageData(im.data, im.width, im.height),0,0);
   return c;
 }
+// build 159: 휴대폰에서 고른 사진 — 받은 즉시 미리보기 + 큰 진행/오류 표시(작은 상태줄은 휴대폰에서 안 보임)
+function fiPhotoMsg(t, kind){
+  const m = document.getElementById("fiDispPhotoMsg"); if(!m) return;
+  m.hidden = !t; m.textContent = t || "";
+  m.style.background = kind==="err" ? "#5a1d1d" : kind==="ok" ? "#14432c" : "#1d2f45";
+  m.style.borderColor = kind==="err" ? "#e5534b" : kind==="ok" ? "#2ea86b" : "#4a7bb7";
+}
+function fiPhotoPreview(file){
+  const pv = document.getElementById("fiDispPhotoPrev"); if(!pv) return;
+  try{ const u = URL.createObjectURL(file); pv.innerHTML = `<img src="${u}" alt="" style="max-height:220px;max-width:100%;border:1px solid #4a7bb7;border-radius:6px"><div class="fi-mut" style="font-size:13px">${escHtml(file.name||"사진")} · ${Math.round((file.size||0)/1024)}KB</div>`; pv.hidden = false; }catch(_){}
+}
+function fiImgScale(img, k){   // 작은 글자(휴대폰 메일 앱의 축소된 표) → 확대해서 다시 읽기
+  const c0 = fiRgbaToCanvas(img), c = document.createElement("canvas");
+  c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
+  const x = c.getContext("2d"); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high"; x.drawImage(c0, 0, 0, c.width, c.height);
+  return x.getImageData(0, 0, c.width, c.height);
+}
 async function fiDispFromImage(file){
   const st = document.getElementById("fiDispStatus");
-  const status = t=>{ if(st) st.textContent = t; };
+  const status = t=>{ if(st) st.textContent = t; fiPhotoMsg(t, /^⚠/.test(t) ? "err" : /^✓/.test(t) ? "ok" : ""); };
   try{
+    fiPhotoPreview(file);
     status("이미지 읽는 중…");
-    const img = await fiImageData(file);
+    try{ document.getElementById("fiDispPhotoMsg").scrollIntoView({ block:"center", behavior:"smooth" }); }catch(_){}
+    let img = await fiImageData(file);
+    if(img.width * img.height > 16e6){ img = fiImgScale(img, Math.sqrt(16e6/(img.width*img.height))); }   // 너무 큰 사진은 줄여서(휴대폰 메모리)
     const w = await fiOcrWorker(status);
     const ocr = async (im, o)=>{ o = o||{}; const wk = o.lang==="eng" ? w.eng : w.kor;
       await wk.setParameters({ tessedit_pageseg_mode: String(o.psm||"7"), tessedit_char_whitelist: o.wl||"" });
@@ -13948,10 +13987,18 @@ async function fiDispFromImage(file){
     status("표 찾는 중…");
     if(await eosDispFromImage(img, ocr, status)) return;   // build 134: 임박식품(FC EOS) 메일 표
     status("표 칸별로 글자 인식 중…");
-    const res = await fiDispOcrImage(img, ocr, p=> status(`표 칸별로 글자 인식 중… ${Math.round(p*100)}%`));
-    if(!res.rows.length) throw new Error("표에서 출고 행을 찾지 못했습니다.");
+    let res = null, err1 = null;
+    try{ res = await fiDispOcrImage(img, ocr, p=> status(`표 칸별로 글자 인식 중… ${Math.round(p*100)}%`)); }catch(e){ err1 = e; }
+    if((!res || !res.rows.length) && img.width < 2200){   // build 159: 휴대폰 캡처는 글자·선이 작음 → 2배 확대해서 한 번 더
+      status("작게 찍힌 표 — 2배로 확대해서 다시 읽는 중…");
+      const big = fiImgScale(img, 2);
+      if(await eosDispFromImage(big, ocr, status)) return;
+      try{ res = await fiDispOcrImage(big, ocr, p=> status(`(확대) 표 칸별로 글자 인식 중… ${Math.round(p*100)}%`)); }catch(e){ if(!err1) err1 = e; }
+    }
+    if(!res || !res.rows.length) throw (err1 || new Error("표에서 출고 행을 찾지 못했습니다."));
     fiDispStart(res.rows, fiDispNote(res.head), "이미지");
-  }catch(e){ status("⚠ " + (e && e.message || e)); }
+    fiPhotoMsg(`✓ 사진에서 ${res.rows.length}행 인식 — 아래 표를 확인해 주세요.`, "ok");
+  }catch(e){ status("⚠ " + (e && e.message || e) + " — 휴대폰에선 메일 본문을 길게 눌러 '전체 선택 → 복사' 후 오른쪽 칸에 붙여넣기 하면 더 정확합니다."); }
 }
 function fiDispFromText(text){
   if(eosDispIsMail(text)){ eosDispFromText(text); return; }   // build 134: 임박식품(FC EOS) 입찰 결과 메일
@@ -16267,7 +16314,7 @@ function fiResetCard(k){
   if(k==="eos"){ try{ _eosFile = null; _eosData = null; _eosCur = null; }catch(_){} val("eosLots"); val("eosDate"); clr("eosStatus"); val("eosInput"); try{ eosRender(); }catch(_){} }
   if(k==="fi"){ try{ _fiCur = null; }catch(_){} clr("fiStatus"); val("fiInput"); try{ fiRender(); }catch(_){} }
   if(k==="disp" || k==="dispAll"){
-    _fiDisp = null; val("fiDispPaste"); clr("fiDispStatus"); val("fiDispInput"); fiComboReset();
+    _fiDisp = null; val("fiDispPaste"); clr("fiDispStatus"); try{ fiPhotoMsg(""); const pv=document.getElementById("fiDispPhotoPrev"); if(pv){ pv.hidden=true; pv.innerHTML=""; } }catch(_){} val("fiDispInput"); fiComboReset();
     if(k==="dispAll"){ FI_DISPATCH_HISTORY = []; fiDispPersist(); }
     fiDispRender();
   }
@@ -16305,7 +16352,7 @@ function wireFixedDispatch(){
   if(!box || box._wired) return; box._wired = true;
   const dz = document.getElementById("fiDispDrop"), inp = document.getElementById("fiDispInput"), ta = document.getElementById("fiDispPaste");
   const ph = document.getElementById("fiDispPhoto");   // build 158: 휴대폰 — 이미지 전용 선택창(앨범/사진이 바로 뜸)
-  dz.addEventListener("click", e=>{ if(e.target.closest("#fiDispPhotoBtn")){ e.stopPropagation(); ph.click(); return; } inp.click(); });
+  dz.addEventListener("click", e=>{ if(e.target.closest("#fiDispPhotoMsg,#fiDispPhotoPrev")) return; if(e.target.closest("#fiDispPhotoBtn")){ e.stopPropagation(); ph.click(); return; } inp.click(); });
   ph.addEventListener("change", ()=>{ const f=ph.files&&ph.files[0]; if(f) fiDispFromImage(f); ph.value=""; });
   inp.addEventListener("change", ()=>{ const f=inp.files&&inp.files[0]; if(f) fiDispFromFile(f); inp.value=""; });
   ["dragenter","dragover"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("dragover"); }));
