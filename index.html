@@ -1168,7 +1168,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 184 · 2026-10-16</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 185 · 2026-10-16</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1259,65 +1259,14 @@
        출고완료" 합산에 여전히 참조하며, 앞으로 실적 0으로만 남아 있어도 무해함) — UI만 제거. 기본
        활성 탭은 '매장별 재고/공급 현황'으로 변경(JS 초기화 블록의 selectTab("agg") 참고). -->
   <div class="tabs" role="tablist">
-    <button class="tab" role="tab" id="tab-agg" aria-selected="false" aria-controls="view-agg">매장별 재고/공급 현황</button>
+    <button class="tab" role="tab" id="tab-agg" aria-selected="false" aria-controls="view-agg" hidden style="display:none">매장별 재고/공급 현황</button>
     <button class="tab" role="tab" id="tab-sales" aria-selected="false" aria-controls="view-sales">매장별 매출</button>
     <button class="tab" role="tab" id="tab-goals" aria-selected="false" aria-controls="view-goals">목표매출 달성 방안</button>
     <button class="tab" role="tab" id="tab-fixed" aria-selected="false" aria-controls="view-fixed">낙찰파일 / 분배표 생성기</button>
   </div>
 
   <section id="view-agg" role="tabpanel" aria-labelledby="tab-agg" hidden>
-    <div class="agg-card trend-card">
-      <div class="p-hd">
-        <span class="store-name">공급 · 재고 추이</span>
-        <span class="meta" id="trendMeta">이번주/이번달 공급량 · 전월 동기간 대비</span>
-      </div>
-      <div style="padding:10px 18px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <label for="shipScopeSelect3" style="font-family:'Oswald';font-size:11px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;">출고 월</label>
-        <select id="shipScopeSelect3" style="max-width:200px;"></select>
-      </div>
-      <div id="trendBody"></div>
-    </div>
-
-
-    <!-- build 182: 매장 소진율 (승현 사이트 PLT 해체 기준) -->
-    <div class="agg-card" id="sxBox">
-      <div class="p-hd"><span class="store-name">매장별 PLT 종합</span><span class="meta">월 목표 → 센터 출고 → 매장 입고 → 해체 → 지금 재고 · 소진 예상 · ★ 매출 — 한 표에서 (build 184: 재고 현황 · 소진율 · 공급 PLT · 목표매출 05 상세표 통합)</span></div>
-      <div class="fi-body" id="sxBody"></div>
-    </div>
-
-    <!-- build 150: "매장별 이번달 출고 현황(카테고리별)"과 "매장별 최종 출고완료 카테고리별 공급 PLT"는 출고예정 입력이
-         없어진 뒤(2026-09-23) 같은 값을 두 번 보여주던 표였다 → 한 카드로 합침. 옛 표(#shipAggTable)는 다른 코드가
-         참조하므로 숨겨진 채로 남겨 둔다. -->
-    <details class="agg-card px-src"><summary>원본 표 보기 — 매장별 재고 현황 · 매장별 카테고리별 공급 PLT (출처별 상세 · 본사/센터 비교)</summary>
-    <div class="agg-card">
-      <div class="p-hd"><span class="store-name">매장별 재고 현황</span></div>
-      <div class="agg-scroll"><table id="stockAggTable"></table></div>
-    </div>
-    <div class="agg-card">
-      <div class="p-hd">
-        <span class="store-name">매장별 카테고리별 공급 PLT</span>
-        <span class="meta" id="shipAggMeta"></span>
-      </div>
-      <div style="padding:10px 18px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <label for="shipScopeSelect2" style="font-family:'Oswald';font-size:11px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;">출고 월</label>
-        <select id="shipScopeSelect2" style="max-width:200px;"></select>
-        <label for="shipMergeSelect" style="font-family:'Oswald';font-size:11px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;margin-left:12px;">본사·센터가 다를 때</label>
-        <select id="shipMergeSelect" style="max-width:280px;">
-          <option value="center">센터 출고내역서 우선</option>
-          <option value="max">큰 값 채택 (기본 · 2026-10-15 확정)</option>
-          <option value="hq">본사 출고계획서 우선</option>
-        </select>
-        <span class="meta" id="shipSrcMeta" style="font-size:11px;"></span>
-      </div>
-      <div id="shipStaleWarn" hidden></div>
-      <div id="shipReconWrap" style="padding:0 18px;"></div>
-      <div class="agg-scroll" id="shipSrcWrap"></div>
-      <div class="legend">
-        <span>칸에 마우스를 올리면 어느 파일(본사·센터·가전·직출·신선)에서 온 값인지 보입니다. 수박은 개수 단위라 "(개)"로 따로 표시하고 합계 PLT에서 뺍니다.</span>
-      </div>
-      <div hidden style="display:none"><table id="shipAggTable"></table></div>
-    </div>
-    </details>
+    <!-- build 185: 이 탭은 삭제 — 내용은 목표매출 달성 방안 › 05 재고·공급(PLT)으로 옮김 -->
   </section>
 
   <section id="view-sales" role="tabpanel" aria-labelledby="tab-sales" hidden>
@@ -1477,7 +1426,7 @@
       <!-- build 150: 옛 "04 매장별 실행방안"과 "04 전 매장 진단"을 "04 전 매장 진단" 하나로 합침(매장 한 곳 상세는 06 매장 분석).
            내부 키는 그대로 06(합친 탭) · 08(빈 패널, 옛 링크 호환) -->
       <button class="gsub-tab" data-gsub="06" role="tab">04 전 매장 진단</button>
-      <button class="gsub-tab" data-gsub="10" role="tab">05 공급계획(PLT) 진단</button>
+      <button class="gsub-tab" data-gsub="10" role="tab">05 재고·공급 (PLT)</button>
       <button class="gsub-tab" data-gsub="11" role="tab">06 매장 분석</button>
     </div>
 
@@ -1552,13 +1501,67 @@
     </div>
 
     <div class="gsub-panel" id="gsub-10" hidden>
+    <!-- build 185: 옛 "매장별 재고/공급 현황" 탭 전체를 여기로 (공급·재고 추이 · 매장별 PLT 종합 · 원본 표) -->
+
+    <div class="agg-card trend-card">
+      <div class="p-hd">
+        <span class="store-name">공급 · 재고 추이</span>
+        <span class="meta" id="trendMeta">이번주/이번달 공급량 · 전월 동기간 대비</span>
+      </div>
+      <div style="padding:10px 18px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <label for="shipScopeSelect3" style="font-family:'Oswald';font-size:11px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;">출고 월</label>
+        <select id="shipScopeSelect3" style="max-width:200px;"></select>
+      </div>
+      <div id="trendBody"></div>
+    </div>
+
+
+    <!-- build 182: 매장 소진율 (승현 사이트 PLT 해체 기준) -->
+    <div class="agg-card" id="sxBox">
+      <div class="p-hd"><span class="store-name">매장별 PLT 종합</span><span class="meta">월 목표 → 센터 출고 → 매장 입고 → 해체 → 지금 재고 · 소진 예상 · ★ 매출 — 한 표에서</span></div>
+      <div class="fi-body" id="sxBody"></div>
+    </div>
+
+    <!-- build 150: "매장별 이번달 출고 현황(카테고리별)"과 "매장별 최종 출고완료 카테고리별 공급 PLT"는 출고예정 입력이
+         없어진 뒤(2026-09-23) 같은 값을 두 번 보여주던 표였다 → 한 카드로 합침. 옛 표(#shipAggTable)는 다른 코드가
+         참조하므로 숨겨진 채로 남겨 둔다. -->
       <div class="agg-card">
         <div class="p-hd">
-          <span class="store-name">05 공급계획(PLT) 진단</span>
+          <span class="store-name">공급계획(PLT) 진단 — 출고 배정 도우미 · 월별 추이 · 기대매출</span>
           <span class="meta" id="goals10Meta"></span>
         </div>
         <div class="agg-scroll" id="goals10Wrap"></div>
       </div>
+    <details class="agg-card px-src"><summary>원본 표 보기 — 매장별 재고 현황 · 매장별 카테고리별 공급 PLT (출처별 상세 · 본사/센터 비교)</summary>
+    <div class="agg-card">
+      <div class="p-hd"><span class="store-name">매장별 재고 현황</span></div>
+      <div class="agg-scroll"><table id="stockAggTable"></table></div>
+    </div>
+    <div class="agg-card">
+      <div class="p-hd">
+        <span class="store-name">매장별 카테고리별 공급 PLT</span>
+        <span class="meta" id="shipAggMeta"></span>
+      </div>
+      <div style="padding:10px 18px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <label for="shipScopeSelect2" style="font-family:'Oswald';font-size:11px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;">출고 월</label>
+        <select id="shipScopeSelect2" style="max-width:200px;"></select>
+        <label for="shipMergeSelect" style="font-family:'Oswald';font-size:11px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;margin-left:12px;">본사·센터가 다를 때</label>
+        <select id="shipMergeSelect" style="max-width:280px;">
+          <option value="center">센터 출고내역서 우선</option>
+          <option value="max">큰 값 채택 (기본 · 2026-10-15 확정)</option>
+          <option value="hq">본사 출고계획서 우선</option>
+        </select>
+        <span class="meta" id="shipSrcMeta" style="font-size:11px;"></span>
+      </div>
+      <div id="shipStaleWarn" hidden></div>
+      <div id="shipReconWrap" style="padding:0 18px;"></div>
+      <div class="agg-scroll" id="shipSrcWrap"></div>
+      <div class="legend">
+        <span>칸에 마우스를 올리면 어느 파일(본사·센터·가전·직출·신선)에서 온 값인지 보입니다. 수박은 개수 단위라 "(개)"로 따로 표시하고 합계 PLT에서 뺍니다.</span>
+      </div>
+      <div hidden style="display:none"><table id="shipAggTable"></table></div>
+    </div>
+    </details>
     </div>
 
     <!-- build 103: 06 매장 분석 — 고른 매장(단수/복수)의 공급·매출·재고·진단 통합 페이지 -->
@@ -3591,7 +3594,7 @@ function afterChange(){
 
 /* ================= 집계 현황 : 재고표 (출고를 더하지 않는 순수 재고) ================= */
 /* build 182: 재고 표를 다시 그릴 때(클라우드 수신 포함) 소진율 표도 */
-function renderStockAgg(){ try{ wireSell(); sxRender(); }catch(e){ console.error(e); } return _renderStockAgg0.apply(this, arguments); }
+function renderStockAgg(){ try{ wireSell(); sxRender(); }catch(e){ setTimeout(()=>{ try{ wireSell(); sxRender(); }catch(e2){ console.error(e2); } }, 0); } return _renderStockAgg0.apply(this, arguments); }   // build 185: 첫 화면(스크립트 끝나기 전)에 불리면 한 박자 뒤에
 function _renderStockAgg0(){
   const tbl = document.getElementById("stockAggTable");
   // 출고내역서에서 CATE 문구가 자동 규칙에 안 걸려 그대로 추가됐거나("출고내역서(하차지 블록)"), 사용자가 모달에서
@@ -5650,7 +5653,9 @@ function wireWidthMode(){
   });
   applyWidthMode();
 }
+function aggRenderAll(){ try{ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }catch(e){ console.error(e); } }
 function selectTab(which){
+  if(which==="agg"){ which = "goals"; try{ goalsSubTab = "10"; }catch(_){} }   // build 185: 재고/공급 탭 → 목표매출 05
   [["agg",tabAgg,viewAgg],["sales",tabSales,viewSales],["goals",tabGoals,viewGoals],["fixed",tabFixed,viewFixed]].forEach(([name,tab,view])=>{
     const on = name===which;
     tab.setAttribute("aria-selected", on);
@@ -5658,7 +5663,7 @@ function selectTab(which){
   });
   if(which==="agg"){ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }
   if(which==="sales"){ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); }
-  if(which==="goals"){ renderGoals(); }
+  if(which==="goals"){ renderGoals(); try{ selectGoalsSub(goalsSubTab); }catch(_){} }
   if(which==="fixed"){ try{ wireFixedIntake(); fiRender(); wireLiqSum(); wireLiquidation(); wireEsSum(); wireEosLiq(); wireFdSum(); wireFdBid(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } try{ wireToday(); tdRender(); }catch(e){ console.error(e); } }
 }
 tabAgg.onclick=()=>selectTab("agg");
@@ -10631,7 +10636,7 @@ function goalsRender10Body(ctx){
     <details class="g-store-more" style="margin-top:18px"><summary>매장별 계획 상세 — 카테고리별 계획 PLT 대비 ${cm} 실제 · 기대매출 (위 "전체 상세표"와 같은 PLT 값 · 매장별 기대매출만 추가로 보려면 펼치기)</summary>
     <div class="g-store-list" style="margin-top:8px">${detailRows}</div></details>`;
 
-  return kpi + missNote + monthBar + allocTable + pltQtyTable + pltTrendBlock + catTable + table + ref;   // build 74: %만 있던 도달율 매트릭스는 위 목표 대비 표로 대체   // build 73: PLT 수량표·월별 추이 추가
+  return kpi + missNote + monthBar + allocTable + pltTrendBlock + catTable + table + ref;   // build 185: pltQtyTable(전체 상세표)은 위 "매장별 PLT 종합"과 중복이라 뺌   // build 74: %만 있던 도달율 매트릭스는 위 목표 대비 표로 대체   // build 73: PLT 수량표·월별 추이 추가
 }
 
 /* ---------------- 서브탭 전환 ---------------- */
@@ -10649,6 +10654,7 @@ function selectGoalsSub(key){
   });
   GOALS_SUB_KEYS.forEach(k=>{ const p = document.getElementById("gsub-"+k); if(p) p.hidden = (k!==key); });
   if(key==="11" && typeof g11Rerender==="function") g11Rerender();   // build 103: 06 매장 분석은 열 때 그린다
+  if(key==="10") aggRenderAll();   // build 185: 옛 재고/공급 탭 내용(추이 · PLT 종합 · 원본 표)
 }
 let _goalsSubWired = false;
 function wireGoalsSubTabs(){
