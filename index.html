@@ -1168,7 +1168,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 185 · 2026-10-16</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 186 · 2026-10-16</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -10636,7 +10636,7 @@ function goalsRender10Body(ctx){
     <details class="g-store-more" style="margin-top:18px"><summary>매장별 계획 상세 — 카테고리별 계획 PLT 대비 ${cm} 실제 · 기대매출 (위 "전체 상세표"와 같은 PLT 값 · 매장별 기대매출만 추가로 보려면 펼치기)</summary>
     <div class="g-store-list" style="margin-top:8px">${detailRows}</div></details>`;
 
-  return kpi + missNote + monthBar + allocTable + pltTrendBlock + catTable + table + ref;   // build 185: pltQtyTable(전체 상세표)은 위 "매장별 PLT 종합"과 중복이라 뺌   // build 74: %만 있던 도달율 매트릭스는 위 목표 대비 표로 대체   // build 73: PLT 수량표·월별 추이 추가
+  return kpi + missNote + monthBar + pltQtyTable + allocTable + pltTrendBlock + catTable + table + ref;   // build 186: 매장 × 카테고리 전체 상세표 복원(카테고리별 매장 공급을 한눈에 — 사용자 요청)   // build 74: %만 있던 도달율 매트릭스는 위 목표 대비 표로 대체   // build 73: PLT 수량표·월별 추이 추가
 }
 
 /* ---------------- 서브탭 전환 ---------------- */
