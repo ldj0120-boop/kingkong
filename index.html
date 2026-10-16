@@ -496,6 +496,18 @@
   .fi-fname{font-size:12.5px;font-weight:600;flex:1;word-break:break-all;}
   .fi-type{display:inline-block;border:1px solid;border-radius:6px;padding:1px 7px;font-size:11.5px;font-weight:700;font-family:"JetBrains Mono";}
   .fi-tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+  /* build 168: 기록 목록 공통 틀 */
+  .rl-bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:4px 0 8px;font-size:12.5px;}
+  .rl-bar .rl-sp{flex:1;}
+  .rl-chk{display:inline-flex;align-items:center;gap:5px;font-weight:700;cursor:pointer;margin-left:6px;}
+  .rl-chk input,.rl-grp summary input{width:17px;height:17px;cursor:pointer;vertical-align:middle;}
+  .rl-q{background:var(--bg,#0d1520);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:12px;min-width:190px;}
+  .rl-grp{border:1px solid var(--line);border-radius:8px;margin:6px 0;padding:2px 10px;}
+  .rl-grp.rl-has{border-color:#e5534b;}
+  .rl-grp>summary{cursor:pointer;padding:7px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .rl-grp>summary .fi-del{margin-left:auto;}
+  .rl-grp>table{margin-bottom:6px;}
+  .rl-more{margin:6px 0;}
   .fi-tbl th{text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:5px 6px;white-space:nowrap;}
   .fi-tbl td{border-bottom:1px solid var(--line-soft);padding:5px 6px;vertical-align:middle;}
   .fi-tbl .n{text-align:right;font-family:"JetBrains Mono";}
@@ -1123,7 +1135,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 167 · 2026-10-16</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 168 · 2026-10-16</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -2927,7 +2939,7 @@ function applyStateObject(s){
     ACTUAL = s.ACTUAL || {};
     SUPPLY_HISTORY = Array.isArray(s.SUPPLY_HISTORY) ? s.SUPPLY_HISTORY : [];
     // build 111: 고정인수 히스토리는 덮어쓰지 않고 합친다(뷰어 PC에서 만든 기록이 클라우드 동기화로 사라지지 않게)
-    if(Array.isArray(s.FIXED_INTAKE_HISTORY)) FIXED_INTAKE_HISTORY = fiMergeHistory(s.FIXED_INTAKE_HISTORY, Array.isArray(FIXED_INTAKE_HISTORY)?FIXED_INTAKE_HISTORY:[]);
+    if(Array.isArray(s.FIXED_INTAKE_HISTORY)) FIXED_INTAKE_HISTORY = fiMergeHistory(s.FIXED_INTAKE_HISTORY, Array.isArray(FIXED_INTAKE_HISTORY)?FIXED_INTAKE_HISTORY:[]).filter(h=> !(typeof fiHistIsDeleted==="function" && fiHistIsDeleted(h.id)));
     if(s.FI_ELIG && typeof s.FI_ELIG==="object") FI_ELIG = s.FI_ELIG;
     if(Array.isArray(s.FI_DISPATCH_HISTORY)) FI_DISPATCH_HISTORY = fiMergeHistory(s.FI_DISPATCH_HISTORY, Array.isArray(FI_DISPATCH_HISTORY)?FI_DISPATCH_HISTORY:[]).filter(h=> !fiDispIsDeleted(h.id));   // build 148: 지운 기록은 서버에서 다시 안 살아남
     if(s.FI_SETTINGS_SAVED && typeof s.FI_SETTINGS_SAVED==="object") FI_SETTINGS_SAVED = s.FI_SETTINGS_SAVED;
@@ -13071,6 +13083,7 @@ function fiPersist(){
     const o = JSON.parse(localStorage.getItem(FI_LS_KEY)||"null");
     if(!o) return;
     FIXED_INTAKE_HISTORY = fiMergeHistory(FIXED_INTAKE_HISTORY, o.h);
+    try{ const dl = new Set(JSON.parse(localStorage.getItem("fi_history_deleted_v1")||"[]")); if(dl.size) FIXED_INTAKE_HISTORY = FIXED_INTAKE_HISTORY.filter(h=> !dl.has(h.id)); }catch(_){}   // build 168
     if(!FI_ELIG && o.e) FI_ELIG = o.e;
     if(!FI_SETTINGS_SAVED && o.s) FI_SETTINGS_SAVED = o.s;
   }catch(_){}
@@ -13253,16 +13266,137 @@ function fiRender(){
   wrap.innerHTML = h;
   fiRenderHistory();
 }
+/* ================= build 168: 기록 목록 공통 틀 (분배 히스토리 · 배차 요청 기록 · 일반 리퀴 / 임박식품 낙찰파일 기록) =================
+   - 날짜별 묶음(접기/펼치기, 최근 날짜만 펼침) · 목록 전체 숨기기 · 검색
+   - 전체 선택 / 날짜 묶음 선택 / 줄 선택 → 선택 삭제, 날짜 묶음 삭제, 전체 삭제, 줄마다 ✕
+   - 화면 상태(숨김·펼친 날짜·더 보기)는 이 브라우저에 기억(rl_ui_v1) */
+const RL_UI_LS = "rl_ui_v1";
+let RL_UI = {}; try{ RL_UI = JSON.parse(localStorage.getItem(RL_UI_LS)||"{}") || {}; }catch(_){ RL_UI = {}; }
+function rlUi(key){ return RL_UI[key] = RL_UI[key] || { hide:false, open:{}, more:false, q:"" }; }
+function rlUiSave(){ try{ localStorage.setItem(RL_UI_LS, JSON.stringify(RL_UI)); }catch(_){} }
+// 날짜 키 맞춤: 20261012 / 261012 / 2026-10-12 / 2026. 10. 12. → 2026-10-12
+function rlDateKey(v){
+  const s = String(v==null?"":v).trim(); let m;
+  if((m = /^(20\d{2})[-./\s]*(\d{1,2})[-./\s]*(\d{1,2})/.exec(s))) return `${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`;
+  if((m = /^(\d{2})(\d{2})(\d{2})$/.exec(s))) return `20${m[1]}-${m[2]}-${m[3]}`;
+  return s;
+}
+function rlDateLabel(k){
+  if(!k) return "날짜 없음";
+  if(/^\d{4}-\d{2}-\d{2}$/.test(k)){ const d = new Date(k+"T00:00:00"); return isNaN(d) ? k : `${k} (${"일월화수목금토"[d.getDay()]})`; }
+  return k;
+}
+/* opts = { key, el, items:[{ id, group, text }], head:[...], cells:item=>[td html…], groupLabel?, groupInfo?(items)=>html,
+            unit:"기록", empty, onDelete(ids) (확인창은 여기서), adminDel, firstOpen(펼칠 최근 묶음 수, 기본 1), pageGroups(기본 7) } */
+function recListRender(opts){
+  const el = opts.el; if(!el) return;
+  el._rl = opts; rlWire(el);
+  const ui = rlUi(opts.key), unit = opts.unit || "기록";
+  const all = opts.items || [];
+  if(!all.length){ el.innerHTML = `<div class="fi-empty">${escHtml(opts.empty || "기록이 없습니다.")}</div>`; return; }
+  const q = (ui.q||"").trim().toLowerCase();
+  const items = q ? all.filter(x=> String(x.text||"").toLowerCase().includes(q)) : all;
+  const by = new Map(); items.forEach(x=>{ const g = x.group || ""; if(!by.has(g)) by.set(g, []); by.get(g).push(x); });
+  const groups = [...by.keys()].sort((a,b)=> (b||"0").localeCompare(a||"0"));
+  const page = opts.pageGroups || 7, shown = ui.more || q ? groups : groups.slice(0, page);
+  const delCls = opts.adminDel ? " admin-only" : "";
+  let h = `<div class="rl-bar">
+    <button class="act fi-mini" data-rl="hide" title="목록을 접어 숨깁니다(기록은 그대로)">${ui.hide ? "▸ 기록 보기" : "▾ 숨기기"}</button>
+    <b>${escHtml(unit)} ${all.length}개</b><span class="fi-mut">· 날짜 ${new Set(all.map(x=> x.group||"")).size}일</span>`;
+  if(!ui.hide) h += `
+    <label class="rl-chk"><input type="checkbox" data-rl="all"> 전체 선택</label>
+    <button class="act fi-mini" data-rl="openall">모두 펼치기</button><button class="act fi-mini" data-rl="closeall">모두 접기</button>
+    <input type="search" class="rl-q" data-rl="q" placeholder="검색 (파일명 · 매장 · 날짜)" value="${escHtml(ui.q||"")}">
+    <span class="rl-sp"></span>
+    <button class="act fi-mini fi-del${delCls}" data-rl="delsel">✕ 선택 삭제 (<span data-rl-n>0</span>)</button>
+    <button class="act fi-mini fi-del${delCls}" data-rl="delall" title="${escHtml(unit)} 전부 삭제">🗑 전체 삭제</button>`;
+  h += `</div>`;
+  if(ui.hide){ el.innerHTML = h; return; }
+  if(q && !items.length) h += `<div class="fi-empty">"${escHtml(ui.q)}" 검색 결과가 없습니다.</div>`;
+  const fo = opts.firstOpen==null ? 1 : opts.firstOpen;
+  shown.forEach((g,i)=>{
+    const xs = by.get(g), open = q ? true : (ui.open[g]!=null ? ui.open[g] : i<fo);
+    const info = opts.groupInfo ? opts.groupInfo(xs) : "";
+    h += `<details class="rl-grp" data-rl-g="${escHtml(g)}"${open?" open":""}>
+      <summary><input type="checkbox" data-rl-gchk="${escHtml(g)}" title="이 날짜 전부 선택"> <b>${escHtml(opts.groupLabel ? opts.groupLabel(g) : rlDateLabel(g))}</b>
+        <span class="fi-mut">— ${xs.length}개${info ? " · "+info : ""}</span>
+        <button class="act fi-mini fi-del${delCls}" data-rl="delgrp" data-rl-gk="${escHtml(g)}">✕ 이 날짜 삭제</button></summary>
+      <table class="fi-tbl"><thead><tr><th style="width:26px"></th>${opts.head.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>
+      ${xs.map(x=>`<tr class="${x.on?"fi-on":""}"><td><input type="checkbox" data-rl-sel="${escHtml(String(x.id))}" data-rl-of="${escHtml(g)}"></td>${opts.cells(x).join("")}</tr>`).join("")}
+      </tbody></table></details>`;
+  });
+  if(shown.length < groups.length) h += `<button class="act fi-mini rl-more" data-rl="more">▾ 이전 날짜 ${groups.length-shown.length}일 더 보기</button>`;
+  else if(ui.more && groups.length > page && !q) h += `<button class="act fi-mini rl-more" data-rl="less">▴ 최근 ${page}일만 보기</button>`;
+  el.innerHTML = h;
+  rlSync(el);
+}
+function rlSync(el){
+  const all = Array.from(el.querySelectorAll("input[data-rl-sel]"));
+  const tri = (cb, rows)=>{ if(!cb) return; const n = rows.filter(x=> x.checked).length; cb.checked = rows.length>0 && n===rows.length; cb.indeterminate = n>0 && n<rows.length; };
+  el.querySelectorAll("details[data-rl-g]").forEach(dt=>{ const rows = all.filter(x=> x.dataset.rlOf===dt.dataset.rlG);
+    tri(dt.querySelector("input[data-rl-gchk]"), rows); dt.classList.toggle("rl-has", rows.some(x=> x.checked)); });
+  tri(el.querySelector('input[data-rl="all"]'), all);
+  const n = all.filter(x=> x.checked).length, sp = el.querySelector("[data-rl-n]"); if(sp) sp.textContent = n;
+}
+function rlIdsOf(el, list){ const o = el._rl, set = new Set(list.map(String)); return (o.items||[]).filter(x=> set.has(String(x.id))).map(x=> x.id); }
+function rlWire(el){
+  if(el._rlWired) return; el._rlWired = true;
+  // 묶음 줄의 체크/버튼은 펼침·접힘을 바꾸지 않게(click capture)
+  el.addEventListener("click", e=>{
+    const cb = e.target.closest && e.target.closest("input[data-rl-gchk]");
+    if(cb){ e.preventDefault(); e.stopPropagation(); const want = cb.checked;
+      setTimeout(()=>{ el.querySelectorAll(`input[data-rl-of="${CSS.escape(cb.dataset.rlGchk)}"]`).forEach(x=> x.checked = want); rlSync(el); }, 0); return; }
+    const b = e.target.closest && e.target.closest("button[data-rl]"); if(!b) return;
+    e.preventDefault(); e.stopPropagation();
+    const o = el._rl, ui = rlUi(o.key), unit = o.unit || "기록", a = b.dataset.rl;
+    const del = ids=>{ if(ids.length) o.onDelete(ids); };
+    if(a==="hide"){ ui.hide = !ui.hide; rlUiSave(); recListRender(o); }
+    else if(a==="openall" || a==="closeall"){ el.querySelectorAll("details[data-rl-g]").forEach(dt=>{ dt.open = a==="openall"; ui.open[dt.dataset.rlG] = dt.open; }); rlUiSave(); }
+    else if(a==="more" || a==="less"){ ui.more = a==="more"; rlUiSave(); recListRender(o); }
+    else if(a==="delsel"){ const ids = rlIdsOf(el, Array.from(el.querySelectorAll("input[data-rl-sel]:checked")).map(x=> x.dataset.rlSel));
+      if(!ids.length){ showNotice(`삭제할 ${unit}을(를) 체크해 주세요.`); return; }
+      if(confirm(`선택한 ${unit} ${ids.length}개를 삭제할까요?`)) del(ids); }
+    else if(a==="delgrp"){ const g = b.dataset.rlGk, ids = (o.items||[]).filter(x=> (x.group||"")===g).map(x=> x.id);
+      if(confirm(`${rlDateLabel(g)} ${unit} ${ids.length}개를 모두 삭제할까요?`)) del(ids); }
+    else if(a==="delall"){ const ids = (o.items||[]).map(x=> x.id);
+      if(ids.length && confirm(`${unit} ${ids.length}개를 전부 삭제할까요? 되돌릴 수 없습니다.`)) del(ids); }
+  }, true);
+  el.addEventListener("change", e=>{ const t = e.target;
+    if(t.dataset.rl==="all"){ el.querySelectorAll("input[data-rl-sel]").forEach(x=> x.checked = t.checked); rlSync(el); }
+    else if(t.dataset.rlSel!=null) rlSync(el); });
+  let qt = null;
+  el.addEventListener("input", e=>{ const t = e.target; if(t.dataset.rl!=="q") return;
+    clearTimeout(qt); qt = setTimeout(()=>{ const o = el._rl; rlUi(o.key).q = t.value; rlUiSave(); const pos = t.selectionStart; recListRender(o);
+      const n = el.querySelector('input[data-rl="q"]'); if(n){ n.focus(); try{ n.setSelectionRange(pos,pos); }catch(_){} } }, 250); });
+  el.addEventListener("toggle", e=>{ const dt = e.target; if(!dt.dataset || dt.dataset.rlG==null) return; const o = el._rl; if(rlUi(o.key).q) return; rlUi(o.key).open[dt.dataset.rlG] = dt.open; rlUiSave(); }, true);
+}
+// 고정인수(분배) 히스토리 삭제 기록 — 서버/다른 PC 저장본과 합칠 때 다시 살아나지 않게
+const FI_HIST_DEL_LS = "fi_history_deleted_v1";
+let _fiHistDel = null;
+function fiHistIsDeleted(id){ if(!_fiHistDel){ try{ _fiHistDel = new Set(JSON.parse(localStorage.getItem(FI_HIST_DEL_LS)||"[]")); }catch(_){ _fiHistDel = new Set(); } } return _fiHistDel.has(+id); }
+function fiHistDeleteIds(ids){
+  fiHistIsDeleted(0); const del = new Set(ids.map(Number));
+  del.forEach(id=> _fiHistDel.add(id));
+  try{ localStorage.setItem(FI_HIST_DEL_LS, JSON.stringify(Array.from(_fiHistDel).slice(-2000))); }catch(_){}
+  FIXED_INTAKE_HISTORY = (FIXED_INTAKE_HISTORY||[]).filter(h=> !del.has(h.id));
+  if(_fiCur && del.has(_fiCur.id)) _fiCur = null;
+  fiPersist(); fiRender();
+}
 function fiRenderHistory(){
-  const el = document.getElementById("fiHistory");
-  if(!el) return;
-  const list = FIXED_INTAKE_HISTORY||[];
-  if(!list.length){ el.innerHTML = `<div class="fi-empty">저장된 히스토리가 없습니다.</div>`; return; }
-  el.innerHTML = `<table class="fi-tbl"><thead><tr><th>작업 일시</th><th>인수일</th><th>낙찰파일 (PLT)</th><th>재고 기준</th><th></th></tr></thead><tbody>
-    ${list.map(hh=>`<tr class="${_fiCur&&_fiCur.id===hh.id?"fi-on":""}"><td>${escHtml(hh.at||"")}${hh.edited?` <span class="fi-mut">(수정됨)</span>`:""}</td><td>${escHtml(hh.date||"")}</td>
-      <td>${(hh.files||[]).map(f=>`${fiTypeBadge(f.type)} ${f.centers.reduce((s,x)=>s+x.plt,0)}PLT`).join(" ")}</td><td class="fi-mut">${escHtml(hh.stockDate||"-")}</td>
-      <td style="white-space:nowrap"><button class="act fi-mini" data-fi-open="${hh.id}">열기</button> <button class="act fi-mini" data-fi-copyh="${hh.id}">문구 복사</button> <button class="act fi-mini admin-only" data-fi-del="${hh.id}" title="이 기록 삭제">✕</button></td></tr>`).join("")}
-    </tbody></table>`;
+  const el = document.getElementById("fiHistory"); if(!el) return;
+  const list = (FIXED_INTAKE_HISTORY||[]).filter(h=> !fiHistIsDeleted(h.id));
+  recListRender({ key:"fiHist", el, unit:"분배 기록", empty:"저장된 히스토리가 없습니다.", adminDel:true,
+    items: list.map(hh=>({ id:hh.id, group: rlDateKey(hh.date), on: !!(_fiCur && _fiCur.id===hh.id), h:hh,
+      plt: (hh.files||[]).reduce((a,f)=> a + f.centers.reduce((s,x)=> s+x.plt,0), 0),
+      text: [hh.at, hh.date, hh.stockDate, (hh.files||[]).map(f=> f.type).join(" "), hh.text].join(" ") })),
+    groupLabel: g=> rlDateLabel(g)+" 인수",
+    groupInfo: xs=> `${xs.reduce((a,x)=> a+x.plt, 0)}PLT`,
+    head: ["작업 일시","인수일","낙찰파일 (PLT)","재고 기준",""],
+    cells: x=>{ const hh = x.h; return [
+      `<td>${escHtml(hh.at||"")}${hh.edited?` <span class="fi-mut">(수정됨)</span>`:""}</td>`, `<td>${escHtml(hh.date||"")}</td>`,
+      `<td>${(hh.files||[]).map(f=>`${fiTypeBadge(f.type)} ${f.centers.reduce((s,y)=>s+y.plt,0)}PLT`).join(" ")}</td>`, `<td class="fi-mut">${escHtml(hh.stockDate||"-")}</td>`,
+      `<td style="white-space:nowrap"><button class="act fi-mini" data-fi-open="${hh.id}">열기</button> <button class="act fi-mini" data-fi-copyh="${hh.id}">문구 복사</button> <button class="act fi-mini admin-only" data-fi-del="${hh.id}" title="이 기록 삭제">✕</button></td>`]; },
+    onDelete: ids=> fiHistDeleteIds(ids) });
 }
 function fiOpenHistory(id){
   const hh = (FIXED_INTAKE_HISTORY||[]).find(x=>x.id===id);
@@ -13339,7 +13473,7 @@ function wireFixedIntake(){
     else if(t.id==="fiCopy"){ fiCopyText(document.getElementById("fiText").value, document.getElementById("fiCopyMsg")); }
     else if(t.dataset.fiOpen){ fiOpenHistory(+t.dataset.fiOpen); }
     else if(t.dataset.fiCopyh){ const hh=FIXED_INTAKE_HISTORY.find(x=>x.id===+t.dataset.fiCopyh); if(hh) fiCopyText(hh.text, t); if(hh) setTimeout(()=>t.textContent="문구 복사",1500); }
-    else if(t.dataset.fiDel){ if(confirm("이 히스토리 기록을 삭제할까요?")){ const id=+t.dataset.fiDel; FIXED_INTAKE_HISTORY = FIXED_INTAKE_HISTORY.filter(x=>x.id!==id); if(_fiCur&&_fiCur.id===id) _fiCur=null; fiPersist(); fiRender(); } }
+    else if(t.dataset.fiDel){ if(confirm("이 히스토리 기록을 삭제할까요?")){ const id=+t.dataset.fiDel; fiHistDeleteIds([id]); } }   // build 168: 지운 기록이 서버 저장본에서 다시 살아나지 않게
     else if(t.dataset.fiAdd!=null && _fiCur){ const r=_fiCur.plan.XLS[+t.dataset.fiAdd]; if(r){ r.alloc.push({ store:FI_JINCHEON, plt:0, why:"수동 추가" }); fiSaveCurrentToHistory(false); fiRender(); } }
     else if(t.id==="fiReplan" && _fiCur && _fiCur.builds[0] && _fiCur.builds[0].raw){ _fiCur.stockMap = fiEffStock(fiLatestSnap(), _fiCur.id, fiCurDate()); _fiCur.plan = fiPlan(_fiCur.builds, _fiCur.stockMap, Object.assign({ eligible:fiEligMap() }, fiSettings())); fiSaveCurrentToHistory(false); fiRender(); }
     else if(t.id==="fiReplan"){ showNotice("다시 분배는 이번에 파일을 올려 만든 결과에서만 됩니다(히스토리 결과는 하차지를 직접 바꿔 주세요)."); }
@@ -14449,34 +14583,23 @@ function fiDispDestSummary(h){
   return Object.entries(c).sort((a,b)=> b[1]-a[1]).map(([d,n])=> n>1 ? `${d}×${n}` : d).join(", ");
 }
 let _fiHistOpen = {};
-function fiDispRenderHistory(){
+function fiDispRenderHistory(){   // build 168: 공통 기록 목록 틀
   const el = document.getElementById("fiDispHistory"); if(!el) return;
-  const list = (FI_DISPATCH_HISTORY||[]).filter(h=> !fiDispIsDeleted(h.id));
-  if(!list.length){ el.innerHTML = `<div class="fi-empty">아직 만든 배차 요청서가 없습니다.</div>`; return; }
-  const by = {}; list.forEach(h=>{ const d = fiDispHistDate(h); (by[d] = by[d] || []).push(h); });
-  const dates = Object.keys(by).sort((a,b)=> (b||"0").localeCompare(a||"0"));
-  const wk = d=> d ? `${d}(${fiDispWeekday(d)})` : "출고일 없음";
-  let h = `<div style="display:flex;gap:6px;align-items:center;margin:4px 0 8px;flex-wrap:wrap"><label style="display:inline-flex;align-items:center;gap:5px;font-weight:700;cursor:pointer"><input type="checkbox" data-hall="1" style="width:18px;height:18px"> 전체 선택</label>
-    <span class="fi-mut">날짜 앞 ☐ = 그 날짜 전부 선택(일괄) · 줄 앞 ☐ = 기록 하나씩 선택(부분) → "선택한 기록 삭제"</span>
-    <button class="act fi-mini fi-del" id="fiHistDelSel" style="margin-left:auto">✕ 선택한 기록 삭제 (<span id="fiHistSelN">0</span>)</button></div>`;
-  dates.forEach((d,i)=>{
-    const hs = by[d].sort((a,b)=> (b.updatedAt||b.id)-(a.updatedAt||a.id));
-    const open = _fiHistOpen[d] != null ? _fiHistOpen[d] : i===0;
-    const nRows = hs.reduce((a,x)=> a + x.rows.length, 0), plt = hs.reduce((a,x)=> a + x.rows.reduce((s,r)=> s+(+r.pallets||0),0), 0);
-    h += `<details class="fi-hist-day" data-hday="${escHtml(d)}" ${open?"open":""} style="border:1px solid var(--line,#2a3a4a);border-radius:8px;margin:6px 0;padding:4px 10px">
-      <summary style="cursor:pointer;padding:6px 0;font-weight:700"><input type="checkbox" data-hday-chk="${escHtml(d)}" title="이 날짜 기록 전부 선택" style="width:18px;height:18px;vertical-align:middle;margin:0 6px 0 0;cursor:pointer"> ${escHtml(wk(d))} 출고 <span class="fi-mut" style="font-weight:400">— 기록 ${hs.length}개 · ${nRows}건 · ${plt}PLT</span>
-        <button class="act fi-mini fi-del" data-hday-del="${escHtml(d)}" style="float:right">✕ 이 날짜 전부 삭제</button></summary>
-      <table class="fi-tbl"><thead><tr><th style="width:28px"><input type="checkbox" data-hday-all="${escHtml(d)}" title="이 날짜 전부 선택"></th><th>작성 일시</th><th>유형 · 건수 · PLT</th><th>출고일</th><th>도착지</th><th></th></tr></thead><tbody>
-      ${hs.map(x=>`<tr class="${_fiDisp&&_fiDisp.id===x.id?"fi-on":""}"><td><input type="checkbox" data-hsel="${x.id}" data-hday-of="${escHtml(d)}"></td><td>${escHtml(x.at||"")}</td>
-        <td>${Array.from(new Set(x.rows.map(r=>r.type))).map(fiTypeBadge).join(" ")} ${x.rows.length}건 · ${x.rows.reduce((s,r)=>s+(+r.pallets||0),0)}PLT</td>
-        <td style="font-size:12px">${escHtml(Array.from(new Set(x.rows.map(r=>`${r.outboundDate||""} ${r.outboundAmPm||""}`.trim()))).join(", "))}</td>
-        <td class="fi-why" style="font-size:12px">${escHtml(fiDispDestSummary(x))}</td>
-        <td style="white-space:nowrap"><button class="act fi-mini" data-fd-open="${x.id}">열기</button> <button class="act fi-mini fi-del" data-fd-del="${x.id}">✕ 삭제</button></td></tr>`).join("")}
-      </tbody></table></details>`;
-  });
-  el.innerHTML = h;
-  fiHistSyncSel();
-  el.querySelectorAll("details[data-hday]").forEach(dt=> dt.addEventListener("toggle", ()=>{ _fiHistOpen[dt.dataset.hday] = dt.open; }));
+  const list = (FI_DISPATCH_HISTORY||[]).filter(h=> !fiDispIsDeleted(h.id)).sort((a,b)=> (b.updatedAt||b.id)-(a.updatedAt||a.id));
+  const plt = x=> x.rows.reduce((s,r)=> s+(+r.pallets||0), 0);
+  recListRender({ key:"fiDisp", el, unit:"배차 요청 기록", empty:"아직 만든 배차 요청서가 없습니다.",
+    items: list.map(x=>({ id:x.id, group: fiDispHistDate(x), on: !!(_fiDisp && _fiDisp.id===x.id), x, plt: plt(x),
+      text: [x.at, fiDispDestSummary(x), x.rows.map(r=> [r.type, r.fc, r.dest, r.outboundDate].join(" ")).join(" ")].join(" ") })),
+    groupLabel: g=> g ? rlDateLabel(g)+" 출고" : "출고일 없음",
+    groupInfo: xs=> `${xs.reduce((a,y)=> a+y.x.rows.length, 0)}건 · ${xs.reduce((a,y)=> a+y.plt, 0)}PLT`,
+    head: ["작성 일시","유형 · 건수 · PLT","출고일","도착지",""],
+    cells: y=>{ const x = y.x; return [
+      `<td>${escHtml(x.at||"")}</td>`,
+      `<td>${Array.from(new Set(x.rows.map(r=>r.type))).map(fiTypeBadge).join(" ")} ${x.rows.length}건 · ${y.plt}PLT</td>`,
+      `<td style="font-size:12px">${escHtml(Array.from(new Set(x.rows.map(r=>`${r.outboundDate||""} ${r.outboundAmPm||""}`.trim()))).join(", "))}</td>`,
+      `<td class="fi-why" style="font-size:12px">${escHtml(fiDispDestSummary(x))}</td>`,
+      `<td style="white-space:nowrap"><button class="act fi-mini" data-fd-open="${x.id}">열기</button> <button class="act fi-mini fi-del" data-fd-del="${x.id}">✕ 삭제</button></td>`]; },
+    onDelete: ids=> fiDispDeleteIds(ids) });
 }
 // build 157: 배차 요청 기록 체크 상태 동기화 — 날짜 체크(일괄) · 줄 체크(부분) · 전체 선택 · 선택 개수
 function fiHistSyncSel(){
@@ -15232,13 +15355,17 @@ function liqRender(){
     </div>`;
   }
   const hEl = document.getElementById("liqHistory"); if(!hEl) return;
-  if(!LIQ_HISTORY.length){ hEl.innerHTML = `<div class="fi-empty">아직 만든 일반 리퀴 낙찰파일이 없습니다.</div>`; return; }
-  hEl.innerHTML = `<table class="fi-tbl"><thead><tr><th>작성 일시</th><th>낙찰일</th><th>낙찰파일명</th><th class="n">매장판매가 총액</th><th></th></tr></thead><tbody>${
-    LIQ_HISTORY.slice(0,30).map(h=>`<tr><td>${escHtml(h.at)}</td><td>${escHtml(h.date||"")}</td>
-      <td style="white-space:normal;word-break:break-all">${escHtml(h.fullName || liqFullName(h.date||"", h.perLot||[]))}</td>
-      <td class="n">${fiFmt((h.perLot||[]).reduce((s,x)=>s+(x.shop||0),0))}</td>
-      <td style="white-space:nowrap"><button class="act fi-mini" data-liq-dl="${h.id}">⬇ 다시 받기</button> <button class="act fi-mini" data-liq-copy="${h.id}">파일명 복사</button> <button class="act fi-mini" data-liq-lots="${h.id}">LOT 다시 입력</button> <button class="act fi-mini" data-liq-del="${h.id}">✕</button></td></tr>`).join("")
-  }</tbody></table>`;
+  recListRender({ key:"liqHist", el:hEl, unit:"낙찰파일 기록", empty:"아직 만든 일반 리퀴 낙찰파일이 없습니다.",   // build 168
+    items: LIQ_HISTORY.map(h=>({ id:h.id, group: rlDateKey(h.date || h.at), h, name: h.fullName || liqFullName(h.date||"", h.perLot||[]),
+      shop: (h.perLot||[]).reduce((s,x)=> s+(x.shop||0), 0), text: [h.at, h.date, h.fullName, h.srcName, (h.lots||[]).join(" ")].join(" ") })),
+    groupLabel: g=> rlDateLabel(g)+" 낙찰",
+    groupInfo: xs=> `매장판매가 ${fiFmt(xs.reduce((a,x)=> a+x.shop, 0))}`,
+    head: ["작성 일시","낙찰일","낙찰파일명",'<span style="float:right">매장판매가 총액</span>',""],
+    cells: x=>{ const h = x.h; return [`<td>${escHtml(h.at)}</td>`, `<td>${escHtml(h.date||"")}</td>`,
+      `<td style="white-space:normal;word-break:break-all">${escHtml(x.name)}</td>`, `<td class="n">${fiFmt(x.shop)}</td>`,
+      `<td style="white-space:nowrap"><button class="act fi-mini" data-liq-dl="${h.id}">⬇ 다시 받기</button> <button class="act fi-mini" data-liq-copy="${h.id}">파일명 복사</button> <button class="act fi-mini" data-liq-lots="${h.id}">LOT 다시 입력</button> <button class="act fi-mini" data-liq-del="${h.id}">✕</button></td>`]; },
+    onDelete: ids=>{ const del = new Set(ids); ids.forEach(id=>{ try{ idbSet("liq_file_"+id, null).catch(()=>{}); }catch(_){} });
+      LIQ_HISTORY = LIQ_HISTORY.filter(x=> !del.has(x.id)); liqPersist(); liqRender(); } });
 }
 function liqSetFile(f){
   if(!f) return;
@@ -15946,13 +16073,19 @@ function eosRender(){
     }
   }
   const hEl = document.getElementById("eosHistory"); if(!hEl) return;
-  if(!EOS_HISTORY.length){ hEl.innerHTML = `<div class="fi-empty">아직 만든 임박식품 낙찰파일이 없습니다.</div>`; return; }
-  hEl.innerHTML = `<table class="fi-tbl"><thead><tr><th>작성 일시</th><th>낙찰일</th><th>낙찰파일명</th><th class="n">PLT</th><th class="n">매장판매가 총액</th><th></th></tr></thead><tbody>${
-    EOS_HISTORY.slice(0,30).map(h=> (h.files||[]).map((x,i)=>`<tr><td>${i?"":escHtml(h.at)}</td><td>${i?"":escHtml(h.date||"")}</td>
-      <td style="white-space:normal;word-break:break-all">${escHtml(x.outName)}</td><td class="n">${x.plt}</td><td class="n">${fiFmt(x.shop)}</td>
-      <td style="white-space:nowrap"><button class="act fi-mini" data-eos-hdl="${h.id}|${x.lot}">⬇ 다시 받기</button> <button class="act fi-mini" data-eos-hcopy="${h.id}|${x.lot}">파일명 복사</button>
-      ${i?"":`<button class="act fi-mini" data-eos-lots="${h.id}">LOT 다시 입력</button> <button class="act fi-mini" data-eos-del="${h.id}">✕</button>`}</td></tr>`).join("")).join("")
-  }</tbody></table>`;
+  recListRender({ key:"eosHist", el:hEl, unit:"낙찰파일 기록", empty:"아직 만든 임박식품 낙찰파일이 없습니다.",   // build 168
+    items: EOS_HISTORY.map(h=>({ id:h.id, group: rlDateKey(h.date || h.at), h,
+      plt: (h.files||[]).reduce((s,x)=> s+(+x.plt||0), 0), shop: (h.files||[]).reduce((s,x)=> s+(+x.shop||0), 0),
+      text: [h.at, h.date, h.srcName, (h.lots||[]).join(" "), (h.files||[]).map(x=> x.outName).join(" ")].join(" ") })),
+    groupLabel: g=> rlDateLabel(g)+" 낙찰",
+    groupInfo: xs=> `${xs.reduce((a,x)=> a+x.plt, 0)}PLT · 매장판매가 ${fiFmt(xs.reduce((a,x)=> a+x.shop, 0))}`,
+    head: ["작성 일시","낙찰일","낙찰파일 (LOT별)",""],
+    cells: x=>{ const h = x.h; return [`<td>${escHtml(h.at)}</td>`, `<td>${escHtml(h.date||"")}</td>`,
+      `<td style="white-space:normal">${(h.files||[]).map(f=>`<div style="display:flex;gap:6px;align-items:center;padding:2px 0;flex-wrap:wrap"><span style="flex:1;min-width:240px;word-break:break-all">${escHtml(f.outName)}</span><span class="fi-mut">${f.plt}PLT · ${fiFmt(f.shop)}</span><button class="act fi-mini" data-eos-hdl="${h.id}|${f.lot}">⬇ 다시 받기</button><button class="act fi-mini" data-eos-hcopy="${h.id}|${f.lot}">파일명 복사</button></div>`).join("")}</td>`,
+      `<td style="white-space:nowrap"><button class="act fi-mini" data-eos-lots="${h.id}">LOT 다시 입력</button> <button class="act fi-mini" data-eos-del="${h.id}">✕</button></td>`]; },
+    onDelete: ids=>{ const del = new Set(ids);
+      EOS_HISTORY.filter(x=> del.has(x.id)).forEach(h=> (h.files||[]).forEach(f=>{ try{ idbSet(`eos_file_${h.id}_${f.lot}`, null).catch(()=>{}); }catch(_){} }));
+      EOS_HISTORY = EOS_HISTORY.filter(x=> !del.has(x.id)); try{ localStorage.setItem(EOS_LS, JSON.stringify(EOS_HISTORY.slice(0,200))); }catch(_){} eosRender(); } });
 }
 function eosSetFile(f){
   if(!f) return;
