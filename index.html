@@ -1129,13 +1129,14 @@
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 174 · 2026-10-16</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 175 · 2026-10-16</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -12151,35 +12152,67 @@ idbGet("state").then(async st=>{
 }).catch(()=>{});
 
 /* ================= 실시간 공유 (Firebase Realtime Database) ================= */
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyBsHr9wMm-7J-5LGDuWhY9gSU0cqUZu6S8",
-  authDomain: "kingkong-dba2a.firebaseapp.com",
-  databaseURL: "https://kingkong-dba2a-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "kingkong-dba2a",
-  storageBucket: "kingkong-dba2a.firebasestorage.app",
-  messagingSenderId: "179352269732",
-  appId: "1:179352269732:web:db8f06b614c78f9c2d8731"
+const FIREBASE_CONFIG = {   // build 175: ldj0120@kinggo.ai 계정의 새 프로젝트(kingkong-kinggo)로 이전 — 쓰기는 규칙으로 관리자 계정만
+  apiKey: "AIzaSyAPqGIaY53VoISx3s1QjSDeTWa2kUnEbgM",
+  authDomain: "kingkong-kinggo.firebaseapp.com",
+  databaseURL: "https://kingkong-kinggo-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "kingkong-kinggo",
+  storageBucket: "kingkong-kinggo.firebasestorage.app",
+  messagingSenderId: "983939315376",
+  appId: "1:983939315376:web:4256ce504e1812b5daad75"
 };
-const ADMIN_PW = "1234";
+/* build 173: 관리자 = Firebase 이메일 계정 로그인 (소스에 적혀 있던 비밀번호 방식 폐지).
+   데이터베이스 쓰기는 Firebase 규칙에서 관리자 계정(uid)만 허용 — 보기는 지금처럼 공개. */
 let CLOUD_ON=false, IS_ADMIN=false, _cloudRef=null, _cloudPushTimer=null, _cloudPulled=false;
+let _authReady=false, _authUser=null;
+const ADMIN_HINT_LS = "plt_is_admin";   // 이 브라우저가 관리자였다는 표시 — 로그인 확인 전까지 클라우드로 덮어쓰지 않게만 사용(권한 아님)
 function updateCloudBadge(){
   let b=document.getElementById("cloudBadge");
   if(!b){ b=document.createElement("div"); b.id="cloudBadge"; document.body.appendChild(b); b.onclick=adminLoginToggle; }
   if(!CLOUD_ON){ b.textContent="⚠ 공유 연결 안됨"; b.className=""; return; }
-  if(IS_ADMIN){ b.textContent="🔑 관리자 모드 (업로드 가능)"; b.className="admin"; document.body.classList.remove("viewer-mode"); }
+  if(IS_ADMIN){ b.textContent="🔑 관리자 모드 (업로드 가능)"+(_authUser&&_authUser.email?" · "+_authUser.email:""); b.className="admin"; document.body.classList.remove("viewer-mode"); }
   else { b.textContent="👁 뷰어 모드 (관리자 로그인)"; b.className="viewer"; document.body.classList.add("viewer-mode"); }
   try{ const lb = document.getElementById("adminLoginBtn"); if(lb && !lb._wired){ lb._wired = true; lb.onclick = adminLoginToggle; } }catch(_){}
   try{ renderFreshStrip(); }catch(_){}
 }
 function adminLoginToggle(){
   if(IS_ADMIN){
-    if(confirm("관리자 모드를 해제하고 뷰어 모드로 전환할까요?")){ IS_ADMIN=false; localStorage.removeItem("plt_is_admin"); updateCloudBadge(); }
+    if(confirm("관리자 로그아웃하고 뷰어 모드로 전환할까요?")){ try{ localStorage.removeItem(ADMIN_HINT_LS); }catch(_){} try{ firebase.auth().signOut(); }catch(_){} IS_ADMIN=false; updateCloudBadge(); }
     return;
   }
-  const pw = prompt("관리자 비밀번호를 입력하세요 (업로드하려면 필요):");
-  if(pw===null) return;
-  if(pw===ADMIN_PW){ IS_ADMIN=true; localStorage.setItem("plt_is_admin","1"); updateCloudBadge(); showNotice("관리자 모드로 전환됐습니다. 이제 업로드하면 모든 사람에게 실시간 공유됩니다."); cloudPush(); }
-  else alert("비밀번호가 틀렸습니다.");
+  adminLoginDialog();
+}
+function adminLoginDialog(){
+  let m = document.getElementById("adminLoginModal");
+  if(!m){
+    m = document.createElement("div"); m.id = "adminLoginModal"; m.className = "modal-overlay";
+    m.innerHTML = `<div class="modal-box" style="max-width:380px">
+      <h3 style="margin-top:0">🔑 관리자 로그인</h3>
+      <div class="fi-mut" style="margin-bottom:10px">업로드·수정은 관리자 계정으로 로그인해야 합니다. 보기는 로그인 없이 됩니다.</div>
+      <form id="adminLoginForm" style="display:flex;flex-direction:column;gap:8px">
+        <input id="adminEmail" type="email" autocomplete="username" placeholder="이메일" style="padding:8px">
+        <input id="adminPw" type="password" autocomplete="current-password" placeholder="비밀번호" style="padding:8px">
+        <div id="adminLoginMsg" style="color:var(--red);font-size:12.5px;min-height:16px"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="act" id="adminLoginCancel">취소</button><button type="submit" class="act primary" id="adminLoginGo">로그인</button></div>
+      </form></div>`;
+    document.body.appendChild(m);
+    m.querySelector("#adminLoginCancel").onclick = ()=>{ m.hidden = true; };
+    m.querySelector("#adminLoginForm").onsubmit = async e=>{
+      e.preventDefault();
+      const msg = m.querySelector("#adminLoginMsg"), btn = m.querySelector("#adminLoginGo");
+      const email = m.querySelector("#adminEmail").value.trim(), pw = m.querySelector("#adminPw").value;
+      if(!email || !pw){ msg.textContent = "이메일과 비밀번호를 넣어 주세요."; return; }
+      btn.disabled = true; msg.textContent = "";
+      try{
+        await firebase.auth().signInWithEmailAndPassword(email, pw);
+        m.querySelector("#adminPw").value = ""; m.hidden = true;
+      }catch(err){
+        const c = String(err && err.code || "");
+        msg.textContent = /invalid-credential|wrong-password|user-not-found|invalid-email/.test(c) ? "이메일 또는 비밀번호가 맞지 않습니다." : /too-many-requests/.test(c) ? "시도가 너무 많습니다. 잠시 후 다시 해 주세요." : "로그인 실패: " + (err && err.message || err);
+      }finally{ btn.disabled = false; }
+    };
+  }
+  m.hidden = false; setTimeout(()=>{ const e = m.querySelector("#adminEmail"); if(e) e.focus(); }, 50);
 }
 /* build 150: 클라우드 덮어쓰기 보호 — 관리자 브라우저의 데이터가 클라우드보다 적으면(브라우저 데이터 삭제·
    다른 PC·오래된 탭 등) 올리지 않고 먼저 묻는다. 관리자는 저장할 때마다 상태 전체를 통째로 올리기 때문에,
@@ -12249,15 +12282,30 @@ function cloudInit(){
     firebase.initializeApp(FIREBASE_CONFIG);
     _cloudRef = firebase.database().ref("state");
     CLOUD_ON = true;
-    IS_ADMIN = localStorage.getItem("plt_is_admin")==="1";
+    IS_ADMIN = false;   // build 173: 로그인이 확인돼야 관리자
     updateCloudBadge();
+    try{ firebase.auth().onAuthStateChanged(u=>{
+      const was = IS_ADMIN;
+      _authUser = u || null; _authReady = true; IS_ADMIN = !!u;
+      try{ if(u) localStorage.setItem(ADMIN_HINT_LS, "1"); else localStorage.removeItem(ADMIN_HINT_LS); }catch(_){}
+      updateCloudBadge();
+      if(IS_ADMIN && !was){ showNotice("관리자 모드로 전환됐습니다. 이제 업로드하면 모든 사람에게 실시간 공유됩니다."); cloudPush(); }
+      if(!IS_ADMIN && _cloudLastVal && _cloudApply) _cloudApply(_cloudLastVal);   // 로그인 안 됨 → 클라우드 최신 데이터로 보기
+    }); }catch(e){ _authReady = true; }
     // 실시간 수신: 뷰어는 클라우드 값이 바뀌면 화면 자동 갱신. 관리자는 자기 로컬이 소스라 최초 1회만 참고.
     _cloudRef.on("value", snap=>{
       const val = snap.val();
       if(!val) return;
       // build 150: 관리자도 클라우드 규모(일수·월 수·마지막 날짜)는 기억해 둔다 → cloudPush가 줄어드는 덮어쓰기를 막는다
       try{ _cloudLastVal = val; _cloudMetrics = stateMetrics((typeof val==="string") ? JSON.parse(val) : val); }catch(_){}
+      _cloudApply(val);
+    });
+  }catch(e){ CLOUD_ON=false; updateCloudBadge(); }
+}
+var _cloudApply = function(val){
       if(IS_ADMIN) return; // 관리자는 클라우드로 덮어쓰지 않음
+      let hint = false; try{ hint = localStorage.getItem(ADMIN_HINT_LS)==="1"; }catch(_){}
+      if(!_authReady && hint) return;   // build 173: 관리자였던 브라우저는 로그인 확인 전까지 덮어쓰지 않음
       try{
         const st = (typeof val==="string") ? JSON.parse(val) : val;
         const r = applyStateObject(st);
@@ -12269,9 +12317,7 @@ function cloudInit(){
         try{ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderSalesMonthly(); }catch(_){}
         if(!_cloudPulled){ _cloudPulled=true; showNotice("☁ 실시간 공유: 최신 데이터를 불러왔습니다(뷰어 모드). 관리자가 업로드하면 자동으로 갱신됩니다."); setTimeout(()=>{ try{ if(!_pushGuardShown && /실시간 공유/.test(noticeBar.textContent)) noticeBar.hidden = true; }catch(_){} }, 8000); }
       }catch(e){}
-    });
-  }catch(e){ CLOUD_ON=false; updateCloudBadge(); }
-}
+};
 // 업로드/초기화 버튼을 뷰어에게서 숨기기 위해 admin-only 표시
 (function markAdminOnly(){
   ["importFolderBtn","importStockBtn","importActualBtn","importApplianceBtn","importHQBtn","importSalesBtn","importCatSalesBtn","importSalesSummaryBtn","importFreshBtn","importLotteBtn","resetAllBtn","resetBtn","resetSalesBtn","resetStockBtn","exportMapBtn","importMapBtn","editMapBtn"].forEach(id=>{
