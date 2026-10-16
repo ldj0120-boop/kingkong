@@ -1136,7 +1136,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 175 · 2026-10-16</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 176 · 2026-10-16</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -3114,15 +3114,83 @@ function idbOpen(){
     }catch(e){ rej(e); }
   });
 }
-async function idbSet(key, val){
+async function _idbSetRaw(key, val){
   if(!IDB_AVAILABLE) return null;
   const db = await idbOpen();
   return new Promise((res,rej)=>{ const tx=db.transaction("kv","readwrite"); tx.objectStore("kv").put(val,key); tx.oncomplete=()=>res(true); tx.onerror=()=>rej(tx.error); });
 }
-async function idbGet(key){
+async function _idbGetRaw(key){
   if(!IDB_AVAILABLE) return null;
   const db = await idbOpen();
   return new Promise((res,rej)=>{ const tx=db.transaction("kv","readonly"); const rq=tx.objectStore("kv").get(key); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); });
+}
+
+/* build 176: 낙찰파일 보관본(liq/eos/fd/fi_file_…)은 이 브라우저(IndexedDB) + 서버(Firebase files/)에 같이 저장.
+   다른 PC·휴대폰에서도 "다시 받기"가 되도록, 이 브라우저에 없으면 서버에서 받아 온다. 서버 쓰기는 관리자 로그인 때만. */
+const CLOUD_FILE_RE = /^(liq|eos|fd|fi)_file_/;
+function _fbDb(){ try{ return (typeof firebase!=="undefined" && firebase.apps && firebase.apps.length) ? firebase.database() : null; }catch(_){ return null; } }
+function _fileKey(k){ return String(k).replace(/[.#$\[\]\/]/g, "_"); }
+function _u8ToB64(u8){ let s = ""; for(let i=0;i<u8.length;i+=0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i+0x8000)); return btoa(s); }
+function _b64ToU8(b){ const s = atob(b), u = new Uint8Array(s.length); for(let i=0;i<s.length;i++) u[i] = s.charCodeAt(i); return u; }
+function cloudFilePut(key, val){
+  try{
+    const db = _fbDb(); if(!db || typeof IS_ADMIN==="undefined" || !IS_ADMIN) return;
+    const ref = db.ref("files/"+_fileKey(key));
+    if(val==null){ ref.remove().catch(()=>{}); return; }
+    const d = val.data; const u8 = d instanceof Uint8Array ? d : d instanceof ArrayBuffer ? new Uint8Array(d) : (d && d.buffer) ? new Uint8Array(d.buffer) : null;
+    if(!u8) return;
+    ref.set({ name: val.name || "", at: Date.now(), size: u8.length, b64: _u8ToB64(u8) }).catch(e=> console.warn("file upload", e));
+  }catch(e){ console.warn(e); }
+}
+async function cloudFileGet(key){
+  try{ const db = _fbDb(); if(!db) return null; const snap = await db.ref("files/"+_fileKey(key)).get(); const v = snap.val();
+    if(!v || !v.b64) return null; const o = { name: v.name, data: _b64ToU8(v.b64) }; try{ await _idbSetRaw(key, o); }catch(_){} return o; }catch(_){ return null; }
+}
+async function idbSet(key, val){ if(CLOUD_FILE_RE.test(String(key))) cloudFilePut(key, val); return _idbSetRaw(key, val); }
+async function idbGet(key){
+  let v = null; try{ v = await _idbGetRaw(key); }catch(_){}
+  if(v==null && CLOUD_FILE_RE.test(String(key))) v = await cloudFileGet(key);
+  return v;
+}
+/* build 176: 낙찰파일 기록(① 일반 리퀴 · ④ 임박 · ⑥ FC파손)도 서버(hist/{종류}/items/{id})에 저장 — 어느 PC에서나 같은 기록.
+   지운 기록은 hist/{종류}/del/{id}에 남겨 다른 PC의 옛 기록이 되살리지 않게 한다. */
+const HIST_SYNC = {
+  liq: { get:()=> LIQ_HISTORY, set:v=>{ LIQ_HISTORY = v; }, save:()=>{ try{ localStorage.setItem(LIQ_LS, JSON.stringify(LIQ_HISTORY.slice(0,200))); }catch(_){} }, render:()=>{ try{ liqRender(); }catch(_){} } },
+  eos: { get:()=> EOS_HISTORY, set:v=>{ EOS_HISTORY = v; }, save:()=>{ try{ localStorage.setItem(EOS_LS, JSON.stringify(EOS_HISTORY.slice(0,200))); }catch(_){} }, render:()=>{ try{ eosRender(); }catch(_){} } },
+  fd:  { get:()=> FD_HISTORY,  set:v=>{ FD_HISTORY = v; },  save:()=>{ try{ localStorage.setItem(FD_LS, JSON.stringify(FD_HISTORY.slice(0,200))); }catch(_){} },  render:()=>{ try{ fdRender(); }catch(_){} } }
+};
+const _histSynced = {}, _histTimer = {}, _histDel = {};
+function cloudHistPush(type){
+  clearTimeout(_histTimer[type]);
+  _histTimer[type] = setTimeout(()=>{
+    try{
+      const db = _fbDb(); if(!db || typeof IS_ADMIN==="undefined" || !IS_ADMIN) return;
+      const H = HIST_SYNC[type], list = (H.get()||[]).slice(0,200), ops = {}, now = new Set();
+      list.forEach(e=>{ if(!e || !e.id) return; now.add(String(e.id)); ops["items/"+e.id] = JSON.parse(JSON.stringify(e)); });
+      (_histSynced[type] || new Set()).forEach(id=>{ if(!now.has(id)){ ops["items/"+id] = null; ops["del/"+id] = Date.now(); } });
+      if(!Object.keys(ops).length) return;
+      db.ref("hist/"+type).update(ops).then(()=>{ _histSynced[type] = now; }).catch(e=> console.warn("hist push", type, e));
+    }catch(e){ console.warn(e); }
+  }, 800);
+}
+function cloudHistInit(){
+  const db = _fbDb(); if(!db) return;
+  Object.keys(HIST_SYNC).forEach(type=>{
+    db.ref("hist/"+type).on("value", snap=>{
+      try{
+        const v = snap.val() || {}, items = v.items || {}, del = new Set(Object.keys(v.del || {}));
+        _histDel[type] = del;
+        const H = HIST_SYNC[type], m = new Map();
+        Object.values(items).forEach(e=>{ if(e && e.id) m.set(String(e.id), e); });
+        let localOnly = 0;
+        (H.get()||[]).forEach(e=>{ if(!e || !e.id) return; const k = String(e.id); if(del.has(k) || m.has(k)) return; m.set(k, e); localOnly++; });
+        const merged = [...m.values()].sort((a,b)=> b.id - a.id);
+        _histSynced[type] = new Set(Object.keys(items));
+        H.set(merged); H.save(); H.render();
+        if(localOnly && typeof IS_ADMIN!=="undefined" && IS_ADMIN) cloudHistPush(type);   // 이 브라우저에만 있던 기록 올리기
+      }catch(e){ console.warn(e); }
+    });
+  });
 }
 
 /* ================= 안내 배너 ================= */
@@ -12177,11 +12245,33 @@ function updateCloudBadge(){
 }
 function adminLoginToggle(){
   if(IS_ADMIN){
-    if(confirm("관리자 로그아웃하고 뷰어 모드로 전환할까요?")){ try{ localStorage.removeItem(ADMIN_HINT_LS); }catch(_){} try{ firebase.auth().signOut(); }catch(_){} IS_ADMIN=false; updateCloudBadge(); }
+    if(confirm("관리자 로그아웃하고 뷰어 모드로 전환할까요?")){ try{ localStorage.removeItem(ADMIN_HINT_LS); localStorage.setItem("kk_admin_noauto","1"); }catch(_){} try{ navigator.credentials && navigator.credentials.preventSilentAccess && navigator.credentials.preventSilentAccess(); }catch(_){} try{ firebase.auth().signOut(); }catch(_){} IS_ADMIN=false; updateCloudBadge(); }
     return;
   }
-  adminLoginDialog();
+  adminLoginWithSaved().then(ok=>{ if(!ok) adminLoginDialog(); });
 }
+/* build 176: 자동 로그인 — 로그인 상태는 이 브라우저에 계속 유지되고(LOCAL), 로그아웃했거나 만료됐으면
+   브라우저에 저장된 관리자 비밀번호(크롬 비밀번호 관리자)로 조용히 다시 로그인한다. 비밀번호는 코드·서버에 저장하지 않음. */
+function adminStoreCred(email, pw){
+  try{ localStorage.removeItem("kk_admin_noauto"); localStorage.setItem("kk_admin_email", email); }catch(_){}
+  try{ if(window.PasswordCredential && navigator.credentials) navigator.credentials.store(new PasswordCredential({ id: email, password: pw, name: "킹콩 사이트 관리자" })).catch(()=>{}); }catch(_){}
+}
+async function adminCredSignIn(mediation){
+  try{
+    if(!(window.PasswordCredential && navigator.credentials)) return false;
+    const c = await navigator.credentials.get({ password: true, mediation });
+    if(!c || !c.password) return false;
+    await firebase.auth().signInWithEmailAndPassword(c.id, c.password);
+    try{ localStorage.removeItem("kk_admin_noauto"); }catch(_){}
+    return true;
+  }catch(_){ return false; }
+}
+async function adminAutoLogin(){
+  let hint = false, no = false; try{ hint = !!localStorage.getItem("kk_admin_email") || localStorage.getItem(ADMIN_HINT_LS)==="1"; no = localStorage.getItem("kk_admin_noauto")==="1"; }catch(_){}
+  if(!hint || no) return;
+  await adminCredSignIn("silent");
+}
+async function adminLoginWithSaved(){ return adminCredSignIn("optional"); }
 function adminLoginDialog(){
   let m = document.getElementById("adminLoginModal");
   if(!m){
@@ -12189,9 +12279,9 @@ function adminLoginDialog(){
     m.innerHTML = `<div class="modal-box" style="max-width:380px">
       <h3 style="margin-top:0">🔑 관리자 로그인</h3>
       <div class="fi-mut" style="margin-bottom:10px">업로드·수정은 관리자 계정으로 로그인해야 합니다. 보기는 로그인 없이 됩니다.</div>
-      <form id="adminLoginForm" style="display:flex;flex-direction:column;gap:8px">
-        <input id="adminEmail" type="email" autocomplete="username" placeholder="이메일" style="padding:8px">
-        <input id="adminPw" type="password" autocomplete="current-password" placeholder="비밀번호" style="padding:8px">
+      <form id="adminLoginForm" method="post" action="#" style="display:flex;flex-direction:column;gap:8px">
+        <input id="adminEmail" name="email" type="email" autocomplete="username" placeholder="이메일" style="padding:8px">
+        <input id="adminPw" name="password" type="password" autocomplete="current-password" placeholder="비밀번호" style="padding:8px">
         <div id="adminLoginMsg" style="color:var(--red);font-size:12.5px;min-height:16px"></div>
         <div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="act" id="adminLoginCancel">취소</button><button type="submit" class="act primary" id="adminLoginGo">로그인</button></div>
       </form></div>`;
@@ -12205,6 +12295,7 @@ function adminLoginDialog(){
       btn.disabled = true; msg.textContent = "";
       try{
         await firebase.auth().signInWithEmailAndPassword(email, pw);
+        adminStoreCred(email, pw);   // build 176: 브라우저 비밀번호 저장(다음부터 자동 로그인)
         m.querySelector("#adminPw").value = ""; m.hidden = true;
       }catch(err){
         const c = String(err && err.code || "");
@@ -12212,7 +12303,7 @@ function adminLoginDialog(){
       }finally{ btn.disabled = false; }
     };
   }
-  m.hidden = false; setTimeout(()=>{ const e = m.querySelector("#adminEmail"); if(e) e.focus(); }, 50);
+  m.hidden = false; setTimeout(()=>{ const e = m.querySelector("#adminEmail"); if(e){ try{ if(!e.value) e.value = localStorage.getItem("kk_admin_email")||""; }catch(_){} (e.value ? m.querySelector("#adminPw") : e).focus(); } }, 50);
 }
 /* build 150: 클라우드 덮어쓰기 보호 — 관리자 브라우저의 데이터가 클라우드보다 적으면(브라우저 데이터 삭제·
    다른 PC·오래된 탭 등) 올리지 않고 먼저 묻는다. 관리자는 저장할 때마다 상태 전체를 통째로 올리기 때문에,
@@ -12284,14 +12375,17 @@ function cloudInit(){
     CLOUD_ON = true;
     IS_ADMIN = false;   // build 173: 로그인이 확인돼야 관리자
     updateCloudBadge();
+    try{ firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{}); }catch(_){}   // build 176: 로그인 유지
     try{ firebase.auth().onAuthStateChanged(u=>{
       const was = IS_ADMIN;
       _authUser = u || null; _authReady = true; IS_ADMIN = !!u;
+      if(!u && !was) adminAutoLogin();   // build 176: 저장된 비밀번호로 자동 로그인 시도
       try{ if(u) localStorage.setItem(ADMIN_HINT_LS, "1"); else localStorage.removeItem(ADMIN_HINT_LS); }catch(_){}
       updateCloudBadge();
-      if(IS_ADMIN && !was){ showNotice("관리자 모드로 전환됐습니다. 이제 업로드하면 모든 사람에게 실시간 공유됩니다."); cloudPush(); }
+      if(IS_ADMIN && !was){ showNotice("관리자 모드로 전환됐습니다. 이제 업로드하면 모든 사람에게 실시간 공유됩니다."); cloudPush(); try{ Object.keys(HIST_SYNC).forEach(cloudHistPush); }catch(_){} }
       if(!IS_ADMIN && _cloudLastVal && _cloudApply) _cloudApply(_cloudLastVal);   // 로그인 안 됨 → 클라우드 최신 데이터로 보기
     }); }catch(e){ _authReady = true; }
+    try{ cloudHistInit(); }catch(e){ console.warn(e); }   // build 176
     // 실시간 수신: 뷰어는 클라우드 값이 바뀌면 화면 자동 갱신. 관리자는 자기 로컬이 소스라 최초 1회만 참고.
     _cloudRef.on("value", snap=>{
       const val = snap.val();
@@ -15404,7 +15498,7 @@ function liqMakeWorkbook(b){
   XLSX.utils.book_append_sheet(wb, ws3, "총액");
   return wb;
 }
-function liqPersist(){ try{ localStorage.setItem(LIQ_LS, JSON.stringify(LIQ_HISTORY.slice(0,200))); }catch(_){} }
+function liqPersist(){ try{ localStorage.setItem(LIQ_LS, JSON.stringify(LIQ_HISTORY.slice(0,200))); }catch(_){} try{ cloudHistPush("liq"); }catch(_){} }
 async function liqGenerate(){
   const st = document.getElementById("liqStatus"), ta = document.getElementById("liqLots"), dEl = document.getElementById("liqDate");
   const say = (m, bad)=>{ st.innerHTML = bad ? `<span style="color:var(--red)">${m}</span>` : m; };
@@ -16379,7 +16473,7 @@ async function fdBidWorkbook(ff, D, b){
 const FD_LS = "fd_history_v1";
 let FD_HISTORY = []; try{ FD_HISTORY = JSON.parse(localStorage.getItem(FD_LS)||"[]") || []; }catch(_){ FD_HISTORY = []; }
 let _fdsFile = null, _fdsCur = null, _fdFile = null, _fdData = null, _fdCur = null;
-function fdPersist(){ try{ localStorage.setItem(FD_LS, JSON.stringify(FD_HISTORY.slice(0,200))); }catch(_){} }
+function fdPersist(){ try{ localStorage.setItem(FD_LS, JSON.stringify(FD_HISTORY.slice(0,200))); }catch(_){} try{ cloudHistPush("fd"); }catch(_){} }
 async function fdsHandleFile(f){
   const st = document.getElementById("fdsStatus"); if(!f) return;
   if(!/\.(xlsx|xlsm|xls)$/i.test(f.name)){ st.innerHTML = '<span style="color:var(--red)">FC파손 원본 엑셀(FC_Liquidation_… 원본.xlsx)을 올려 주세요</span>'; return; }
@@ -16523,6 +16617,7 @@ function wireFdBid(){
 }
 
 const EOS_LS = "eos_history_v1";
+function eosPersist(){ try{ localStorage.setItem(EOS_LS, JSON.stringify(EOS_HISTORY.slice(0,200))); }catch(_){} try{ cloudHistPush("eos"); }catch(_){} }
 let EOS_HISTORY = [];
 try{ EOS_HISTORY = JSON.parse(localStorage.getItem(EOS_LS)||"[]") || []; }catch(_){ EOS_HISTORY = []; }
 let _eosFile = null, _eosData = null, _eosCur = null;
@@ -16711,7 +16806,7 @@ async function eosGenerate(){
       files: files.map(({b})=>({ lot:b.lot, name:b.name, outName:b.outName, plt:b.plt, rows:b.rows, qty:b.qty, shop:Math.round(b.shop), whole:Math.round(b.whole), sales:Math.round(b.sales) })),
       eos: [].concat(...files.map(({b})=> (b.eos||[]).map(r=>[eosT(r[0]).toUpperCase(), eosT(r[1]).toUpperCase(), eosT(r[2]), +r[3]||0]))) }].concat(EOS_HISTORY);   // build 134: 배차 요청서 대조용 EOS 표
     EOS_HISTORY.slice(40).forEach(h=> (h.files||[]).forEach(f=>{ try{ idbSet(`eos_file_${h.id}_${f.lot}`, null).catch(()=>{}); }catch(_){} }));
-    try{ localStorage.setItem(EOS_LS, JSON.stringify(EOS_HISTORY.slice(0,200))); }catch(_){}
+    eosPersist();
     say(`✓ 낙찰파일 생성 (LOT ${ok.join(", ")}) — ${files.reduce((s,x)=>s+x.b.plt,0)}PLT · ${files.reduce((s,x)=>s+x.b.rows,0).toLocaleString()}행 (${_eosCur.sec}초)`);
     eosRender();
   }catch(e){ console.error(e); say("생성 실패: "+escHtml(e && e.message || e), true); }
@@ -16756,7 +16851,7 @@ function eosRender(){
       `<td style="white-space:nowrap"><button class="act fi-mini" data-eos-lots="${h.id}">LOT 다시 입력</button> <button class="act fi-mini" data-eos-del="${h.id}">✕</button></td>`]; },
     onDelete: ids=>{ const del = new Set(ids);
       EOS_HISTORY.filter(x=> del.has(x.id)).forEach(h=> (h.files||[]).forEach(f=>{ try{ idbSet(`eos_file_${h.id}_${f.lot}`, null).catch(()=>{}); }catch(_){} }));
-      EOS_HISTORY = EOS_HISTORY.filter(x=> !del.has(x.id)); try{ localStorage.setItem(EOS_LS, JSON.stringify(EOS_HISTORY.slice(0,200))); }catch(_){} eosRender(); } });
+      EOS_HISTORY = EOS_HISTORY.filter(x=> !del.has(x.id)); eosPersist(); eosRender(); } });
 }
 function eosSetFile(f){
   if(!f) return;
@@ -16795,7 +16890,7 @@ function wireEosLiq(){
     else if(t.dataset.eosLots){ const h = EOS_HISTORY.find(x=>x.id===+t.dataset.eosLots); if(h){ document.getElementById("eosLots").value = (h.lots||[]).join(", "); document.getElementById("eosDate").value = h.date||""; } }
     else if(t.dataset.eosDel){ if(confirm("이 기록을 삭제할까요?")){ const id=+t.dataset.eosDel; const h = EOS_HISTORY.find(x=>x.id===id);
       (h && h.files || []).forEach(f=>{ try{ idbSet(`eos_file_${id}_${f.lot}`, null).catch(()=>{}); }catch(_){} });
-      EOS_HISTORY = EOS_HISTORY.filter(x=>x.id!==id); try{ localStorage.setItem(EOS_LS, JSON.stringify(EOS_HISTORY.slice(0,200))); }catch(_){} eosRender(); } }
+      EOS_HISTORY = EOS_HISTORY.filter(x=>x.id!==id); eosPersist(); eosRender(); } }
   });
   eosRender();
 }
