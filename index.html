@@ -497,6 +497,10 @@
   .fi-type{display:inline-block;border:1px solid;border-radius:6px;padding:1px 7px;font-size:11.5px;font-weight:700;font-family:"JetBrains Mono";}
   .fi-tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
   /* build 168: 기록 목록 공통 틀 */
+  .uc-box{margin:8px 0 2px;border:1px solid var(--line,#ddd);border-radius:8px;padding:6px 10px;font-size:12.5px;background:var(--card,transparent);}
+  .uc-box>summary{cursor:pointer;}
+  .uc-list{margin:6px 0 2px;padding-left:4px;list-style:none;line-height:1.7;}
+  .uc-list .uc-d{color:var(--muted,#888);}
   .rl-bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:4px 0 8px;font-size:12.5px;}
   .rl-bar .rl-sp{flex:1;}
   .rl-chk{display:inline-flex;align-items:center;gap:5px;font-weight:700;cursor:pointer;margin-left:6px;}
@@ -1136,7 +1140,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 177 · 2026-10-16</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 178 · 2026-10-16</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -13453,6 +13457,99 @@ function fiRender(){
   wrap.innerHTML = h;
   fiRenderHistory();
 }
+/* ================= build 178: 업로드 검증 리포트 (개선 4단계) =================
+   원본을 올리면 "무엇을 어떻게 읽었고, 무엇이 비었거나 이상한지"를 한 칸에 보여 준다.
+   ✔ 정상 · ⚠ 확인 필요(생성은 됨) · ✖ 결과가 틀릴 수 있음.  마지막 줄은 검산(원본 합계 = 요약 합계). */
+function ucHtml(title, checks){
+  try{
+    const n = { ok:0, warn:0, err:0 }; checks.forEach(c=> n[c.lv] = (n[c.lv]||0)+1);
+    const ic = { ok:"✔", warn:"⚠", err:"✖" }, col = { ok:"var(--green,#2e7d32)", warn:"var(--amber,#b26a00)", err:"var(--red,#c62828)" };
+    const open = n.err || n.warn;
+    const head = n.err ? `<b style="color:${col.err}">✖ 확인 필요 ${n.err}건</b>` : n.warn ? `<b style="color:${col.warn}">⚠ 확인 ${n.warn}건</b>` : `<b style="color:${col.ok}">✔ 이상 없음</b>`;
+    return `<details class="uc-box"${open?" open":""}><summary>🔎 ${escHtml(title)} — ${head} <span class="fi-mut">(✔ ${n.ok} · ⚠ ${n.warn} · ✖ ${n.err})</span></summary>
+      <ul class="uc-list">${checks.map(c=>`<li class="uc-${c.lv}"><span style="color:${col[c.lv]}">${ic[c.lv]}</span> <b>${escHtml(c.t)}</b>${c.d?` <span class="uc-d">${c.d}</span>`:""}</li>`).join("")}</ul></details>`;
+  }catch(e){ console.warn("ucHtml", e); return ""; }
+}
+const ucFmt = v=> Math.round(+v||0).toLocaleString();
+const ucList = (a, max)=>{ max = max||12; return escHtml(a.slice(0,max).join(", ")) + (a.length>max ? ` 외 ${a.length-max}개` : ""); };
+// 완전히 같은 행 개수(중복 붙여넣기 의심)
+function ucDupRows(rows){ const s = new Set(); let d = 0; rows.forEach(r=>{ const k = JSON.stringify(r); if(s.has(k)) d++; else s.add(k); }); return d; }
+
+// ---- ⑤⑥ FC파손 원본
+function fdChecks(D){
+  const C = [], m = D.m, H = D.A[D.hi] || [];
+  const nm = { no:"NO.", qty:"수량", sales:"판매가", unit:"판매단가", cate2:"Cate2", fc:"FC", barcode:"바코드", desc:"상품명", loc:"로케이션" };
+  const got = Object.keys(nm).filter(k=> m[k]!=null), miss = Object.keys(nm).filter(k=> m[k]==null && !(k==="sales" && m.unit!=null) && !(k==="unit" && m.sales!=null));
+  C.push({ lv:"ok", t:`RAW 시트 "${D.rawName}" · 머리글 ${D.r0+D.hi+1}행`, d:`읽은 열: ${got.map(k=> escHtml(nm[k])+(fdT(H[m[k]]) && fdT(H[m[k]])!==nm[k] ? `(${escHtml(fdT(H[m[k]]))})` : "")).join(", ")}` });
+  if(miss.length) C.push({ lv: miss.some(k=> k==="cate2"||k==="fc") ? "warn" : "ok", t:`없는 열: ${miss.map(k=> nm[k]).join(", ")}`, d: miss.includes("cate2") ? "TOP 카테고리 빈칸" : miss.includes("fc") ? "LOT 표가 없으면 센터 빈칸" : "" });
+  // 행
+  let noLess = 0; for(let i=D.hi+1;i<D.A.length;i++){ const v = D.A[i]||[]; if(!fdT(v[m.no]) && v.some(x=> x!=null && x!=="")) noLess++; }
+  C.push({ lv:"ok", t:`데이터 ${ucFmt(D.rows.length)}행`, d: noLess ? `NO. 빈 행 ${ucFmt(noLess)}개는 뺌` : "" });
+  const q0 = D.rows.filter(r=> !fdNum(r[m.qty])).length, s0 = D.rows.filter(r=> !fdSalesOf(D, r)).length, neg = D.rows.filter(r=> fdNum(r[m.qty])<0 || fdSalesOf(D, r)<0).length;
+  if(q0) C.push({ lv:"warn", t:`수량 0·빈칸 ${ucFmt(q0)}행` });
+  if(s0) C.push({ lv:"warn", t:`판매가 0·빈칸 ${ucFmt(s0)}행`, d:"요약 금액에서 0으로 계산" });
+  if(neg) C.push({ lv:"err", t:`수량·판매가 음수 ${ucFmt(neg)}행` });
+  // LOT
+  const lots = fdLotList(D), info = lots.map(no=> fdLotInfo(D, no));
+  C.push({ lv:"ok", t:`LOT ${lots.length}개`, d: escHtml(lots.join(", ")) });
+  if(!(D.fcTbl || D.lotTbl)) C.push({ lv:"warn", t:"LOT 표(NO · FC · PLT · MIN BID)를 못 찾음", d:"최소입찰가·PLT 빈칸 → ⑥에서는 LOT 칸에 \"A 30\"처럼 PLT 입력" });
+  else {
+    C.push({ lv:"ok", t:`LOT 표: ${D.tblSrc}` });
+    const tblNos = new Set([...(D.fcTbl ? D.fcTbl.rows : []), ...(D.lotTbl ? D.lotTbl.rows : [])].map(x=> x.no));
+    const noTbl = lots.filter(l=> !tblNos.has(l)), noRaw = [...tblNos].filter(l=> l && !lots.includes(l));
+    if(noTbl.length) C.push({ lv:"warn", t:`표에 없는 LOT: ${noTbl.join(", ")}`, d:"PLT·최소입찰가 빈칸" });
+    if(noRaw.length) C.push({ lv:"warn", t:`표에만 있고 RAW 행이 없는 LOT: ${noRaw.join(", ")}` });
+  }
+  const np = info.filter(o=> o.plt==null).map(o=> o.no), nb = info.filter(o=> o.bid==null).map(o=> o.no);
+  if((D.fcTbl || D.lotTbl) && np.length) C.push({ lv:"warn", t:`PLT 없는 LOT: ${np.join(", ")}`, d:"⑥ 낙찰 LOT 칸에 \"A 30, B 25\"처럼 PLT를 같이 입력" });
+  if((D.fcTbl || D.lotTbl) && nb.length) C.push({ lv:"warn", t:`최소입찰가 없는 LOT: ${nb.join(", ")}` });
+  const fg = info.filter(o=> o.fcGuess).map(o=> o.no); if(fg.length) C.push({ lv:"warn", t:`센터를 RAW FC로 표시한 LOT: ${fg.join(", ")}` });
+  // 검산
+  const tot = D.rows.reduce((s,r)=> s+fdSalesOf(D, r), 0), sum = info.reduce((s,o)=> s+o.F, 0);
+  const tq = D.rows.reduce((s,r)=> s+fdNum(r[m.qty]), 0), sq = info.reduce((s,o)=> s+o.Q, 0);
+  C.push(Math.abs(tot-sum)<1 && Math.abs(tq-sq)<1e-6 ? { lv:"ok", t:"검산 일치", d:`원본 판매가 합 ${ucFmt(tot)}원 = LOT별 합 · 수량 ${ucFmt(tq)}개` }
+                                                  : { lv:"err", t:"검산 불일치", d:`원본 ${ucFmt(tot)}원 / LOT 합 ${ucFmt(sum)}원 · 수량 ${ucFmt(tq)} / ${ucFmt(sq)}` });
+  return C;
+}
+
+// ---- ③ 임박 원본 (esLoad 결과 D + esBuild 결과 r). RAW는 19열 표준 위치(1 NO · 10 로케이션 · 15 수량 · 18 판매가)
+function esChecks(D, r){
+  const C = [], A = D.raw.aoa, hi = D.raw.hi;
+  const rows = []; let noLess = 0;
+  for(let i=hi+1;i<A.length;i++){ const v = A[i]||[]; if(esT(v[1])) rows.push(v); else if(v.some(x=> x!=null && x!=="")) noLess++; }
+  C.push({ lv:"ok", t: r.std ? `표준 양식 · 시트 "${D.rawName}"` : `열 이름으로 맞춘 양식 · 시트 "${D.rawName}"`, d: (D.notes||[]).slice(r.std?0:1).map(escHtml).join(" · ") });
+  const miss = (D.missing||[]).filter(h=> h && !/^\s*$/.test(h));
+  if(!r.std && miss.length) C.push({ lv: miss.some(h=> /cate2|quantity|수량/i.test(h)) ? "warn" : "ok", t:`원본에 없는 열 ${miss.length}개`, d: ucList(miss) });
+  C.push({ lv:"ok", t:`데이터 ${ucFmt(rows.length)}행`, d: noLess ? `NO. 빈 행 ${ucFmt(noLess)}개는 뺌` : "" });
+  const q0 = rows.filter(v=> !(+v[15])).length, s0 = rows.filter(v=> !(+v[18])).length, neg = rows.filter(v=> +v[15]<0 || +v[18]<0).length;
+  if(q0) C.push({ lv:"warn", t:`수량 0·빈칸 ${ucFmt(q0)}행` });
+  if(s0) C.push({ lv:"warn", t:`판매가 0·빈칸 ${ucFmt(s0)}행`, d:"요약 금액에서 0으로 계산" });
+  if(neg) C.push({ lv:"err", t:`수량·판매가 음수 ${ucFmt(neg)}행` });
+  C.push({ lv:"ok", t:`LOT ${r.lots.length}개`, d: escHtml(r.lots.map(o=> o.no).join(", ")) });
+  if(!r.lotFrom) C.push({ lv:"warn", t:"LOT 표(PLT · MIN BID)를 못 찾음", d:"최소입찰가 빈칸" });
+  else C.push({ lv:"ok", t: r.lotFrom==="std" ? "LOT 표: RAW 오른쪽(표준 위치)" : `LOT 표: ${r.lotSrc}` });
+  const pg = r.lots.filter(o=> o.pltGuess).map(o=> o.no); if(pg.length) C.push({ lv:"warn", t:`PLT를 로케이션 수로 추정한 LOT: ${pg.join(", ")}` });
+  const nb = r.lots.filter(o=> o.bid==null).map(o=> o.no); if(nb.length && r.lotFrom) C.push({ lv:"warn", t:`최소입찰가 없는 LOT: ${nb.join(", ")}` });
+  if(r.centerGuess) C.push({ lv:"warn", t:"센터명을 RAW FC 코드로 표시", d:"EOS 시트·LOT 표에 센터 없음" });
+  if(!r.eos) C.push({ lv:"warn", t:"EOS 시트 없음" });
+  const tot = rows.reduce((s,v)=> s+(+v[18]||0), 0), sum = r.lots.reduce((s,o)=> s+(+o.F||0), 0);
+  C.push(Math.abs(tot-sum)<1 ? { lv:"ok", t:"검산 일치", d:`원본 판매가 합 ${ucFmt(tot)}원 = LOT별 합` } : { lv:"err", t:"검산 불일치", d:`원본 ${ucFmt(tot)}원 / LOT 합 ${ucFmt(sum)}원` });
+  return C;
+}
+
+// ---- ① 아리바 비딩 요약본 (lsBuild 결과)
+function lsChecks(r){
+  const C = [];
+  C.push({ lv:"ok", t: r.kind==="buy" ? "바이나우 원본" : "일반 비딩 원본" });
+  C.push({ lv: r.rawRows ? "ok" : "err", t:`RAW ${ucFmt(r.rawRows)}행 · LOT No ${ucFmt(r.nos)}개` });
+  if(r.n!=null) C.push({ lv: r.n ? "ok" : "err", t:`요약 LOT ${ucFmt(r.n)}개` });
+  const rs = r.rows||[], np = rs.filter(x=> x.plt==null||x.plt==="").map(x=> x.no), nm = rs.filter(x=> !(+x.min)).map(x=> x.no);
+  if(np.length) C.push({ lv:"warn", t:`PLT 빈 LOT ${np.length}개`, d: ucList(np) });
+  if(nm.length) C.push({ lv:"warn", t:`MIN Bid 0·빈칸 LOT ${nm.length}개`, d: ucList(nm) });
+  if(r.totalSales!=null) C.push({ lv: r.totalSales>0 ? "ok" : "warn", t:`판매가 합 ${ucFmt(r.totalSales)}원` });
+  return C;
+}
+
 /* ================= build 168: 기록 목록 공통 틀 (분배 히스토리 · 배차 요청 기록 · 일반 리퀴 / 임박식품 낙찰파일 기록) =================
    - 날짜별 묶음(접기/펼치기, 최근 날짜만 펼침) · 목록 전체 숨기기 · 검색
    - 전체 선택 / 날짜 묶음 선택 / 줄 선택 → 선택 삭제, 날짜 묶음 삭제, 전체 삭제, 줄마다 ✕
@@ -15243,6 +15340,7 @@ async function lsHandleFile(f){
     await fiLoadScript("liq_summary_tpl.js?v=125","LIQSUM_TPL");
     var buf=new Uint8Array(await f.arrayBuffer()), t0=Date.now();
     var r=await lsBuild(ff,buf,f.name,window.LIQSUM_TPL,function(m){ st.textContent=m; });
+    try{ r._uc=ucHtml("원본 검증 리포트", lsChecks(r)); }catch(e){ console.warn("lsChecks", e); }
     r.sec=((Date.now()-t0)/1000).toFixed(1); r.srcName=f.name; _lsCur=r;
     st.innerHTML="✓ 요약본 생성 완료 ("+r.sec+"초) — 아래에서 받으세요";
     lsRender();
@@ -15259,7 +15357,7 @@ function lsRender(){
     +'<div style="overflow-x:auto"><table class="fi-tbl"><thead><tr><th>NO</th><th>FC</th><th class="n">PLT</th><th class="n">MIN Bid</th>'+(buy?'<th class="n">BUY NOW</th>':'')+'<th>카테고리</th><th class="n">쿠팡판매총액</th></tr></thead><tbody>'
     +r.rows.slice(0,12).map(function(x){ return '<tr><td><b>'+escHtml(x.no)+'</b></td><td>'+escHtml(x.fc||"")+'</td><td class="n">'+(x.plt==null?"":x.plt)+'</td><td class="n">'+fiFmt(x.min)+'</td>'+(buy?'<td class="n">'+fiFmt(x.buy)+'</td>':'')+'<td>'+escHtml(x.cat||"")+'</td><td class="n">'+fiFmt(x.total)+'</td></tr>'; }).join("")
     +(r.rows.length>12?'<tr><td colspan="'+(buy?7:6)+'" class="fi-mut">… 외 '+(r.rows.length-12)+'건 (엑셀에서 확인)</td></tr>':'')+'</tbody></table></div>'
-    +'<div class="fi-mut" style="margin-top:6px">엑셀로 열면 수식·피벗(종합 / '+(buy?"Sheet2":"Sheet3")+')이 자동으로 다시 계산·새로 고침됩니다. 행이 많아 처음 열 때 몇십 초 걸릴 수 있습니다.</div></div>';
+    +'<div class="fi-mut" style="margin-top:6px">엑셀로 열면 수식·피벗(종합 / '+(buy?"Sheet2":"Sheet3")+')이 자동으로 다시 계산·새로 고침됩니다. 행이 많아 처음 열 때 몇십 초 걸릴 수 있습니다.</div>'+(r._uc||'')+'</div>';
 }
 function wireLiqSum(){
   var box=document.getElementById("lsBox"); if(!box||box._wired) return; box._wired=true;
@@ -16005,6 +16103,7 @@ async function esHandleFile(f){
     const t0 = Date.now();
     const D = await esLoad(f, say);
     const r = await esBuild(ff, D, f.name, say);
+    try{ r._uc = ucHtml("원본 검증 리포트", esChecks(D, r)); }catch(e){ console.warn("esChecks", e); }
     r.sec = ((Date.now()-t0)/1000).toFixed(1); r.srcName = f.name; _esCur = r;
     st.innerHTML = `✓ 임박 요약본 생성 완료 (${r.sec}초) — 아래에서 받으세요`;
     esRender();
@@ -16038,6 +16137,7 @@ function esRender(){
       <td style="white-space:normal;font-size:11.5px">${escHtml(o.top[0]||"")}</td><td style="white-space:normal;font-size:11.5px">${escHtml(o.top[1]||"")}</td></tr>`).join("")}
     <tr style="font-weight:700"><td>합계</td><td>${r.lots.length}건</td><td class="n">${fiFmt(tot("plt"))}</td><td class="n">${won(tot("bid"))}</td><td class="n">${won(tot("F"))}</td><td></td><td></td><td></td></tr></tbody></table>
     <div class="fi-mut" style="margin-top:6px">시트: ★임박 요약(상한가 · 현재입찰가 칸은 비워 둠 — 입력하면 요율 자동) · 종합 · Sheet1 · Sheet2(피벗 — 엑셀이 열 때 채움) · RAW · EOS · RAW ${fiFmt(r.rows)}행${r.hasList?"":" · ⚠ RAW 오른쪽 LOT 표가 없어 PLT·최소입찰가는 EOS 시트 기준으로 계산"}</div>
+    ${r._uc||""}
     ${esFmtInfo(r)}
     ${r.std ? `<div class="fi-mut" style="margin-top:4px">같은 원본이 ④ 임박식품 낙찰파일 생성기에도 들어갔습니다 — 낙찰 LOT 알파벳만 넣으면 됩니다.</div>` : `<div class="fi-mut" style="margin-top:4px">표준 양식이 아니라 ④ 낙찰파일 생성기에는 넣지 않았습니다.</div>`}
   </div>`;
@@ -16484,6 +16584,7 @@ async function fdsHandleFile(f){
     const t0 = Date.now();
     const D = await fdLoad(f, say);
     const r = await fdsBuild(ff, D, f.name, say);
+    try{ D._uc = r._uc = ucHtml("원본 검증 리포트", fdChecks(D)); }catch(e){ console.warn("fdChecks", e); }
     r.sec = ((Date.now()-t0)/1000).toFixed(1); r.srcName = f.name; _fdsCur = r;
     st.innerHTML = `✓ FC파손 요약본 생성 완료 (${r.sec}초) — 아래에서 받으세요`;
     fdsRender();
@@ -16507,6 +16608,7 @@ function fdsRender(){
     <tr style="font-weight:700"><td>합계</td><td>${r.lots.length}건</td><td class="n">${fiFmt(tot("plt"))}</td><td class="n">${won(tot("bid"))}</td><td class="n">${won(tot("F"))}</td><td></td><td></td><td></td></tr></tbody></table>
     <div class="fi-mut" style="margin-top:6px">시트: ★FC 파손 요약 · 종합 · Sheet5 · Sheet5 (2)(피벗 — 엑셀이 열 때 채움) · RAW(원본 그대로) · Sheet4 · RAW ${fiFmt(r.rows)}행 · 시트 "${escHtml(r.rawName)}"${r.hasTbl?` · LOT 표: ${escHtml(r.tblSrc)}`:' · <span style="color:var(--red)">⚠ LOT 표(NO · FC · MIN BID)를 찾지 못해 최소입찰가 빈칸, 센터명은 RAW FC로 표시</span>'}</div>
     <div class="fi-mut" style="margin-top:4px">${r.lots.some(o=> o.plt!=null) ? "PLT = 원본 LOT·FC 표의 PLT 합." : "PLT는 원본에 없어 빈칸입니다."} 같은 원본이 ⑥ FC파손 낙찰파일 생성기에도 들어갔습니다 — 낙찰 LOT만 넣으면 됩니다.</div>
+    ${r._uc||""}
   </div>`;
 }
 function wireFdSum(){
@@ -16564,6 +16666,9 @@ function fdRender(){
   const f = document.getElementById("fdFileInfo");
   if(f) f.innerHTML = _fdFile ? `원본: <b>${escHtml(_fdFile.name)}</b> <span class="fi-mut">(${(_fdFile.size/1048576).toFixed(1)}MB)${_fdData && _fdData._file===_fdFile ? ` · LOT ${fdLotList(_fdData).join(", ")}` : ""} — LOT만 바꿔 다시 만들 때는 파일을 다시 올릴 필요 없음</span> <button class="act fi-mini fi-del" id="fdFileDel" title="올린 원본 빼기">✕ 원본 삭제</button>` : `<span class="fi-mut">원본 파일 없음</span>`;
   const wrap = document.getElementById("fdResult");
+  let ucEl = document.getElementById("fdUc");
+  if(!ucEl && wrap){ ucEl = document.createElement("div"); ucEl.id = "fdUc"; wrap.parentNode.insertBefore(ucEl, wrap); }
+  if(ucEl){ let h = ""; if(_fdData && _fdData._file===_fdFile){ try{ if(_fdData._uc==null) _fdData._uc = ucHtml("원본 검증 리포트", fdChecks(_fdData)); h = _fdData._uc; }catch(e){ console.warn("fdChecks", e); } } ucEl.innerHTML = h; }
   if(wrap){
     if(!_fdCur) wrap.innerHTML = "";
     else { const c = _fdCur, b = c.b, miss = Object.keys(b.missingRate||{}), guess = b.guessRate||{};
