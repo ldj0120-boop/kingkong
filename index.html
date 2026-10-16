@@ -497,6 +497,13 @@
   .fi-type{display:inline-block;border:1px solid;border-radius:6px;padding:1px 7px;font-size:11.5px;font-weight:700;font-family:"JetBrains Mono";}
   .fi-tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
   /* build 168: 기록 목록 공통 틀 */
+  .sx-tbl .sx-sort{cursor:pointer;user-select:none;}
+  .sx-low,.fi-tbl td.sx-low{color:#e5534b !important;font-weight:700;}
+  .sx-slow,.fi-tbl td.sx-slow{color:#d08a00 !important;font-weight:700;}
+  .lp-bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:12.5px;}
+  .lp-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-bottom:8px;}
+  .lp-kpi{border:1px solid var(--line,#ddd);border-radius:8px;padding:6px 10px;font-size:12px;}
+  .lp-kpi b{font-size:17px;display:block;margin:2px 0;}
   .td-box{margin:0 0 12px;border:1px solid var(--line,#ddd);border-radius:10px;padding:10px 12px;background:var(--card,transparent);}
   .td-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;margin-bottom:8px;}
   .td-prog{display:inline-block;width:120px;height:8px;border-radius:4px;background:rgba(127,127,127,.25);overflow:hidden;}
@@ -1155,7 +1162,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 181 · 2026-10-16</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 182 · 2026-10-16</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1268,6 +1275,12 @@
     <div class="agg-card">
       <div class="p-hd"><span class="store-name">매장별 재고 현황</span></div>
       <div class="agg-scroll"><table id="stockAggTable"></table></div>
+    </div>
+
+    <!-- build 182: 매장 소진율 (승현 사이트 PLT 해체 기준) -->
+    <div class="agg-card" id="sxBox">
+      <div class="p-hd"><span class="store-name">매장 소진율 (PLT 해체 기준)</span><span class="meta">승현 사이트 매장 PLT 현황의 이월 · 입고 · 해체 + 매출현황 — 매장이 실제로 푼 PLT 속도로 재고가 며칠 버티는지</span></div>
+      <div class="fi-body" id="sxBody"></div>
     </div>
 
     <!-- build 150: "매장별 이번달 출고 현황(카테고리별)"과 "매장별 최종 출고완료 카테고리별 공급 PLT"는 출고예정 입력이
@@ -2885,7 +2898,7 @@ function buildStateObject(){
       STORES, STOCK, CATEGORIES, CATEGORY_ORIGIN, SHIP, ACTUAL,
       HQ_ACTUAL, APPLIANCE_ACTUAL, CENTER_DIRECT_ACTUAL, FRESH_ACTUAL, CENTER_M, HQ_M, APPLIANCE_M, CENTER_DIRECT_M, DIRECT_MAIN_D, DIRECT_FILE_D, CENTER_D, HQ_D, APPLIANCE_D, DAY_SRC, UNMATCHED_WHERE, FRESH_M, FRESH_SUMMARY_M, LOTTE_M, shipScope, HQ_SUPPLY_HISTORY, APPLIANCE_SUPPLY_HISTORY, unmatchedHQStores, unmatchedApplianceStores,
       selected, SUPPLY_HISTORY, STOCK_HISTORY, unmatchedActualStores,
-      SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodBStart, periodBEnd, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, SPECIAL_DAYS, goalsScope, selectedSalesMonth, FIXED_INTAKE_HISTORY, FI_ELIG, FI_SETTINGS_SAVED, FI_DISPATCH_HISTORY, selectedMonthlyStore, salesViewMode, EVENTS_COMMON, EVENTS_STORE, PLT_LIVE_META, PROCESSED_FILES,
+      SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodBStart, periodBEnd, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, SPECIAL_DAYS, goalsScope, selectedSalesMonth, FIXED_INTAKE_HISTORY, FI_ELIG, FI_SETTINGS_SAVED, FI_DISPATCH_HISTORY, selectedMonthlyStore, salesViewMode, EVENTS_COMMON, EVENTS_STORE, PLT_LIVE_META, PLT_DAILY, PROCESSED_FILES,
       basedateIdx: (typeof basedateEl!=="undefined" && basedateEl.value!=="") ? +basedateEl.value : STOCK_HISTORY.length-1
   };
 }
@@ -3031,6 +3044,7 @@ function applyStateObject(s){
     if(s.salesViewMode==="daily"||s.salesViewMode==="cumulative") salesViewMode = s.salesViewMode;
     EVENTS_COMMON = (s.EVENTS_COMMON && typeof s.EVENTS_COMMON==="object") ? s.EVENTS_COMMON : {};
     if(s.PLT_LIVE_META && typeof s.PLT_LIVE_META==="object") PLT_LIVE_META = s.PLT_LIVE_META;   // build 151
+    if(s.PLT_DAILY && typeof s.PLT_DAILY==="object" && s.PLT_DAILY.d) PLT_DAILY = s.PLT_DAILY;   // build 182
     SPECIAL_DAYS = (s.SPECIAL_DAYS && typeof s.SPECIAL_DAYS==="object") ? s.SPECIAL_DAYS : {};
     if(s.goalsScope && typeof s.goalsScope==="object") goalsScope = Object.assign({mode:"month",month:null,from:null,to:null}, s.goalsScope);
     EVENTS_STORE = (s.EVENTS_STORE && typeof s.EVENTS_STORE==="object") ? s.EVENTS_STORE : {};
@@ -3568,7 +3582,9 @@ function afterChange(){
 }
 
 /* ================= 집계 현황 : 재고표 (출고를 더하지 않는 순수 재고) ================= */
-function renderStockAgg(){
+/* build 182: 재고 표를 다시 그릴 때(클라우드 수신 포함) 소진율 표도 */
+function renderStockAgg(){ try{ wireSell(); sxRender(); }catch(e){ console.error(e); } return _renderStockAgg0.apply(this, arguments); }
+function _renderStockAgg0(){
   const tbl = document.getElementById("stockAggTable");
   // 출고내역서에서 CATE 문구가 자동 규칙에 안 걸려 그대로 추가됐거나("출고내역서(하차지 블록)"), 사용자가 모달에서
   // 직접 새 카테고리로 확정한 경우("출고내역서(사용자 지정)") 모두 재고표(AGG_HDR)에 없는 물류 카테고리이므로,
@@ -12717,6 +12733,7 @@ function pltLiveRefreshUI(){
   _diagCache.key = ""; _diagCache.val = null;
   try{ const wasLatest = !basedateEl.value || +basedateEl.value >= basedateEl.options.length-1; if(wasLatest) renderBasedateOptions(STOCK_HISTORY.length-1); }catch(_){}
   try{ pltAuthRender(); }catch(_){}
+  try{ sxRender(); }catch(_){}   // build 182
   try{ document.getElementById("totalCount").textContent = grandTotal(); }catch(_){}
   try{ refreshSlotStates(); }catch(_){}
   try{ renderStoreList(); }catch(_){}
@@ -12753,6 +12770,8 @@ async function pltLiveSync(){
                     center: ap.center, direct: ap.direct, bulk: sr.bulk, unmatched: Object.keys(sr.unmatched), unmapped: Object.keys(sr.unmapped) }; }
       catch(e){ shipErr = (e && e.message) || String(e); }
       pltLiveStatus.ship = ship; pltLiveStatus.shipError = shipErr;
+      // build 182: 매장 소진율용 일별 입고·해체 + 이월(최근 3개월)
+      try{ const dl = await pltDailyFetch(); if(dl.rows){ PLT_DAILY = dl; try{ saveState(); }catch(_){} } }catch(e){ pltLiveStatus.dailyError = (e && e.message) || String(e); }
       if(ship && ship.days) PLT_LIVE_META = Object.assign({}, PLT_LIVE_META||{}, { ship });
       if(n>0 || (fresh && fresh.months.length)) PLT_LIVE_META = Object.assign({}, PLT_LIVE_META||{},
         n>0 ? { at:new Date().toISOString(), storeCount:n } : {},
@@ -13473,6 +13492,110 @@ function fiRender(){
   wrap.innerHTML = h;
   fiRenderHistory();
 }
+/* ================= build 182: 매장 소진율 (승현 사이트 "PLT 해체" 기준) — 고도화 6-2 =================
+   해체 = 매장이 실제로 풀어서 진열한 PLT(승현 사이트 store_plt_daily.dismantled, 매장 직원 입력).
+   허수 없이 실제로 기록되는 숫자만 쓴다: 이월(store_plt_carryover) · 입고 · 해체 · 매출현황(매출).
+   - 기초재고 = 그 달 이월 + (그 달 1일 ~ 시작 전날) 입고 − 해체     (승현 사이트 재고 공식과 같음)
+   - 소진율 = 기간 해체 ÷ (기초재고 + 기간 입고)
+   - 일평균 해체 = 기간 해체 ÷ (시작일 ~ 그 매장 마지막 입력일 일수)
+   - 소진 예상일 = 지금 재고 ÷ 일평균 해체
+   - 해체 1PLT당 매출 = 같은 카테고리 매출 ÷ 해체 (XLA·XLB·XLC·XLE·대형가구·대형가전만 — 매출현황에 같은 분류가 있는 것)
+   관리자 브라우저(승현 로그인)가 받은 값을 PLT_DAILY로 상태에 저장 → 모든 화면이 같은 값을 봄. */
+var PLT_DAILY;   // { at, from, d:{date:{store:{comp:[입고,해체]}}}, carry:{YYYY-MM:{store:{comp:qty}}}, last:{store:date} }
+const SX_COMPS = ["XLA","XLB","XLC","XLE","XLG","XLS","대형가구","대형가전","데드우드","기타"];
+const SX_SALES = { XLA:["XLA"], XLB:["XLB"], XLC:["XLC"], XLE:["XLE"], 대형가구:["대형가구"], 대형가전:["대형가전"] };
+const SX_UI = { period:"month", comp:"", sort:"days", dir:1 };
+async function pltDailyFetch(){
+  const sb = pltLiveClient, now = new Date();
+  const from = `${pltMonthKey(new Date(now.getFullYear(), now.getMonth()-2, 1))}-01`;
+  const rows = [];
+  for(let off=0; off<100000; off+=1000){
+    const r = await sb.from("store_plt_daily").select("store,date,component,inbound,dismantled").gte("date", from).order("date").range(off, off+999);
+    if(r.error) throw r.error; rows.push(...(r.data||[])); if(!r.data || r.data.length<1000) break;
+  }
+  const cr = await sb.from("store_plt_carryover").select("store,month,component,qty"); if(cr.error) throw cr.error;
+  const d = {}, carry = {}, last = {};
+  rows.forEach(x=>{ const dt = String(x.date||"").slice(0,10), s = resolveStoreName(x.store), c = String(x.component||""); if(!dt || !s || !c) return;
+    const i = +x.inbound||0, o = +x.dismantled||0; if(!i && !o) return;
+    const a = ((d[dt] = d[dt]||{})[s] = d[dt][s]||{})[c] = d[dt][s][c] || [0,0]; a[0] += i; a[1] += o;
+    if(!last[s] || dt > last[s]) last[s] = dt; });
+  (cr.data||[]).forEach(x=>{ const m = String(x.month||"").slice(0,7), s = resolveStoreName(x.store), c = String(x.component||""); if(!/^\d{4}-\d{2}$/.test(m) || !s) return;
+    const o = (carry[m] = carry[m]||{})[s] = carry[m][s]||{}; o[c] = (o[c]||0) + (+x.qty||0); });
+  return { at:new Date().toISOString(), from, d, carry, last, rows:rows.length };
+}
+const sxDay = (s, n)=>{ const t = new Date(s+"T00:00:00"); t.setDate(t.getDate()+n); return fmtDate(t); };
+function sxPeriod(){
+  const today = fmtDate(new Date()), m = today.slice(0,7), p = SX_UI.period;
+  if(p==="prev"){ const t = new Date(today.slice(0,8)+"01T00:00:00"); t.setDate(0); const e = fmtDate(t); return { s: e.slice(0,8)+"01", e, label:`${+e.slice(5,7)}월 전체` }; }
+  if(/^\d+$/.test(p)) return { s: sxDay(today, -(+p)+1), e: today, label:`최근 ${p}일` };
+  return { s: m+"-01", e: today, label:`${+m.slice(5)}월 (1일~오늘)` };
+}
+// 매장 한 곳 · 구성 목록(comps)의 지표
+function sxStore(P, store, comps, per){
+  const D = P.d || {}, C = P.carry || {};
+  const flow = (a, b)=>{ let i = 0, o = 0; for(let t=a; t<=b; t=sxDay(t,1)){ const x = (D[t]||{})[store]; if(x) comps.forEach(c=>{ const v = x[c]; if(v){ i += v[0]; o += v[1]; } }); } return [i, o]; };
+  const carryOf = m=>{ const x = (C[m]||{})[store]; return x ? comps.reduce((s,c)=> s+(+x[c]||0), 0) : null; };
+  const stockAt = t=>{ const m = t.slice(0,7), c = carryOf(m); if(c==null) return null; const f = flow(m+"-01", t); return c + f[0] - f[1]; };   // t일 끝 재고
+  const last = (P.last||{})[store] || null;
+  const f = flow(per.s, per.e), base = per.s.slice(8)==="01" ? carryOf(per.s.slice(0,7)) : stockAt(sxDay(per.s, -1));
+  const endD = last && last < per.e ? last : per.e, days = last && last >= per.s ? Math.round((new Date(endD) - new Date(per.s))/864e5) + 1 : 0;
+  const now = stockAt(fmtDate(new Date()));
+  const avg = days ? f[1]/days : null;
+  let sales = null, sOut = 0;
+  const sc = comps.filter(c=> SX_SALES[c]);
+  if(sc.length && Array.isArray(SALES_HISTORY)){ sales = 0;
+    SALES_HISTORY.forEach(h=>{ if(!h || h.date < per.s || h.date > per.e) return; const x = (h.byStoreCat||{})[store]; if(!x) return; sc.forEach(c=> SX_SALES[c].forEach(k=>{ sales += (x[k] && +x[k].amount) || 0; })); });
+    sOut = sxStore._outOf(D, store, sc, per); }
+  return { store, last, base, inb:f[0], out:f[1], rate: base!=null && (base+f[0])>0 ? f[1]/(base+f[0]) : null, days, avg, now,
+           left: avg ? (now!=null ? now/avg : null) : null, sales, perPlt: sales!=null && sOut>0 ? sales/sOut : null, sOut };
+}
+sxStore._outOf = (D, store, comps, per)=>{ let o = 0; for(let t=per.s; t<=per.e; t=sxDay(t,1)){ const x = (D[t]||{})[store]; if(x) comps.forEach(c=>{ if(x[c]) o += x[c][1]; }); } return o; };
+function sxRender(){
+  const el = document.getElementById("sxBody"); if(!el) return;
+  const P = PLT_DAILY;
+  if(!P || !P.d){ el.innerHTML = `<div class="fi-empty">아직 승현 사이트 해체 자료가 없습니다 — 관리자 화면 "데이터 관리 › 승현 PLT 실시간"에서 승현 사이트에 로그인한 브라우저가 열리면 자동으로 받아 모든 화면에 공유됩니다.</div>`; return; }
+  const per = sxPeriod(), comps = SX_UI.comp ? [SX_UI.comp] : SX_COMPS;
+  const stores = [...new Set([].concat(...Object.values(P.d).map(o=> Object.keys(o)), ...Object.values(P.carry||{}).map(o=> Object.keys(o))))];
+  let rows = stores.map(s=> sxStore(P, s, comps, per)).filter(r=> r.base || r.inb || r.out || r.now);
+  const k = SX_UI.sort, dir = SX_UI.dir, val = r=> k==="store" ? r.store : r[k]==null ? (dir>0 ? Infinity : -Infinity) : r[k];
+  rows.sort((a,b)=>{ const x = val(a), y = val(b); return (typeof x==="string" ? x.localeCompare(y) : x - y) * dir; });
+  const T = rows.reduce((t,r)=>({ base:t.base+(r.base||0), inb:t.inb+r.inb, out:t.out+r.out, now:t.now+(r.now||0), sales:t.sales+(r.sales||0), sOut:t.sOut+(r.sOut||0) }), { base:0, inb:0, out:0, now:0, sales:0, sOut:0 });
+  const pDays = Math.round((new Date(per.e) - new Date(per.s))/864e5) + 1, tAvg = T.out/pDays;
+  const n1 = v=> v==null ? "-" : (Math.round(v*10)/10).toLocaleString(), won = v=> v==null ? "-" : Math.round(v).toLocaleString();
+  const pct = v=> v==null ? "-" : Math.round(v*100)+"%", dd = v=> v==null ? '<span class="fi-mut">해체 없음</span>' : !isFinite(v) ? "-" : Math.round(v)+"일";
+  const leftCls = v=> v==null ? "" : v<=7 ? "sx-low" : v>=45 ? "sx-slow" : "";
+  const th = (key, label, cls)=> `<th class="${cls||""} sx-sort" data-sx-sort="${key}">${label}${SX_UI.sort===key ? (SX_UI.dir>0?" ▲":" ▼") : ""}</th>`;
+  const today = fmtDate(new Date()), stale = r=> r.last && Math.round((new Date(today)-new Date(r.last))/864e5) >= 3;
+  el.innerHTML = `<div class="lp-bar">
+      <select data-sx="period">${[["month","이번 달"],["7","최근 7일"],["14","최근 14일"],["30","최근 30일"],["prev","지난달"]].map(([v,l])=>`<option value="${v}"${v===SX_UI.period?" selected":""}>${l}</option>`).join("")}</select>
+      <select data-sx="comp"><option value="">전체 카테고리</option>${SX_COMPS.map(c=>`<option${c===SX_UI.comp?" selected":""}>${c}</option>`).join("")}</select>
+      <span class="fi-mut">${escHtml(per.label)} · ${per.s} ~ ${per.e} · 승현 사이트 ${P.at ? new Date(P.at).toLocaleString("ko-KR") : ""} 받음</span></div>
+    <div class="lp-kpis">
+      <div class="lp-kpi"><div class="fi-mut">기간 해체</div><b>${n1(T.out)} PLT</b><div class="fi-mut">하루 평균 ${n1(tAvg)} PLT</div></div>
+      <div class="lp-kpi"><div class="fi-mut">기간 입고</div><b>${n1(T.inb)} PLT</b><div class="fi-mut">기초재고 ${n1(T.base)} PLT</div></div>
+      <div class="lp-kpi"><div class="fi-mut">소진율 (해체 ÷ 기초+입고)</div><b>${pct(T.base+T.inb ? T.out/(T.base+T.inb) : null)}</b></div>
+      <div class="lp-kpi"><div class="fi-mut">지금 재고 · 소진 예상</div><b>${n1(T.now)} PLT</b><div class="fi-mut">${tAvg ? "지금 속도로 약 "+Math.round(T.now/tAvg)+"일" : "-"}</div></div>
+      <div class="lp-kpi"><div class="fi-mut">해체 1PLT당 매출</div><b>${T.sOut ? won(T.sales/T.sOut)+"원" : "-"}</b><div class="fi-mut">XLA·B·C·E·대형가구·가전</div></div>
+    </div>
+    <div style="overflow-x:auto"><table class="fi-tbl sx-tbl"><thead><tr>
+      ${th("store","매장")}<th>마지막 입력</th>${th("base","기초재고","n")}${th("inb","입고","n")}${th("out","해체","n")}${th("rate","소진율","n")}${th("avg","일평균 해체","n")}${th("now","지금 재고","n")}${th("left","소진 예상","n")}${th("sales","매출","n")}${th("perPlt","해체 1PLT당 매출","n")}
+      </tr></thead><tbody>
+      ${rows.map(r=>`<tr><td><b>${escHtml(r.store)}</b></td><td${stale(r)?' style="color:var(--amber,#b26a00)" title="3일 넘게 입력 없음"':""}>${r.last ? r.last.slice(5) : "-"}</td>
+        <td class="n">${n1(r.base)}</td><td class="n">${n1(r.inb)}</td><td class="n"><b>${n1(r.out)}</b></td><td class="n">${pct(r.rate)}</td><td class="n">${n1(r.avg)}</td>
+        <td class="n">${n1(r.now)}</td><td class="n ${leftCls(r.left)}">${dd(r.left)}</td><td class="n">${r.sales==null ? "-" : won(r.sales)}</td><td class="n">${won(r.perPlt)}</td></tr>`).join("")}
+      <tr style="font-weight:700"><td>합계 ${rows.length}곳</td><td></td><td class="n">${n1(T.base)}</td><td class="n">${n1(T.inb)}</td><td class="n">${n1(T.out)}</td><td class="n">${pct(T.base+T.inb ? T.out/(T.base+T.inb) : null)}</td>
+        <td class="n">${n1(tAvg)}</td><td class="n">${n1(T.now)}</td><td class="n">${tAvg ? Math.round(T.now/tAvg)+"일" : "-"}</td><td class="n">${won(T.sales)}</td><td class="n">${T.sOut ? won(T.sales/T.sOut) : "-"}</td></tr>
+    </tbody></table></div>
+    <div class="fi-mut" style="margin-top:6px;line-height:1.6">해체 = 매장이 풀어서 진열한 PLT(승현 사이트, 매장 입력) · 기초재고 = 그 달 이월 + 시작 전날까지 입고 − 해체 · 일평균 = 해체 ÷ (시작일~그 매장 마지막 입력일)
+      · 소진 예상 = 지금 재고 ÷ 일평균 해체 (<span class="sx-low">7일 이하</span> 곧 바닥 · <span class="sx-slow">45일 이상</span> 정체) · 매출은 매출현황의 같은 분류(XLA·XLB·XLC·XLE·대형가구·대형가전)만, XLG·XLS·데드우드·기타는 매출 분류가 달라 빼고 계산.</div>`;
+}
+function wireSell(){
+  const el = document.getElementById("sxBody"); if(!el || el._wired) return; el._wired = true;
+  el.addEventListener("change", e=>{ const t = e.target; if(t.dataset.sx){ SX_UI[t.dataset.sx] = t.value; sxRender(); } });
+  el.addEventListener("click", e=>{ const h = e.target.closest("[data-sx-sort]"); if(!h) return; const k = h.dataset.sxSort;
+    if(SX_UI.sort===k) SX_UI.dir = -SX_UI.dir; else { SX_UI.sort = k; SX_UI.dir = k==="store" || k==="left" ? 1 : -1; } sxRender(); });
+}
+
 /* ================= build 179: 오늘 할 일 (개선 5단계) =================
    생성기 탭 맨 위. ①~⑧을 업무 순서대로 놓고, 오늘 만든 기록이 있으면 자동으로 ✔.
    기록이 남지 않는 ①③⑤ 요약본은 이 화면에서 만들면 ✔, 오늘 할 필요 없는 칸은 "안 함"으로 접어 둠(이 브라우저·날짜별 기억).
