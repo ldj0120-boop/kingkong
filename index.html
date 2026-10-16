@@ -1136,7 +1136,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 176 · 2026-10-16</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 177 · 2026-10-16</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1195,9 +1195,9 @@
             <button class="act" id="pltAuthSync" type="button" hidden title="지금 바로 다시 받기">지금 받기</button>
             <button class="act" id="pltAuthOut" type="button" hidden>로그아웃</button>
           </div>
-          <form id="pltAuthForm" class="tool-row" hidden autocomplete="on" onsubmit="return false;">
-            <input id="pltAuthEmail" type="email" autocomplete="username" placeholder="승현 사이트 아이디(이메일)" style="min-width:190px;background:var(--ink);border:1px solid var(--line);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;">
-            <input id="pltAuthPw" type="password" autocomplete="current-password" placeholder="비밀번호" style="min-width:140px;background:var(--ink);border:1px solid var(--line);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;">
+          <form id="pltAuthForm" class="tool-row" hidden autocomplete="off" onsubmit="return false;" style="display:none">
+            <input id="pltAuthEmail" type="email" autocomplete="section-seunghyun username" placeholder="승현 사이트 아이디(이메일)" style="min-width:190px;background:var(--ink);border:1px solid var(--line);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;">
+            <input id="pltAuthPw" type="password" autocomplete="section-seunghyun current-password" placeholder="비밀번호" style="min-width:140px;background:var(--ink);border:1px solid var(--line);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;">
             <button class="act primary" id="pltAuthGo" type="submit">로그인</button>
             <span id="pltAuthMsg" class="meta" style="font-size:11px;"></span>
           </form>
@@ -12759,7 +12759,7 @@ function pltAuthRender(){
   if(email){
     const fz = PLT_LIVE_META && PLT_LIVE_META.fresh;
     st.innerHTML = `<span style="color:var(--green)">● ${escHtml(email)}</span>${t?` · 마지막 받음 ${escHtml(t)}`:""}${fz?` · 신선 ${escHtml(fz.months.map(m=>(+m.slice(5))+"월").join("·"))} 반영`:""}${pltLiveStatus.freshError?` · <span style="color:var(--amber)">신선 받기 실패: ${escHtml(pltLiveStatus.freshError)}</span>`:""}${(PLT_LIVE_META&&PLT_LIVE_META.ship)?` · 센터 출고 ~${escHtml(String(PLT_LIVE_META.ship.last||"").slice(5).replace("-","/"))} 반영`:""}${pltLiveStatus.shipError?` · <span style="color:var(--amber)">센터 출고 받기 실패: ${escHtml(pltLiveStatus.shipError)}</span>`:""}${pltLiveStatus.state==="empty"?` · <span style="color:var(--amber)">받은 매장 0곳(계정 권한 확인)</span>`:""}${pltLiveStatus.state==="error"?` · <span style="color:var(--red)">${escHtml(String(pltLiveStatus.error||""))}</span>`:""}`;
-    if(open) open.hidden = true; if(out) out.hidden = false; if(sync) sync.hidden = false; if(form) form.hidden = true;
+    if(open) open.hidden = true; if(out) out.hidden = false; if(sync) sync.hidden = false; if(form){ form.hidden = true; form.style.display = "none"; }
   } else {
     st.innerHTML = `<span style="color:var(--muted2)">로그인 안 됨</span>${t?` · 공유된 값 ${escHtml(t)}`:""}`;
     if(open) open.hidden = false; if(out) out.hidden = true; if(sync) sync.hidden = true;
@@ -12770,7 +12770,7 @@ function pltAuthWire(){
   if(_pltAuthWired) return; _pltAuthWired = true;
   const $ = id => document.getElementById(id);
   const open = $("pltAuthOpen"), go = $("pltAuthGo"), out = $("pltAuthOut"), sync = $("pltAuthSync"), form = $("pltAuthForm"), msg = $("pltAuthMsg");
-  if(open) open.onclick = ()=>{ if(form){ form.hidden = !form.hidden; if(!form.hidden){ const e = $("pltAuthEmail"); if(e) e.focus(); } } };
+  if(open) open.onclick = ()=>{ if(form){ form.hidden = !form.hidden; form.style.display = form.hidden ? "none" : ""; if(!form.hidden){ const e = $("pltAuthEmail"); if(e) e.focus(); } } };
   if(go) go.onclick = async ()=>{
     const email = ($("pltAuthEmail").value||"").trim(), pwEl = $("pltAuthPw"), password = pwEl.value||"";
     if(!email || !password){ msg.textContent = "아이디와 비밀번호를 넣어주세요."; return; }
