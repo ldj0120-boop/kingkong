@@ -1123,7 +1123,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 166 · 2026-10-16</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 167 · 2026-10-16</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -15577,7 +15577,7 @@ async function esBuild(ff, D, srcName, prog){
       }
       for(let c=0;c<v.length;c++){
         let val = v[c]; if(val==null || val==="") continue;
-        let st = c<19 ? SD[c] : 81;
+        let st = c<19 ? SD[c] : (typeof val==="number" ? 17 : 16);   // build 167: 본 표 밖 열(예전 LOT 표 등)은 RAW 크기 글꼴 — 81(요약 시트용 큰 글꼴) 쓰면 행이 깨짐
         if(Z.iV>=0 && c>=Z.iV && c<Z.iV+4) st = c===Z.iV+3 ? 32 : 16;
         if(Z.iA>=0 && c>=Z.iA && c<Z.iA+3){ st = [19,20,21][c-Z.iA]; if(c===Z.iA+1) val = { f:`SUMIFS(${L(Z.iV+2)}:${L(Z.iV+2)},${L(Z.iV)}:${L(Z.iV)},${L(Z.iA)}${r})`, v:val }; }
         x += C(L(c)+r, val, st, sst);
