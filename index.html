@@ -497,6 +497,21 @@
   .fi-type{display:inline-block;border:1px solid;border-radius:6px;padding:1px 7px;font-size:11.5px;font-weight:700;font-family:"JetBrains Mono";}
   .fi-tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
   /* build 168: 기록 목록 공통 틀 */
+  .td-box{margin:0 0 12px;border:1px solid var(--line,#ddd);border-radius:10px;padding:10px 12px;background:var(--card,transparent);}
+  .td-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;margin-bottom:8px;}
+  .td-prog{display:inline-block;width:120px;height:8px;border-radius:4px;background:rgba(127,127,127,.25);overflow:hidden;}
+  .td-prog span{display:block;height:100%;background:#2e9e5b;}
+  .td-ob{margin-left:auto;font-size:13px;}
+  .td-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:6px;}
+  .td-item{display:flex;align-items:center;gap:6px;border:1px solid var(--line,#ddd);border-radius:8px;padding:6px 8px;cursor:pointer;font-size:12.5px;min-height:34px;}
+  .td-item:hover{border-color:#3A8DDE;}
+  .td-ic{width:16px;text-align:center;font-weight:700;}
+  .td-done .td-ic{color:#2e9e5b;} .td-todo .td-ic{color:#d08a00;}
+  .td-done{background:rgba(46,158,91,.08);} .td-skip{opacity:.5;}
+  .td-t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} .td-i{color:var(--muted,#888);white-space:nowrap;}
+  .td-btns{display:flex;gap:3px;} .td-btns .fi-mini{padding:1px 6px;}
+  .td-flash{animation:tdFlash 1.6s ease;}
+  @keyframes tdFlash{0%,40%{box-shadow:0 0 0 3px #3A8DDE;}100%{box-shadow:none;}}
   .uc-box{margin:8px 0 2px;border:1px solid var(--line,#ddd);border-radius:8px;padding:6px 10px;font-size:12.5px;background:var(--card,transparent);}
   .uc-box>summary{cursor:pointer;}
   .uc-list{margin:6px 0 2px;padding-left:4px;list-style:none;line-height:1.7;}
@@ -1140,7 +1155,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 178 · 2026-10-16</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 179 · 2026-10-16</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1538,6 +1553,7 @@
   </section>
 
   <section id="view-fixed" role="tabpanel" aria-labelledby="tab-fixed" hidden>
+    <div class="td-box" id="todayBox"></div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin:0 0 10px"><button class="act primary" data-all-dl="1" style="font-weight:700;margin-right:auto" title="⑧ 배차 요청서에 넣은 것 전부를 출고일자별 시트로 한 파일에">⬇ 전체 출고요청서 다운로드</button><button class="act fi-mini fi-del" data-reset="all" title="①~⑧에 올린 원본 · 입력칸 · 화면 결과를 모두 지웁니다 (각 기록은 그대로)">↺ 이 탭 업로드 자료 전체 초기화</button></div>
     <!-- build 125: 아리바 비딩 요약본 생성기 (일반 리퀴 원본 / 바이나우 원본 → 요약본, 원본 종류 자동 판별) -->
     <div class="agg-card" id="lsBox">
@@ -5619,7 +5635,7 @@ function selectTab(which){
   if(which==="agg"){ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }
   if(which==="sales"){ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); }
   if(which==="goals"){ renderGoals(); }
-  if(which==="fixed"){ try{ wireFixedIntake(); fiRender(); wireLiqSum(); wireLiquidation(); wireEsSum(); wireEosLiq(); wireFdSum(); wireFdBid(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } }
+  if(which==="fixed"){ try{ wireFixedIntake(); fiRender(); wireLiqSum(); wireLiquidation(); wireEsSum(); wireEosLiq(); wireFdSum(); wireFdBid(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } try{ wireToday(); tdRender(); }catch(e){ console.error(e); } }
 }
 tabAgg.onclick=()=>selectTab("agg");
 tabSales.onclick=()=>selectTab("sales");
@@ -13457,6 +13473,74 @@ function fiRender(){
   wrap.innerHTML = h;
   fiRenderHistory();
 }
+/* ================= build 179: 오늘 할 일 (개선 5단계) =================
+   생성기 탭 맨 위. ①~⑧을 업무 순서대로 놓고, 오늘 만든 기록이 있으면 자동으로 ✔.
+   기록이 남지 않는 ①③⑤ 요약본은 이 화면에서 만들면 ✔, 오늘 할 필요 없는 칸은 "안 함"으로 접어 둠(이 브라우저·날짜별 기억).
+   위쪽 한 줄: 오늘·내일 출고 예정(⑧ 배차 요청 기록 기준). 칸을 누르면 그 카드로 이동. */
+const TD_LS = "kk_today_v1";
+function tdDay(d){ d = d || new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function tdState(){ let o = {}; try{ o = JSON.parse(localStorage.getItem(TD_LS)||"{}") || {}; }catch(_){ o = {}; }
+  const k = tdDay(); if(!o[k]) o[k] = {}; Object.keys(o).filter(x=> x!==k && x < tdDay(new Date(Date.now()-14*864e5))).forEach(x=> delete o[x]); return o; }
+function tdSave(o){ try{ localStorage.setItem(TD_LS, JSON.stringify(o)); }catch(_){} }
+// 기록이 언제 만들어졌나(id·updatedAt은 Date.now() 값, 아니면 "2026. 10. 16. 오전 …")
+function tdWhen(x){ if(!x) return ""; const t = +x.updatedAt > 1e12 ? +x.updatedAt : +x.id > 1e12 ? +x.id : 0; return t ? tdDay(new Date(t)) : rlDateKey(x.at||""); }
+function tdToday(arr){ const k = tdDay(); return (Array.isArray(arr) ? arr : []).filter(x=> tdWhen(x)===k); }
+const TD_STEPS = [
+  { k:"ls",  n:"①", t:"정기비딩 요약본", card:"lsBox",  live:()=> typeof _lsCur!=="undefined" && _lsCur },
+  { k:"liq", n:"②", t:"정기비딩 낙찰파일", card:"liqBox", hist:()=> typeof LIQ_HISTORY!=="undefined" ? LIQ_HISTORY : [] },
+  { k:"es",  n:"③", t:"임박 요약본", card:"esBox", live:()=> typeof _esCur!=="undefined" && _esCur },
+  { k:"eos", n:"④", t:"임박 낙찰파일", card:"eosBox", hist:()=> typeof EOS_HISTORY!=="undefined" ? EOS_HISTORY : [] },
+  { k:"fds", n:"⑤", t:"FC파손 요약본", card:"fdsBox", live:()=> typeof _fdsCur!=="undefined" && _fdsCur },
+  { k:"fd",  n:"⑥", t:"FC파손 낙찰파일", card:"fdBox", hist:()=> typeof FD_HISTORY!=="undefined" ? FD_HISTORY : [] },
+  { k:"fi",  n:"⑦", t:"고정인수 분배", card:"⑦", hist:()=> typeof FIXED_INTAKE_HISTORY!=="undefined" ? FIXED_INTAKE_HISTORY : [] },
+  { k:"disp",n:"⑧", t:"배차 요청서", card:"fiDispBox", hist:()=> typeof FI_DISPATCH_HISTORY!=="undefined" ? FI_DISPATCH_HISTORY : [] },
+];
+function tdCard(s){ if(s.card && s.card[0]!=="⑦"){ const e = document.getElementById(s.card); if(e) return e; }
+  const h = Array.from(document.querySelectorAll("#view-fixed .store-name")).find(x=> x.textContent.trim().startsWith(s.n)); return h ? h.closest(".agg-card") : null; }
+// 오늘·내일 출고 예정 (배차 요청 기록의 행, 같은 BIDCODE는 한 번)
+function tdOutbound(){
+  const t0 = tdDay(), t1 = tdDay(new Date(Date.now()+864e5)), by = { [t0]:{ n:0, plt:0 }, [t1]:{ n:0, plt:0 } }, seen = new Set();
+  (Array.isArray(FI_DISPATCH_HISTORY) ? FI_DISPATCH_HISTORY : []).forEach(h=> (h.rows||[]).forEach(r=>{
+    const d = rlDateKey(r.outboundDate||""); if(!by[d]) return;
+    const key = d+"|"+(r.bidcode||r.number||JSON.stringify(r)); if(seen.has(key)) return; seen.add(key);
+    by[d].n++; by[d].plt += +r.pallets || 0; }));
+  return { t0, t1, a:by[t0], b:by[t1] };
+}
+function tdRender(){
+  const el = document.getElementById("todayBox"); if(!el) return;
+  const st = tdState(), day = tdDay(), me = st[day];
+  const rows = TD_STEPS.map(s=>{
+    const n = s.hist ? tdToday(s.hist()).length : 0, live = s.live ? !!s.live() : false;
+    const mark = me[s.k], done = n>0 || live || mark==="done", skip = !done && mark==="skip";
+    return { s, n, live, done, skip, mark };
+  });
+  const need = rows.filter(r=> !r.skip), ok = need.filter(r=> r.done).length;
+  const ob = tdOutbound(), fmt = v=> (Math.round(v*10)/10).toLocaleString();
+  const d = new Date(), wd = "일월화수목금토"[d.getDay()];
+  el.innerHTML = `<div class="td-hd"><b>📋 오늘 할 일</b> <span class="fi-mut">${d.getMonth()+1}/${d.getDate()} (${wd})</span>
+      <span class="td-prog"><span style="width:${need.length ? ok/need.length*100 : 100}%"></span></span><b>${ok}/${need.length}</b>
+      <span class="td-ob">🚚 오늘 출고 <b>${ob.a.n}건 ${fmt(ob.a.plt)}PLT</b> · 내일 <b>${ob.b.n}건 ${fmt(ob.b.plt)}PLT</b></span></div>
+    <div class="td-list">${rows.map(r=>{
+      const cls = r.done ? "td-done" : r.skip ? "td-skip" : "td-todo";
+      const info = r.n ? `오늘 ${r.n}건` : r.live ? "오늘 만듦" : r.mark==="done" ? "완료 표시" : r.skip ? "오늘 안 함" : "아직";
+      return `<div class="td-item ${cls}" data-td-go="${r.s.k}" title="눌러서 ${escHtml(r.s.n+" "+r.s.t)}(으)로 이동">
+        <span class="td-ic">${r.done ? "✔" : r.skip ? "–" : "○"}</span><span class="td-t"><b>${r.s.n}</b> ${escHtml(r.s.t)}</span><span class="td-i">${info}</span>
+        ${r.n || r.live ? "" : `<span class="td-btns"><button class="act fi-mini" data-td-mark="${r.s.k}" data-v="${r.mark==="done"?"":"done"}" title="${r.mark==="done"?"완료 표시 취소":"직접 완료 표시"}">${r.mark==="done"?"↺":"✔"}</button><button class="act fi-mini" data-td-mark="${r.s.k}" data-v="${r.skip?"":"skip"}" title="${r.skip?"다시 할 일로":"오늘은 안 함"}">${r.skip?"↺":"안 함"}</button></span>`}
+      </div>`; }).join("")}</div>`;
+}
+function wireToday(){
+  const el = document.getElementById("todayBox"); if(!el || el._wired) return; el._wired = true;
+  el.addEventListener("click", e=>{
+    const m = e.target.closest("[data-td-mark]");
+    if(m){ e.stopPropagation(); const st = tdState(), me = st[tdDay()]; if(m.dataset.v) me[m.dataset.tdMark] = m.dataset.v; else delete me[m.dataset.tdMark]; tdSave(st); tdRender(); return; }
+    const g = e.target.closest("[data-td-go]"); if(!g) return;
+    const s = TD_STEPS.find(x=> x.k===g.dataset.tdGo), c = s && tdCard(s); if(!c) return;
+    c.scrollIntoView({ behavior:"smooth", block:"start" }); c.classList.remove("td-flash"); void c.offsetWidth; c.classList.add("td-flash"); setTimeout(()=> c.classList.remove("td-flash"), 1700);
+  });
+  tdRender();
+  setInterval(()=>{ const v = document.getElementById("view-fixed"); if(v && !v.hidden && !document.hidden) tdRender(); }, 4000);
+}
+
 /* ================= build 178: 업로드 검증 리포트 (개선 4단계) =================
    원본을 올리면 "무엇을 어떻게 읽었고, 무엇이 비었거나 이상한지"를 한 칸에 보여 준다.
    ✔ 정상 · ⚠ 확인 필요(생성은 됨) · ✖ 결과가 틀릴 수 있음.  마지막 줄은 검산(원본 합계 = 요약 합계). */
