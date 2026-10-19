@@ -1177,7 +1177,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 196 · 2026-10-19</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 197 · 2026-10-19</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1831,7 +1831,7 @@
             <button class="act fi-mini" id="fiDispParseBtn">붙여넣은 글 인식</button>
           </div>
         </div>
-        <input type="file" id="fiDispInput" accept="image/*,.mhtml,.mht,.html,.htm,.eml" hidden>
+        <input type="file" id="fiDispInput" accept="image/*,.mhtml,.mht,.html,.htm,.eml,.xlsx" hidden>
         <input type="file" id="fiDispPhoto" accept="image/*" hidden>
         <div id="fiDispStatus" class="fi-status"></div>
         <div id="fiDispResult"></div>
@@ -15103,6 +15103,44 @@ function dwDispParseDest(text){
     if(hNo>=0 && /^[A-Z]{1,2}$/.test(c[hNo]||"") && c[hDest]) out[c[hNo]] = c[hDest]; });
   return out;
 }
+/* build 197: 낙찰 기록이 이 브라우저에 없을 때를 위한 대안
+   ① ④에 데드우드 낙찰파일(.xlsx)을 같이 끌어다 놓기 → raw 시트에서 LOT · FC · 로케이션 수
+   ② 출고지 표의 센터명 · PLT (센터가 하나면 그대로, 여러 개면 첫 센터에 LOT PLT + "센터별로 나눠 입력" 경고) */
+let _dwBidMap = null, _dwLastText = "";
+function dwBidMapFromWb(wb){
+  for(const n of wb.SheetNames){
+    const A = XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1, defval:null, raw:true });
+    for(let hi=0; hi<Math.min(A.length,6); hi++){
+      const H = (A[hi]||[]).map(x=> dwH(x));
+      const iNo = H.findIndex(x=> DW_KEYS.no(x)), iFc = H.findIndex(x=> DW_KEYS.fc(x)), iLoc = H.findIndex(x=> DW_KEYS.loc(x));
+      if(iNo<0 || iFc<0 || iLoc<0) continue;
+      const m = {};
+      for(let i=hi+1;i<A.length;i++){ const r = A[i]||[]; const no = fdT(r[iNo]).toUpperCase(); if(!/^[A-Z]{1,3}$/.test(no)) continue;
+        const fc = fdT(r[iFc]).toUpperCase(); if(!fc) continue; const k = no+"|"+fc; (m[k] = m[k] || { no, fc, locs:new Set() }).locs.add(fdT(r[iLoc])); }
+      const map = {}; Object.values(m).forEach(x=> (map[x.no] = map[x.no] || []).push({ fc:x.fc, plt:x.locs.size }));
+      Object.values(map).forEach(a=> a.sort((p,q)=> fdXlCmp(p.fc,q.fc)));
+      if(Object.keys(map).length) return map;
+    }
+  }
+  return null;
+}
+// 한글 센터명 → FC 코드 (이천4 → ECH4, 고양1CFC → GOY1CFC)
+function dwFcCodeOf(name){
+  const t = String(name||"").replace(/\s+/g,"").trim(); if(!t) return "";
+  if(/^[A-Z]{2,5}\d/i.test(t)) return t.toUpperCase();
+  const F = (FI_REF && FI_REF.fc) || {}; const hit = Object.keys(F).find(k=> F[k][0]===t); if(hit) return hit;
+  const pre = Object.keys(FI_FC_PREFIX||{}).sort((a,b)=> FI_FC_PREFIX[b].length-FI_FC_PREFIX[a].length).find(k=> t.indexOf(FI_FC_PREFIX[k])===0);
+  return pre ? pre + t.slice(FI_FC_PREFIX[pre].length).toUpperCase() : t;
+}
+// 출고지 표에서 LOT → { centers:[이름], plt }
+function dwDispParseLotTable(text){
+  const out = {}; let h = null;
+  String(text||"").split(/\r?\n/).forEach(l=>{ const c = l.split("\t").map(x=> String(x).trim());
+    const iNo = c.findIndex(x=> /^NO\.?$/i.test(x)), iC = c.findIndex(x=> /센터/.test(x)), iP = c.findIndex(x=> /PLT|파렛트|팔레트/i.test(x));
+    if(iNo>=0 && (iC>=0 || iP>=0)){ h = { iNo, iC, iP }; return; }
+    if(h && /^[A-Z]{1,2}$/.test(c[h.iNo]||"")) out[c[h.iNo]] = { centers: h.iC>=0 ? String(c[h.iC]||"").split(/[\s,.\/]+/).filter(Boolean) : [], plt: h.iP>=0 ? (+String(c[h.iP]||"").replace(/[^\d]/g,"") || null) : null }; });
+  return out;
+}
 // 낙찰 기록에서 LOT → [{fc, plt}] (기록에 저장된 fcPlt, 없으면 보관본 엑셀 raw 시트의 로케이션 수)
 async function dwDispFcPlt(bidDate, lots){
   const ymd = String(bidDate||"").replace(/-/g,"");
@@ -15142,22 +15180,32 @@ async function dwDispFromText(text){
   Object.entries(M.fcs).forEach(([fc,o])=>{ DW_ADDR[fc] = { addr:o.addr.slice(), phones:o.phones.slice(), at:new Date().toISOString().slice(0,10) }; }); dwAddrSave();
   const destMap = dwDispParseDest(text);
   const lots = M.lots.map(x=> x.lot);
-  const F = await dwDispFcPlt(M.bidDate, lots);
+  let F = await dwDispFcPlt(M.bidDate, lots);
+  _dwLastText = text;
+  // build 197: 기록이 없거나 못 읽으면 → ④에 올린 낙찰파일 → 출고지 표 센터명 · PLT
+  let fcSrc = F.map ? "낙찰 기록" : "";
+  if(!F.map && _dwBidMap && lots.every(l=> _dwBidMap[l])){ F = Object.assign({}, F, { map:_dwBidMap }); fcSrc = "올린 낙찰파일"; }
+  const T = dwDispParseLotTable(text);
+  if(!F.map && lots.every(l=> T[l] && T[l].centers.length)){
+    const map = {}; lots.forEach(l=>{ const t = T[l]; map[l] = t.centers.map((c,i)=>({ fc:dwFcCodeOf(c), plt: t.centers.length===1 ? t.plt : (i===0 ? t.plt : null), split: t.centers.length>1 })); });
+    F = Object.assign({}, F, { map, fromTable:true }); fcSrc = "출고지 표";
+  }
   const rows = [];
   M.lots.forEach(L=>{
     const list = F.map && F.map[L.lot] ? F.map[L.lot] : [{ fc:"", plt:null }];
     const lotPlt = F.lotPlt ? F.lotPlt[L.lot] : null, sum = list.reduce((s,x)=> s+(+x.plt||0), 0);
     list.forEach(x=>{
       const a = x.fc ? dwDispAddrOf(x.fc, M.fcs) : null, w = [];
-      if(!F.rec) w.push("⚠ 데드우드 낙찰 기록 없음 — ② 낙찰파일 생성기 › 데드우드에서 먼저 만들면 센터 · PLT가 자동으로 들어갑니다");
-      else if(!F.map) w.push("⚠ 낙찰파일 보관본을 못 읽음 — 센터 · PLT 직접 입력");
+      if(!F.map) w.push("⚠ 센터 · PLT를 못 찾음 — 데드우드 낙찰파일(.xlsx)을 여기에 같이 끌어다 놓거나, 센터명 · PLT · 출고지가 있는 표를 붙여넣어 주세요");
+      if(F.fromTable && x.split) w.push(`⚠ ${L.lot} 센터 ${list.length}곳 — 센터별 PLT는 표에 없음(LOT ${T[L.lot].plt}PLT를 첫 센터에 넣음) · 나눠서 입력`);
       if(!L.code) w.push("⚠ 입금코드 없음");
       else if(!/^AF[A-Z0-9]{8}$/.test(L.code)) w.push(`⚠ 입금코드 형식 확인 ${L.code}`);
       if(x.fc && !a) w.push(`⚠ ${kkFcKo(x.fc)} 상차지 주소 · 연락처 없음(메일 · 주소록)`);
       if(a && a.inherit) w.push(`${kkFcKo(x.fc)}: 메일에 없어 ${kkFcKo(a.inherit)} 주소 · 연락처 사용 — 확인`);
       if(a && a.addr.length>1) w.push(`⚠ ${kkFcKo(x.fc)} 주소 ${a.addr.length}개 — 첫 번째 사용(${a.addr.slice(1).join(" / ")})`);
       if(a){ const bad = a.phones.filter(p=> !/^0\d{1,2}-\d{3,4}-\d{4}$/.test(p)); if(bad.length) w.push(`⚠ 연락처 형식 확인 ${bad.join(", ")}`); }
-      if(lotPlt!=null && F.map && sum!==+lotPlt) w.push(`⚠ ${L.lot} 센터별 PLT 합 ${sum} ≠ 낙찰파일 ${lotPlt}`);
+      if(!F.fromTable && T[L.lot] && T[L.lot].plt!=null && F.map && sum!==T[L.lot].plt) w.push(`⚠ ${L.lot} 센터별 PLT 합 ${sum} ≠ 출고지 표 ${T[L.lot].plt}`);
+      if(lotPlt!=null && F.map && !F.fromTable && sum!==+lotPlt) w.push(`⚠ ${L.lot} 센터별 PLT 합 ${sum} ≠ 낙찰파일 ${lotPlt}`);
       if(a && a.src!=="메일" && !a.inherit) w.push(`주소 · 연락처는 주소록(${DW_ADDR[String(x.fc).toUpperCase()].at||""})에서`);
       rows.push({ bidDate:M.bidDate, bidcode:L.code, group:`데드우드 ${L.lot}`, number: L.code ? `${L.code} / 킹콩백화점` : "킹콩백화점", numFull:"", pallets:x.plt,
         outboundDate:M.outDate, outboundAmPm:M.ampm, outTime:M.time, fc:x.fc, type:"데드우드", dwLot:L.lot, dw:true, fromText:true,
@@ -15170,13 +15218,14 @@ async function dwDispFromText(text){
     if(!r.dest) r.warn.push("출고지 선택(같은 LOT은 한 번만 고르면 전체 적용)"); else if(!fiDispKnownDest(r.dest)) r.warn.push(`⚠ 출고지 "${r.dest}" 매장 목록에 없음`); });
   const nP = rows.reduce((s,r)=> s+(+r.pallets||0), 0), bad = rows.filter(r=> r.warn.some(w=>/^⚠/.test(w))).length;
   const info = { ok: !bad && rows.every(r=> r.dest), date:"", dw:true,
-    text:`데드우드 입찰 결과 메일 — LOT ${lots.join(", ")} · 센터 ${rows.length}곳 · ${nP}PLT · 출고 ${M.outDate||"?"} ${M.ampm} ${M.time}${F.rec?` · 낙찰파일 ${F.rec.date}`:""} · 주소록 ${Object.keys(M.fcs).length}개 센터 저장${bad?` · ⚠ 확인 ${bad}행`:""}` };
+    text:`데드우드 입찰 결과 메일 — LOT ${lots.join(", ")} · 센터 ${rows.length}곳 · ${nP}PLT · 출고 ${M.outDate||"?"} ${M.ampm} ${M.time} · 센터·PLT 출처: ${fcSrc||"없음(⚠)"}${F.rec?` (기록 ${F.rec.date})`:""} · 주소록 ${Object.keys(M.fcs).length}개 센터 저장${bad?` · ⚠ 확인 ${bad}행`:""}` };
   fiDispStart(rows, "", "데드우드 메일", { eos:true, matchInfo:info });
 }
 // 이미 연 데드우드 요청에 사용자 출고지 표만 붙여넣기
 function dwDispApplyDest(text){
   if(!_fiDisp || !_fiDisp.rows.some(r=> r.dw)) return false;
   const m = dwDispParseDest(text); if(!Object.keys(m).length) return false;
+  if(_dwLastText && _fiDisp.rows.some(r=> r.dw && (!r.fc || r.pallets==null))){ dwDispFromText(_dwLastText + "\n" + text); return true; }   // build 197: 센터 · PLT가 비어 있으면 표의 센터명 · PLT로 다시 만들기
   _fiDisp.rows.forEach(r=>{ if(r.dw && m[r.dwLot]){ r.dest = m[r.dwLot]; r.warn = (r.warn||[]).filter(w=>!/출고지/.test(w)); if(!fiDispKnownDest(r.dest)) r.warn.push(`⚠ 출고지 "${r.dest}" 매장 목록에 없음`); r.memo = r.warn.join(" / "); } });
   fiDispSave(); fiDispRender();
   const st = document.getElementById("fiDispStatus"); if(st) st.textContent = `✓ 출고지 표 적용 — LOT ${Object.keys(m).join(", ")}`;
@@ -18765,6 +18814,15 @@ function mailHtmlToText(html){
   return out.join("").replace(/[ \u00a0]+/g," ").replace(/\n\s*\n+/g,"\n");
 }
 async function fiDispFromFile(f){
+  if(/\.xlsx$/i.test(f.name||"")){   // build 197: 데드우드 낙찰파일 → 센터별 PLT
+    const st = document.getElementById("fiDispStatus");
+    try{ const wb = XLSX.read(await f.arrayBuffer(), { type:"array" }); const map = dwBidMapFromWb(wb);
+      if(!map) throw new Error("이 엑셀에서 NO. · FC · Location(로케이션) 열을 찾지 못했습니다 — 데드우드 낙찰파일을 올려 주세요");
+      _dwBidMap = map; if(st) st.textContent = `✓ 낙찰파일 읽음 — LOT ${Object.keys(map).join(", ")} · 센터 ${Object.values(map).reduce((s,a)=> s+a.length,0)}곳`;
+      if(_dwLastText) dwDispFromText(_dwLastText); else if(st) st.textContent += " · 이제 쿠팡 입찰 결과 메일(.mhtml)을 올려 주세요";
+    }catch(e){ if(st) st.textContent = "⚠ " + (e && e.message || e); }
+    return;
+  }
   const isMail = /\.(mhtml|mht|html?|eml)$/i.test(f.name||"");   // build 158: 휴대폰 사진은 type이 비어 있거나 확장자만 있는 경우가 있음
   if(!isMail && (/^image\//.test(f.type) || /\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(f.name||"") || !f.type)) return fiDispFromImage(f);
   const st = document.getElementById("fiDispStatus");
@@ -18836,7 +18894,9 @@ function wireFixedDispatch(){
   inp.addEventListener("change", async ()=>{ const f = await fiGrabFile(inp); inp.value=""; if(f) fiDispFromFile(f); });
   ["dragenter","dragover"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("dragover"); }));
   ["dragleave","drop"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove("dragover"); }));
-  dz.addEventListener("drop", e=>{ const f=e.dataTransfer && Array.from(e.dataTransfer.files||[]).find(x=>/^image\//.test(x.type) || /\.(mhtml|mht|html?|eml)$/i.test(x.name)); if(f) fiDispFromFile(f); });
+  dz.addEventListener("drop", e=>{ const f=e.dataTransfer && Array.from(e.dataTransfer.files||[]).find(x=>/^image\//.test(x.type) || /\.(mhtml|mht|html?|eml|xlsx)$/i.test(x.name)); if(!f) return;
+    const all = Array.from(e.dataTransfer.files||[]).filter(x=> /\.(mhtml|mht|html?|eml|xlsx)$/i.test(x.name));   // build 197: 낙찰파일 + 메일 같이 놓기(엑셀 먼저)
+    if(all.length>1){ all.sort((a,b)=> /\.xlsx$/i.test(b.name) - /\.xlsx$/i.test(a.name)); (async()=>{ for(const x of all) await fiDispFromFile(x); })(); } else fiDispFromFile(f); });
   // 캡처 후 Ctrl+V: 이미지면 OCR, 글자면 텍스트 파싱 (고정인수 탭이 열려 있을 때만)
   document.addEventListener("paste", e=>{
     const view = document.getElementById("view-fixed");
