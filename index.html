@@ -1168,7 +1168,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 187 · 2026-10-19</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 188 · 2026-10-19</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1674,14 +1674,19 @@
         <div id="eosHistory"></div>
       </div>
     </div>
-    <!-- build 170: ⑤ FC파손(FC_Liquidation) 요약본 생성기 · ⑥ 낙찰파일 생성기 -->
+    <!-- build 170: ⑤ FC파손(FC_Liquidation) 요약본 생성기 · ⑥ 낙찰파일 생성기 / build 188: ⑤⑥ 둘 다 FC파손 · 데드우드 탭 -->
     <div class="agg-card" id="fdsBox">
       <div class="p-hd">
-        <span class="store-name">⑤ FC파손(FC_Liquidation) · 요약본 생성기</span>
-        <span class="meta">FC파손 원본(FC_Liquidation_YYYYMMDD_V원본.xlsx)을 놓으면 → 요약본(★FC 파손 요약 · 종합 · Sheet2 · Sheet2 (2) 피벗 · RAW · Sheet5) 엑셀</span>
+        <span class="store-name">⑤ FC파손 · 데드우드 · 요약본 생성기</span>
+        <span class="meta">FC파손 원본(FC_Liquidation_…원본.xlsx) 또는 데드우드 원본(Deadwood_Liquidation… / FC 리퀴데이션 데드우드 리스트_…)을 놓으면 → 요약본 엑셀 · 같은 원본이 ⑥에도 자동으로 들어감</span>
         <button class="act fi-mini fi-del" data-reset="fds" style="margin-left:auto" title="올린 원본 · 화면 결과를 지웁니다">↺ 초기화</button>
       </div>
       <div class="fi-body">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+          <button class="act fi-mini primary" data-fd-mode="fd">FC파손(FC_Liquidation)</button>
+          <button class="act fi-mini" data-fd-mode="dw">데드우드(Deadwood)</button>
+        </div>
+        <div id="fdsPane">
         <div id="fdsDrop" class="fi-drop" role="button" tabindex="0">
           <div class="fi-drop-t">FC파손 원본 파일(FC_Liquidation_YYYYMMDD_V원본.xlsx)을 끌어다 놓거나 클릭</div>
           <div class="fi-drop-s">RAW 시트(FC · NO. · Cate2 · Quantity · 판매가 …)와 오른쪽 LOT 표(NO. · FC · qty · BID AMT / NO · Qty · MIN BID AMT)를 머리글로 찾아 읽습니다 · 같은 원본이 아래 ⑥ 낙찰파일 생성기에도 자동으로 들어갑니다</div>
@@ -1690,18 +1695,29 @@
         <input type="file" id="fdsInput" accept=".xlsx,.xlsm,.xls" hidden>
         <div id="fdsStatus" class="fi-status"></div>
         <div id="fdsResult"></div>
+        </div>
+        <div id="dwsPane" hidden>
+        <div id="dwsDrop" class="fi-drop" role="button" tabindex="0">
+          <div class="fi-drop-t">데드우드 원본 파일((external)Deadwood_Liquidation…_for vendors.xlsx · FC 리퀴데이션 데드우드 리스트_YYYYMMDD.xlsx)을 끌어다 놓거나 클릭</div>
+          <div class="fi-drop-s">요약본(★Deadwood요약 · 종합 · 종합 (2) · Sheet2 · Sheet3 · Sheet5 · raw data)을 만듭니다 · 같은 원본이 아래 ⑥ 데드우드 낙찰파일 생성기에도 자동으로 들어갑니다</div>
+          <div id="dwsFileInfo" style="margin-top:8px;font-size:12.5px"></div>
+        </div>
+        <input type="file" id="dwsInput" accept=".xlsx,.xlsm,.xls" hidden>
+        <div id="dwsStatus" class="fi-status"></div>
+        <div id="dwSumResult"></div>
+        </div>
       </div>
     </div>
     <div class="agg-card" id="fdBox">
       <div class="p-hd">
-        <span class="store-name">⑥ FC파손(FC_Liquidation) · 낙찰파일 생성기</span>
-        <span class="meta">FC파손 원본 + 낙찰 LOT 알파벳(A, B …) → 낙찰파일 1개 "YYYYMMDD_FC(파손 및 무적재고)_A(FC…,PLT)_B(…)" · 데드우드 탭: 원본 → 요약본 + 낙찰 LOT → "YYYYMMDD_FC_데드우드_AA(센터,PLT)_…"</span>
+        <span class="store-name">⑥ FC파손 · 데드우드 · 낙찰파일 생성기</span>
+        <span class="meta">원본 + 낙찰 LOT 알파벳 → 낙찰파일 1개 · FC파손 "YYYYMMDD_FC(파손 및 무적재고)_A(FC…,PLT)_B(…)" · 데드우드 "YYYYMMDD_FC_데드우드_AA(센터,PLT)_…"</span>
         <button class="act fi-mini fi-del" data-reset="fd" style="margin-left:auto" title="올린 원본 · 입력칸 · 화면 결과를 지웁니다 (기록은 그대로)">↺ 초기화</button>
       </div>
       <div class="fi-body">
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-          <button class="act fi-mini primary" data-fd-mode="fd">FC파손 낙찰파일</button>
-          <button class="act fi-mini" data-fd-mode="dw">데드우드(Deadwood) · 요약본 + 낙찰파일</button>
+          <button class="act fi-mini primary" data-fd-mode="fd">FC파손(FC_Liquidation)</button>
+          <button class="act fi-mini" data-fd-mode="dw">데드우드(Deadwood)</button>
         </div>
         <div id="fdPane">
         <div class="fi-disp-in">
@@ -1723,12 +1739,12 @@
         <div id="fdStatus" class="fi-status"></div>
         <div id="fdResult"></div>
         </div>
-        <!-- build 187: 데드우드 — 원본 → 요약본(바로) · 낙찰 LOT 입력 → 낙찰파일 -->
+        <!-- build 187: 데드우드 낙찰파일 (build 188: 요약본은 ⑤ 데드우드 탭으로) -->
         <div id="dwPane" hidden>
         <div class="fi-disp-in">
           <div id="dwDrop" class="fi-drop" role="button" tabindex="0">
             <div class="fi-drop-t">데드우드 원본 파일((external)Deadwood_Liquidation…_for vendors.xlsx · FC 리퀴데이션 데드우드 리스트_YYYYMMDD.xlsx)을 끌어다 놓거나 클릭</div>
-            <div class="fi-drop-s">놓으면 바로 요약본(★Deadwood요약 · 종합 · 종합 (2) · Sheet2 · Sheet3 · Sheet5 · raw data)을 만듭니다 · 낙찰파일은 오른쪽에 낙찰 LOT을 넣어야 만들어집니다</div>
+            <div class="fi-drop-s">⑤에서 데드우드 원본을 올렸으면 여기에 자동으로 들어옵니다 · 낙찰파일은 오른쪽에 낙찰 LOT을 넣어야 만들어집니다</div>
             <div id="dwFileInfo" style="margin-top:8px;font-size:12.5px"></div>
           </div>
           <div class="fi-disp-paste">
@@ -1742,7 +1758,6 @@
         </div>
         <input type="file" id="dwInput" accept=".xlsx,.xlsm,.xls" hidden>
         <div id="dwStatus" class="fi-status"></div>
-        <div id="dwSumResult"></div>
         <div id="dwResult"></div>
         </div>
         <div class="fi-sec-t">낙찰파일 기록 (FC파손 · 데드우드)</div>
@@ -13775,8 +13790,8 @@ const TD_STEPS = [
   { k:"liq", n:"②", t:"정기비딩 낙찰파일", card:"liqBox", hist:()=> typeof LIQ_HISTORY!=="undefined" ? LIQ_HISTORY : [] },
   { k:"es",  n:"③", t:"임박 요약본", card:"esBox", live:()=> typeof _esCur!=="undefined" && _esCur },
   { k:"eos", n:"④", t:"임박 낙찰파일", card:"eosBox", hist:()=> typeof EOS_HISTORY!=="undefined" ? EOS_HISTORY : [] },
-  { k:"fds", n:"⑤", t:"FC파손 요약본", card:"fdsBox", live:()=> typeof _fdsCur!=="undefined" && _fdsCur },
-  { k:"fd",  n:"⑥", t:"FC파손 낙찰파일", card:"fdBox", hist:()=> typeof FD_HISTORY!=="undefined" ? FD_HISTORY : [] },
+  { k:"fds", n:"⑤", t:"FC파손·데드우드 요약본", card:"fdsBox", live:()=> (typeof _fdsCur!=="undefined" && _fdsCur) || (typeof _dwSum!=="undefined" && _dwSum) },
+  { k:"fd",  n:"⑥", t:"FC파손·데드우드 낙찰파일", card:"fdBox", hist:()=> typeof FD_HISTORY!=="undefined" ? FD_HISTORY : [] },
   { k:"fi",  n:"⑦", t:"고정인수 분배", card:"⑦", hist:()=> typeof FIXED_INTAKE_HISTORY!=="undefined" ? FIXED_INTAKE_HISTORY : [] },
   { k:"disp",n:"⑧", t:"배차 요청서", card:"fiDispBox", hist:()=> typeof FI_DISPATCH_HISTORY!=="undefined" ? FI_DISPATCH_HISTORY : [] },
 ];
@@ -17414,7 +17429,7 @@ function dwBuildBid(D, lots, date8, pltOver){
     if(rt.miss) missingRate[k] = (missingRate[k]||0)+1; else if(rt.guess) guessRate[k] = rt.r;
     const whole = rt.miss ? 100 : shop * rt.r;   // 요율표에 없는 분류는 도매가 100원(⑥ FC파손과 같음 — 확인 경고)
     lotOf.push(fdT(r[m.no]).toUpperCase());
-    return pick.map(c=> r[c]).concat([shop, shop*q, whole, whole*q]);
+    return pick.map(c=> c===m.desc ? "★_" + (r[c]==null ? "" : r[c]) : r[c]).concat([shop, shop*q, whole, whole*q]);   // build 188: 상품명 앞 "★_"(다른 낙찰파일과 같게)
   });
   const pltTxt = p=> p.plt==null ? "" : p.plt;
   const name = `${date8}_FC_데드우드_` + parts.map(p=> `${p.no}(${p.centerText},${pltTxt(p)}PLT)`).join("_");
@@ -17489,30 +17504,41 @@ async function dwBidWorkbook(ff, D, b){
     + b.lots.map((no,k)=> fdn(3+k, no, '$A$2:$'+L(nP-1)+'$'+lastBy[no])).join("") + '</definedNames>';
   return Z.finish(T, names, dn, 1, [2], 2);
 }
-// ---------------- 화면 (⑥ 안의 "데드우드" 탭) ----------------
-let _dwFile = null, _dwData = null, _dwSum = null, _dwCur = null, _fdMode = "fd";
+// ---------------- 화면 (⑤ · ⑥ 안의 "데드우드" 탭) ----------------
+// ⑥ 데드우드: 원본만 넣기(요약본은 ⑤에서)
+function dwSetFile(f){
+  if(!f) return;
+  if(!/\.(xlsx|xlsm|xls)$/i.test(f.name)){ document.getElementById("dwStatus").innerHTML = `<span style="color:var(--red)">엑셀(.xlsx) 파일을 올려 주세요.</span>`; return; }
+  _dwFile = f; _dwData = null; _dwCur = null; document.getElementById("dwStatus").textContent = "";
+  dwRender();
+  if(fdParseLots(document.getElementById("dwLots").value).lots.length) dwGenerate();
+}
+let _dwFile = null, _dwData = null, _dwSum = null, _dwCur = null, _dwsFile = null, _fdMode = "fd";
 function fdSetMode(k){
   _fdMode = k==="dw" ? "dw" : "fd";
-  const a = document.getElementById("fdPane"), b = document.getElementById("dwPane");
-  if(a) a.hidden = _fdMode!=="fd"; if(b) b.hidden = _fdMode!=="dw";
-  document.querySelectorAll("#fdBox [data-fd-mode]").forEach(x=> x.classList.toggle("primary", x.dataset.fdMode===_fdMode));
+  // build 188: ⑤ 요약본 · ⑥ 낙찰파일 탭을 같이 바꾼다
+  [["fdPane","fd"],["dwPane","dw"],["fdsPane","fd"],["dwsPane","dw"]].forEach(([id,k])=>{ const e = document.getElementById(id); if(e) e.hidden = _fdMode!==k; });
+  document.querySelectorAll("#fdBox [data-fd-mode], #fdsBox [data-fd-mode]").forEach(x=> x.classList.toggle("primary", x.dataset.fdMode===_fdMode));
 }
-function dwReset(){ _dwFile = null; _dwData = null; _dwSum = null; _dwCur = null;
+function dwsReset(){ _dwsFile = null; _dwSum = null; ["dwsInput"].forEach(id=>{ const e = document.getElementById(id); if(e) e.value = ""; });
+  const st = document.getElementById("dwsStatus"); if(st) st.textContent = ""; dwRender(); }
+function dwReset(){ _dwFile = null; _dwData = null; _dwCur = null;
   ["dwLots","dwDate","dwInput"].forEach(id=>{ const e = document.getElementById(id); if(e) e.value = ""; });
   const st = document.getElementById("dwStatus"); if(st) st.textContent = ""; dwRender(); }
+// ⑤ 데드우드 요약본 — 같은 원본(읽은 그대로)을 ⑥ 데드우드 낙찰파일에도 넣는다
 async function dwHandleFile(f){
-  const st = document.getElementById("dwStatus"); if(!f) return;
+  const st = document.getElementById("dwsStatus"); if(!f) return;
   if(!/\.(xlsx|xlsm|xls)$/i.test(f.name)){ st.innerHTML = '<span style="color:var(--red)">데드우드 원본 엑셀(.xlsx)을 올려 주세요</span>'; return; }
-  _dwFile = f; _dwData = null; _dwSum = null; _dwCur = null; dwRender();
+  _dwsFile = f; _dwSum = null; _dwFile = f; _dwData = null; _dwCur = null; dwRender();
   const say = mm=>{ st.textContent = mm; };
   try{
     const ff = await fiLoadScript(LIQ_FFLATE_URL, "fflate");
     const t0 = Date.now();
     const D = await dwLoad(f, say); D._file = f; _dwData = D;
     const r = await dwsBuild(ff, D, f.name, say);
-    try{ D._uc = ucHtml("원본 검증 리포트", dwChecks(D, r.lots)); }catch(e){ console.warn("dwChecks", e); }
+    try{ D._uc = r._uc = ucHtml("원본 검증 리포트", dwChecks(D, r.lots)); }catch(e){ console.warn("dwChecks", e); }
     r.sec = ((Date.now()-t0)/1000).toFixed(1); _dwSum = r;
-    st.innerHTML = `✓ 데드우드 요약본 생성 완료 (${r.sec}초) — 낙찰 LOT을 넣고 "데드우드 낙찰파일 생성"을 누르면 낙찰파일이 만들어집니다`;
+    st.innerHTML = `✓ 데드우드 요약본 생성 완료 (${r.sec}초) — 같은 원본이 ⑥ 데드우드 낙찰파일 생성기에도 들어갔습니다(낙찰 LOT만 넣으면 됨)`;
     dwRender();
     if(fdParseLots(document.getElementById("dwLots").value).lots.length) dwGenerate();
   }catch(e){ console.error(e); st.innerHTML = '<span style="color:var(--red)">읽기 실패: '+escHtml(e && e.message || e)+'</span>'; }
@@ -17550,6 +17576,8 @@ async function dwGenerate(){
 function dwRender(){
   const fi = document.getElementById("dwFileInfo");
   if(fi) fi.innerHTML = _dwFile ? `원본: <b>${escHtml(_dwFile.name)}</b> <span class="fi-mut">(${(_dwFile.size/1048576).toFixed(1)}MB)${_dwData && _dwData._file===_dwFile ? ` · LOT ${fdLotList(_dwData).join(", ")}` : ""} — LOT만 바꿔 다시 만들 때는 파일을 다시 올릴 필요 없음</span> <button class="act fi-mini fi-del" id="dwFileDel" title="올린 원본 빼기">✕ 원본 삭제</button>` : `<span class="fi-mut">원본 파일 없음</span>`;
+  const sfi = document.getElementById("dwsFileInfo");
+  if(sfi) sfi.innerHTML = _dwsFile ? `원본: <b>${escHtml(_dwsFile.name)}</b> <span class="fi-mut">(${(_dwsFile.size/1048576).toFixed(1)}MB)</span>` : "";
   const won = v=> v==null ? "-" : Math.round(v).toLocaleString();
   const sEl = document.getElementById("dwSumResult");
   if(sEl){
@@ -17557,7 +17585,7 @@ function dwRender(){
     else { const r = _dwSum, tot = k=> r.lots.reduce((s,o)=> s+(+o[k]||0), 0);
       sEl.innerHTML = `<div class="fi-file" style="margin-top:10px">
         <div class="fi-file-hd"><span class="fi-type" style="border-color:#8064A2;color:#8064A2">데드우드 요약본</span> <span class="fi-fname">${escHtml(r.name)}</span>
-          <button class="act primary fi-mini" id="dwsDl">⬇ 다운로드</button></div>
+          <button class="act primary fi-mini" id="dwsDl">⬇ 다운로드</button> <button class="act fi-mini fi-del" id="dwsDel" title="화면에서 결과 지우기">✕</button></div>
         <table class="fi-tbl"><thead><tr><th>NO</th><th>센터명</th><th class="n">PLT</th><th class="n">최소입찰가</th><th class="n">전체 수량</th><th class="n">판매가 총액</th><th class="n">최소입찰가/판매가</th><th>TOP 1</th><th>TOP 2</th></tr></thead><tbody>
         ${r.lots.map(o=>`<tr><td><b>${escHtml(o.no)}</b></td><td style="white-space:normal;font-size:12px">${escHtml(o.centerText)}${o.fcGuess?' <span class="fi-mut">(RAW FC로 표시)</span>':""}</td>
           <td class="n" title="${escHtml(o.pltSrc||"")}">${o.plt==null?'<span class="fi-mut">-</span>':fiFmt(o.plt)}</td><td class="n">${won(o.bid)}</td><td class="n">${fiFmt(Math.round(o.Q))}</td><td class="n">${won(o.F)}</td>
@@ -17565,7 +17593,7 @@ function dwRender(){
         <tr style="font-weight:700"><td>합계</td><td>${r.lots.length}건</td><td class="n">${fiFmt(tot("plt"))}</td><td class="n">${won(tot("bid"))}</td><td class="n">${fiFmt(Math.round(tot("Q")))}</td><td class="n">${won(tot("F"))}</td><td></td><td></td><td></td></tr></tbody></table>
         <div class="fi-mut" style="margin-top:6px">시트: ★Deadwood요약 (10)(목표가 · 입찰가 칸은 비워 둠 — 직접 입력) · 종합 · 종합 (2) · Sheet2 · Sheet3 · Sheet5(피벗 — 엑셀이 열 때 채움) · raw data(원본 그대로) · RAW ${fiFmt(r.rows)}행 · 시트 "${escHtml(r.rawName)}"${r.hasTbl?` · LOT 표: ${escHtml(r.tblSrc)}`:' · <span style="color:var(--red)">⚠ LOT 표(NO · FC · MIN BID)를 찾지 못해 최소입찰가 빈칸, 센터명은 RAW FC로 표시</span>'}</div>
         <div class="fi-mut" style="margin-top:4px">PLT = 원본 표 PLT, 없으면 LOT의 로케이션(LOT_FULL_NAME/Location) 개수 · 센터명 = FC 코드 → 한글(⑦ 고정인수 FC 표)</div>
-        ${_dwData && _dwData._uc || ""}
+        ${r._uc || ""}
       </div>`; }
   }
   const wrap = document.getElementById("dwResult");
@@ -17586,22 +17614,27 @@ function dwRender(){
 }
 function wireDw(){
   const pane = document.getElementById("dwPane"); if(!pane || pane._wired) return; pane._wired = true;
-  const dz = document.getElementById("dwDrop"), inp = document.getElementById("dwInput");
-  dz.addEventListener("click", e=>{ if(e.target.closest("button")) return; inp.click(); });
-  dz.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); inp.click(); } });
-  inp.addEventListener("change", ()=>{ dwHandleFile(inp.files && inp.files[0]); inp.value = ""; });
-  ["dragenter","dragover"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("dragover"); }));
-  ["dragleave","drop"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove("dragover"); }));
-  dz.addEventListener("drop", e=> dwHandleFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]));
+  const drop = (dzId, inId, fn)=>{ const dz = document.getElementById(dzId), inp = document.getElementById(inId); if(!dz || !inp) return;
+    dz.addEventListener("click", e=>{ if(e.target.closest("button")) return; inp.click(); });
+    dz.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); inp.click(); } });
+    inp.addEventListener("change", ()=>{ fn(inp.files && inp.files[0]); inp.value = ""; });
+    ["dragenter","dragover"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("dragover"); }));
+    ["dragleave","drop"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove("dragover"); }));
+    dz.addEventListener("drop", e=> fn(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0])); };
+  drop("dwsDrop", "dwsInput", dwHandleFile);   // ⑤ 데드우드 요약본
+  drop("dwDrop", "dwInput", dwSetFile);        // ⑥ 데드우드 낙찰파일
   const dEl = document.getElementById("dwDate"); if(dEl && !dEl.value) dEl.value = fdYYYYMMDD(fiDetectDate(""));
-  document.querySelectorAll("#fdBox [data-fd-mode]").forEach(x=> x.addEventListener("click", ()=> fdSetMode(x.dataset.fdMode)));
+  document.querySelectorAll("#fdBox [data-fd-mode], #fdsBox [data-fd-mode]").forEach(x=> x.addEventListener("click", ()=> fdSetMode(x.dataset.fdMode)));
+  const sp = document.getElementById("dwsPane");
+  if(sp) sp.addEventListener("click", e=>{ const t = e.target.closest("button"); if(!t) return;
+    if(t.id==="dwsDl" && _dwSum) fiDownloadBytes(_dwSum.name, _dwSum.bytes);
+    else if(t.id==="dwsDel"){ _dwSum = null; _dwsFile = null; document.getElementById("dwsStatus").textContent = ""; dwRender(); } });
   pane.addEventListener("click", e=>{
     const t = e.target.closest("button"); if(!t) return;
     const flash = (msg, back)=>{ t.textContent = msg; setTimeout(()=>{ t.textContent = back; }, 1500); };
-    if(t.id==="dwFileDel"){ e.stopPropagation(); _dwFile = null; _dwData = null; _dwSum = null; _dwCur = null; document.getElementById("dwStatus").textContent = "원본 파일을 뺐습니다."; dwRender(); }
+    if(t.id==="dwFileDel"){ e.stopPropagation(); _dwFile = null; _dwData = null; _dwCur = null; document.getElementById("dwStatus").textContent = "원본 파일을 뺐습니다."; dwRender(); }
     else if(t.id==="dwResDel"){ _dwCur = null; document.getElementById("dwStatus").textContent = ""; dwRender(); }
     else if(t.id==="dwGo") dwGenerate();
-    else if(t.id==="dwsDl" && _dwSum) fiDownloadBytes(_dwSum.name, _dwSum.bytes);
     else if(t.id==="dwDl" && _dwCur) fiDownloadBytes(_dwCur.b.outName, _dwCur.bytes);
     else if(t.id==="dwCopy" && _dwCur){ fiCopyText(_dwCur.b.outName.replace(/\.xlsx$/,""), null); flash("복사됨 ✓","파일명 복사"); }
   });
@@ -18488,7 +18521,7 @@ function fiResetCard(k){
   if(k==="liq"){ try{ _liqFile = null; _liqCur = null; }catch(_){} val("liqLots"); const d=document.getElementById("liqDate"); if(d){ d.value=""; d.dataset.auto="1"; } clr("liqStatus"); val("liqInput"); try{ liqRender(); }catch(_){} }
   if(k==="es"){ try{ _esFile = null; _esCur = null; }catch(_){} clr("esStatus"); val("esInput"); try{ esRender(); }catch(_){} }
   if(k==="eos"){ try{ _eosFile = null; _eosData = null; _eosCur = null; }catch(_){} val("eosLots"); val("eosDate"); clr("eosStatus"); val("eosInput"); try{ eosRender(); }catch(_){} }
-  if(k==="fds"){ try{ _fdsFile = null; _fdsCur = null; }catch(_){} clr("fdsStatus"); val("fdsInput"); try{ fdsRender(); }catch(_){} }   // build 170
+  if(k==="fds"){ try{ _fdsFile = null; _fdsCur = null; }catch(_){} clr("fdsStatus"); val("fdsInput"); try{ fdsRender(); }catch(_){} try{ dwsReset(); }catch(_){} }   // build 170 · 188: 데드우드 요약본도
   if(k==="fd"){ try{ _fdFile = null; _fdData = null; _fdCur = null; }catch(_){} val("fdLots"); val("fdDate"); clr("fdStatus"); val("fdInput"); try{ fdRender(); }catch(_){} try{ dwReset(); }catch(_){} }   // build 187: 데드우드 탭도
   if(k==="fi"){ try{ _fiCur = null; }catch(_){} clr("fiStatus"); val("fiInput"); try{ fiRender(); }catch(_){} }
   if(k==="disp" || k==="dispAll"){
@@ -18512,7 +18545,7 @@ document.addEventListener("click", e=>{
   const b = e.target.closest && e.target.closest("button[data-reset]"); if(!b) return;
   e.preventDefault(); e.stopPropagation();
   const k = b.dataset.reset;
-  const name = { ls:"① 요약본 생성기", liq:"② 낙찰파일 생성기", es:"③ 임박식품 요약본 생성기", eos:"④ 임박식품 낙찰파일 생성기", fds:"⑤ FC파손 요약본 생성기", fd:"⑥ FC파손 낙찰파일 생성기", fi:"⑦ 고정인수", disp:"⑧ 배차 요청서" }[k];
+  const name = { ls:"① 요약본 생성기", liq:"② 낙찰파일 생성기", es:"③ 임박식품 요약본 생성기", eos:"④ 임박식품 낙찰파일 생성기", fds:"⑤ FC파손 · 데드우드 요약본 생성기", fd:"⑥ FC파손 · 데드우드 낙찰파일 생성기", fi:"⑦ 고정인수", disp:"⑧ 배차 요청서" }[k];
   if(k==="all"){
     if(!confirm("①~⑧에 올린 원본 파일 · 입력한 LOT · 화면 결과를 모두 지울까요?\n(낙찰파일 기록 · 분배 히스토리 · 배차 요청 기록은 그대로 남습니다)")) return;
     ["ls","liq","es","eos","fds","fd","fi","disp"].forEach(fiResetCard); if(typeof flash==="function") flash("초기화 완료 ✓", "업로드 자료"); return;
