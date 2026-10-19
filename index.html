@@ -1173,7 +1173,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 191 · 2026-10-19</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 193 · 2026-10-19</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -12995,6 +12995,13 @@ function fiCenterName(fc){
   if(m && FI_FC_PREFIX[m[1]]) return FI_FC_PREFIX[m[1]] + m[2];
   return fc;
 }
+/* build 193: 센터 No(FC 코드) → 한글 센터명 — 모든 요약본(정기비딩 · 임박 · FC파손 · 데드우드) 공통.
+   표(FC 이름표 · ⑦ FI_REF)에 있으면 그 이름, 없으면 지역 앞글자 + 번호(GEW2 → 금왕2, INC49 → 인천49, CHA13 → 천안13), 그래도 모르면 코드 그대로. 이미 한글이면 그대로. */
+function kkFcKo(x){
+  const t = String(x==null?"":x).replace(/[\s\u00a0]+/g," ").trim();
+  if(!t || /[가-힣]/.test(t)) return t;
+  return fiCenterName(t.toUpperCase());
+}
 function fiCenterRegion(fc){
   const name = fiCenterName(fc);
   const keys = Object.keys(FI_REGION_GEO).sort((a,b)=>b.length-a.length);
@@ -14323,9 +14330,11 @@ function _fiLev(a,b){
 }
 // OCR된 FC 조각(예: "6073", "\02", "INC49") → 알려진 FC 코드
 var FI_FC_SCOPE = null;   // 이번 메일과 같은 낙찰일 고정인수 기록의 FC 목록(있으면 이 안에서만 맞춤)
+let _fiExactText = false;   // build 192: 붙여넣은 글은 글자 그대로 — 코드 모양(INC49 등)이면 비슷한 FC(INC43)로 "보정"하지 않는다
 function fiFixFC(raw){
   let t = String(raw||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
   if(!t) return "";
+  if(_fiExactText && /^[A-Z]{2,4}\d{1,3}(CFC)?$/.test(t)) return t;
   const conv = x=>{ const m = x.match(/^(.{2,3}?)(\d{1,2}|[A-Z0-9]{1,2})$/); if(!m) return x;
     return m[1].split("").map(ch=> FI_OCR_DIGIT2ALPHA[ch]||ch).join("") + m[2].split("").map(ch=> FI_OCR_ALPHA2DIGIT[ch]||ch).join(""); };
   const cands = [t, conv(t), conv(t.slice(-4)), conv(t.slice(-5))];
@@ -14491,9 +14500,13 @@ function fiDispParseTable(text){
 /* build 191: 문자로 오는 XLG 당일 출고요청
    "입금코드 : AFA26A12AA / 여주 : 101701 3plt / 고양 : 101701 1plt …" → XLG 출고요청 행(낙찰일·출고일 = 오늘, 오전/오후는 빈칸, Group = GD(NUMBER)_FC)
    지역 → 센터: 여주 = 여주2 · 고양 = 고양3 · 시흥 = 시흥3 · 경산 = 경산2 (+ 알려진 XLG 센터 금왕3 · 천안3 · 인천43). "고양3"처럼 숫자까지 쓰면 그 센터. */
-const FI_SMS_FC = { "여주":"YEO2", "고양":"GOY3", "시흥":"SIH3", "경산":"GYS2", "금왕":"GEW3", "천안":"CHA3", "인천":"INC43" };
+const FI_SMS_FC = { "여주":"YEO2", "고양":"GOY3", "시흥":"SIH3", "경산":"GYS2", "금왕":"GEW3", "천안":"CHA3", "인천":"INC49" };   // build 192: 인천 기본 = 인천49(XLG 센터)
 function fiSmsFc(name, num){
-  if(num){ const F = (FI_REF && FI_REF.fc) || {}; const hit = Object.keys(F).find(k=> F[k][0]===name+num); if(hit) return hit; }
+  if(num){   // build 192: "인천49"처럼 숫자를 쓰면 반드시 그 번호 — 표에 없으면 지역 코드 + 번호(INC + 49)로 만든다(예전엔 기본값 INC43으로 바뀌던 버그)
+    const F = (FI_REF && FI_REF.fc) || {}; const hit = Object.keys(F).find(k=> F[k][0]===name+num); if(hit) return hit;
+    const pre = Object.keys(FI_FC_PREFIX||{}).find(k=> FI_FC_PREFIX[k]===name) || String(FI_SMS_FC[name]||"").replace(/\d.*$/,"");
+    return pre ? pre + num : "";
+  }
   return FI_SMS_FC[name] || "";
 }
 function fiDispParseSms(text){
@@ -14514,6 +14527,10 @@ function fiDispParseSms(text){
   return rows;
 }
 function fiDispParseText(text){
+  _fiExactText = true;
+  try{ return fiDispParseText0(text); } finally { _fiExactText = false; }
+}
+function fiDispParseText0(text){
   { const sms = fiDispParseSms(text); if(sms.length) return sms; }   // build 191
   const lines = String(text||"").split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
   const type0 = fiTypeFromText(text);
@@ -15438,7 +15455,7 @@ var LIQSUM_FC = {GEW3:"금왕3",YEO2:"여주2",GOY3:"고양3",GYS2:"경산2",SIH
 var LIQSUM_CAT = [["주방",["주방","주방용품"]],["가전",["가전디지털"]],["생활",["생활용품"]],["가구",["가구/홈인테리어"]],["식품",["식품","로켓프레시"]],
   ["의류",["패션의류"]],["패션잡화",["패션잡화"]],["뷰티",["뷰티"]],["기타-J",["완구/취미","반려/애완용품","도서/음반","문구/사무용품","스포츠/레저용품","자동차용품","출산/유아"]]];
 var LIQSUM_CODES = [["A","XLA"],["B","XLB"],["C","XLC"],["E","XLE"],["K","XLK"],["임박","XLR"],["대형","XLW"]];
-function lsFcName(s){ if(s==null) return s; return String(s).split(",").map(function(x){ x=x.trim(); return LIQSUM_FC[x]||x; }).join(","); }
+function lsFcName(s){ if(s==null) return s; return String(s).split(",").map(function(x){ x=x.trim(); return LIQSUM_FC[x]||kkFcKo(x); }).join(","); }   // build 193: 표에 없는 FC도 한글(INC49 → 인천49)
 var _lsColC=[];
 function lsCol(c){ var h=_lsColC[c]; if(h) return h; var s="", c0=c; c++; while(c){ var m=(c-1)%26; s=String.fromCharCode(65+m)+s; c=(c-1-m)/26; } return _lsColC[c0]=s; }
 function lsCmp(a,b){ a=String(a).toLowerCase(); b=String(b).toLowerCase(); return a<b?-1:a>b?1:0; }
@@ -16377,7 +16394,7 @@ function esAnalyze(D){
   const lots = order.map(no=>{
     const src = rows.filter(r=> esT(r[1]).toUpperCase()===no);
     const er = eosRows.filter(r=> esT(r[0]).toUpperCase()===no);
-    const centers = [...new Set(er.map(r=> esT(r[2])).filter(Boolean))];
+    const centers = [...new Set(er.map(r=> kkFcKo(esT(r[2]))).filter(Boolean))];   // build 193: 센터 No → 한글
     const eosFc = new Set(er.map(r=> esT(r[1]).toUpperCase()));
     const vs = vList.filter(x=> x.no===no), aa = aList.find(x=> x.no===no);
     let plt, extras, pltGuess = false;
@@ -16746,7 +16763,8 @@ function fdLotInfo(D, no, pltOver){
   src.forEach(r=>{ const s = fdSalesOf(D, r), q = fdNum(r[m.qty]); F += s; Q += q;
     const c = (m.cate2!=null ? fdT(r[m.cate2]) : "") || "(비어 있음)"; const o = cat.get(c) || { q:0, s:0 }; o.q += q; o.s += s; cat.set(c, o); });
   const cats = [...cat.entries()].map(([c,o])=>({ c, q:o.q, s:o.s })).sort((a,b)=> b.s-a.s);
-  return { no, src, fcs, fcList, fcGuess, centerText: fcList.join(" "), bid, plt, F, Q, rows: src.length, cats,
+  const centerKo = [...new Set(fcList.map(kkFcKo).filter(Boolean))].join(" ");   // build 193: 요약본 센터명은 한글(낙찰파일 이름은 그대로 FC 코드)
+  return { no, src, fcs, fcList, fcGuess, centerText: fcList.join(" "), centerKo, bid, plt, F, Q, rows: src.length, cats,
            top: cats.slice(0,4).map(x=> `${x.c} (${Math.round(x.q)}EA ₩${Math.round(x.s).toLocaleString("en-US")})`) };
 }
 // ---------------- ⑤ 요약본 ----------------
@@ -16778,12 +16796,12 @@ async function fdsBuild(ff, D, srcName, prog){
       ["I","TOP 1",34],["J","TOP 2",34],["K","TOP 3",34],["L","TOP 4",35],["M",null,36],["N",null,36],["P",null,38]];
     s.w('<row r="3" s="37" customFormat="1" ht="54.9" customHeight="1">'+h3.map(a=> C(a[0]+"3", a[1], a[2], sst)).join("")+'</row>');
     lots.forEach((o,i)=>{
-      const r = 4+i, lines = Math.max(3, Math.ceil(String(o.centerText).length/45));
+      const r = 4+i, lines = Math.max(3, Math.ceil(String(o.centerKo).length/45));
       const pltV = o.plt==null ? "" : o.plt;
-      let y = C("B"+r, o.no, 39, sst) + C("C"+r, o.centerText, 40, sst) + C("D"+r, o.plt, 41, sst) + C("E"+r, o.bid, 42, sst)
+      let y = C("B"+r, o.no, 39, sst) + C("C"+r, o.centerKo, 40, sst) + C("D"+r, o.plt, 41, sst) + C("E"+r, o.bid, 42, sst)
         + C("F"+r, { f:`IFERROR(E${r}/H${r},0)`, v: o.bid!=null && o.F ? o.bid/o.F : 0 }, 43, sst) + C("G"+r, null, 44, sst) + C("H"+r, o.F, 45, sst)
         + ["I","J","K","L"].map((c,j)=> C(c+r, o.top[j]||null, [46,47,46,48][j], sst)).join("")
-        + (i ? C("N"+r, null, 51, sst) : "") + C("O"+r, { f:`B${r}&("("&(C${r}&","&D${r}&"PLT"&")"))`, v:`${o.no}(${o.centerText},${pltV}PLT)` }, 50, sst) + C("P"+r, null, 51, sst);
+        + (i ? C("N"+r, null, 51, sst) : "") + C("O"+r, { f:`B${r}&("("&(C${r}&","&D${r}&"PLT"&")"))`, v:`${o.no}(${o.centerKo},${pltV}PLT)` }, 50, sst) + C("P"+r, null, 51, sst);
       s.w('<row r="'+r+'" s="49" customFormat="1" ht="'+(lines*40.2).toFixed(1)+'" customHeight="1">'+y+'</row>');
     });
     const t = 4+N, a = 4, b = 3+N, sum = k=> lots.reduce((s,o)=> s+(+o[k]||0), 0);
@@ -16844,11 +16862,11 @@ async function fdsBuild(ff, D, srcName, prog){
     const fr = D.fcTbl ? fdSortFcRows(D.fcTbl.rows, lots.map(o=> o.no)) : [].concat(...lots.map(o=> o.fcList.map(fc=>({ no:o.no, fc, qty:null }))));
     const qh = fdTblQtyHdr(D);
     s.w('<row r="2">'+C("A2","NO.",12,sst)+C("B2","FC",11,sst)+C("C2","FC",11,sst)+C("D2",qh,11,sst)+'</row>');
-    const byLot = new Map(lots.map(o=> [o.no, o.centerText]));
+    const byLot = new Map(lots.map(o=> [o.no, o.centerKo]));
     const n = Math.max(fr.length, lots.length);
     for(let i=0;i<n;i++){ const r = 3+i, x = fr[i]; let y = "";
       if(x) y += C("A"+r, x.no, 13, sst) + C("B"+r, x.fc, 14, sst) + C("C"+r, x.fc, 14, sst) + C("D"+r, fdTblQtyVal(x), 14, sst) + C("G"+r, byLot.get(x.no)||"", 64, sst);
-      if(i<lots.length) y += C("K"+r, lots[i].centerText, null, sst);
+      if(i<lots.length) y += C("K"+r, lots[i].centerKo, null, sst);
       s.w('<row r="'+r+'">'+y+'</row>'); }
     s.w(tail()); s.end();
   })();
@@ -17071,7 +17089,7 @@ function fdsRender(){
     <div class="fi-file-hd"><span class="fi-type" style="border-color:#C0504D;color:#C0504D">FC파손</span> <span class="fi-fname">${escHtml(r.name)}</span>
       <button class="act primary fi-mini" id="fdsDl">⬇ 다운로드</button> <button class="act fi-mini fi-del" id="fdsDel" title="화면에서 결과 지우기">✕</button></div>
     <table class="fi-tbl"><thead><tr><th>NO</th><th>센터명 (FC)</th><th class="n">PLT</th><th class="n">최소입찰가</th><th class="n">판매가 총액</th><th class="n">최소입찰가/판매가</th><th>TOP 1</th><th>TOP 2</th></tr></thead><tbody>
-    ${r.lots.map(o=>`<tr><td><b>${escHtml(o.no)}</b></td><td style="white-space:normal;font-size:12px">${escHtml(o.centerText)}${o.fcGuess?' <span class="fi-mut">(RAW FC로 표시)</span>':""}</td><td class="n">${o.plt==null?'<span class="fi-mut">-</span>':fiFmt(o.plt)}</td>
+    ${r.lots.map(o=>`<tr><td><b>${escHtml(o.no)}</b></td><td style="white-space:normal;font-size:12px">${escHtml(o.centerKo)} <span class="fi-mut">(${escHtml(o.fcList.map(x=>String(x).trim()).join(" "))})</span>${o.fcGuess?' <span class="fi-mut">(RAW FC로 표시)</span>':""}</td><td class="n">${o.plt==null?'<span class="fi-mut">-</span>':fiFmt(o.plt)}</td>
       <td class="n">${won(o.bid)}</td><td class="n">${won(o.F)}</td><td class="n">${o.bid!=null&&o.F?(o.bid/o.F*100).toFixed(1)+"%":"-"}</td>
       <td style="white-space:normal;font-size:11.5px">${escHtml(o.top[0]||"")}</td><td style="white-space:normal;font-size:11.5px">${escHtml(o.top[1]||"")}</td></tr>`).join("")}
     <tr style="font-weight:700"><td>합계</td><td>${r.lots.length}건</td><td class="n">${fiFmt(tot("plt"))}</td><td class="n">${won(tot("bid"))}</td><td class="n">${won(tot("F"))}</td><td></td><td></td><td></td></tr></tbody></table>
@@ -17293,7 +17311,7 @@ function dwFcName(code, kname){
   if(c && F[c]) return F[c][0];
   if(fdT(kname)) return fdT(kname);
   const hit = c && (F[c.replace(/_?CFC$/,"_CFC")] || F[c.replace(/_/g,"")]);
-  return hit ? hit[0] : fdT(code);
+  return hit ? hit[0] : kkFcKo(code);   // build 193: 표에 없으면 지역 앞글자 + 번호(CHA13 → 천안13)
 }
 function dwLotInfo(D, no, pltOver){
   const m = D.m;
