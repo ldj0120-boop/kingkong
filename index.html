@@ -1177,7 +1177,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 197 · 2026-10-19</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 198 · 2026-10-20</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1824,7 +1824,7 @@
             <button type="button" class="kk-photo-btn" id="fiDispPhotoBtn">📷 휴대폰 캡처 사진 선택 (눌러서 앨범·파일에서 고르기)</button>
             <div id="fiDispPhotoMsg" class="kk-photo-msg" hidden></div>
             <div id="fiDispPhotoPrev" hidden style="margin:6px 0"></div>
-            <div class="fi-drop-s">캡처 후 이 탭에서 <b>Ctrl+V</b> 해도 됩니다 · 표(낙찰일자/BIDCODE/GroupNumber/NUMBER/파렛트/Outbound date)가 보이게 · <b>임박식품(FC EOS)</b> 메일은 "출고 요청" 문장부터 센터별 표(FC/센터/BIDCODE/Pallet)까지 · <b>데드우드</b> "입찰 결과" 메일(.mhtml)은 그대로 올리고, 출고지 표(NO. · 출고지)를 붙여넣으면 LOT별 출고지가 들어갑니다</div>
+            <div class="fi-drop-s">캡처 후 이 탭에서 <b>Ctrl+V</b> 해도 됩니다 · 표(낙찰일자/BIDCODE/GroupNumber/NUMBER/파렛트/Outbound date)가 보이게 · <b>임박식품(FC EOS)</b> 메일은 "출고 요청" 문장부터 센터별 표(FC/센터/BIDCODE/Pallet)까지 · <b>데드우드</b> "입찰 결과" 메일(.mhtml)은 그대로 올리고, 출고지는 글 칸에 <b>A= 진천센터</b> · <b>B= 이천점</b>처럼 한 줄씩 쓰거나 엑셀 표를 그대로 붙여넣으면 들어갑니다</div>
           </div>
           <div class="fi-disp-paste">
             <textarea id="fiDispPaste" class="fi-text" style="min-height:96px" placeholder="또는 메일 본문(표)을 복사해서 여기에 붙여넣기 → 자동 인식 (이미지보다 정확) · 임박식품(FC EOS) 입찰 결과 메일은 본문 전체(Ctrl+A → Ctrl+C)를 붙여넣으면 됩니다"></textarea>
@@ -15093,14 +15093,22 @@ function dwDispParseMail(text){
   if(om){ let oy = y; if(sm && +om[1] < +sm[1] - 6) oy++; outDate = `${oy}-${p2(om[1])}-${p2(om[2])}`; ampm = om[3]; if(om[4]) time = `${+om[4]}시${om[5] && om[5]!=="00" ? " "+om[5]+"분" : ""}`; }
   return { lots, fcs, fcOrder, bidDate, outDate, ampm, time };
 }
-// 사용자 결정 표: "… NO. … 출고지" (탭) → { LOT: 출고지 }
+// build 198: 출고지 이름 맞추기 — "이천" → 이천점, "진천" → 진천센터 (목록에 있는 이름이면 그대로)
+function dwDestNorm(v){
+  const t = String(v||"").replace(/\s+/g,"").trim(); if(!t) return "";
+  if(fiDispKnownDest(t)) return t;
+  const all = [FI_JINCHEON].concat(Object.keys(fiEligMap()), typeof STORES!=="undefined" ? STORES : []);
+  return all.find(x=> x===t+"점" || x===t+"센터") || all.find(x=> x.indexOf(t)===0) || t;
+}
+// 사용자 결정 표: "… NO. … 출고지" (탭) → { LOT: 출고지 }  · build 198: "A= 진천센터" / "B : 이천점" / "E 이천점" 한 줄씩도
 function dwDispParseDest(text){
   const out = {}; const lines = String(text||"").split(/\r?\n/);
+  lines.forEach(l=>{ const m = l.match(/^\s*([A-Z]{1,2})\s*(?:[=:：\-→>]+|\s)\s*([가-힣][가-힣0-9 ]{0,15}?)\s*$/); if(m) out[m[1]] = dwDestNorm(m[2]); });
   let hNo = -1, hDest = -1;
   lines.forEach(l=>{ const c = l.split("\t").map(x=> String(x).trim());
     const iNo = c.findIndex(x=> /^NO\.?$/i.test(x)), iD = c.findIndex(x=> /출고지|도착지|하차지/.test(x));
     if(iNo>=0 && iD>=0){ hNo = iNo; hDest = iD; return; }
-    if(hNo>=0 && /^[A-Z]{1,2}$/.test(c[hNo]||"") && c[hDest]) out[c[hNo]] = c[hDest]; });
+    if(hNo>=0 && /^[A-Z]{1,2}$/.test(c[hNo]||"") && c[hDest]) out[c[hNo]] = dwDestNorm(c[hDest]); });
   return out;
 }
 /* build 197: 낙찰 기록이 이 브라우저에 없을 때를 위한 대안
@@ -15223,8 +15231,11 @@ async function dwDispFromText(text){
 }
 // 이미 연 데드우드 요청에 사용자 출고지 표만 붙여넣기
 function dwDispApplyDest(text){
-  if(!_fiDisp || !_fiDisp.rows.some(r=> r.dw)) return false;
   const m = dwDispParseDest(text); if(!Object.keys(m).length) return false;
+  if(!_fiDisp || !_fiDisp.rows.some(r=> r.dw)){   // build 198
+    if(String(text||"").split(/\r?\n/).filter(l=> l.trim()).every(l=> /^\s*[A-Z]{1,2}\s*(?:[=:：\-→>]+|\s)\s*[가-힣]/.test(l))){ const st = document.getElementById("fiDispStatus"); if(st) st.textContent = "⚠ 출고지만 입력됐습니다 — 먼저 데드우드 입찰 결과 메일(.mhtml)과 낙찰파일을 넣거나, 메일 내용 아래에 이 줄들을 같이 붙여넣어 주세요."; return true; }
+    return false;
+  }
   if(_dwLastText && _fiDisp.rows.some(r=> r.dw && (!r.fc || r.pallets==null))){ dwDispFromText(_dwLastText + "\n" + text); return true; }   // build 197: 센터 · PLT가 비어 있으면 표의 센터명 · PLT로 다시 만들기
   _fiDisp.rows.forEach(r=>{ if(r.dw && m[r.dwLot]){ r.dest = m[r.dwLot]; r.warn = (r.warn||[]).filter(w=>!/출고지/.test(w)); if(!fiDispKnownDest(r.dest)) r.warn.push(`⚠ 출고지 "${r.dest}" 매장 목록에 없음`); r.memo = r.warn.join(" / "); } });
   fiDispSave(); fiDispRender();
@@ -15316,7 +15327,7 @@ function fiDispSheetRows(rows){
     GroupNumber: r.numFull ? r.numFull : /^\d+$/.test(String(r.number||"")) ? +r.number : (r.number||""),   // build 169: 메일 NUMBER 전체
     PLT: r.pallets==null||r.pallets==="" ? "" : +r.pallets,
     출고일시: `${r.outboundDate||""} ${r.outboundAmPm||""} ${r.outTime||""}`.replace(/\s+/g," ").trim(),   // build 196: "오전 11시"
-    FC: fiCenterName(r.fc)||r.fc, 주소:r.addr||"", 담당자:r.person||"", 연락처:r.phone||"", 도착지:r.dest||"", 카테:r.type||"",
+    FC: fiCenterName(r.fc)||r.fc, 주소:r.addr||"", 담당자:r.person||"", 연락처:r.phone||"", 도착지:r.dest||"", 카테: /^XLD$/i.test(String(r.type||"")) ? "기저귀/분유" : (r.type||""),   // build 198: XLD → 기저귀/분유(사용자 배차표와 같음)
     비고: fiRemarkOf(r)
   }));
 }
@@ -15361,13 +15372,15 @@ function fiDispRender(){
   wrap.innerHTML = h;
 }
 // build 165: 출고요청서 비고 기본값 — XLS "물/탄산수", XLG·XLD(XLGD) "센터 최우선 입차가능" (직접 쓴 비고가 있으면 그대로)
-const FI_REMARK_DEFAULT = { XLS:"물/탄산수", XLG:"센터 최우선 입차가능", XLD:"센터 최우선 입차가능" };
+// build 198 (사용자 지정): 최우선 입차는 XLG 계열(XLG · XLGD · XLGE · XLGH)만. XLD = 기저귀/분유 — 최우선 입차 아님(비고 빈칸, 카테 "기저귀/분유")
+const FI_REMARK_DEFAULT = { XLS:"물/탄산수", XLG:"센터 최우선 입차가능", XLD:"" };
 function fiRemarkOf(r){
   if(r.remark!=null && String(r.remark).trim()!=="") return r.remark;
   if(r.type==="임박") return r.opNote||"";
   if(r.type==="데드우드") return r.addr||"";   // build 196: 데드우드 비고 = 상차지 주소(사용자 최종본과 같음)
   const t = String(r.type||"").toUpperCase();
-  return FI_REMARK_DEFAULT[t] || (/^XLG/.test(t) ? FI_REMARK_DEFAULT.XLG : /^XLD/.test(t) ? FI_REMARK_DEFAULT.XLD : (r.opNote||""));
+  if(/^XLD/.test(t)) return "";   // build 198: XLD(기저귀/분유)는 최우선 입차 아님
+  return FI_REMARK_DEFAULT[t] || (/^XLG/.test(t) ? FI_REMARK_DEFAULT.XLG : (r.opNote||""));
 }
 // build 135: 임박식품 행 — 상차지 주소 · 담당자 · 연락처 · 비고(필수) 입력줄
 function fiDispEosSubRow(r, i){
@@ -18902,9 +18915,14 @@ function wireFixedDispatch(){
     const view = document.getElementById("view-fixed");
     if(!view || view.hidden) return;
     const items = Array.from((e.clipboardData && e.clipboardData.items) || []);
+    // build 198: 엑셀에서 칸을 복사하면 클립보드에 글자와 함께 "칸 그림"도 들어간다 → 예전엔 그림을 먼저 집어 글자인식(OCR)을 돌려 엉망이 됐음.
+    //            글자가 있으면 항상 글자를 쓰고, 그림만 있을 때(캡처)만 OCR. 다른 입력칸에 붙여넣을 때는 건드리지 않음.
+    const txt = (e.clipboardData && e.clipboardData.getData("text/plain")) || "";
+    const other = e.target && e.target !== ta && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName||"");
+    if(txt.trim()){ if(e.target === ta) setTimeout(()=> fiDispFromText(ta.value), 0); return; }
+    if(other) return;
     const img = items.find(it=> it.kind==="file" && /^image\//.test(it.type));
     if(img){ e.preventDefault(); fiDispFromImage(img.getAsFile()); return; }
-    if(e.target === ta){ setTimeout(()=> fiDispFromText(ta.value), 0); }
   });
   document.getElementById("fiDispParseBtn").addEventListener("click", ()=> fiDispFromText(ta.value));
   box.addEventListener("input", e=>{
