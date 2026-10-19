@@ -594,6 +594,11 @@
   /* build 160: 절반(33px)으로, ⑤·⑥ 등 이 탭의 모든 카드 제목을 같은 크기로 */
   #view-fixed .agg-card > .p-hd{flex-wrap:wrap;row-gap:6px;}
   #view-fixed .agg-card > .p-hd > .store-name{font-size:33px;line-height:1.2;flex-basis:100%;}
+  /* build 189: ①② 통합 카드 — 안쪽 카드는 테두리 없이, 제목은 작게 */
+  #view-fixed .agg-card.kk-sub{border:0;border-top:1px solid var(--line);border-radius:0;background:transparent;margin:0;}
+  #view-fixed .agg-card.kk-sub > .p-hd > .store-name{font-size:22px;}
+  .kk-gtabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;}
+  .kk-gtabs .act{font-size:15px;padding:8px 16px;font-weight:700;}
   /* 2026-08-31: 카드마다 내부 스크롤(72vh)이 따로 있어서 페이지 스크롤 안에 스크롤이 중첩되는 게
      너무 불편하다는 피드백 — 세로 스크롤/높이 제한은 없애서 표가 페이지 흐름대로 쭉 늘어나게 한다.
      ★ 주의: 처음엔 overflow:visible로 통째로 풀었더니, 부모 .agg-card가 overflow:hidden이라
@@ -1168,7 +1173,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 188 · 2026-10-19</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 189 · 2026-10-19</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1578,11 +1583,23 @@
 
   <section id="view-fixed" role="tabpanel" aria-labelledby="tab-fixed" hidden>
     <div class="td-box" id="todayBox"></div>
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin:0 0 10px"><button class="act primary" data-all-dl="1" style="font-weight:700;margin-right:auto" title="⑧ 배차 요청서에 넣은 것 전부를 출고일자별 시트로 한 파일에">⬇ 전체 출고요청서 다운로드</button><button class="act fi-mini fi-del" data-reset="all" title="①~⑧에 올린 원본 · 입력칸 · 화면 결과를 모두 지웁니다 (각 기록은 그대로)">↺ 이 탭 업로드 자료 전체 초기화</button></div>
-    <!-- build 125: 아리바 비딩 요약본 생성기 (일반 리퀴 원본 / 바이나우 원본 → 요약본, 원본 종류 자동 판별) -->
-    <div class="agg-card" id="lsBox">
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin:0 0 10px"><button class="act primary" data-all-dl="1" style="font-weight:700;margin-right:auto" title="④ 배차요청 & 직출 분배표에 넣은 것 전부를 출고일자별 시트로 한 파일에">⬇ 전체 출고요청서 다운로드</button><button class="act fi-mini fi-del" data-reset="all" title="①~④에 올린 원본 · 입력칸 · 화면 결과를 모두 지웁니다 (각 기록은 그대로)">↺ 이 탭 업로드 자료 전체 초기화</button></div>
+    <!-- build 189: ①~⑥을 두 카드로 통합 — ① 요약본 생성기 · ② 낙찰파일 생성기 (위 버튼으로 정기비딩 · 임박식품 · FC파손 · 데드우드 선택, 두 카드가 같이 바뀜) -->
+    <div class="agg-card kk-gen" id="genSumBox">
       <div class="p-hd">
-        <span class="store-name">① 일반 리퀴데이션(일일 정기비딩) · 요약본 생성기</span>
+        <span class="store-name">① 요약본 생성기</span>
+        <span class="meta">정기비딩 · 임박식품 · FC파손 · 데드우드 원본을 놓으면 요약본 엑셀 → 같은 원본이 ② 낙찰파일 생성기에도 자동으로 들어갑니다</span>
+      </div>
+      <div class="fi-body">
+        <div class="kk-gtabs">
+          <button class="act" data-gen="ls">정기비딩 (일반 리퀴데이션)</button>
+          <button class="act" data-gen="es">임박식품 (FC EOS)</button>
+          <button class="act" data-gen="fd">FC파손 (FC_Liquidation)</button>
+          <button class="act" data-gen="dw">데드우드 (Deadwood)</button>
+        </div>
+<div class="agg-card kk-sub" id="lsBox">
+      <div class="p-hd">
+        <span class="store-name">정기비딩(일반 리퀴데이션) 요약본</span>
         <span class="meta">일반 리퀴 원본 · 바이나우 원본(.xlsb)을 놓으면 종류를 자동 판별 → 요약본(종합 피벗 · PLT CATE · RAW · ★리퀴 요약) 엑셀</span>
         <button class="act fi-mini fi-del" data-reset="ls" style="margin-left:auto" title="올린 원본 · 입력칸 · 화면 결과를 지웁니다 (기록은 그대로)">↺ 초기화</button>
       </div>
@@ -1596,10 +1613,69 @@
         <div id="lsResult"></div>
       </div>
     </div>
-    <!-- build 118 (build 122부터 탭 맨 위): 일반 리퀴데이션 낙찰파일 생성 (아리바 비딩 원본 + 낙찰 LOT No → 원본/RAW/총액) -->
-    <div class="agg-card" id="liqBox">
+<div class="agg-card kk-sub" id="esBox">
       <div class="p-hd">
-        <span class="store-name">② 일반 리퀴데이션(일일 정기비딩) · 낙찰파일 생성기</span>
+        <span class="store-name">임박식품(FC EOS) 요약본</span>
+        <span class="meta">임박식품 원본(FC_EOS_Liquidation … - 원본.xlsx)을 놓으면 → 임박요약(★임박 요약 · 종합 피벗 · Sheet1 · Sheet2 · RAW · EOS) 엑셀</span>
+        <button class="act fi-mini fi-del" data-reset="es" style="margin-left:auto" title="올린 원본 · 화면 결과를 지웁니다">↺ 초기화</button>
+      </div>
+      <div class="fi-body">
+        <div id="esDrop" class="fi-drop" role="button" tabindex="0">
+          <div class="fi-drop-t">임박식품 원본 파일(FC_EOS_Liquidation_YYYYMMDD - 원본.xlsx)을 끌어다 놓거나 클릭</div>
+          <div class="fi-drop-s">RAW(머리글 No. · 수량 · 판매가 …)와 LOT 표(NO · 센터 · PLT · MIN BID)를 머리글로 찾아 읽습니다 — 예전 양식 · 열 순서가 다른 원본도 됩니다 · 표준 원본은 아래 ② 낙찰파일 생성기 · 임박식품에도 자동으로 들어갑니다</div>
+          <div id="esFileInfo" style="margin-top:8px;font-size:12.5px"></div>
+        </div>
+        <input type="file" id="esInput" accept=".xlsx,.xlsm,.xls,.csv" hidden>
+        <div id="esStatus" class="fi-status"></div>
+        <div id="esResult"></div>
+      </div>
+    </div>
+<div class="agg-card kk-sub" id="fdsBox">
+      <div class="p-hd">
+        <span class="store-name"><span class="kk-fdname">FC파손(FC_Liquidation)</span> 요약본</span>
+        <span class="meta">원본을 놓으면 요약본 엑셀 · 같은 원본이 ② 낙찰파일 생성기에도 자동으로 들어감</span>
+        <button class="act fi-mini fi-del" data-reset="fds" style="margin-left:auto" title="올린 원본 · 화면 결과를 지웁니다">↺ 초기화</button>
+      </div>
+      <div class="fi-body">
+        <div id="fdsPane">
+        <div id="fdsDrop" class="fi-drop" role="button" tabindex="0">
+          <div class="fi-drop-t">FC파손 원본 파일(FC_Liquidation_YYYYMMDD_V원본.xlsx)을 끌어다 놓거나 클릭</div>
+          <div class="fi-drop-s">RAW 시트(FC · NO. · Cate2 · Quantity · 판매가 …)와 오른쪽 LOT 표(NO. · FC · qty · BID AMT / NO · Qty · MIN BID AMT)를 머리글로 찾아 읽습니다 · 같은 원본이 아래 ② 낙찰파일 생성기 · FC파손에도 자동으로 들어갑니다</div>
+          <div id="fdsFileInfo" style="margin-top:8px;font-size:12.5px"></div>
+        </div>
+        <input type="file" id="fdsInput" accept=".xlsx,.xlsm,.xls" hidden>
+        <div id="fdsStatus" class="fi-status"></div>
+        <div id="fdsResult"></div>
+        </div>
+        <div id="dwsPane" hidden>
+        <div id="dwsDrop" class="fi-drop" role="button" tabindex="0">
+          <div class="fi-drop-t">데드우드 원본 파일((external)Deadwood_Liquidation…_for vendors.xlsx · FC 리퀴데이션 데드우드 리스트_YYYYMMDD.xlsx)을 끌어다 놓거나 클릭</div>
+          <div class="fi-drop-s">요약본(★Deadwood요약 · 종합 · 종합 (2) · Sheet2 · Sheet3 · Sheet5 · raw data)을 만듭니다 · 같은 원본이 아래 ② 낙찰파일 생성기 · 데드우드에도 자동으로 들어갑니다</div>
+          <div id="dwsFileInfo" style="margin-top:8px;font-size:12.5px"></div>
+        </div>
+        <input type="file" id="dwsInput" accept=".xlsx,.xlsm,.xls" hidden>
+        <div id="dwsStatus" class="fi-status"></div>
+        <div id="dwSumResult"></div>
+        </div>
+      </div>
+    </div>
+      </div>
+    </div>
+    <div class="agg-card kk-gen" id="genBidBox">
+      <div class="p-hd">
+        <span class="store-name">② 낙찰파일 생성기</span>
+        <span class="meta">원본 + 낙찰 LOT → 낙찰파일 · 정기비딩 · 임박식품 · FC파손 · 데드우드 (위 ①과 같은 버튼, 같이 바뀜)</span>
+      </div>
+      <div class="fi-body">
+        <div class="kk-gtabs">
+          <button class="act" data-gen="ls">정기비딩 (일반 리퀴데이션)</button>
+          <button class="act" data-gen="es">임박식품 (FC EOS)</button>
+          <button class="act" data-gen="fd">FC파손 (FC_Liquidation)</button>
+          <button class="act" data-gen="dw">데드우드 (Deadwood)</button>
+        </div>
+<div class="agg-card kk-sub" id="liqBox">
+      <div class="p-hd">
+        <span class="store-name">정기비딩(일반 리퀴데이션) 낙찰파일</span>
         <span class="meta">아리바 비딩 원본(AR_Bidding_Liquidation) + 낙찰 LOT No → 원본 / RAW / 총액 낙찰파일</span>
         <button class="act fi-mini fi-del" data-reset="liq" style="margin-left:auto" title="올린 원본 · 입력칸 · 화면 결과를 지웁니다 (기록은 그대로)">↺ 초기화</button>
       </div>
@@ -1626,28 +1702,9 @@
         <div id="liqHistory"></div>
       </div>
     </div>
-    <!-- build 155: 임박식품(FC EOS) 요약본 생성기 (원본 → ★임박 요약 · 종합/Sheet1/Sheet2 피벗 · RAW · EOS) -->
-    <div class="agg-card" id="esBox">
+<div class="agg-card kk-sub" id="eosBox">
       <div class="p-hd">
-        <span class="store-name">③ 임박식품(FC EOS) · 요약본 생성기</span>
-        <span class="meta">임박식품 원본(FC_EOS_Liquidation … - 원본.xlsx)을 놓으면 → 임박요약(★임박 요약 · 종합 피벗 · Sheet1 · Sheet2 · RAW · EOS) 엑셀</span>
-        <button class="act fi-mini fi-del" data-reset="es" style="margin-left:auto" title="올린 원본 · 화면 결과를 지웁니다">↺ 초기화</button>
-      </div>
-      <div class="fi-body">
-        <div id="esDrop" class="fi-drop" role="button" tabindex="0">
-          <div class="fi-drop-t">임박식품 원본 파일(FC_EOS_Liquidation_YYYYMMDD - 원본.xlsx)을 끌어다 놓거나 클릭</div>
-          <div class="fi-drop-s">RAW(머리글 No. · 수량 · 판매가 …)와 LOT 표(NO · 센터 · PLT · MIN BID)를 머리글로 찾아 읽습니다 — 예전 양식 · 열 순서가 다른 원본도 됩니다 · 표준 원본은 아래 ④ 낙찰파일 생성기에도 자동으로 들어갑니다</div>
-          <div id="esFileInfo" style="margin-top:8px;font-size:12.5px"></div>
-        </div>
-        <input type="file" id="esInput" accept=".xlsx,.xlsm,.xls,.csv" hidden>
-        <div id="esStatus" class="fi-status"></div>
-        <div id="esResult"></div>
-      </div>
-    </div>
-    <!-- build 132: 임박식품(FC EOS 리퀴데이션) 낙찰파일 생성 (원본 + 낙찰 LOT 알파벳 → LOT별 원본/RAW 낙찰파일) -->
-    <div class="agg-card" id="eosBox">
-      <div class="p-hd">
-        <span class="store-name">④ 임박식품(FC EOS) · 낙찰파일 생성기</span>
+        <span class="store-name">임박식품(FC EOS) 낙찰파일</span>
         <span class="meta">FC_EOS_Liquidation 원본 + 낙찰 LOT 알파벳(A, C, E …) → LOT별 낙찰파일(원본 / RAW)</span>
         <button class="act fi-mini fi-del" data-reset="eos" style="margin-left:auto" title="올린 원본 · 입력칸 · 화면 결과를 지웁니다 (기록은 그대로)">↺ 초기화</button>
       </div>
@@ -1674,51 +1731,13 @@
         <div id="eosHistory"></div>
       </div>
     </div>
-    <!-- build 170: ⑤ FC파손(FC_Liquidation) 요약본 생성기 · ⑥ 낙찰파일 생성기 / build 188: ⑤⑥ 둘 다 FC파손 · 데드우드 탭 -->
-    <div class="agg-card" id="fdsBox">
+<div class="agg-card kk-sub" id="fdBox">
       <div class="p-hd">
-        <span class="store-name">⑤ FC파손 · 데드우드 · 요약본 생성기</span>
-        <span class="meta">FC파손 원본(FC_Liquidation_…원본.xlsx) 또는 데드우드 원본(Deadwood_Liquidation… / FC 리퀴데이션 데드우드 리스트_…)을 놓으면 → 요약본 엑셀 · 같은 원본이 ⑥에도 자동으로 들어감</span>
-        <button class="act fi-mini fi-del" data-reset="fds" style="margin-left:auto" title="올린 원본 · 화면 결과를 지웁니다">↺ 초기화</button>
-      </div>
-      <div class="fi-body">
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-          <button class="act fi-mini primary" data-fd-mode="fd">FC파손(FC_Liquidation)</button>
-          <button class="act fi-mini" data-fd-mode="dw">데드우드(Deadwood)</button>
-        </div>
-        <div id="fdsPane">
-        <div id="fdsDrop" class="fi-drop" role="button" tabindex="0">
-          <div class="fi-drop-t">FC파손 원본 파일(FC_Liquidation_YYYYMMDD_V원본.xlsx)을 끌어다 놓거나 클릭</div>
-          <div class="fi-drop-s">RAW 시트(FC · NO. · Cate2 · Quantity · 판매가 …)와 오른쪽 LOT 표(NO. · FC · qty · BID AMT / NO · Qty · MIN BID AMT)를 머리글로 찾아 읽습니다 · 같은 원본이 아래 ⑥ 낙찰파일 생성기에도 자동으로 들어갑니다</div>
-          <div id="fdsFileInfo" style="margin-top:8px;font-size:12.5px"></div>
-        </div>
-        <input type="file" id="fdsInput" accept=".xlsx,.xlsm,.xls" hidden>
-        <div id="fdsStatus" class="fi-status"></div>
-        <div id="fdsResult"></div>
-        </div>
-        <div id="dwsPane" hidden>
-        <div id="dwsDrop" class="fi-drop" role="button" tabindex="0">
-          <div class="fi-drop-t">데드우드 원본 파일((external)Deadwood_Liquidation…_for vendors.xlsx · FC 리퀴데이션 데드우드 리스트_YYYYMMDD.xlsx)을 끌어다 놓거나 클릭</div>
-          <div class="fi-drop-s">요약본(★Deadwood요약 · 종합 · 종합 (2) · Sheet2 · Sheet3 · Sheet5 · raw data)을 만듭니다 · 같은 원본이 아래 ⑥ 데드우드 낙찰파일 생성기에도 자동으로 들어갑니다</div>
-          <div id="dwsFileInfo" style="margin-top:8px;font-size:12.5px"></div>
-        </div>
-        <input type="file" id="dwsInput" accept=".xlsx,.xlsm,.xls" hidden>
-        <div id="dwsStatus" class="fi-status"></div>
-        <div id="dwSumResult"></div>
-        </div>
-      </div>
-    </div>
-    <div class="agg-card" id="fdBox">
-      <div class="p-hd">
-        <span class="store-name">⑥ FC파손 · 데드우드 · 낙찰파일 생성기</span>
-        <span class="meta">원본 + 낙찰 LOT 알파벳 → 낙찰파일 1개 · FC파손 "YYYYMMDD_FC(파손 및 무적재고)_A(FC…,PLT)_B(…)" · 데드우드 "YYYYMMDD_FC_데드우드_AA(센터,PLT)_…"</span>
+        <span class="store-name"><span class="kk-fdname">FC파손(FC_Liquidation)</span> 낙찰파일</span>
+        <span class="meta">원본 + 낙찰 LOT 알파벳 → 낙찰파일 1개 · FC파손 "YYYYMMDD_FC(파손 및 무적재고)_A(FC…,PLT)_…" / 데드우드 "YYYYMMDD_FC_데드우드_AA(센터,PLT)_…"</span>
         <button class="act fi-mini fi-del" data-reset="fd" style="margin-left:auto" title="올린 원본 · 입력칸 · 화면 결과를 지웁니다 (기록은 그대로)">↺ 초기화</button>
       </div>
       <div class="fi-body">
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-          <button class="act fi-mini primary" data-fd-mode="fd">FC파손(FC_Liquidation)</button>
-          <button class="act fi-mini" data-fd-mode="dw">데드우드(Deadwood)</button>
-        </div>
         <div id="fdPane">
         <div class="fi-disp-in">
           <div id="fdDrop" class="fi-drop" role="button" tabindex="0">
@@ -1744,7 +1763,7 @@
         <div class="fi-disp-in">
           <div id="dwDrop" class="fi-drop" role="button" tabindex="0">
             <div class="fi-drop-t">데드우드 원본 파일((external)Deadwood_Liquidation…_for vendors.xlsx · FC 리퀴데이션 데드우드 리스트_YYYYMMDD.xlsx)을 끌어다 놓거나 클릭</div>
-            <div class="fi-drop-s">⑤에서 데드우드 원본을 올렸으면 여기에 자동으로 들어옵니다 · 낙찰파일은 오른쪽에 낙찰 LOT을 넣어야 만들어집니다</div>
+            <div class="fi-drop-s">① 요약본 생성기 · 데드우드에서 원본을 올렸으면 여기에 자동으로 들어옵니다 · 낙찰파일은 오른쪽에 낙찰 LOT을 넣어야 만들어집니다</div>
             <div id="dwFileInfo" style="margin-top:8px;font-size:12.5px"></div>
           </div>
           <div class="fi-disp-paste">
@@ -1764,10 +1783,12 @@
         <div id="fdHistory"></div>
       </div>
     </div>
+      </div>
+    </div>
     <!-- build 111: 고정인수 — 쿠팡 리퀴데이션 고정 리스트(XLG/XLS/기저귀) → 낙찰파일(원본/종합/RAW) + 직출 분배표 + 카톡 문구 + 히스토리 -->
-    <div class="agg-card">
+    <div class="agg-card" id="fiBox">
       <div class="p-hd">
-        <span class="store-name">⑦ 고정인수 · 낙찰파일 생성 & 직출 분배표</span>
+        <span class="store-name">③ 고정인수 · 낙찰파일 생성</span>
         <span class="meta" id="fiMeta"></span>
         <button class="act fi-mini fi-del" data-reset="fi" style="margin-left:auto" title="화면의 이번 결과를 지웁니다 (분배 히스토리는 그대로)">↺ 초기화</button>
       </div>
@@ -1783,12 +1804,16 @@
     </div>
     <div class="agg-card" id="fiDispBox">
       <div class="p-hd">
-        <span class="store-name">⑧ 배차 요청서 (입차코드)</span>
+        <span class="store-name">④ 배차요청 & 직출 분배표</span>
         <button class="act primary" data-all-dl="1" style="font-size:14px;padding:8px 18px;font-weight:700" title="넣은 배차 요청 전부(고정인수·일반 리퀴·임박식품)를 출고일자별 시트로 한 파일에">⬇ 전체 출고요청서 다운로드</button>
         <span class="meta">쿠팡 출고일정 메일 · 임박식품(FC EOS) 입찰 결과 메일 → 입차코드·상차일시·도착지 표 + 물류업체 문구 + 엑셀</span>
         <button class="act fi-mini fi-del" data-reset="disp" style="margin-left:auto" title="붙여넣은 글 · 인식 결과 · 합본 화면을 지웁니다 (배차 요청 기록은 그대로)">↺ 초기화</button>
       </div>
       <div class="fi-body">
+        <!-- build 189: 고정인수 직출 분배표 · 카톡 문구 (③에서 낙찰파일을 만들면 여기에) -->
+        <div class="fi-sec-t" style="font-size:18px">직출 분배표 (고정인수)</div>
+        <div id="fiPlanResult"></div>
+        <div class="fi-sec-t" style="font-size:18px;margin-top:18px">배차 요청서 (입차코드)</div>
         <div class="fi-disp-in">
           <div id="fiDispDrop" class="fi-drop" role="button" tabindex="0">
             <div class="fi-drop-t">출고일정 메일 캡처 이미지 또는 저장한 메일 파일(.mhtml)을 끌어다 놓거나 클릭</div>
@@ -13522,10 +13547,12 @@ function fiRender(){
   if(!wrap) return;
   const snap = fiLatestSnap();
   if(meta) meta.textContent = snap ? `매장 재고 기준 ${snap.date} (최신 스냅샷)` : "매장 재고 데이터 없음 — 재고 없이 거리만으로 분배";
-  if(!_fiCur){ wrap.innerHTML = `<div class="fi-empty">아직 이번 화면에서 만든 결과가 없습니다. 위에 파일을 놓거나, 아래 히스토리에서 지난 분배표를 볼 수 있습니다.</div>`; fiRenderHistory(); return; }
+  const planEl = document.getElementById("fiPlanResult");   // build 189: 직출 분배표 · 카톡 문구는 ④ 배차요청 & 직출 분배표 카드로
+  if(!_fiCur){ wrap.innerHTML = `<div class="fi-empty">아직 이번 화면에서 만든 결과가 없습니다. 위에 파일을 놓으면 낙찰파일이 여기에, 직출 분배표는 ④ 배차요청 & 직출 분배표에 나옵니다. 지난 분배표는 아래 분배 히스토리에서 볼 수 있습니다.</div>`;
+    if(planEl) planEl.innerHTML = `<div class="fi-empty">③ 고정인수에 리스트 파일을 올리면 여기에 직출 분배표와 카톡 문구가 나옵니다.</div>`; fiRenderHistory(); return; }
   _fiCur.stockMap = fiEffStock(fiLatestSnap(), _fiCur.id, fiCurDate());   // build 113/114: 최신 스냅샷 + 미반영 출고
   const c = _fiCur, live = !!c.builds[0] && !!c.builds[0].raw;
-  let h = `<div class="fi-sec-t">① 낙찰파일 (인수리스트) <button class="act fi-mini fi-del" id="fiCurDel" title="화면에서 이번 결과 닫기 (히스토리 기록은 아래 분배 히스토리에서 ✕로 삭제)">✕ 결과 닫기</button></div><div class="fi-files">`;
+  let h = `<div class="fi-sec-t">낙찰파일 (인수리스트) <button class="act fi-mini fi-del" id="fiCurDel" title="화면에서 이번 결과 닫기 (히스토리 기록은 아래 분배 히스토리에서 ✕로 삭제)">✕ 결과 닫기</button></div><div class="fi-files">`;
   c.builds.forEach((b,i)=>{
     const miss = Object.keys(b.missingRate||{});
     h += `<div class="fi-file">
@@ -13540,7 +13567,8 @@ function fiRender(){
   });
   h += `</div>`;
   if(live && c.builds.length>1) h += `<button class="act fi-mini" id="fiDlAll" style="margin-top:8px">⬇ 낙찰파일 모두 다운로드</button>`;
-  h += `<div class="fi-sec-t">② 직출 분배표 <span class="fi-mut">하차 매장·PLT를 바꾸면 카톡 문구와 히스토리가 바로 갱신됩니다</span></div>`;
+  if(planEl){ h += `<div class="fi-mut" style="margin-top:8px">직출 분배표 · 카톡 문구 → 아래 <b>④ 배차요청 &amp; 직출 분배표</b></div>`; wrap.innerHTML = h; h = ""; }
+  h += `<div class="fi-sec-t">직출 분배표 <span class="fi-mut">하차 매장·PLT를 바꾸면 카톡 문구와 히스토리가 바로 갱신됩니다</span></div>`;
   const pu = ((c.stockMap||{}).__pending||[]).filter(u=>u.XLS||u.XLG);
   const sd = (fiLatestSnap()||{}).date || "";
   h += `<div class="fi-match ${pu.length?"bad":"ok"}" style="margin-bottom:10px">${pu.length
@@ -13548,9 +13576,9 @@ function fiRender(){
     : `매장재고 ${escHtml(sd)} 기준 — 그 이후 이 사이트에서 배정한 출고 기록은 없습니다(이전 출고내역이 재고 파일에 반영됐는지 확인).`}</div>`;
   ["XLS","XLG","XLD"].forEach(t=> h += fiRenderPlanTable(t, c.plan[t], true));
   h += fiRenderStockRef();
-  h += `<div class="fi-sec-t">③ 카카오톡 문구 <button class="act primary fi-mini" id="fiCopy">복사</button> <span id="fiCopyMsg" class="fi-mut"></span></div>
+  h += `<div class="fi-sec-t">카카오톡 문구 <button class="act primary fi-mini" id="fiCopy">복사</button> <span id="fiCopyMsg" class="fi-mut"></span></div>
     <textarea id="fiText" class="fi-text" readonly>${escHtml(fiPlanText(c.builds, c.plan))}</textarea>`;
-  wrap.innerHTML = h;
+  if(planEl) planEl.innerHTML = h; else wrap.innerHTML = h;
   fiRenderHistory();
 }
 /* ================= build 182: 매장 소진율 (승현 사이트 "PLT 해체" 기준) — 고도화 6-2 =================
@@ -13786,16 +13814,16 @@ function tdSave(o){ try{ localStorage.setItem(TD_LS, JSON.stringify(o)); }catch(
 function tdWhen(x){ if(!x) return ""; const t = +x.updatedAt > 1e12 ? +x.updatedAt : +x.id > 1e12 ? +x.id : 0; return t ? tdDay(new Date(t)) : rlDateKey(x.at||""); }
 function tdToday(arr){ const k = tdDay(); return (Array.isArray(arr) ? arr : []).filter(x=> tdWhen(x)===k); }
 const TD_STEPS = [
-  { k:"ls",  n:"①", t:"정기비딩 요약본", card:"lsBox",  live:()=> typeof _lsCur!=="undefined" && _lsCur },
-  { k:"liq", n:"②", t:"정기비딩 낙찰파일", card:"liqBox", hist:()=> typeof LIQ_HISTORY!=="undefined" ? LIQ_HISTORY : [] },
-  { k:"es",  n:"③", t:"임박 요약본", card:"esBox", live:()=> typeof _esCur!=="undefined" && _esCur },
-  { k:"eos", n:"④", t:"임박 낙찰파일", card:"eosBox", hist:()=> typeof EOS_HISTORY!=="undefined" ? EOS_HISTORY : [] },
-  { k:"fds", n:"⑤", t:"FC파손·데드우드 요약본", card:"fdsBox", live:()=> (typeof _fdsCur!=="undefined" && _fdsCur) || (typeof _dwSum!=="undefined" && _dwSum) },
-  { k:"fd",  n:"⑥", t:"FC파손·데드우드 낙찰파일", card:"fdBox", hist:()=> typeof FD_HISTORY!=="undefined" ? FD_HISTORY : [] },
-  { k:"fi",  n:"⑦", t:"고정인수 분배", card:"⑦", hist:()=> typeof FIXED_INTAKE_HISTORY!=="undefined" ? FIXED_INTAKE_HISTORY : [] },
-  { k:"disp",n:"⑧", t:"배차 요청서", card:"fiDispBox", hist:()=> typeof FI_DISPATCH_HISTORY!=="undefined" ? FI_DISPATCH_HISTORY : [] },
+  { k:"ls",  n:"①", t:"요약본 · 정기비딩", card:"lsBox",  live:()=> typeof _lsCur!=="undefined" && _lsCur },
+  { k:"liq", n:"②", t:"낙찰파일 · 정기비딩", card:"liqBox", hist:()=> typeof LIQ_HISTORY!=="undefined" ? LIQ_HISTORY : [] },
+  { k:"es",  n:"①", t:"요약본 · 임박", card:"esBox", live:()=> typeof _esCur!=="undefined" && _esCur },
+  { k:"eos", n:"②", t:"낙찰파일 · 임박", card:"eosBox", hist:()=> typeof EOS_HISTORY!=="undefined" ? EOS_HISTORY : [] },
+  { k:"fds", n:"①", t:"요약본 · FC파손·데드우드", card:"fdsBox", live:()=> (typeof _fdsCur!=="undefined" && _fdsCur) || (typeof _dwSum!=="undefined" && _dwSum) },
+  { k:"fd",  n:"②", t:"낙찰파일 · FC파손·데드우드", card:"fdBox", hist:()=> typeof FD_HISTORY!=="undefined" ? FD_HISTORY : [] },
+  { k:"fi",  n:"③", t:"고정인수 낙찰파일", card:"fiBox", hist:()=> typeof FIXED_INTAKE_HISTORY!=="undefined" ? FIXED_INTAKE_HISTORY : [] },
+  { k:"disp",n:"④", t:"배차요청 · 직출 분배", card:"fiDispBox", hist:()=> typeof FI_DISPATCH_HISTORY!=="undefined" ? FI_DISPATCH_HISTORY : [] },
 ];
-function tdCard(s){ if(s.card && s.card[0]!=="⑦"){ const e = document.getElementById(s.card); if(e) return e; }
+function tdCard(s){ if(s.card && s.card[0]!=="⑦"){ const e = document.getElementById(s.card); if(e){ const g = GEN_SHOW[e.id]; if(g && !g.split(" ").includes(_genTab)) genTab(g.split(" ")[0]); return e; } }
   const h = Array.from(document.querySelectorAll("#view-fixed .store-name")).find(x=> x.textContent.trim().startsWith(s.n)); return h ? h.closest(".agg-card") : null; }
 // 오늘·내일 출고 예정 (배차 요청 기록의 행, 같은 BIDCODE는 한 번)
 function tdOutbound(){
@@ -13876,7 +13904,7 @@ function fdChecks(D){
   // LOT
   const lots = fdLotList(D), info = lots.map(no=> fdLotInfo(D, no));
   C.push({ lv:"ok", t:`LOT ${lots.length}개`, d: escHtml(lots.join(", ")) });
-  if(!(D.fcTbl || D.lotTbl)) C.push({ lv:"warn", t:"LOT 표(NO · FC · PLT · MIN BID)를 못 찾음", d:"최소입찰가·PLT 빈칸 → ⑥에서는 LOT 칸에 \"A 30\"처럼 PLT 입력" });
+  if(!(D.fcTbl || D.lotTbl)) C.push({ lv:"warn", t:"LOT 표(NO · FC · PLT · MIN BID)를 못 찾음", d:"최소입찰가·PLT 빈칸 → ② 낙찰파일 생성기에서는 LOT 칸에 \"A 30\"처럼 PLT 입력" });
   else {
     C.push({ lv:"ok", t:`LOT 표: ${D.tblSrc}` });
     const tblNos = new Set([...(D.fcTbl ? D.fcTbl.rows : []), ...(D.lotTbl ? D.lotTbl.rows : [])].map(x=> x.no));
@@ -13885,7 +13913,7 @@ function fdChecks(D){
     if(noRaw.length) C.push({ lv:"warn", t:`표에만 있고 RAW 행이 없는 LOT: ${noRaw.join(", ")}` });
   }
   const np = info.filter(o=> o.plt==null).map(o=> o.no), nb = info.filter(o=> o.bid==null).map(o=> o.no);
-  if((D.fcTbl || D.lotTbl) && np.length) C.push({ lv:"warn", t:`PLT 없는 LOT: ${np.join(", ")}`, d:"⑥ 낙찰 LOT 칸에 \"A 30, B 25\"처럼 PLT를 같이 입력" });
+  if((D.fcTbl || D.lotTbl) && np.length) C.push({ lv:"warn", t:`PLT 없는 LOT: ${np.join(", ")}`, d:"② 낙찰파일 생성기의 낙찰 LOT 칸에 \"A 30, B 25\"처럼 PLT를 같이 입력" });
   if((D.fcTbl || D.lotTbl) && nb.length) C.push({ lv:"warn", t:`최소입찰가 없는 LOT: ${nb.join(", ")}` });
   const fg = info.filter(o=> o.fcGuess).map(o=> o.no); if(fg.length) C.push({ lv:"warn", t:`센터를 RAW FC로 표시한 LOT: ${fg.join(", ")}` });
   // 검산
@@ -14076,7 +14104,7 @@ function fiOpenHistory(id){
   ["XLS","XLG","XLD"].forEach(t=>{ if(!plan[t]) plan[t]=[]; });
   _fiCur = { id:hh.id, builds, plan, stockDate:hh.stockDate, stockMap: null };
   fiRender();
-  const t = document.getElementById("fiResult"); if(t) t.scrollIntoView({ behavior:"smooth", block:"start" });
+  const t = document.getElementById("fiPlanResult") || document.getElementById("fiResult"); if(t) t.scrollIntoView({ behavior:"smooth", block:"start" });   // build 189: 분배표는 ④에
 }
 function fiAfterEdit(){
   if(!_fiCur) return;
@@ -14764,7 +14792,7 @@ function fiDispGeneralFix(r){
     r.warn.unshift(`✓ 일반 리퀴 LOT ${lot}(${best.x.src})` + (notes.length ? ` — 글자인식 보정: ${notes.join(", ")}` : ""));
   } else if(notes.length){
     r.warn.unshift(`글자인식 보정: ${notes.join(", ")}`);
-    if(r.pallets===3) r.warn.push("파렛트 3 — 9를 3으로 잘못 읽는 경우가 있어 확인(② 일반 리퀴 낙찰파일을 먼저 만들면 자동으로 맞춤)");
+    if(r.pallets===3) r.warn.push("파렛트 3 — 9를 3으로 잘못 읽는 경우가 있어 확인(② 낙찰파일 생성기 · 정기비딩을 먼저 만들면 자동으로 맞춤)");
   }
 }
 const FI_PLT_MAX = 40;
@@ -16523,7 +16551,7 @@ function esRender(){
     <div class="fi-mut" style="margin-top:6px">시트: ★임박 요약(상한가 · 현재입찰가 칸은 비워 둠 — 입력하면 요율 자동) · 종합 · Sheet1 · Sheet2(피벗 — 엑셀이 열 때 채움) · RAW · EOS · RAW ${fiFmt(r.rows)}행${r.hasList?"":" · ⚠ RAW 오른쪽 LOT 표가 없어 PLT·최소입찰가는 EOS 시트 기준으로 계산"}</div>
     ${r._uc||""}
     ${esFmtInfo(r)}
-    ${r.std ? `<div class="fi-mut" style="margin-top:4px">같은 원본이 ④ 임박식품 낙찰파일 생성기에도 들어갔습니다 — 낙찰 LOT 알파벳만 넣으면 됩니다.</div>` : `<div class="fi-mut" style="margin-top:4px">표준 양식이 아니라 ④ 낙찰파일 생성기에는 넣지 않았습니다.</div>`}
+    ${r.std ? `<div class="fi-mut" style="margin-top:4px">같은 원본이 ② 낙찰파일 생성기 · 임박식품에도 들어갔습니다 — 낙찰 LOT 알파벳만 넣으면 됩니다.</div>` : `<div class="fi-mut" style="margin-top:4px">표준 양식이 아니라 ② 낙찰파일 생성기에는 넣지 않았습니다.</div>`}
   </div>`;
 }
 function wireEsSum(){
@@ -16991,7 +17019,7 @@ function fdsRender(){
       <td style="white-space:normal;font-size:11.5px">${escHtml(o.top[0]||"")}</td><td style="white-space:normal;font-size:11.5px">${escHtml(o.top[1]||"")}</td></tr>`).join("")}
     <tr style="font-weight:700"><td>합계</td><td>${r.lots.length}건</td><td class="n">${fiFmt(tot("plt"))}</td><td class="n">${won(tot("bid"))}</td><td class="n">${won(tot("F"))}</td><td></td><td></td><td></td></tr></tbody></table>
     <div class="fi-mut" style="margin-top:6px">시트: ★FC 파손 요약 · 종합 · Sheet5 · Sheet5 (2)(피벗 — 엑셀이 열 때 채움) · RAW(원본 그대로) · Sheet4 · RAW ${fiFmt(r.rows)}행 · 시트 "${escHtml(r.rawName)}"${r.hasTbl?` · LOT 표: ${escHtml(r.tblSrc)}`:' · <span style="color:var(--red)">⚠ LOT 표(NO · FC · MIN BID)를 찾지 못해 최소입찰가 빈칸, 센터명은 RAW FC로 표시</span>'}</div>
-    <div class="fi-mut" style="margin-top:4px">${r.lots.some(o=> o.plt!=null) ? "PLT = 원본 LOT·FC 표의 PLT 합." : "PLT는 원본에 없어 빈칸입니다."} 같은 원본이 ⑥ FC파손 낙찰파일 생성기에도 들어갔습니다 — 낙찰 LOT만 넣으면 됩니다.</div>
+    <div class="fi-mut" style="margin-top:4px">${r.lots.some(o=> o.plt!=null) ? "PLT = 원본 LOT·FC 표의 PLT 합." : "PLT는 원본에 없어 빈칸입니다."} 같은 원본이 ② 낙찰파일 생성기 · FC파손에도 들어갔습니다 — 낙찰 LOT만 넣으면 됩니다.</div>
     ${r._uc||""}
   </div>`;
 }
@@ -17339,8 +17367,8 @@ async function dwsBuild(ff, D, srcName, prog){
     lots.forEach((o,i)=>{
       const r = 4+i, pltV = o.plt==null ? "" : o.plt;
       const y = C("B"+r, o.no, 45, sst) + C("C"+r, o.centerText, 46, sst) + C("D"+r, o.plt, 47, sst) + C("E"+r, o.bid, 48, sst)
-        + C("F"+r, null, 75, sst) + C("G"+r, null, 48, sst) + C("H"+r, { f:`IF(G${r}="","",F${r}-G${r})`, v:"" }, 48, sst)
-        + C("I"+r, { f:`IFERROR(IF(G${r}="",E${r},G${r})/K${r},0)`, v: o.bid!=null && o.F ? o.bid/o.F : 0 }, 49, sst)
+        + C("F"+r, null, 75, sst) + C("G"+r, null, 48, sst) + C("H"+r, { f:`IF(OR(F${r}="",G${r}=""),"",F${r}-G${r})`, v:"" }, 48, sst)
+        + C("I"+r, { f:`IF(G${r}="","",IFERROR(G${r}/K${r},0))`, v:"" }, 49, sst)   // build 189: 입찰가 ÷ 판매가 총액(사용자 요약본과 같음) — 입찰가 넣기 전엔 빈칸
         + C("J"+r, o.Q, 50, sst) + C("K"+r, o.F, 51, sst)
         + ["L","M","N","O"].map((c,j)=> C(c+r, o.top[j]||null, [52,53,52,54][j], sst)).join("")
         + C("Q"+r, { f:`B${r}&("("&(C${r}&","&D${r}&"PLT"&")"))`, v:`${o.no}(${o.centerText},${pltV}PLT)` }, 55, sst);
@@ -17349,7 +17377,7 @@ async function dwsBuild(ff, D, srcName, prog){
     const t = 4+N, a = 4, b = 3+N, sum = k=> lots.reduce((s,o)=> s+(+o[k]||0), 0);
     const z = C("B"+t, "총합계", 59, sst) + C("C"+t, { f:`COUNTA(C${a}:C${b})&"건"`, v:`${N}건` }, 60, sst) + C("D"+t, { f:`SUM(D${a}:D${b})`, v:sum("plt") }, 61, sst)
       + C("E"+t, { f:`SUM(E${a}:E${b})`, v:sum("bid") }, 61, sst) + C("F"+t, { f:`SUM(F${a}:F${b})`, v:0 }, 61, sst) + C("G"+t, { f:`SUM(G${a}:G${b})`, v:0 }, 61, sst) + C("H"+t, null, 61, sst)
-      + C("I"+t, { f:`IFERROR(AVERAGE(I${a}:I${b}),0)`, v: N ? lots.reduce((s,o)=> s+(o.bid!=null && o.F ? o.bid/o.F : 0), 0)/N : 0 }, 62, sst)
+      + C("I"+t, { f:`IFERROR(AVERAGE(I${a}:I${b}),"")`, v:"" }, 62, sst)
       + C("J"+t, { f:`SUM(J${a}:J${b})`, v:sum("Q") }, 61, sst) + C("K"+t, { f:`SUM(K${a}:K${b})`, v:sum("F") }, 61, sst)
       + C("L"+t, null, 63, sst) + C("M"+t, null, 63, sst) + C("N"+t, null, 63, sst) + C("O"+t, null, 64, sst);
     s.w('<row r="'+t+'" s="42" customFormat="1" ht="103.5" customHeight="1">'+z+'</row>');
@@ -17514,8 +17542,20 @@ function dwSetFile(f){
   if(fdParseLots(document.getElementById("dwLots").value).lots.length) dwGenerate();
 }
 let _dwFile = null, _dwData = null, _dwSum = null, _dwCur = null, _dwsFile = null, _fdMode = "fd";
-function fdSetMode(k){
+// build 189: ① 요약본 · ② 낙찰파일 통합 카드의 종류 버튼(정기비딩 · 임박식품 · FC파손 · 데드우드) — 두 카드가 같이 바뀜
+const GEN_SHOW = { lsBox:"ls", liqBox:"ls", esBox:"es", eosBox:"es", fdsBox:"fd dw", fdBox:"fd dw" };
+let _genTab = (()=>{ try{ return localStorage.getItem("gen_tab_v1") || "ls"; }catch(_){ return "ls"; } })();
+function genTab(k){
+  _genTab = ["ls","es","fd","dw"].includes(k) ? k : "ls";
+  try{ localStorage.setItem("gen_tab_v1", _genTab); }catch(_){}
+  Object.entries(GEN_SHOW).forEach(([id,ks])=>{ const e = document.getElementById(id); if(e) e.style.display = ks.split(" ").includes(_genTab) ? "" : "none"; });
+  document.querySelectorAll("[data-gen]").forEach(b=> b.classList.toggle("primary", b.dataset.gen===_genTab));
+  if(_genTab==="fd" || _genTab==="dw") fdSetMode(_genTab, true);
+}
+function fdSetMode(k, fromGen){
   _fdMode = k==="dw" ? "dw" : "fd";
+  if(!fromGen && _genTab!==_fdMode){ genTab(_fdMode); return; }
+  document.querySelectorAll(".kk-fdname").forEach(e=> e.textContent = _fdMode==="dw" ? "데드우드(Deadwood)" : "FC파손(FC_Liquidation)");
   // build 188: ⑤ 요약본 · ⑥ 낙찰파일 탭을 같이 바꾼다
   [["fdPane","fd"],["dwPane","dw"],["fdsPane","fd"],["dwsPane","dw"]].forEach(([id,k])=>{ const e = document.getElementById(id); if(e) e.hidden = _fdMode!==k; });
   document.querySelectorAll("#fdBox [data-fd-mode], #fdsBox [data-fd-mode]").forEach(x=> x.classList.toggle("primary", x.dataset.fdMode===_fdMode));
@@ -17538,7 +17578,7 @@ async function dwHandleFile(f){
     const r = await dwsBuild(ff, D, f.name, say);
     try{ D._uc = r._uc = ucHtml("원본 검증 리포트", dwChecks(D, r.lots)); }catch(e){ console.warn("dwChecks", e); }
     r.sec = ((Date.now()-t0)/1000).toFixed(1); _dwSum = r;
-    st.innerHTML = `✓ 데드우드 요약본 생성 완료 (${r.sec}초) — 같은 원본이 ⑥ 데드우드 낙찰파일 생성기에도 들어갔습니다(낙찰 LOT만 넣으면 됨)`;
+    st.innerHTML = `✓ 데드우드 요약본 생성 완료 (${r.sec}초) — 같은 원본이 ② 낙찰파일 생성기 · 데드우드에도 들어갔습니다(낙찰 LOT만 넣으면 됨)`;
     dwRender();
     if(fdParseLots(document.getElementById("dwLots").value).lots.length) dwGenerate();
   }catch(e){ console.error(e); st.innerHTML = '<span style="color:var(--red)">읽기 실패: '+escHtml(e && e.message || e)+'</span>'; }
@@ -17586,13 +17626,13 @@ function dwRender(){
       sEl.innerHTML = `<div class="fi-file" style="margin-top:10px">
         <div class="fi-file-hd"><span class="fi-type" style="border-color:#8064A2;color:#8064A2">데드우드 요약본</span> <span class="fi-fname">${escHtml(r.name)}</span>
           <button class="act primary fi-mini" id="dwsDl">⬇ 다운로드</button> <button class="act fi-mini fi-del" id="dwsDel" title="화면에서 결과 지우기">✕</button></div>
-        <table class="fi-tbl"><thead><tr><th>NO</th><th>센터명</th><th class="n">PLT</th><th class="n">최소입찰가</th><th class="n">전체 수량</th><th class="n">판매가 총액</th><th class="n">최소입찰가/판매가</th><th>TOP 1</th><th>TOP 2</th></tr></thead><tbody>
+        <table class="fi-tbl"><thead><tr><th>NO</th><th>센터명</th><th class="n">PLT</th><th class="n">최소입찰가</th><th class="n">전체 수량</th><th class="n">판매가 총액</th><th>TOP 1</th><th>TOP 2</th></tr></thead><tbody>
         ${r.lots.map(o=>`<tr><td><b>${escHtml(o.no)}</b></td><td style="white-space:normal;font-size:12px">${escHtml(o.centerText)}${o.fcGuess?' <span class="fi-mut">(RAW FC로 표시)</span>':""}</td>
           <td class="n" title="${escHtml(o.pltSrc||"")}">${o.plt==null?'<span class="fi-mut">-</span>':fiFmt(o.plt)}</td><td class="n">${won(o.bid)}</td><td class="n">${fiFmt(Math.round(o.Q))}</td><td class="n">${won(o.F)}</td>
-          <td class="n">${o.bid!=null&&o.F?(o.bid/o.F*100).toFixed(1)+"%":"-"}</td><td style="white-space:normal;font-size:11.5px">${escHtml(o.top[0]||"")}</td><td style="white-space:normal;font-size:11.5px">${escHtml(o.top[1]||"")}</td></tr>`).join("")}
-        <tr style="font-weight:700"><td>합계</td><td>${r.lots.length}건</td><td class="n">${fiFmt(tot("plt"))}</td><td class="n">${won(tot("bid"))}</td><td class="n">${fiFmt(Math.round(tot("Q")))}</td><td class="n">${won(tot("F"))}</td><td></td><td></td><td></td></tr></tbody></table>
-        <div class="fi-mut" style="margin-top:6px">시트: ★Deadwood요약 (10)(목표가 · 입찰가 칸은 비워 둠 — 직접 입력) · 종합 · 종합 (2) · Sheet2 · Sheet3 · Sheet5(피벗 — 엑셀이 열 때 채움) · raw data(원본 그대로) · RAW ${fiFmt(r.rows)}행 · 시트 "${escHtml(r.rawName)}"${r.hasTbl?` · LOT 표: ${escHtml(r.tblSrc)}`:' · <span style="color:var(--red)">⚠ LOT 표(NO · FC · MIN BID)를 찾지 못해 최소입찰가 빈칸, 센터명은 RAW FC로 표시</span>'}</div>
-        <div class="fi-mut" style="margin-top:4px">PLT = 원본 표 PLT, 없으면 LOT의 로케이션(LOT_FULL_NAME/Location) 개수 · 센터명 = FC 코드 → 한글(⑦ 고정인수 FC 표)</div>
+          <td style="white-space:normal;font-size:11.5px">${escHtml(o.top[0]||"")}</td><td style="white-space:normal;font-size:11.5px">${escHtml(o.top[1]||"")}</td></tr>`).join("")}
+        <tr style="font-weight:700"><td>합계</td><td>${r.lots.length}건</td><td class="n">${fiFmt(tot("plt"))}</td><td class="n">${won(tot("bid"))}</td><td class="n">${fiFmt(Math.round(tot("Q")))}</td><td class="n">${won(tot("F"))}</td><td></td><td></td></tr></tbody></table>
+        <div class="fi-mut" style="margin-top:6px">시트: ★Deadwood요약 (10)(목표가 · 입찰가 칸은 비워 둠 — 직접 입력, I열 = 입찰가 ÷ 판매가 총액은 입찰가를 넣으면 계산) · 종합 · 종합 (2) · Sheet2 · Sheet3 · Sheet5(피벗 — 엑셀이 열 때 채움) · raw data(원본 그대로) · RAW ${fiFmt(r.rows)}행 · 시트 "${escHtml(r.rawName)}"${r.hasTbl?` · LOT 표: ${escHtml(r.tblSrc)}`:' · <span style="color:var(--red)">⚠ LOT 표(NO · FC · MIN BID)를 찾지 못해 최소입찰가 빈칸, 센터명은 RAW FC로 표시</span>'}</div>
+        <div class="fi-mut" style="margin-top:4px">PLT = 원본 표 PLT, 없으면 LOT의 로케이션(LOT_FULL_NAME/Location) 개수 · 센터명 = FC 코드 → 한글(③ 고정인수 FC 표)</div>
         ${r._uc || ""}
       </div>`; }
   }
@@ -17624,7 +17664,7 @@ function wireDw(){
   drop("dwsDrop", "dwsInput", dwHandleFile);   // ⑤ 데드우드 요약본
   drop("dwDrop", "dwInput", dwSetFile);        // ⑥ 데드우드 낙찰파일
   const dEl = document.getElementById("dwDate"); if(dEl && !dEl.value) dEl.value = fdYYYYMMDD(fiDetectDate(""));
-  document.querySelectorAll("#fdBox [data-fd-mode], #fdsBox [data-fd-mode]").forEach(x=> x.addEventListener("click", ()=> fdSetMode(x.dataset.fdMode)));
+  document.querySelectorAll("[data-gen]").forEach(x=> x.addEventListener("click", ()=> genTab(x.dataset.gen)));
   const sp = document.getElementById("dwsPane");
   if(sp) sp.addEventListener("click", e=>{ const t = e.target.closest("button"); if(!t) return;
     if(t.id==="dwsDl" && _dwSum) fiDownloadBytes(_dwSum.name, _dwSum.bytes);
@@ -17638,7 +17678,7 @@ function wireDw(){
     else if(t.id==="dwDl" && _dwCur) fiDownloadBytes(_dwCur.b.outName, _dwCur.bytes);
     else if(t.id==="dwCopy" && _dwCur){ fiCopyText(_dwCur.b.outName.replace(/\.xlsx$/,""), null); flash("복사됨 ✓","파일명 복사"); }
   });
-  fdSetMode(_fdMode); dwRender();
+  genTab(_genTab); dwRender();
 }
 
 const EOS_LS = "eos_history_v1";
@@ -18124,7 +18164,7 @@ async function eosDispFinish(rows, text, fromImage){
     histNote.unshift(`낙찰파일 ${hist.h.date} (${(hist.h.lots||[]).join(",")}) EOS 표 ${eosSum}PLT와 대조`);
     if(other > 0) histNote.push(`EOS 외 그룹(XLA·XLB 등) ${other}PLT는 이 메일에 없음 — 쿠팡이 넘버 공유 후 별도 출고`);
   } else {
-    rows.forEach(r=>{ if(fromImage) r.warn.push("PLT·FC 글자인식 — 메일과 대조(같은 PC에서 ④ 임박식품 낙찰파일을 먼저 만들면 자동 보정)"); });
+    rows.forEach(r=>{ if(fromImage) r.warn.push("PLT·FC 글자인식 — 메일과 대조(같은 PC에서 ② 낙찰파일 생성기 · 임박식품을 먼저 만들면 자동 보정)"); });
   }
   // build 135: 상차지 주소 · 담당자 · 연락처 · 비고 — 글은 기억, 이미지는 기억한 값으로 채움, 없으면 경고
   rows.forEach(r=>{
@@ -18399,7 +18439,7 @@ function eosDispQuestions(d){
       add({ id:k+"|"+f, i, type:"pick", field:f, text:`${nm(r)} · ${EOS_FLD[f]} — 자료마다 값이 다릅니다`, opts, input:true });
     });
     if(r.histPlt!=null && +r.histPlt !== +(r.src && r.src.pallets ? Object.values(r.src.pallets)[0] : r.pallets))
-      add({ id:k+"|hist", i, type:"pick", field:"pallets", text:`${nm(r)} · PLT — 메일 ${Object.values((r.src||{}).pallets||{})[0] ?? r.pallets} / ④ 낙찰파일 ${r.histPlt}`, opts:[[`${Object.values((r.src||{}).pallets||{})[0] ?? r.pallets} (메일)`, String(Object.values((r.src||{}).pallets||{})[0] ?? r.pallets)],[`${r.histPlt} (낙찰파일)`, String(r.histPlt)]], input:true });
+      add({ id:k+"|hist", i, type:"pick", field:"pallets", text:`${nm(r)} · PLT — 메일 ${Object.values((r.src||{}).pallets||{})[0] ?? r.pallets} / 낙찰파일 ${r.histPlt}`, opts:[[`${Object.values((r.src||{}).pallets||{})[0] ?? r.pallets} (메일)`, String(Object.values((r.src||{}).pallets||{})[0] ?? r.pallets)],[`${r.histPlt} (낙찰파일)`, String(r.histPlt)]], input:true });
     if(r.wdBad)
       add({ id:k+"|wd", i, type:"pick", field:"outboundDate", text:`${nm(r)} — 비고 "${r.remark||r.opNote||""}" 인데 상차일이 ${r.outboundDate}(${r.wdBad})입니다. 상차일을 어떻게 할까요?`, opts:[[`그대로 ${r.outboundDate} (쿠팡 요청일)`, r.outboundDate]], input:true, ph:"YYYY-MM-DD" });
     if(r.dirFilled && !(r.srcs||[]).some(l=> !_eosIsImg(l)))
@@ -18535,7 +18575,7 @@ document.addEventListener("click", e=>{
   const b = e.target.closest && e.target.closest("button[data-all-dl]"); if(!b) return;
   e.preventDefault(); e.stopPropagation();
   const C = fiComboBuild();
-  if(!C.rows.length){ showNotice("받을 출고요청이 없습니다 — ⑧ 배차 요청서에 메일(.mhtml)·글·캡처를 넣거나, 배차 요청 기록에서 '열기'로 올려 주세요."); return; }
+  if(!C.rows.length){ showNotice("받을 출고요청이 없습니다 — ④ 배차요청 & 직출 분배표에 메일(.mhtml)·글·캡처를 넣거나, 배차 요청 기록에서 '열기'로 올려 주세요."); return; }
   const lk = C.ents.filter(h=> !_fiCombo.off[h.id]).map(h=>({ h, s:fiComboState(h) })).filter(x=> x.s.pending || x.s.destMiss);
   if(lk.length){ showNotice("아직 끝나지 않은 배차 요청이 있습니다 — " + lk.map(x=> `${fiComboLabel(x.h)}: ${[x.s.pending?`확인 질문 ${x.s.pending}개`:"", x.s.destMiss?`도착지 미선택 ${x.s.destMiss}곳`:""].filter(Boolean).join(" · ")}`).join(" / ")); const el=document.getElementById("fiDispCombo"); if(el) el.scrollIntoView({behavior:"smooth"}); return; }
   const ds = C.dates.filter(Boolean), tag = ds.length ? (ds.length>1 ? `${ds[0].replace(/-/g,"")}-${ds[ds.length-1].slice(5).replace(/-/g,"")}` : ds[0].replace(/-/g,"")) : "날짜미정";
@@ -18545,14 +18585,14 @@ document.addEventListener("click", e=>{
   const b = e.target.closest && e.target.closest("button[data-reset]"); if(!b) return;
   e.preventDefault(); e.stopPropagation();
   const k = b.dataset.reset;
-  const name = { ls:"① 요약본 생성기", liq:"② 낙찰파일 생성기", es:"③ 임박식품 요약본 생성기", eos:"④ 임박식품 낙찰파일 생성기", fds:"⑤ FC파손 · 데드우드 요약본 생성기", fd:"⑥ FC파손 · 데드우드 낙찰파일 생성기", fi:"⑦ 고정인수", disp:"⑧ 배차 요청서" }[k];
+  const name = { ls:"① 요약본 생성기 · 정기비딩", liq:"② 낙찰파일 생성기 · 정기비딩", es:"① 요약본 생성기 · 임박식품", eos:"② 낙찰파일 생성기 · 임박식품", fds:"① 요약본 생성기 · FC파손/데드우드", fd:"② 낙찰파일 생성기 · FC파손/데드우드", fi:"③ 고정인수 · 낙찰파일 생성", disp:"④ 배차요청 & 직출 분배표" }[k];
   if(k==="all"){
-    if(!confirm("①~⑧에 올린 원본 파일 · 입력한 LOT · 화면 결과를 모두 지울까요?\n(낙찰파일 기록 · 분배 히스토리 · 배차 요청 기록은 그대로 남습니다)")) return;
+    if(!confirm("①~④에 올린 원본 파일 · 입력한 LOT · 화면 결과를 모두 지울까요?\n(낙찰파일 기록 · 분배 히스토리 · 배차 요청 기록은 그대로 남습니다)")) return;
     ["ls","liq","es","eos","fds","fd","fi","disp"].forEach(fiResetCard); if(typeof flash==="function") flash("초기화 완료 ✓", "업로드 자료"); return;
   }
   if(k==="dispAll"){
     const n = (FI_DISPATCH_HISTORY||[]).length;
-    if(!confirm(`⑧ 배차 요청서를 전체 초기화할까요?\n인식 결과 · 붙여넣은 글과 함께 배차 요청 기록 ${n}개(합본 대상)를 모두 삭제합니다.`)) return;
+    if(!confirm(`④ 배차요청 & 직출 분배표의 배차 요청서를 전체 초기화할까요?\n인식 결과 · 붙여넣은 글과 함께 배차 요청 기록 ${n}개(합본 대상)를 모두 삭제합니다.`)) return;
     fiResetCard("dispAll"); return;
   }
   if(!confirm(`${name}의 올린 원본 · 입력칸 · 화면 결과를 지울까요? (기록은 그대로)`)) return;
