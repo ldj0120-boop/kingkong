@@ -1173,7 +1173,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 189 · 2026-10-19</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 191 · 2026-10-19</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -13813,12 +13813,12 @@ function tdSave(o){ try{ localStorage.setItem(TD_LS, JSON.stringify(o)); }catch(
 // 기록이 언제 만들어졌나(id·updatedAt은 Date.now() 값, 아니면 "2026. 10. 16. 오전 …")
 function tdWhen(x){ if(!x) return ""; const t = +x.updatedAt > 1e12 ? +x.updatedAt : +x.id > 1e12 ? +x.id : 0; return t ? tdDay(new Date(t)) : rlDateKey(x.at||""); }
 function tdToday(arr){ const k = tdDay(); return (Array.isArray(arr) ? arr : []).filter(x=> tdWhen(x)===k); }
-const TD_STEPS = [
+const TD_STEPS = [   // build 190: 화면 순서대로 ① 요약본(정기·임박·FC파손/데드우드) → ② 낙찰파일 → ③ → ④
   { k:"ls",  n:"①", t:"요약본 · 정기비딩", card:"lsBox",  live:()=> typeof _lsCur!=="undefined" && _lsCur },
-  { k:"liq", n:"②", t:"낙찰파일 · 정기비딩", card:"liqBox", hist:()=> typeof LIQ_HISTORY!=="undefined" ? LIQ_HISTORY : [] },
   { k:"es",  n:"①", t:"요약본 · 임박", card:"esBox", live:()=> typeof _esCur!=="undefined" && _esCur },
-  { k:"eos", n:"②", t:"낙찰파일 · 임박", card:"eosBox", hist:()=> typeof EOS_HISTORY!=="undefined" ? EOS_HISTORY : [] },
   { k:"fds", n:"①", t:"요약본 · FC파손·데드우드", card:"fdsBox", live:()=> (typeof _fdsCur!=="undefined" && _fdsCur) || (typeof _dwSum!=="undefined" && _dwSum) },
+  { k:"liq", n:"②", t:"낙찰파일 · 정기비딩", card:"liqBox", hist:()=> typeof LIQ_HISTORY!=="undefined" ? LIQ_HISTORY : [] },
+  { k:"eos", n:"②", t:"낙찰파일 · 임박", card:"eosBox", hist:()=> typeof EOS_HISTORY!=="undefined" ? EOS_HISTORY : [] },
   { k:"fd",  n:"②", t:"낙찰파일 · FC파손·데드우드", card:"fdBox", hist:()=> typeof FD_HISTORY!=="undefined" ? FD_HISTORY : [] },
   { k:"fi",  n:"③", t:"고정인수 낙찰파일", card:"fiBox", hist:()=> typeof FIXED_INTAKE_HISTORY!=="undefined" ? FIXED_INTAKE_HISTORY : [] },
   { k:"disp",n:"④", t:"배차요청 · 직출 분배", card:"fiDispBox", hist:()=> typeof FI_DISPATCH_HISTORY!=="undefined" ? FI_DISPATCH_HISTORY : [] },
@@ -14488,7 +14488,33 @@ function fiDispParseTable(text){
   });
   return out;
 }
+/* build 191: 문자로 오는 XLG 당일 출고요청
+   "입금코드 : AFA26A12AA / 여주 : 101701 3plt / 고양 : 101701 1plt …" → XLG 출고요청 행(낙찰일·출고일 = 오늘, 오전/오후는 빈칸, Group = GD(NUMBER)_FC)
+   지역 → 센터: 여주 = 여주2 · 고양 = 고양3 · 시흥 = 시흥3 · 경산 = 경산2 (+ 알려진 XLG 센터 금왕3 · 천안3 · 인천43). "고양3"처럼 숫자까지 쓰면 그 센터. */
+const FI_SMS_FC = { "여주":"YEO2", "고양":"GOY3", "시흥":"SIH3", "경산":"GYS2", "금왕":"GEW3", "천안":"CHA3", "인천":"INC43" };
+function fiSmsFc(name, num){
+  if(num){ const F = (FI_REF && FI_REF.fc) || {}; const hit = Object.keys(F).find(k=> F[k][0]===name+num); if(hit) return hit; }
+  return FI_SMS_FC[name] || "";
+}
+function fiDispParseSms(text){
+  const t = String(text||"");
+  const cm = t.match(/(?:입금|입차|bid)\s*(?:코드|code)?\s*[:：=]?\s*(AF[A-Z0-9]{8})/i) || (/코드/.test(t) && t.match(/\b(AF[A-Z0-9]{8})\b/i));
+  if(!cm) return [];
+  const code = cm[1].toUpperCase(), today = fmtDate(new Date()), ap = (t.match(/오전|오후/)||[""])[0];
+  const rows = [];
+  t.split(/\r?\n/).forEach(l=>{
+    const m = l.match(/^\s*([가-힣]{1,6}?)\s*(\d{0,2})\s*(?:센터)?\s*[:：\-]\s*(\d{5,7})\s*[\/,·]?\s*(\d{1,3})\s*(?:plt|p|파렛트|팔레트|파레트)/i);
+    if(!m) return;
+    const fc = fiSmsFc(m[1], m[2]), num = m[3], pal = +m[4];
+    const nr = fiDispNormalize({ bidDate:[today], bidcode:[code], group:[`GD(${num})_${fc||"?"}`], number:[num], pallets:[String(pal)], outbound:[today] }, "XLG");
+    Object.assign(nr, { fromText:true, sms:true, type:"XLG", bidcode:code, number:num, pallets:pal, fc, groupPrefix:"GD", group:`GD(${num})_${fc}`,
+      bidDate:today, outboundDate:today, outboundAmPm:ap, srcLine:l.trim(), smsArea:m[1]+(m[2]||"") });
+    rows.push(nr);
+  });
+  return rows;
+}
 function fiDispParseText(text){
+  { const sms = fiDispParseSms(text); if(sms.length) return sms; }   // build 191
   const lines = String(text||"").split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
   const type0 = fiTypeFromText(text);
   const rows = [];
@@ -14613,6 +14639,7 @@ function fiDispAssign(rows, entryOverride){
   rows.forEach(r=>{ r.dest = ""; r.destNote = ""; });
   rows.forEach(r=>{
     const t = r.type;
+    if(r.sms) return;   // build 191: 문자 출고요청은 분배표가 아니라 재고·거리로 추천(fiDispSuggest)
     if(!t || !["XLS","XLG","XLD"].includes(t)){ r.destNote = "고정인수(XLS·XLG·XLD) 외 출고 — 도착지 선택"; return; }
     const entry = entryOverride || fiDispFindHistory(r.bidDate, t).exact;
     if(!entry){ r.destNote = `${r.bidDate||"?"} ${t} 분배 기록 없음`; if(t==="XLD") r.dest = FI_JINCHEON; return; }
@@ -14634,25 +14661,53 @@ function fiDispAssign(rows, entryOverride){
 }
 // 고정인수 외 일반 리퀴데이션(A/B/C/E 그룹 등): 해당 카테고리 매장재고(+미반영) · 센터 거리로 하차지 추천
 const FI_PREFIX_CAT = { A:0, B:1, C:2, E:3, G:4, GD:4, GH:4, GE:4, S:17, K:9, W:8 };   // build 148: K=대형가전(XLK) · W=대형가구(XLW)
+const FI_XLG_GYS_WEEKEND = "김해점";        // build 191: XLG 경산2 — 평일(월~금) 진천센터 · 토·일 김해점 (출고일 요일 기준)
+const FI_SMS_RADIUS = [60, 100, Infinity];   // build 191: 문자 XLG — 센터에서 가까운 매장(60km → 100km → 전체) 안에서 재고 최소
 function fiDispSuggest(rows){
   const snap = (typeof fiLatestSnap==="function") ? fiLatestSnap() : null;
-  if(!snap) return rows;
-  const base = fiStockMap(snap); const raw = snap.stock || {};
+  const raw = snap ? (snap.stock || {}) : {};
   const el = fiEligMap();
-  const stores = Object.keys(el).filter(s=> s!==FI_JINCHEON && !FI_CLOSING.includes(s) && fiEligible(s,"XLS",el));
+  const storesOf = t=> Object.keys(el).filter(s=> s!==FI_JINCHEON && !FI_CLOSING.includes(s) && fiEligible(s, t==="XLG" ? "XLG" : "XLS", el));   // build 191: XLG는 XLG 취급 매장
+  const stores = storesOf("XLS");
   const add = {};
   rows.forEach(r=>{ if(r.dest) String(r.dest).split(", ").forEach(d=> add[d]=(add[d]||0)+(+r.pallets||0)); });
+  // build 191: 문자 XLG 추천용 실시간 재고 = 최신 스냅샷 + 그 뒤 고정인수 분배 + 그 뒤 문자 XLG 배차 기록
+  let eff = null;
+  if(rows.some(r=> r.sms) && snap){
+    eff = fiEffStock(snap, null, null);
+    const sd = String(snap.date||"").slice(0,10), cur = typeof _fiDisp!=="undefined" && _fiDisp ? _fiDisp.id : null;
+    (FI_DISPATCH_HISTORY||[]).forEach(h=>{ if(!h || h.id===cur) return; (h.rows||[]).forEach(x=>{
+      if(!x.sms || x.skip || x.type!=="XLG" || !x.dest || String(x.outboundDate||"") < sd) return;
+      const o = eff[x.dest] || (eff[x.dest] = { XLG:0 }); o.XLG = (o.XLG||0) + (+x.pallets||0); o.smsP = (o.smsP||0) + (+x.pallets||0); }); });
+  }
   rows.forEach(r=>{
     if(r.dest) return;
     { const fx = r.type==="XLG" && (FI_XLG_FIXED[String(r.fc||"").toUpperCase()] || FI_XLG_FIXED[fiCenterName(r.fc)]);   // build 163: 여주2 XLG → 이천점 고정
       if(fx){ r.dest = fx; r.destNote = `XLG ${fiCenterName(r.fc)}센터 → ${fx} 직출 고정 · ${fiKmLabel(r.fc, fx)}`; add[fx] = (add[fx]||0) + (+r.pallets||0); return; } }
-    if(r.type==="XLD" || (r.type==="XLG" && String(r.fc).toUpperCase()==="GYS2")){ r.dest = FI_JINCHEON; r.destNote = `${r.type==="XLD"?"XLD 전 센터":"XLG 경산"} → 진천센터 규칙`; return; }
+    if(r.type==="XLG" && String(r.fc).toUpperCase()==="GYS2"){   // build 191: 평일 진천센터 · 주말 김해점
+      const wd = fiDispWeekday(r.outboundDate || r.bidDate), we = wd==="토" || wd==="일";
+      r.dest = we ? FI_XLG_GYS_WEEKEND : FI_JINCHEON; add[r.dest] = (add[r.dest]||0) + (+r.pallets||0);
+      r.destNote = `XLG 경산2 → ${we ? `주말(${wd}) ${FI_XLG_GYS_WEEKEND}` : `평일(${wd||"?"}) 진천센터`} 규칙`; return; }
+    if(r.type==="XLD"){ r.dest = FI_JINCHEON; r.destNote = "XLD 전 센터 → 진천센터 규칙"; return; }
+    if(!snap) return;
+    if(r.sms){   // build 191: 가까운 매장 중 XLG 재고 최소 (60km → 100km → 전체), 같으면 이력 → 거리 → 야적
+      const geo = FI_REGION_GEO[fiCenterRegion(r.fc)]; if(!geo) return;
+      const cands = storesOf("XLG").map(s=>{ const e = eff && eff[s] || {}; const a = raw[s] || [];
+        return { s, cur:(+e.XLG||0) + (add[s]||0), dist: fiDistKm(geo, FI_STORE_GEO[s]), yard:+a[16]||0, hist: fiHistCount(r.fc, s) }; });
+      let best = null, R = null;
+      for(const rad of FI_SMS_RADIUS){ const pool = cands.filter(c=> c.dist!=null && c.dist<=rad); if(!pool.length) continue; pool.sort(fiRankCmp); best = pool[0]; R = rad; break; }
+      if(!best) return;
+      r.dest = best.s; add[best.s] = (add[best.s]||0) + (+r.pallets||0);
+      const sdt = String(snap.date||""), old = sdt.slice(0,10) < fmtDate(new Date());
+      r.destNote = `추천: ${R===Infinity?"전체 매장":`${R}km 안`} XLG 재고 최소 — XLG재고 ${best.cur}PLT · ${best.dist}km · ${fiCenterName(r.fc)} 이력 ${best.hist}회 · 재고 기준 ${sdt}${old?" ⚠ 오늘 재고 아님":""}`;
+      return;
+    }
     const idx = FI_PREFIX_CAT[r.groupPrefix];
     const geo = FI_REGION_GEO[fiCenterRegion(r.fc)];
     if(idx==null || !geo) return;
     const cat = ({0:"XLA",1:"XLB",2:"XLC",3:"XLE",4:"XLG",8:"XLW",9:"XLK"})[idx] || "XLS";
     let best = null;   // build 162: 재고 적은 순 → 그 센터에서 보낸 이력 많은 순 → km → 야적
-    stores.forEach(s=>{
+    (cat==="XLG" ? storesOf("XLG") : stores).forEach(s=>{
       const a = raw[s] || []; const cur = (+a[idx]||0) + (add[s]||0); const yard = +a[16]||0;
       const dist = fiDistKm(geo, FI_STORE_GEO[s]);
       const sc = { s, cur, dist, yard, hist: fiHistCount(r.fc, s) };
@@ -14811,9 +14866,10 @@ function fiDispPost(rows, head){
   { const sufBy = {}; rows.forEach(r=>{ const nf = fiNumFull(r.numFull); if(nf) (sufBy[r.groupPrefix||""] = sufBy[r.groupPrefix||""] || []).push(nf.suf); });   // build 169
     rows.forEach(r=>{ if(r.numFull || !/^\d{5,7}$/.test(String(r.number||""))) return; const c = sufBy[r.groupPrefix||""]; const sf = c && _fiVote(c); if(sf) r.numFull = `${r.number}-${sf}`; }); }
   fiDispResolve(rows);
-  rows.forEach(r=>{ if(!r.dict) fiDispGeneralFix(r); });
+  rows.forEach(r=>{ if(!r.dict && !r.sms) fiDispGeneralFix(r); });
   rows.forEach(r=>{ if(fiDispPltOdd(r)) r.warn.unshift(`⚠ 파렛트 ${r.pallets==null||r.pallets===""?"없음":r.pallets} — 보통 1~${FI_PLT_MAX}입니다. 메일 원문 확인 후 고치거나 합본에서 'PLT 그대로 확정'${r.srcLine?` (원문: ${r.srcLine})`:""}`); });   // build 147
   rows.forEach(r=>{
+    if(r.sms){ r.warn = (r.warn||[]).filter(w=>!/낙찰일|출고일/.test(w)); r.warn.push(`문자 출고요청(XLG 당일) · ${r.smsArea} → ${fiCenterName(r.fc)||"?"}`); if(!r.fc) r.warn.unshift(`⚠ "${r.smsArea}" 센터를 모름 — FC 확인`); return; }   // build 191
     if(!r.dict && !r.liqLot){
       r.warn.push(/^AF[A-Z0-9]{8}$/.test(r.bidcode||"") ? "고정인수 기록에 없음 — 입차코드·NUMBER 메일과 대조" : "입차코드 확인");
       if(!r.pallets) r.warn.push("파렛트 수 확인");
@@ -14986,7 +15042,8 @@ function fiDispStart(rows, note, src, opt){
   const ents = Array.from(new Set(rows.map(r=>r.entryDate).filter(Boolean)));
   const hit = fiDispFindHistory(r0.bidDate, null);
   const miss = rows.filter(r=>!r.dest);
-  const matchInfo = (opt && opt.matchInfo) ? opt.matchInfo : got ? { ok: !miss.length, date:ents.join(","), text:`고정인수 분배표(${ents.join(", ")||"-"})로 ${got}/${rows.length}행 도착지 지정 · 고정인수 기록과 일치 ${dictN}행${miss.length?` — 도착지 없는 ${miss.length}행(${miss.map(r=>r.group||r.number).slice(0,4).join(", ")}${miss.length>4?" …":""})은 직접 선택`:""}` }
+  const smsN = rows.filter(r=> r.sms).length;   // build 191: 문자 XLG 출고요청
+  const matchInfo = (opt && opt.matchInfo) ? opt.matchInfo : smsN ? { ok: rows.every(r=> r.dest && r.fc), date:"", text:`문자 XLG 당일 출고요청 ${smsN}행 — 도착지 ${rows.filter(r=>r.dest).length}/${rows.length}행 자동 지정(여주2 이천점 고정 · 경산2 평일 진천센터/주말 김해점 · 그 외 가까운 매장 중 XLG 재고 최소) · 확인 칸의 근거를 보고 필요하면 바꿔 주세요` } : got ? { ok: !miss.length, date:ents.join(","), text:`고정인수 분배표(${ents.join(", ")||"-"})로 ${got}/${rows.length}행 도착지 지정 · 고정인수 기록과 일치 ${dictN}행${miss.length?` — 도착지 없는 ${miss.length}행(${miss.map(r=>r.group||r.number).slice(0,4).join(", ")}${miss.length>4?" …":""})은 직접 선택`:""}` }
     : { ok:false, latestId: hit.latest && hit.latest.id, latestDate: hit.latest && hit.latest.date,
         text:`낙찰일 ${r0.bidDate||"?"} 과 같은 날짜의 고정인수 분배 기록이 없습니다 — 도착지를 직접 고르세요.` };
   rows.forEach(r=>{ r.memo = (r.warn||[]).concat(r.destNote?[r.destNote]:[]).join(" / "); });
@@ -15001,7 +15058,7 @@ function fiDispSave(){
   if(!_fiDisp) return;
   const e = { id:_fiDisp.id, at:_fiDisp.at, updatedAt:Date.now(), note:_fiDisp.note, matchInfo:_fiDisp.matchInfo,
     rows:_fiDisp.rows.map(r=>({ bidDate:r.bidDate, bidcode:r.bidcode, group:r.group, number:r.number, numFull:r.numFull||"", pallets:r.pallets, outboundDate:r.outboundDate,
-      outboundAmPm:r.outboundAmPm, fc:r.fc, dest:r.dest, type:r.type, memo:r.memo||"", co:fiCoOf(r), skip:!!r.skip,
+      outboundAmPm:r.outboundAmPm, fc:r.fc, dest:r.dest, type:r.type, memo:r.memo||"", co:fiCoOf(r), skip:!!r.skip, sms:!!r.sms,
       lot:r.lot||"", addr:r.addr||"", person:r.person||"", phone:r.phone||"", opNote:r.opNote||"", remark:r.remark||"", palOk:!!r.palOk, srcLine:r.srcLine||"",
       eos:!!r.eos, src:r.src||null, srcs:r.srcs||null, histPlt:r.histPlt==null?null:r.histPlt, wdBad:r.wdBad||null, dirFilled:r.dirFilled||null, onlyIn:r.onlyIn||null, missingIn:r.missingIn||null, warn:r.warn||[], center:r.center||"" })),
     srcs:_fiDisp.srcs||null, answers:_fiDisp.answers||null };
