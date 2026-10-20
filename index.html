@@ -1181,7 +1181,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 203 · 2026-10-20</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 204 · 2026-10-20</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -17188,7 +17188,7 @@ function fdBuildBid(D, lots, date8, pltOver){
     return o.concat([shop, shop*q, whole, whole*q]);
   });
   const pltTxt = p=> p.plt==null ? "" : p.plt;
-  const name = `${date8}_FC(파손 및 무적재고)_` + parts.map(p=> `${p.no}(${p.centerText},${pltTxt(p)}PLT)`).join("_");
+  const name = `${date8}_FC(파손 및 무적재고)_` + parts.map(p=> `${p.no}(${p.centerKo||p.centerText},${pltTxt(p)}PLT)`).join("_");   // build 204: 센터명 한글(창원1 창원1HUB …)
   const sumBy = (arr, j)=> arr.reduce((s,r)=> s + (typeof r[j]==="number" ? r[j] : 0), 0);
   const nP = pick.length;
   return { lot: lots.join(","), lots, parts, src, raw, rawHdr, pick, fcRows, name, outName: fdSafeFile(name)+".xlsx",
@@ -17380,7 +17380,7 @@ function fdRender(){
         <div class="fi-file-hd"><span class="fi-type" style="border-color:#C0504D;color:#C0504D">FC파손</span> <span class="fi-fname">${escHtml(b.outName)}</span> <button class="act primary fi-mini" id="fdDl">⬇ 다운로드</button> <button class="act fi-mini" id="fdCopy">파일명 복사</button>
           <button class="act fi-mini fi-del" id="fdResDel" title="화면에서 결과 지우기 (기록은 아래에서 삭제)">✕</button></div>
         <table class="fi-tbl"><thead><tr><th>LOT</th><th>FC (센터)</th><th class="n">PLT</th><th class="n">행</th><th class="n">판매가(부가세x)</th></tr></thead><tbody>
-        ${b.parts.map(p=>`<tr><td><b>${escHtml(p.no)}</b></td><td style="white-space:normal;font-size:12px">${escHtml(p.centerText)}</td><td class="n">${p.plt==null?'<span class="fi-mut">-</span>':fiFmt(p.plt)}</td><td class="n">${fiFmt(p.rows)}</td><td class="n">${fiFmt(Math.round(p.F))}</td></tr>`).join("")}
+        ${b.parts.map(p=>`<tr><td><b>${escHtml(p.no)}</b></td><td style="white-space:normal;font-size:12px">${escHtml(p.centerKo||p.centerText)} <span class="fi-mut">(${escHtml(p.centerText)})</span></td><td class="n">${p.plt==null?'<span class="fi-mut">-</span>':fiFmt(p.plt)}</td><td class="n">${fiFmt(p.rows)}</td><td class="n">${fiFmt(Math.round(p.F))}</td></tr>`).join("")}
         <tr style="font-weight:700"><td>합계</td><td></td><td class="n">${b.plt==null?"-":fiFmt(b.plt)}</td><td class="n">${fiFmt(b.rows)}</td><td class="n">${fiFmt(Math.round(b.sales))}</td></tr></tbody></table>
         <div class="fi-mut" style="margin-top:6px">시트: 원본(낙찰 LOT 행) · RAW(매장판매가 총액 ${fiFmt(Math.round(b.shop))} · 도매판매가 총액 ${fiFmt(Math.round(b.whole))}) · Sheet4(NO. · FC · PLT) — 원본에 PLT가 없으면 LOT 칸에 "A 30, B 25"처럼 적으세요</div>
         ${miss.length?`<div style="color:var(--red);font-size:12.5px;margin-top:6px">⚠ 도매요율표에 없는 분류 ${miss.length}개 → 도매가 100원으로 넣음(확인): ${miss.map(escHtml).join(", ")}</div>`:""}
