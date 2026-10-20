@@ -1177,7 +1177,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 198 · 2026-10-20</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 199 · 2026-10-20</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -14878,7 +14878,7 @@ function fiDispGeneralFix(r){
   }
 }
 const FI_PLT_MAX = 40;
-function fiDispPltOdd(r){ return r.type!=="임박" && !r.palOk && (r.pallets==null || r.pallets==="" || !(+r.pallets>0) || +r.pallets > FI_PLT_MAX); }
+function fiDispPltOdd(r){ return r.type!=="임박" && !r.palOk && (r.pallets==null || r.pallets==="" || !(+r.pallets>0) || (r.type!=="데드우드" && +r.pallets > FI_PLT_MAX)); }   // build 199: 데드우드는 낙찰파일 PLT라 40 초과도 정상
 function fiDispPost(rows, head){
   const date0 = _fiVote(rows.map(r=>r.bidDate));
   const out0 = _fiVote(rows.map(r=>r.outboundDate));
