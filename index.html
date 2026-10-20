@@ -1177,7 +1177,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 199 · 2026-10-20</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 200 · 2026-10-20</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1643,11 +1643,11 @@
       <div class="fi-body">
         <div id="fdsPane">
         <div id="fdsDrop" class="fi-drop" role="button" tabindex="0">
-          <div class="fi-drop-t">FC파손 원본 파일(FC_Liquidation_YYYYMMDD_V원본.xlsx)을 끌어다 놓거나 클릭</div>
+          <div class="fi-drop-t">FC파손 원본 파일(FC_Liquidation_YYYYMMDD_V원본 · .xlsx 또는 .xlsb)을 끌어다 놓거나 클릭</div>
           <div class="fi-drop-s">RAW 시트(FC · NO. · Cate2 · Quantity · 판매가 …)와 오른쪽 LOT 표(NO. · FC · qty · BID AMT / NO · Qty · MIN BID AMT)를 머리글로 찾아 읽습니다 · 같은 원본이 아래 ② 낙찰파일 생성기 · FC파손에도 자동으로 들어갑니다</div>
           <div id="fdsFileInfo" style="margin-top:8px;font-size:12.5px"></div>
         </div>
-        <input type="file" id="fdsInput" accept=".xlsx,.xlsm,.xls" hidden>
+        <input type="file" id="fdsInput" accept=".xlsx,.xlsm,.xlsb,.xls" hidden>
         <div id="fdsStatus" class="fi-status"></div>
         <div id="fdsResult"></div>
         </div>
@@ -1657,7 +1657,7 @@
           <div class="fi-drop-s">요약본(★Deadwood요약 · 종합 · 종합 (2) · Sheet2 · Sheet3 · Sheet5 · raw data)을 만듭니다 · 같은 원본이 아래 ② 낙찰파일 생성기 · 데드우드에도 자동으로 들어갑니다</div>
           <div id="dwsFileInfo" style="margin-top:8px;font-size:12.5px"></div>
         </div>
-        <input type="file" id="dwsInput" accept=".xlsx,.xlsm,.xls" hidden>
+        <input type="file" id="dwsInput" accept=".xlsx,.xlsm,.xlsb,.xls" hidden>
         <div id="dwsStatus" class="fi-status"></div>
         <div id="dwSumResult"></div>
         </div>
@@ -1745,7 +1745,7 @@
         <div id="fdPane">
         <div class="fi-disp-in">
           <div id="fdDrop" class="fi-drop" role="button" tabindex="0">
-            <div class="fi-drop-t">FC파손 원본 파일(FC_Liquidation_YYYYMMDD_V원본.xlsx)을 끌어다 놓거나 클릭</div>
+            <div class="fi-drop-t">FC파손 원본 파일(FC_Liquidation_YYYYMMDD_V원본 · .xlsx 또는 .xlsb)을 끌어다 놓거나 클릭</div>
             <div class="fi-drop-s">RAW 시트(NO. = LOT 알파벳)와 LOT·FC 표(NO. · FC · qty)를 읽습니다</div>
             <div id="fdFileInfo" style="margin-top:8px;font-size:12.5px"></div>
           </div>
@@ -1758,7 +1758,7 @@
             </div>
           </div>
         </div>
-        <input type="file" id="fdInput" accept=".xlsx,.xlsm,.xls" hidden>
+        <input type="file" id="fdInput" accept=".xlsx,.xlsm,.xlsb,.xls" hidden>
         <div id="fdStatus" class="fi-status"></div>
         <div id="fdResult"></div>
         </div>
@@ -1779,7 +1779,7 @@
             </div>
           </div>
         </div>
-        <input type="file" id="dwInput" accept=".xlsx,.xlsm,.xls" hidden>
+        <input type="file" id="dwInput" accept=".xlsx,.xlsm,.xlsb,.xls" hidden>
         <div id="dwStatus" class="fi-status"></div>
         <div id="dwResult"></div>
         </div>
@@ -16893,6 +16893,8 @@ function fdLotTables(aoa, hi, from){
   for(let j=from;j<H.length;j++){
     if(!/^(no\.?|lot|lot\s*no\.?)(\s*\(.*\))?$/i.test(H[j])) continue;
     const m = {}; let k = j+1;
+    // build 200: FC가 NO. 왼쪽에 있는 표(FC · NO. · PLT · MID BID AMN)도 FC별 표로 읽는다
+    for(let q=j-1; q>=from && q>=j-3 && H[q]; q--){ if(m.fc==null && /^fc$/i.test(H[q])) m.fc = q; else if(m.center==null && /^(센터|센터명)$/.test(H[q])) m.center = q; }
     for(;k<H.length && H[k] && k<j+8;k++){ const h = H[k];
       if(/^(no\.?|lot)(\s*\(.*\))?$/i.test(h)) break;
       if(m.fc==null && /^fc/i.test(h)) m.fc = k;
@@ -17271,7 +17273,7 @@ let _fdsFile = null, _fdsCur = null, _fdFile = null, _fdData = null, _fdCur = nu
 function fdPersist(){ try{ localStorage.setItem(FD_LS, JSON.stringify(FD_HISTORY.slice(0,200))); }catch(_){} try{ cloudHistPush("fd"); }catch(_){} }
 async function fdsHandleFile(f){
   const st = document.getElementById("fdsStatus"); if(!f) return;
-  if(!/\.(xlsx|xlsm|xls)$/i.test(f.name)){ st.innerHTML = '<span style="color:var(--red)">FC파손 원본 엑셀(FC_Liquidation_… 원본.xlsx)을 올려 주세요</span>'; return; }
+  if(!/\.(xlsx|xlsm|xlsb|xls)$/i.test(f.name)){ st.innerHTML = '<span style="color:var(--red)">FC파손 원본 엑셀(FC_Liquidation_… 원본.xlsx)을 올려 주세요</span>'; return; }
   _fdsFile = f; _fdsCur = null; fdsRender();
   const say = mm=>{ st.textContent = mm; };
   try{
@@ -17322,7 +17324,7 @@ function wireFdSum(){
 }
 function fdSetFile(f){
   if(!f) return;
-  if(!/\.(xlsx|xlsm|xls)$/i.test(f.name)){ document.getElementById("fdStatus").innerHTML = `<span style="color:var(--red)">엑셀(.xlsx) 파일을 올려 주세요.</span>`; return; }
+  if(!/\.(xlsx|xlsm|xlsb|xls)$/i.test(f.name)){ document.getElementById("fdStatus").innerHTML = `<span style="color:var(--red)">엑셀(.xlsx) 파일을 올려 주세요.</span>`; return; }
   _fdFile = f; _fdData = null; _fdCur = null; document.getElementById("fdStatus").textContent = "";
   fdRender();
   if(fdParseLots(document.getElementById("fdLots").value).lots.length) fdGenerate();
@@ -17823,7 +17825,7 @@ async function dwBidWorkbook(ff, D, b){
 // ⑥ 데드우드: 원본만 넣기(요약본은 ⑤에서)
 function dwSetFile(f){
   if(!f) return;
-  if(!/\.(xlsx|xlsm|xls)$/i.test(f.name)){ document.getElementById("dwStatus").innerHTML = `<span style="color:var(--red)">엑셀(.xlsx) 파일을 올려 주세요.</span>`; return; }
+  if(!/\.(xlsx|xlsm|xlsb|xls)$/i.test(f.name)){ document.getElementById("dwStatus").innerHTML = `<span style="color:var(--red)">엑셀(.xlsx) 파일을 올려 주세요.</span>`; return; }
   _dwFile = f; _dwData = null; _dwCur = null; document.getElementById("dwStatus").textContent = "";
   dwRender();
   if(fdParseLots(document.getElementById("dwLots").value).lots.length) dwGenerate();
@@ -17855,7 +17857,7 @@ function dwReset(){ _dwFile = null; _dwData = null; _dwCur = null;
 // ⑤ 데드우드 요약본 — 같은 원본(읽은 그대로)을 ⑥ 데드우드 낙찰파일에도 넣는다
 async function dwHandleFile(f){
   const st = document.getElementById("dwsStatus"); if(!f) return;
-  if(!/\.(xlsx|xlsm|xls)$/i.test(f.name)){ st.innerHTML = '<span style="color:var(--red)">데드우드 원본 엑셀(.xlsx)을 올려 주세요</span>'; return; }
+  if(!/\.(xlsx|xlsm|xlsb|xls)$/i.test(f.name)){ st.innerHTML = '<span style="color:var(--red)">데드우드 원본 엑셀(.xlsx)을 올려 주세요</span>'; return; }
   _dwsFile = f; _dwSum = null; _dwFile = f; _dwData = null; _dwCur = null; dwRender();
   const say = mm=>{ st.textContent = mm; };
   try{
