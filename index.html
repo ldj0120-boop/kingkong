@@ -1181,7 +1181,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 204 · 2026-10-20</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 206 · 2026-10-20</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1205,15 +1205,15 @@
           <input type="file" id="importFolderFile" webkitdirectory multiple hidden>
           <button class="act primary" id="importFolderBtn" title="'업로드용자료' 폴더를 통째로 선택하면, 하위 폴더 이름(센터출고내역서·본사출고내역서·가전센터출고내역서·매장재고현황·매장별매출현황·카테고리별매출현황)을 자동 인식해 각 슬롯에 한 번에 불러옵니다.">📁 폴더 통째로 불러오기</button>
           <input type="file" id="importFile" accept=".xlsx,.xls" hidden>
-          <button class="act dropzone" id="importBtn" title="클릭하거나 엑셀 파일을 끌어다 놓으세요">매장 재고 업로드</button>
+          <button class="act dropzone" id="importBtn" style="display:none" data-retired="build 205: 매장 재고는 승현 사이트 실시간으로 받음" title="클릭하거나 엑셀 파일을 끌어다 놓으세요">매장 재고 업로드</button>
           <input type="file" id="importActualFile" accept=".xlsx,.xlsm,.xls" hidden>
           <button class="act dropzone" id="importActualBtn" title="클릭하거나 엑셀 파일을 끌어다 놓으세요 (예: 출고내역서_26년_7월.xlsx)">출고내역서 업로드 (센터)</button>
           <input type="file" id="importHQFile" accept=".xlsx,.xlsm,.xls" hidden>
           <button class="act dropzone" id="importHQBtn" title="클릭하거나 엑셀 파일을 끌어다 놓으세요 (예: 07월 출고계획서_0728.xlsx) — 센터와 겹치는 매장·카테고리는 본사 수치가 우선 적용됩니다">본사 출고내역서 업로드</button>
           <input type="file" id="importApplianceFile" accept=".xlsx,.xlsm,.xls" hidden>
-          <button class="act dropzone" id="importApplianceBtn" title="클릭하거나 엑셀 파일을 끌어다 놓으세요 (예: 방도리 출고내역서_26년_07월.xlsx)">가전센터 출고내역서 업로드</button>
+          <button class="act dropzone" id="importApplianceBtn" style="display:none" data-retired="build 205: 가전센터 출고 종료" title="클릭하거나 엑셀 파일을 끌어다 놓으세요 (예: 방도리 출고내역서_26년_07월.xlsx)">가전센터 출고내역서 업로드</button>
           <input type="file" id="importFreshFile" accept=".xlsx,.xls" multiple hidden>
-          <button class="act dropzone" id="importFreshBtn" title="신선 취합본(신선식품·수박) 파일을 클릭 또는 끌어다 놓으세요. 파일명에 '수박'이 있으면 수박, 아니면 신선식품으로 집계합니다. 매장명 열(낱개 수량)을 매장별로 합산합니다.">신선 출고내역서 업로드</button>
+          <button class="act dropzone" id="importFreshBtn" style="display:none" data-retired="build 205: 신선 공급은 승현 사이트 실시간으로 받음" title="신선 취합본(신선식품·수박) 파일을 클릭 또는 끌어다 놓으세요. 파일명에 '수박'이 있으면 수박, 아니면 신선식품으로 집계합니다. 매장명 열(낱개 수량)을 매장별로 합산합니다.">신선 출고내역서 업로드</button>
           <input type="file" id="importSalesFile" accept=".xlsx,.xls" multiple hidden>
           <button class="act dropzone" id="importSalesBtn" title="일자별 매출현황 파일(매출현황-YYYYMMDD.xlsx)을 클릭 또는 끌어다 놓으세요. 여러 날짜를 한 번에 올려도 됩니다. 금액은 G열 청구금액 기준으로 누적 집계됩니다.">매장별 매출 업로드 (일자별)</button>
           <input type="file" id="importCatSalesFile" accept=".xlsx,.xls" multiple hidden>
@@ -12798,12 +12798,16 @@ function pltShipApply(res){
 
 // build 151: 오늘 날짜 "(승현 실시간)" 재고 스냅샷 — 매장재고를 쓰는 화면(05 상세표·06 매장 분석·고정인수 분배 등)은
 //   STOCK_HISTORY 최신 스냅샷을 보므로 여기에도 넣는다. 승현 사이트에 없는 열(임박식품·사입 등)은 가장 최근 엑셀 스냅샷 값을 이어 쓴다.
+const PLT_LIVE_DROP_COLS = ["임박식품","생산재고(혼합)","생산재고(가전)","홈쇼핑","사입PLT","FC파손"];
 function pltLiveUpsertSnapshot(result){
   const today = fmtDate(new Date());
   const isLive = h => String((h && h.label) || "").includes(PLT_LIVE_LABEL);
   const base = (STOCK_HISTORY||[]).filter(h=> h && h.stock && !isLive(h) && !/기본값|초기화|없음/.test(h.label||"")).slice(-1)[0];
   const stock = {};
   if(base) Object.keys(base.stock).forEach(st=> stock[st] = (base.stock[st]||[]).slice());
+  // build 206: 승현 사이트에 없는 항목은 지난 엑셀 값을 이어 쓰지 않고 뺀다(사용자 지시 — 매장 재고 엑셀 업로드 폐지)
+  const dropI = PLT_LIVE_DROP_COLS.map(k=> AGG_HDR.indexOf(k)).filter(i=> i>=0);
+  Object.keys(stock).forEach(st=> dropI.forEach(i=>{ stock[st][i] = null; }));
   const capI = AGG_HDR.indexOf("창고 보관가능 PLT"), outI = AGG_HDR.indexOf("창고외 야적 PLT");
   Object.keys(result).forEach(store=>{
     const arr = stock[store] || (stock[store] = new Array(STOCK_COLS+1).fill(null));
