@@ -1070,6 +1070,10 @@
   .pt-tbl td, .pt-tbl th{text-align:right;padding:7px 12px;font-family:"JetBrains Mono";font-size:12.5px;}
   .pt-tbl td:first-child, .pt-tbl th:first-child{text-align:left;font-family:inherit;font-size:13px;}
   .pt-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.018);}
+  /* build 203: 줄무늬(반투명 배경)가 고정된 매장명 칸까지 덮어서, 가로로 밀면 뒤 칸 글자가 매장명과 겹쳐 보였다 → 매장명 칸은 항상 불투명 + 위에 */
+  .pq-tbl tbody td:first-child, .pt-tbl tbody td:first-child, table.sup-tbl tbody td:first-child{position:sticky;left:0;z-index:3;background:var(--panel);box-shadow:2px 0 0 var(--line);}
+  .pq-tbl tbody tr:nth-child(even) td:first-child, .pt-tbl tbody tr:nth-child(even) td:first-child, table.sup-tbl tbody tr:nth-child(even) td:first-child{background:#1a2733;}
+  .pq-tbl tfoot td:first-child, .pt-tbl tfoot td:first-child, table.sup-tbl tfoot td:first-child{z-index:4;background:var(--raise);box-shadow:2px 0 0 var(--line);}
   .pt-tbl .up{color:#4fd18b;} .pt-tbl .dn{color:#ff7b7b;} .pt-tbl .mu{color:var(--muted2);}
   .g-kpi-grid .g-kpi{background:none;border:0;border-bottom:1px dashed var(--line-soft);border-radius:0;padding:3px 0;}
   .g-kpi-grid .g-kpi .k{font-size:11px;}
@@ -1177,7 +1181,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 201 · 2026-10-20</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 203 · 2026-10-20</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -14753,7 +14757,7 @@ function fiDispText(rows, meta){
   const by = {};
   rows.forEach(r=>{ const k=(r.outboundDate||"")+" "+(r.outboundAmPm||""); (by[k]=by[k]||[]).push(r); });
   const out = [];
-  const types = Array.from(new Set(rows.map(r=>r.type).filter(Boolean)));
+  const types = Array.from(new Set(rows.map(r=>r.typeSub||r.type).filter(Boolean)));   // build 202: XLGD 그대로
   out.push(`[배차 요청] ${types.join("·")||""} ${rows.length}건 / 총 ${rows.reduce((s,r)=>s+(+r.pallets||0),0)}PLT`.replace(/\s+/g," ").trim());
   if(meta && meta.note) out.push(`※ ${meta.note}`);
   out.push("");
@@ -14883,12 +14887,14 @@ function fiDispPost(rows, head){
   const date0 = _fiVote(rows.map(r=>r.bidDate));
   const out0 = _fiVote(rows.map(r=>r.outboundDate));
   const type0 = fiTypeFromText(head);
+  const sub0 = (m=> m ? "XLG" + m[1].replace(/[0O]/,"D") : "")(String(head||"").toUpperCase().match(/XLG([DHE0O])(?![A-Z])/));   // OCR이 D를 0·O로 읽어도
   rows.forEach(r=>{
     r.warn = [];
     if(r.groupNum && r.number && r.groupNum !== r.number) r.warn.push(`NUMBER ${r.number} ↔ 그룹 ${r.groupNum} 다름(NUMBER 칸 사용)`);
     if(!r.bidDate){ r.bidDate = date0 || out0; r.warn.push("낙찰일 인식 보정(확인)"); }
     if(!r.outboundDate){ r.outboundDate = out0 || r.bidDate; r.warn.push("출고일 인식 보정(확인)"); }
     if(!r.type) r.type = type0 || "";
+    if(r.type==="XLG" && !r.typeSub && sub0) r.typeSub = sub0;   // build 202: 메일에 "XLGD"처럼 세부 유형이 있으면 카테에 그대로
   });
   { const sufBy = {}; rows.forEach(r=>{ const nf = fiNumFull(r.numFull); if(nf) (sufBy[r.groupPrefix||""] = sufBy[r.groupPrefix||""] || []).push(nf.suf); });   // build 169
     rows.forEach(r=>{ if(r.numFull || !/^\d{5,7}$/.test(String(r.number||""))) return; const c = sufBy[r.groupPrefix||""]; const sf = c && _fiVote(c); if(sf) r.numFull = `${r.number}-${sf}`; }); }
@@ -15277,7 +15283,7 @@ function fiDispSave(){
   if(!_fiDisp) return;
   const e = { id:_fiDisp.id, at:_fiDisp.at, updatedAt:Date.now(), note:_fiDisp.note, matchInfo:_fiDisp.matchInfo,
     rows:_fiDisp.rows.map(r=>({ bidDate:r.bidDate, bidcode:r.bidcode, group:r.group, number:r.number, numFull:r.numFull||"", pallets:r.pallets, outboundDate:r.outboundDate,
-      outboundAmPm:r.outboundAmPm, outTime:r.outTime||"", dw:!!r.dw, dwLot:r.dwLot||"", fc:r.fc, dest:r.dest, type:r.type, memo:r.memo||"", co:fiCoOf(r), skip:!!r.skip, sms:!!r.sms,
+      outboundAmPm:r.outboundAmPm, outTime:r.outTime||"", typeSub:r.typeSub||"", dw:!!r.dw, dwLot:r.dwLot||"", fc:r.fc, dest:r.dest, type:r.type, memo:r.memo||"", co:fiCoOf(r), skip:!!r.skip, sms:!!r.sms,
       lot:r.lot||"", addr:r.addr||"", person:r.person||"", phone:r.phone||"", opNote:r.opNote||"", remark:r.remark||"", palOk:!!r.palOk, srcLine:r.srcLine||"",
       eos:!!r.eos, src:r.src||null, srcs:r.srcs||null, histPlt:r.histPlt==null?null:r.histPlt, wdBad:r.wdBad||null, dirFilled:r.dirFilled||null, onlyIn:r.onlyIn||null, missingIn:r.missingIn||null, warn:r.warn||[], center:r.center||"" })),
     srcs:_fiDisp.srcs||null, answers:_fiDisp.answers||null };
@@ -15327,7 +15333,7 @@ function fiDispSheetRows(rows){
     GroupNumber: r.numFull ? r.numFull : /^\d+$/.test(String(r.number||"")) ? +r.number : (r.number||""),   // build 169: 메일 NUMBER 전체
     PLT: r.pallets==null||r.pallets==="" ? "" : +r.pallets,
     출고일시: `${r.outboundDate||""} ${r.outboundAmPm||""} ${r.outTime||""}`.replace(/\s+/g," ").trim(),   // build 196: "오전 11시"
-    FC: fiCenterName(r.fc)||r.fc, 주소:r.addr||"", 담당자:r.person||"", 연락처:r.phone||"", 도착지:r.dest||"", 카테: /^XLD$/i.test(String(r.type||"")) ? "기저귀/분유" : (r.type||""),   // build 198: XLD → 기저귀/분유(사용자 배차표와 같음)
+    FC: fiCenterName(r.fc)||r.fc, 주소:r.addr||"", 담당자:r.person||"", 연락처:r.phone||"", 도착지:r.dest||"", 카테: /^XLD$/i.test(String(r.type||"")) ? "기저귀/분유" : (r.typeSub||r.type||""),   // build 198: XLD → 기저귀/분유(사용자 배차표와 같음)
     비고: fiRemarkOf(r)
   }));
 }
