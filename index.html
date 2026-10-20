@@ -1177,7 +1177,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 200 · 2026-10-20</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 201 · 2026-10-20</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -16894,7 +16894,7 @@ function fdLotTables(aoa, hi, from){
     if(!/^(no\.?|lot|lot\s*no\.?)(\s*\(.*\))?$/i.test(H[j])) continue;
     const m = {}; let k = j+1;
     // build 200: FC가 NO. 왼쪽에 있는 표(FC · NO. · PLT · MID BID AMN)도 FC별 표로 읽는다
-    for(let q=j-1; q>=from && q>=j-3 && H[q]; q--){ if(m.fc==null && /^fc$/i.test(H[q])) m.fc = q; else if(m.center==null && /^(센터|센터명)$/.test(H[q])) m.center = q; }
+    for(let q=j-1; q>=from && q>=j-3 && H[q]; q--){ if(m.fc==null && /^fc$/i.test(H[q])) m.fc = q; else if(m.center==null && /^(센터|센터명)$/.test(H[q])) m.center = q; else if(m.kind==null && /^구분$/.test(H[q])) m.kind = q; }
     for(;k<H.length && H[k] && k<j+8;k++){ const h = H[k];
       if(/^(no\.?|lot)(\s*\(.*\))?$/i.test(h)) break;
       if(m.fc==null && /^fc/i.test(h)) m.fc = k;
@@ -16905,7 +16905,8 @@ function fdLotTables(aoa, hi, from){
     }
     const rows = []; let last = "";
     for(let i=hi+1;i<aoa.length;i++){ const v = aoa[i]||[];
-      let no = fdT(v[j]).toUpperCase(); const fcRaw = m.fc!=null && v[m.fc]!=null ? String(v[m.fc]) : "";
+      let no = fdT(v[j]).toUpperCase(); let fcRaw = m.fc!=null && v[m.fc]!=null ? String(v[m.fc]) : "";
+      if(m.kind!=null && fdT(fcRaw) && /^hub$/i.test(fdT(v[m.kind]))) fcRaw = fdT(fcRaw) + "HUB";   // build 201: 구분=HUB 줄은 FC 뒤에 HUB (ANS4 · ANS4HUB)
       if(!no){ if(m.fc!=null && fdT(fcRaw) && last) no = last; else continue; }
       if(!/^[A-Z]{1,3}$/.test(no)) continue; last = no;
       const num = x=> x==null || x==="" || isNaN(+x) ? null : +x;
