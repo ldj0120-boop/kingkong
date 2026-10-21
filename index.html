@@ -1203,7 +1203,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 213 · 2026-10-21</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 214 · 2026-10-21</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1297,7 +1297,7 @@
     <button class="tab" role="tab" id="tab-agg" aria-selected="false" aria-controls="view-agg" hidden style="display:none">매장별 재고/공급 현황</button>
     <button class="tab" role="tab" id="tab-sales" aria-selected="false" aria-controls="view-sales">매장별 매출</button>
     <button class="tab" role="tab" id="tab-goals" aria-selected="false" aria-controls="view-goals">목표매출 달성 방안</button>
-    <button class="tab" role="tab" id="tab-fixed" aria-selected="false" aria-controls="view-fixed">낙찰파일 / 분배표 생성기</button>
+    <button class="tab" role="tab" id="tab-fixed" aria-selected="false" aria-controls="view-fixed">비딩 요약 / 낙찰파일 / 분배표 생성기</button>
   </div>
 
   <section id="view-agg" role="tabpanel" aria-labelledby="tab-agg" hidden>
@@ -1629,7 +1629,7 @@
 
   <section id="view-fixed" role="tabpanel" aria-labelledby="tab-fixed" hidden>
     <div class="td-box" id="todayBox"></div>
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin:0 0 10px"><button class="act primary" data-all-dl="1" style="font-weight:700;margin-right:auto" title="④ 배차요청 & 직출 분배표에 넣은 것 전부를 출고일자별 시트로 한 파일에">⬇ 전체 출고요청서 다운로드</button><button class="act fi-mini fi-del" data-reset="all" title="①~④에 올린 원본 · 입력칸 · 화면 결과를 모두 지웁니다 (각 기록은 그대로)">↺ 이 탭 업로드 자료 전체 초기화</button></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin:0 0 10px"><button class="act primary" data-all-dl="1" style="font-weight:700;margin-right:auto" title="⑤ 배차요청 & 직출 분배표에 넣은 것 전부를 출고일자별 시트로 한 파일에">⬇ 전체 출고요청서 다운로드</button><button class="act fi-mini fi-del" data-reset="all" title="①~④에 올린 원본 · 입력칸 · 화면 결과를 모두 지웁니다 (각 기록은 그대로)">↺ 이 탭 업로드 자료 전체 초기화</button></div>
     <!-- build 189: ①~⑥을 두 카드로 통합 — ① 요약본 생성기 · ② 낙찰파일 생성기 (위 버튼으로 정기비딩 · 임박식품 · FC파손 · 데드우드 선택, 두 카드가 같이 바뀜) -->
     <div class="agg-card kk-gen" id="genSumBox">
       <div class="p-hd">
@@ -1831,10 +1831,33 @@
     </div>
       </div>
     </div>
+    <!-- build 214: ③ 매장 분배표 — 임박식품 · FC파손 낙찰파일 → 매장별 분배(통짜 우선 · 해체) -->
+    <div class="agg-card" id="kdBox">
+      <div class="p-hd">
+        <span class="store-name">③ 매장 분배표 (임박식품 · FC파손)</span>
+        <span class="meta">② 낙찰파일 → 매장 목표금액(260812 분배표 비율)대로 파렛트 통짜 우선 · 넘치는 파렛트만 해체해서 분배</span>
+        <button class="act fi-mini fi-del" data-reset="kd" style="margin-left:auto" title="올린 낙찰파일 · 화면 결과를 지웁니다">↺ 초기화</button>
+      </div>
+      <div class="fi-body">
+        <div id="kdDrop" class="fi-drop" role="button" tabindex="0">
+          <div class="fi-drop-t">임박식품 · FC파손 낙찰파일(.xlsx)을 끌어다 놓거나 클릭</div>
+          <div class="fi-drop-s">② 낙찰파일 생성기에서 받은 파일 그대로 · XLA·XLB·XLC 등 일반 리퀴데이션 그룹은 분배하지 않음</div>
+          <div class="fi-drop-s" id="kdFileInfo"></div>
+        </div>
+        <input type="file" id="kdInput" accept=".xlsx" hidden>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">
+          <label class="fi-mut">기준일 <input id="kdDate" class="fi-sel" style="width:110px" placeholder="YYYY-MM-DD"></label>
+          <button class="act fi-mini" id="kdRedo" title="기준일을 바꾼 뒤 다시 만들기">↻ 다시 만들기</button>
+          <span class="fi-mut">참여 매장 · 가중치: 용인 17.48% · 인천 15.08% · 이천 13.93% · 기흥 12.71% · 김포 11.03% · 청주 10.17% · 광주경안 10.17% · 양주 9.44%</span>
+        </div>
+        <div id="kdStatus" class="fi-status"></div>
+        <div id="kdResult"></div>
+      </div>
+    </div>
     <!-- build 111: 고정인수 — 쿠팡 리퀴데이션 고정 리스트(XLG/XLS/기저귀) → 낙찰파일(원본/종합/RAW) + 직출 분배표 + 카톡 문구 + 히스토리 -->
     <div class="agg-card" id="fiBox">
       <div class="p-hd">
-        <span class="store-name">③ 고정인수 · 낙찰파일 생성</span>
+        <span class="store-name">④ 고정인수 · 낙찰파일 생성</span>
         <span class="meta" id="fiMeta"></span>
         <button class="act fi-mini fi-del" data-reset="fi" style="margin-left:auto" title="화면의 이번 결과를 지웁니다 (분배 히스토리는 그대로)">↺ 초기화</button>
       </div>
@@ -1850,13 +1873,13 @@
     </div>
     <div class="agg-card" id="fiDispBox">
       <div class="p-hd">
-        <span class="store-name">④ 배차요청 & 직출 분배표</span>
+        <span class="store-name">⑤ 배차요청 & 직출 분배표</span>
         <button class="act primary" data-all-dl="1" style="font-size:14px;padding:8px 18px;font-weight:700" title="넣은 배차 요청 전부(고정인수·일반 리퀴·임박식품)를 출고일자별 시트로 한 파일에">⬇ 전체 출고요청서 다운로드</button>
         <span class="meta">쿠팡 출고일정 메일 · 임박식품(FC EOS) 입찰 결과 메일 → 입차코드·상차일시·도착지 표 + 물류업체 문구 + 엑셀</span>
         <button class="act fi-mini fi-del" data-reset="disp" style="margin-left:auto" title="붙여넣은 글 · 인식 결과 · 합본 화면을 지웁니다 (배차 요청 기록은 그대로)">↺ 초기화</button>
       </div>
       <div class="fi-body">
-        <!-- build 189: 고정인수 직출 분배표 · 카톡 문구 (③에서 낙찰파일을 만들면 여기에) -->
+        <!-- build 189: 고정인수 직출 분배표 · 카톡 문구 (④에서 낙찰파일을 만들면 여기에) -->
         <div class="fi-sec-t" style="font-size:18px">직출 분배표 (고정인수)</div>
         <div id="fiPlanResult"></div>
         <div class="fi-sec-t" style="font-size:18px;margin-top:18px">배차 요청서 (입차코드)</div>
@@ -5877,7 +5900,7 @@ function selectTab(which){
   if(which==="agg"){ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }
   if(which==="sales"){ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); try{ renderSalesDaily(); }catch(_){} }
   if(which==="goals"){ renderGoals(); try{ selectGoalsSub(goalsSubTab); }catch(_){} }
-  if(which==="fixed"){ try{ wireFixedIntake(); fiRender(); wireLiqSum(); wireLiquidation(); wireEsSum(); wireEosLiq(); wireFdSum(); wireFdBid(); wireDw(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } try{ wireToday(); tdRender(); }catch(e){ console.error(e); } }
+  if(which==="fixed"){ try{ wireFixedIntake(); fiRender(); wireLiqSum(); wireLiquidation(); wireEsSum(); wireEosLiq(); wireKdDist(); wireFdSum(); wireFdBid(); wireDw(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } try{ wireToday(); tdRender(); }catch(e){ console.error(e); } }
 }
 tabAgg.onclick=()=>selectTab("agg");
 tabSales.onclick=()=>selectTab("sales");
@@ -13704,8 +13727,8 @@ function fiRender(){
   const snap = fiLatestSnap();
   if(meta) meta.textContent = snap ? `매장 재고 기준 ${snap.date} (최신 스냅샷)` : "매장 재고 데이터 없음 — 재고 없이 거리만으로 분배";
   const planEl = document.getElementById("fiPlanResult");   // build 189: 직출 분배표 · 카톡 문구는 ④ 배차요청 & 직출 분배표 카드로
-  if(!_fiCur){ wrap.innerHTML = `<div class="fi-empty">아직 이번 화면에서 만든 결과가 없습니다. 위에 파일을 놓으면 낙찰파일이 여기에, 직출 분배표는 ④ 배차요청 & 직출 분배표에 나옵니다. 지난 분배표는 아래 분배 히스토리에서 볼 수 있습니다.</div>`;
-    if(planEl) planEl.innerHTML = `<div class="fi-empty">③ 고정인수에 리스트 파일을 올리면 여기에 직출 분배표와 카톡 문구가 나옵니다.</div>`; fiRenderHistory(); return; }
+  if(!_fiCur){ wrap.innerHTML = `<div class="fi-empty">아직 이번 화면에서 만든 결과가 없습니다. 위에 파일을 놓으면 낙찰파일이 여기에, 직출 분배표는 ⑤ 배차요청 & 직출 분배표에 나옵니다. 지난 분배표는 아래 분배 히스토리에서 볼 수 있습니다.</div>`;
+    if(planEl) planEl.innerHTML = `<div class="fi-empty">④ 고정인수에 리스트 파일을 올리면 여기에 직출 분배표와 카톡 문구가 나옵니다.</div>`; fiRenderHistory(); return; }
   _fiCur.stockMap = fiEffStock(fiLatestSnap(), _fiCur.id, fiCurDate());   // build 113/114: 최신 스냅샷 + 미반영 출고
   const c = _fiCur, live = !!c.builds[0] && !!c.builds[0].raw;
   let h = `<div class="fi-sec-t">낙찰파일 (인수리스트) <button class="act fi-mini fi-del" id="fiCurDel" title="화면에서 이번 결과 닫기 (히스토리 기록은 아래 분배 히스토리에서 ✕로 삭제)">✕ 결과 닫기</button></div><div class="fi-files">`;
@@ -13723,7 +13746,7 @@ function fiRender(){
   });
   h += `</div>`;
   if(live && c.builds.length>1) h += `<button class="act fi-mini" id="fiDlAll" style="margin-top:8px">⬇ 낙찰파일 모두 다운로드</button>`;
-  if(planEl){ h += `<div class="fi-mut" style="margin-top:8px">직출 분배표 · 카톡 문구 → 아래 <b>④ 배차요청 &amp; 직출 분배표</b></div>`; wrap.innerHTML = h; h = ""; }
+  if(planEl){ h += `<div class="fi-mut" style="margin-top:8px">직출 분배표 · 카톡 문구 → 아래 <b>⑤ 배차요청 &amp; 직출 분배표</b></div>`; wrap.innerHTML = h; h = ""; }
   h += `<div class="fi-sec-t">직출 분배표 <span class="fi-mut">하차 매장·PLT를 바꾸면 카톡 문구와 히스토리가 바로 갱신됩니다</span></div>`;
   const pu = ((c.stockMap||{}).__pending||[]).filter(u=>u.XLS||u.XLG);
   const sd = (fiLatestSnap()||{}).date || "";
@@ -13976,8 +13999,8 @@ const TD_STEPS = [   // build 190: 화면 순서대로 ① 요약본(정기·임
   { k:"liq", n:"②", t:"낙찰파일 · 정기비딩", card:"liqBox", hist:()=> typeof LIQ_HISTORY!=="undefined" ? LIQ_HISTORY : [] },
   { k:"eos", n:"②", t:"낙찰파일 · 임박", card:"eosBox", hist:()=> typeof EOS_HISTORY!=="undefined" ? EOS_HISTORY : [] },
   { k:"fd",  n:"②", t:"낙찰파일 · FC파손·데드우드", card:"fdBox", hist:()=> typeof FD_HISTORY!=="undefined" ? FD_HISTORY : [] },
-  { k:"fi",  n:"③", t:"고정인수 낙찰파일", card:"fiBox", hist:()=> typeof FIXED_INTAKE_HISTORY!=="undefined" ? FIXED_INTAKE_HISTORY : [] },
-  { k:"disp",n:"④", t:"배차요청 · 직출 분배", card:"fiDispBox", hist:()=> typeof FI_DISPATCH_HISTORY!=="undefined" ? FI_DISPATCH_HISTORY : [] },
+  { k:"fi",  n:"④", t:"고정인수 낙찰파일", card:"fiBox", hist:()=> typeof FIXED_INTAKE_HISTORY!=="undefined" ? FIXED_INTAKE_HISTORY : [] },
+  { k:"disp",n:"⑤", t:"배차요청 · 직출 분배", card:"fiDispBox", hist:()=> typeof FI_DISPATCH_HISTORY!=="undefined" ? FI_DISPATCH_HISTORY : [] },
 ];
 function tdCard(s){ if(s.card && s.card[0]!=="⑦"){ const e = document.getElementById(s.card); if(e){ const g = GEN_SHOW[e.id]; if(g && !g.split(" ").includes(_genTab)) genTab(g.split(" ")[0]); return e; } }
   const h = Array.from(document.querySelectorAll("#view-fixed .store-name")).find(x=> x.textContent.trim().startsWith(s.n)); return h ? h.closest(".agg-card") : null; }
@@ -18362,7 +18385,7 @@ function dwRender(){
           <td style="white-space:normal;font-size:11.5px">${escHtml(o.top[0]||"")}</td><td style="white-space:normal;font-size:11.5px">${escHtml(o.top[1]||"")}</td></tr>`).join("")}
         <tr style="font-weight:700"><td>합계</td><td>${r.lots.length}건</td><td class="n">${fiFmt(tot("plt"))}</td><td class="n">${won(tot("bid"))}</td><td class="n">${fiFmt(Math.round(tot("Q")))}</td><td class="n">${won(tot("F"))}</td><td></td><td></td></tr></tbody></table>
         <div class="fi-mut" style="margin-top:6px">시트: ★Deadwood요약 (10)(목표가 · 입찰가 칸은 비워 둠 — 직접 입력, I열 = 입찰가 ÷ 판매가 총액은 입찰가를 넣으면 계산) · 종합 · 종합 (2) · Sheet2 · Sheet3 · Sheet5(피벗 — 엑셀이 열 때 채움) · raw data(원본 그대로) · RAW ${fiFmt(r.rows)}행 · 시트 "${escHtml(r.rawName)}"${r.hasTbl?` · LOT 표: ${escHtml(r.tblSrc)}`:' · <span style="color:var(--red)">⚠ LOT 표(NO · FC · MIN BID)를 찾지 못해 최소입찰가 빈칸, 센터명은 RAW FC로 표시</span>'}</div>
-        <div class="fi-mut" style="margin-top:4px">PLT = 원본 표 PLT, 없으면 LOT의 로케이션(LOT_FULL_NAME/Location) 개수 · 센터명 = FC 코드 → 한글(③ 고정인수 FC 표)</div>
+        <div class="fi-mut" style="margin-top:4px">PLT = 원본 표 PLT, 없으면 LOT의 로케이션(LOT_FULL_NAME/Location) 개수 · 센터명 = FC 코드 → 한글(④ 고정인수 FC 표)</div>
         ${r._uc || ""}
       </div>`; }
   }
@@ -18712,6 +18735,309 @@ function eosSetFile(f){
     if(eosParseLots(document.getElementById("eosLots").value).length) eosGenerate(); })
     .catch(e=>{ console.error(e); say(`<span style="color:var(--red)">원본을 읽지 못했습니다: ${escHtml(e && e.message || e)}</span>`); });
 }
+/* ================= build 214: ③ 매장 분배표 (임박식품 · FC파손 낙찰파일 → 매장별 분배) =================
+   로직 = "임박식품 스크립트/분배표_로직_명세서.md" · 분배표_생성기.py (2026-08-20, 260812 형식) 그대로
+   · 목표금액[매장] = 전체 매장판매가 총액 × 가중치/가중치 합 (마지막 매장이 반올림 잔차 흡수)
+   · 1단계 통짜: 파렛트(로케이션) 금액 큰 순 → 남은 목표 ≥ 파렛트 금액인 매장 중 남은 목표 가장 큰 매장에 통째로
+   · 2단계 해체: 못 담은 파렛트만 단품(라인) 금액 큰 순 → 남은 목표 가장 큰 매장에 floor(남은목표/매장판매가)개(분할),
+                 모두 목표 도달 · 0원 물량은 그 매장에 몰아줌(잔량)
+   · 출력: 요약 · 매장별 PLT배정 · 매장 시트 · 분배표(해체대상) · 분배표(전체) · RAW · 배분이력 · 원본 (+EOS/Sheet4)
+   · 로케이션이 없는 행(FC파손 "-")은 FC(센터) 단위를 한 파렛트로 봄
+   · XLA·XLB·XLC 등 일반 리퀴데이션 그룹 행(원본 시트 Grouping)은 분배하지 않음(사용자 지정) */
+const KD_WEIGHTS = [["용인점",10421148],["인천점",8991766],["이천점",8303913],["기흥점",7577484],["김포점",6577071],["청주점",6065910],["광주경안점",6064199],["양주점",5627676]];   // 260812 분배표 매장별 목표금액 비율
+const KD_NONPART = ["안중점","평택점","김해점","충주점","수원점","아산점","천안점","원주점","남양주점"];
+let _kdFile = null, _kdCur = null;
+const kdT = v=> v==null ? "" : String(v).replace(/[ \s]+/g," ").trim();
+function kdType(name){ name = String(name||""); return /파손|FC_?Liquidation|FC\(파손/i.test(name) && !/임박|EOS/i.test(name) ? "fc" : /데드우드|deadwood/i.test(name) ? "dw" : "eos"; }
+const KD_LABEL = { eos:"유통임박", fc:"FC파손", dw:"데드우드" };
+// 낙찰파일 읽기 → { recs, raw:{name,aoa}, orig:{name,aoa}, extra:[{name,aoa}] }
+async function kdLoad(f){
+  const buf = await f.arrayBuffer();
+  const wb = XLSX.read(buf, { type:"array", dense:true });
+  const aoaOf = n=> XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1, defval:null, raw:true });
+  const rawName = wb.SheetNames.find(n=> /^raw$/i.test(kdT(n)));
+  if(!rawName) throw new Error("낙찰파일에 RAW 시트가 없습니다 (② 낙찰파일 생성기에서 만든 임박식품 · FC파손 낙찰파일을 올려 주세요)");
+  const A = aoaOf(rawName);
+  let hi = -1, H = null;
+  for(let i=0;i<Math.min(A.length,10);i++){ const s = Array.from(A[i]||[], kdT); if(s.some(h=> /로케이션|^location$|lot_full_name/i.test(h)) && s.some(h=> /^매장판매가$/.test(h))){ hi = i; H = s; break; } }
+  if(hi<0) throw new Error("RAW 시트 머리글(로케이션 · 매장판매가)을 찾지 못했습니다");
+  let end = 0; while(end < H.length && H[end]) end++;            // 본 표 = 첫 빈 머리글 앞까지
+  const col = (re, from)=>{ for(let c=from||0;c<end;c++) if(re.test(H[c])) return c; return -1; };
+  const m = { grouping:col(/^grouping$/i), no:col(/^no\.?$/i), fc:col(/^fc$/i), unit1:col(/^unit_?(category)?1$/i), unit2:col(/^unit_?(category)?2$/i),
+    cate2:col(/^cate2$/i), cate3:col(/^cate3$/i), cate4:col(/^cate4$/i), cate5:col(/^cate5$/i), loc:col(/로케이션|^location$|lot_full_name/i),
+    ext:col(/외부\s*sku|externalskuid|external_sku_id/i), sku:col(/^sku\s*id$|^skuid$|internal_sku_id/i), bar:col(/바코드|^barcode$/i),
+    name:col(/상품명|unit description|^description$/i), qty:col(/^수량$|^quantity$/i), tax:col(/면세|isdutyfree/i),
+    price:col(/^매장판매가$/), wprice:col(/^도매가$/) };
+  if(m.bar<0 && m.sku>=0 && m.sku+1<end && m.sku+1!==m.name) m.bar = m.sku+1;   // 머리글이 바코드 값으로 바뀐 예전 파일
+  if(m.qty<0 || m.price<0) throw new Error("RAW 시트에 수량 · 매장판매가 열이 없습니다");
+  // 원본 시트(같은 행 순서)의 Grouping
+  const origName = wb.SheetNames.find(n=> kdT(n)==="원본");
+  let orig = null, gOf = null;
+  if(origName){ const O = aoaOf(origName); orig = { name:origName, aoa:O };
+    if(m.grouping<0){ for(let i=0;i<Math.min(O.length,10);i++){ const s = Array.from(O[i]||[], kdT); const g = s.findIndex(h=> /^grouping$/i.test(h)); if(g>=0){ gOf = k=> (O[i+1+k]||[])[g]; break; } } } }
+  const v = (r, k)=> m[k]>=0 ? r[m[k]] : null;
+  const recs = [];
+  for(let i=hi+1;i<A.length;i++){ const r = A[i]||[];
+    if(!kdT(v(r,"no")) && !kdT(v(r,"name"))) continue;
+    const locRaw = kdT(v(r,"loc")), fc = kdT(v(r,"fc"));
+    const loc = /\d/.test(locRaw) && locRaw.length>3 ? locRaw : `${fc||"?"}-로케이션없음`;
+    recs.push({ grouping: m.grouping>=0 ? v(r,"grouping") : (gOf ? gOf(i-hi-1) : null), no:v(r,"no"), fc, unit1:v(r,"unit1"), unit2:v(r,"unit2"),
+      cate2:v(r,"cate2"), cate3:v(r,"cate3"), cate4:v(r,"cate4"), cate5:v(r,"cate5"), loc, ext:v(r,"ext"), sku:v(r,"sku"), bar:v(r,"bar"),
+      name:v(r,"name"), qty:+v(r,"qty")||0, tax:v(r,"tax"), price:+v(r,"price")||0, wprice:+v(r,"wprice")||0 });
+  }
+  if(!recs.length) throw new Error("RAW 시트에 상품 행이 없습니다");
+  // build 214: XLA · XLB · XLC 등 일반 리퀴데이션 그룹(예: 천안3 XLC 9PLT)은 분배하지 않음 — 임박식품(EOS) · FC파손 건만
+  const isXL = r=> /^XL[A-Z]{1,2}$/i.test(kdT(r.grouping));
+  const ex = new Map(); recs.filter(isXL).forEach(r=>{ const k = `${kdT(r.no)} ${kdT(r.grouping).toUpperCase()}(${r.fc})`; const o = ex.get(k) || { rows:0, locs:new Set() }; o.rows++; o.locs.add(r.loc); ex.set(k, o); });
+  const keep = recs.filter(r=> !isXL(r));
+  if(!keep.length) throw new Error("분배할 임박식품 · FC파손 행이 없습니다 (XL 그룹 행만 있음)");
+  recs.length = 0; keep.forEach(r=> recs.push(r));
+  var excluded = [...ex.entries()].map(([k,o])=> `${k} ${o.locs.size}PLT · ${o.rows}행`);
+  const extra = wb.SheetNames.filter(n=> /^(eos|sheet\d+)$/i.test(kdT(n))).map(n=> ({ name:n, aoa:aoaOf(n) }));
+  return { recs, raw:{ name:"RAW", aoa:A }, orig, extra, type:kdType(f.name), srcName:f.name, excluded };
+}
+function kdAllocate(recs, weights){
+  // 파렛트(로케이션) = 금액 내림차순
+  const pm = new Map(); recs.forEach(r=>{ if(!pm.has(r.loc)) pm.set(r.loc, []); pm.get(r.loc).push(r); });
+  const pval = items=> items.reduce((s,i)=> s + i.price*i.qty, 0);
+  const pallets = [...pm.entries()].sort((a,b)=> pval(b[1]) - pval(a[1]));   // 같은 금액은 원래 순서(안정 정렬)
+  const total = Math.round(recs.reduce((s,r)=> s + r.price*r.qty, 0));
+  const tw = weights.reduce((s,w)=> s+w[1], 0), targets = new Map(); let acc = 0;
+  weights.forEach(([s,w],i)=>{ const t = i < weights.length-1 ? Math.round(total*w/tw) : total-acc; acc += t; targets.set(s, t); });
+  const remaining = new Map(targets), alloc = [], kind = new Map(), un = [];
+  const maxStore = pred=>{ let best = null, bv = -Infinity; remaining.forEach((rem,s)=>{ if(pred && !pred(rem)) return; if(rem > bv){ bv = rem; best = s; } }); return best; };
+  for(const [loc, items] of pallets){
+    const pv = pval(items), s = maxStore(rem=> rem >= pv);
+    if(s){ items.forEach(it=> alloc.push({ loc, store:s, it, qty:it.qty, amt:it.price*it.qty, wamt:it.wprice*it.qty, kind:"통짜" })); remaining.set(s, remaining.get(s)-pv); kind.set(loc, "통짜"); }
+    else un.push([loc, items]);
+  }
+  for(const [loc, items] of un){
+    kind.set(loc, "해체");
+    items.slice().sort((a,b)=> b.price*b.qty - a.price*a.qty).forEach(it=>{
+      let left = it.qty; const price = it.price;
+      while(left > 0){
+        const s = maxStore();
+        if(remaining.get(s) <= 0){ alloc.push({ loc, store:s, it, qty:left, amt:price*left, wamt:it.wprice*left, kind:"잔량" }); remaining.set(s, remaining.get(s) - price*left); left = 0; break; }
+        if(price <= 0){ alloc.push({ loc, store:s, it, qty:left, amt:0, wamt:it.wprice*left, kind:"잔량" }); left = 0; break; }
+        let take = Math.floor(remaining.get(s) / price) || 1; take = Math.min(take, left);
+        alloc.push({ loc, store:s, it, qty:take, amt:price*take, wamt:it.wprice*take, kind:"분할" });
+        remaining.set(s, remaining.get(s) - price*take); left -= take;
+      }
+    });
+  }
+  return { pallets, total, targets, alloc, kind, remaining };
+}
+async function kdWorkbook(ExcelJS, D, R, baseDate){
+  const L = KD_LABEL[D.type] || "분배", STORES = [...R.targets.keys()];
+  const wb = new ExcelJS.Workbook();
+  const NAVY = "FF305496", GREEN = "FF548235";
+  const F_HDR = { name:"맑은 고딕", size:11, bold:true, color:{ argb:"FFFFFFFF" } }, F_BOLD = { name:"맑은 고딕", size:11, bold:true }, F_REG = { name:"맑은 고딕", size:11 };
+  const fill = c=> ({ type:"pattern", pattern:"solid", fgColor:{ argb:c } }), SUB = fill("FFD9E1F2");
+  const CEN = { horizontal:"center", vertical:"middle", wrapText:true }, LEF = { horizontal:"left", vertical:"middle", wrapText:true }, RIG = { horizontal:"right", vertical:"middle" };
+  const th = { style:"thin", color:{ argb:"FFBFBFBF" } }, BORD = { left:th, right:th, top:th, bottom:th };
+  const NUM = "#,##0", PCT = "0.00%";
+  const colL = n=> { let s = ""; while(n>0){ const k = (n-1)%26; s = String.fromCharCode(65+k)+s; n = Math.floor((n-1)/26); } return s; };
+  const header = (ws, row, ncol, f)=>{ for(let c=1;c<=ncol;c++){ const x = ws.getCell(row,c); x.font = F_HDR; x.fill = fill(f||NAVY); x.alignment = CEN; x.border = BORD; } };
+  const widths = (ws, o)=> Object.entries(o).forEach(([k,w])=> ws.getColumn(k).width = w);
+  const sheets = {};
+  const sheet = name=> (sheets[name] = wb.addWorksheet(name));
+  // 순서 고정: 요약 · 매장별 PLT배정 · 매장 시트 · 해체대상 · 전체 · RAW · 배분이력 · 원본 · EOS
+  const wsSum = sheet("요약"), wsPlt = sheet("매장별 PLT배정");
+  const locOrder = new Map(R.pallets.map(([l],i)=> [l,i])), itemIdx = new Map();
+  R.pallets.forEach(([l,items])=> items.forEach((it,j)=> itemIdx.set(it, j)));
+  const byStore = new Map(STORES.map(s=> [s, []]));
+  R.alloc.forEach(a=> byStore.get(a.store).push(a));
+  byStore.forEach(arr=> arr.sort((a,b)=> (locOrder.get(a.loc)-locOrder.get(b.loc)) || (itemIdx.get(a.it)-itemIdx.get(b.it))));
+  // (1) 매장 시트
+  const HDRS = ["Grouping","No.","unit1","unit2","cate2","cate3","cate4","cate5","로케이션","외부 SKU ID","SKU ID","상품 바코드","상품명","수량","면세유무","매장판매가","매장판매가 총액","도매가","도매판매가 총액"];
+  const lastRow = {}, got = {};
+  STORES.forEach(s=>{
+    const ws = sheet(s), rows = byStore.get(s);
+    HDRS.forEach((h,c)=> ws.getCell(2,c+1).value = h); header(ws, 2, 19);
+    let r = 3, sq = 0, sa = 0, sw = 0;
+    rows.forEach(a=>{ const it = a.it;
+      const vals = [it.grouping, it.no, it.unit1, it.unit2, it.cate2, it.cate3, it.cate4, it.cate5, a.loc, it.ext, it.sku, it.bar, it.name, a.qty, it.tax, it.price, null, it.wprice, null];
+      vals.forEach((v,c)=>{ if(v!=null && v!=="") ws.getCell(r,c+1).value = v; });
+      ws.getCell(r,17).value = { formula:`P${r}*N${r}`, result:it.price*a.qty }; ws.getCell(r,19).value = { formula:`R${r}*N${r}`, result:it.wprice*a.qty };
+      sq += a.qty; sa += it.price*a.qty; sw += it.wprice*a.qty;
+      for(let c=1;c<=19;c++){ const x = ws.getCell(r,c); x.font = F_REG; x.border = BORD;
+        if([14,16,17,18,19].includes(c)){ x.numFmt = NUM; x.alignment = RIG; } else x.alignment = c===13 ? LEF : CEN; }
+      r++; });
+    const last = r-1; lastRow[s] = last; got[s] = { q:sq, a:sa, w:sw, n:rows.length };
+    ws.getCell(1,13).value = "합계 →"; ws.getCell(1,13).font = F_BOLD; ws.getCell(1,13).alignment = RIG;
+    [[14,"N",sq],[17,"Q",sa],[19,"S",sw]].forEach(([c,cl,v])=>{ const x = ws.getCell(1,c); x.value = last>=3 ? { formula:`SUM(${cl}3:${cl}${last})`, result:v } : 0; x.font = F_BOLD; x.numFmt = NUM; });
+    widths(ws, { A:8, C:10, D:12, I:18, J:12, K:12, L:14, M:42, N:8, O:8, P:12, Q:13, R:12, S:13 });
+    ws.views = [{ state:"frozen", ySplit:2 }];
+  });
+  // (2) 요약
+  { const ws = wsSum;
+    ws.getCell(1,1).value = `${L} 분배표 요약  |  기준일 ${baseDate}  |  전체 ${R.pallets.length}PLT / 매장판매가 총액 ${R.total.toLocaleString("en-US")}원 / ${STORES.length}개 매장`;
+    ws.getCell(1,1).font = { name:"맑은 고딕", size:13, bold:true };
+    ["매장","목표금액","배정금액(매장판매가 총액)","편차","편차%","수량","라인수"].forEach((h,c)=> ws.getCell(3,c+1).value = h); header(ws, 3, 7);
+    let r = 4;
+    STORES.forEach(s=>{ const t = R.targets.get(s), g = got[s];
+      ws.getCell(r,1).value = s; ws.getCell(r,2).value = t;
+      ws.getCell(r,3).value = { formula:`'${s}'!Q1`, result:g.a }; ws.getCell(r,4).value = { formula:`C${r}-B${r}`, result:g.a-t };
+      ws.getCell(r,5).value = { formula:`D${r}/${R.total}`, result: R.total ? (g.a-t)/R.total : 0 }; ws.getCell(r,6).value = { formula:`'${s}'!N1`, result:g.q }; ws.getCell(r,7).value = g.n; r++; });
+    const tot = r, sumF = (cl, v)=> ({ formula:`SUM(${cl}4:${cl}${tot-1})`, result:v });
+    ws.getCell(tot,1).value = "합계"; ws.getCell(tot,2).value = sumF("B", R.total); ws.getCell(tot,3).value = sumF("C", STORES.reduce((a,s)=> a+got[s].a, 0));
+    ws.getCell(tot,6).value = sumF("F", STORES.reduce((a,s)=> a+got[s].q, 0)); ws.getCell(tot,7).value = sumF("G", STORES.reduce((a,s)=> a+got[s].n, 0));
+    for(let rr=4;rr<=tot;rr++) for(let c=1;c<=7;c++){ const x = ws.getCell(rr,c); x.border = BORD; x.font = rr===tot ? F_BOLD : F_REG;
+      if([2,3,4,6,7].includes(c)){ x.numFmt = NUM; x.alignment = RIG; } else if(c===5){ x.numFmt = PCT; x.alignment = RIG; } else x.alignment = CEN; }
+    ws.getCell(tot,1).fill = SUB;
+    ws.getCell(tot+2,1).value = "※ 목표금액 = 전체 매장판매가 총액 × 매장 가중치(260812 분배표 비율). 편차는 파렛트 불가분성에서 발생.";
+    ws.getCell(tot+2,1).font = { name:"맑은 고딕", size:9, italic:true };
+    if(D.excluded && D.excluded.length){ ws.getCell(tot+3,1).value = "※ 분배 제외(XLA·XLB·XLC 등 일반 리퀴데이션 그룹): " + D.excluded.join(", "); ws.getCell(tot+3,1).font = { name:"맑은 고딕", size:9, italic:true, color:{ argb:"FFC00000" } }; }
+    widths(ws, { A:12, B:14, C:20, D:13, E:9, F:8, G:8 });
+  }
+  // (3) 매장별 PLT배정
+  { const ws = wsPlt;
+    const rep = loc=>{ const it = (R.pallets.find(p=> p[0]===loc)||[0,[{}]])[1][0]; return kdT(it.name).replace(/^★_/,"").slice(0,16); };
+    ws.getCell(1,1).value = `매장별 PLT 배정 구분  |  통짜=파렛트 통째 / 잔량=해체 후 나머지 통짜 / 분할=단품 나눠 받음  |  기준일 ${baseDate}`;
+    ws.getCell(1,1).font = { name:"맑은 고딕", size:12, bold:true };
+    ["매장","통짜 PLT수","통짜 로케이션(대표품목)","해체잔량(로케이션)","분할단품(로케이션)"].forEach((h,c)=> ws.getCell(3,c+1).value = h); header(ws, 3, 5);
+    const whole = new Map(), janr = new Map(), bun = new Map(); STORES.forEach(s=>{ whole.set(s, []); janr.set(s, new Set()); bun.set(s, new Set()); });
+    R.alloc.forEach(a=>{ if(a.kind==="통짜"){ if(!whole.get(a.store).includes(a.loc)) whole.get(a.store).push(a.loc); } else if(a.kind==="잔량") janr.get(a.store).add(a.loc); else bun.get(a.store).add(a.loc); });
+    let r = 4, tw = 0;
+    STORES.forEach(s=>{ const wl = whole.get(s); tw += wl.length;
+      ws.getCell(r,1).value = s; ws.getCell(r,2).value = wl.length;
+      ws.getCell(r,3).value = wl.length ? wl.map(l=> `${l} (${rep(l)})`).join("\n") : "-";
+      ws.getCell(r,4).value = janr.get(s).size ? [...janr.get(s)].sort().map(l=> `${l} (${rep(l)} 잔량)`).join("\n") : "-";
+      ws.getCell(r,5).value = bun.get(s).size ? [...bun.get(s)].sort().join("\n") : "-"; r++; });
+    const nb = [...R.kind.values()].filter(k=> k==="해체").length;
+    ws.getCell(r,1).value = "합계"; ws.getCell(r,2).value = tw; ws.getCell(r,3).value = `통짜 ${tw}개 + 해체 ${nb}개 = 총 ${R.pallets.length} PLT`;
+    for(let rr=4;rr<=r;rr++) for(let c=1;c<=5;c++){ const x = ws.getCell(rr,c); x.border = BORD; x.font = rr===r ? F_BOLD : F_REG; x.alignment = c<=2 ? CEN : LEF; }
+    ws.getCell(r,1).fill = SUB;
+    widths(ws, { A:12, B:10, C:40, D:30, E:20 });
+  }
+  // (4) 분배표(해체대상)
+  { const ws = sheet(`${L}분배표(해체대상)`);
+    ws.getCell(1,1).value = `${L} (해체대상 PLT) — 분할단품 / 잔량 상세`; ws.getCell(1,1).font = { name:"맑은 고딕", size:12, bold:true };
+    ws.getCell(2,1).value = "※ 매장 칸은 수량, 합계 금액(E열)은 매장판매가 총액";
+    const hdr = ["로케이션","구분","상품명 / 잔량","합계수량","합계 금액(매장판매가 총액)"].concat(STORES);
+    hdr.forEach((h,c)=> ws.getCell(3,c+1).value = h); header(ws, 3, hdr.length);
+    const scol = new Map(STORES.map((s,i)=> [s, 6+i]));
+    const broken = R.pallets.map(p=> p[0]).filter(l=> R.kind.get(l)==="해체");
+    let r = 4;
+    broken.forEach(loc=>{
+      const per = new Map();
+      R.alloc.filter(a=> a.loc===loc).forEach(a=>{ const k = a.it; const d = per.get(k) || { name:a.it.name, qty:new Map(), amt:0, stores:new Set() };
+        d.qty.set(a.store, (d.qty.get(a.store)||0) + a.qty); d.amt += a.amt; d.stores.add(a.store); per.set(k, d); });
+      const split = [...per.values()].filter(d=> d.stores.size>1).sort((a,b)=> b.amt-a.amt), single = [...per.values()].filter(d=> d.stores.size===1);
+      const fmt = (rr, from)=>{ for(let c=1;c<=hdr.length;c++){ const x = ws.getCell(rr,c); if(x.value==null && c>5) continue; x.border = BORD; x.font = F_REG;
+        if(c===4 || c===5 || c>5){ x.numFmt = NUM; x.alignment = RIG; } else x.alignment = c===3 ? LEF : CEN; } };
+      split.slice(0,15).forEach(d=>{ ws.getCell(r,1).value = loc; ws.getCell(r,2).value = "분할단품"; ws.getCell(r,3).value = d.name;
+        ws.getCell(r,4).value = [...d.qty.values()].reduce((a,b)=> a+b, 0); ws.getCell(r,5).value = Math.round(d.amt*1000)/1000;
+        d.qty.forEach((q,s)=> ws.getCell(r, scol.get(s)).value = q); fmt(r); r++; });
+      const jb = new Map(); single.forEach(d=>{ const s = [...d.stores][0]; const o = jb.get(s) || [0,0,0]; o[0] += [...d.qty.values()].reduce((a,b)=> a+b, 0); o[1] += d.amt; o[2]++; jb.set(s, o); });
+      jb.forEach(([q,amt,kinds], s)=>{ ws.getCell(r,1).value = loc; ws.getCell(r,2).value = "잔량"; ws.getCell(r,3).value = `기타 ${kinds}종 일괄  →  ${s}`;
+        ws.getCell(r,4).value = q; ws.getCell(r,5).value = Math.round(amt*1000)/1000; ws.getCell(r, scol.get(s)).value = q; fmt(r); r++; });
+      const items = R.pallets.find(p=> p[0]===loc)[1], pv = items.reduce((a,i)=> a + i.price*i.qty, 0), pq = items.reduce((a,i)=> a + i.qty, 0);
+      ws.getCell(r,1).value = loc; ws.getCell(r,2).value = "파렛트 소계"; ws.getCell(r,3).value = `원파렛트 ${pq}개 / ${Math.round(pv).toLocaleString("en-US")}원`;
+      ws.getCell(r,4).value = pq; ws.getCell(r,5).value = Math.round(pv*1000)/1000;
+      STORES.forEach(s=>{ const t = R.alloc.filter(a=> a.loc===loc && a.store===s).reduce((a,b)=> a+b.qty, 0); if(t) ws.getCell(r, scol.get(s)).value = t; });
+      fmt(r); for(let c=1;c<=hdr.length;c++) ws.getCell(r,c).fill = SUB;
+      r += 2; });
+    if(!broken.length) ws.getCell(4,1).value = "해체한 파렛트 없음 — 모든 파렛트를 통짜로 배정";
+    widths(ws, { A:18, B:10, C:34, D:9, E:16 }); STORES.forEach((s,i)=> ws.getColumn(6+i).width = 9);
+  }
+  // (5) 분배표(전체)
+  { const ws = sheet(`${L}분배표(전체)`);
+    ws.getCell(1,1).value = `${L} 분배 (전체 로케이션 × 매장, 매장판매가 총액)  기준일 ${baseDate}`; ws.getCell(1,1).font = { name:"맑은 고딕", size:12, bold:true };
+    const hdr = ["로케이션","대표품목","총수량","합계 금액"].concat(STORES);
+    hdr.forEach((h,c)=> ws.getCell(3,c+1).value = h); header(ws, 3, hdr.length, GREEN);
+    const amtOf = new Map(); R.alloc.forEach(a=>{ const k = a.loc+"|"+a.store; amtOf.set(k, (amtOf.get(k)||0) + a.amt); });
+    let r = 4; const colTot = STORES.map(()=> 0);
+    R.pallets.forEach(([loc, items])=>{
+      ws.getCell(r,1).value = loc; ws.getCell(r,2).value = items[0].name; ws.getCell(r,3).value = items.reduce((a,i)=> a+i.qty, 0);
+      let rs = 0;
+      STORES.forEach((s,i)=>{ const v = amtOf.get(loc+"|"+s)||0; rs += v; colTot[i] += v; const Lr = lastRow[s];
+        ws.getCell(r, 5+i).value = { formula:`SUMIF('${s}'!$I$3:$I$${Lr},$A${r},'${s}'!$Q$3:$Q$${Lr})`, result:v }; });
+      ws.getCell(r,4).value = { formula:`SUM(E${r}:${colL(4+STORES.length)}${r})`, result:rs }; r++; });
+    const tot = r;
+    ws.getCell(tot,1).value = "합계"; ws.getCell(tot,4).value = { formula:`SUM(D4:D${tot-1})`, result:colTot.reduce((a,b)=> a+b, 0) };
+    STORES.forEach((s,i)=>{ const cl = colL(5+i); ws.getCell(tot, 5+i).value = { formula:`SUM(${cl}4:${cl}${tot-1})`, result:colTot[i] }; });
+    for(let rr=4;rr<=tot;rr++) for(let c=1;c<=hdr.length;c++){ const x = ws.getCell(rr,c); x.border = BORD; x.font = rr===tot ? F_BOLD : F_REG;
+      if(c>=3){ x.numFmt = NUM; x.alignment = RIG; } else x.alignment = c===2 ? LEF : CEN; }
+    ws.getCell(tot,1).fill = SUB;
+    widths(ws, { A:18, B:30, C:8, D:14 }); STORES.forEach((s,i)=> ws.getColumn(5+i).width = 13);
+    ws.views = [{ state:"frozen", ySplit:3 }];
+  }
+  // (6) RAW 복사
+  const copy = (name, aoa)=>{ const ws = sheet(name); aoa.forEach((row,i)=>{ if(!row) return; row.forEach((v,j)=>{ if(v==null || v==="") return; const x = ws.getCell(i+1, j+1); x.value = v; x.font = F_REG; }); }); };
+  copy("RAW", D.raw.aoa);
+  // (7) 배분이력
+  { const ws = sheet("배분이력");
+    ["회차 기준일","매장","참여","배정금액","로트수","편차%","비고"].forEach((h,c)=> ws.getCell(1,c+1).value = h); header(ws, 1, 7);
+    let r = 2;
+    STORES.forEach((s,i)=>{ const srow = 4+i, g = got[s], t = R.targets.get(s);
+      ws.getCell(r,1).value = baseDate; ws.getCell(r,2).value = s; ws.getCell(r,3).value = "O";
+      ws.getCell(r,4).value = { formula:`ROUND(요약!C${srow},0)`, result:Math.round(g.a) };
+      ws.getCell(r,5).value = new Set(R.alloc.filter(a=> a.store===s).map(a=> a.loc)).size;
+      ws.getCell(r,6).value = { formula:`ROUND(요약!E${srow}*100,1)`, result: R.total ? Math.round((g.a-t)/R.total*1000)/10 : 0 }; r++; });
+    KD_NONPART.forEach(s=>{ ws.getCell(r,1).value = baseDate; ws.getCell(r,2).value = s; ws.getCell(r,3).value = "X"; ws.getCell(r,4).value = 0; ws.getCell(r,5).value = 0; ws.getCell(r,7).value = "이번 미참여 → 다음 회차 우선"; r++; });
+    for(let rr=2;rr<r;rr++) for(let c=1;c<=7;c++){ const x = ws.getCell(rr,c); x.border = BORD; x.font = F_REG; if([4,5,6].includes(c)){ x.numFmt = NUM; x.alignment = RIG; } else x.alignment = c===7 ? LEF : CEN; }
+    widths(ws, { A:14, B:12, C:6, D:14, E:8, F:8, G:26 });
+  }
+  // (8) 원본 · EOS(Sheet4) 복사
+  if(D.orig) copy("원본", D.orig.aoa);
+  D.extra.forEach(x=> copy(x.name, x.aoa));
+  return { wb, got };
+}
+async function kdHandleFile(f){
+  const st = document.getElementById("kdStatus"); if(!f) return;
+  if(!/\.xlsx$/i.test(f.name)){ st.innerHTML = '<span style="color:var(--red)">② 낙찰파일 생성기에서 만든 낙찰파일(.xlsx)을 올려 주세요</span>'; return; }
+  _kdFile = f; _kdCur = null; kdRender();
+  try{
+    st.textContent = "낙찰파일 읽는 중…"; await liqTick();
+    const t0 = Date.now(), D = await kdLoad(f);
+    st.textContent = "매장 분배 계산 중…"; await liqTick();
+    const R = kdAllocate(D.recs, KD_WEIGHTS);
+    const dEl = document.getElementById("kdDate"); let bd = String(dEl && dEl.value || "").trim(); if(!/^\d{4}-\d{2}-\d{2}$/.test(bd)){ bd = fmtDate(new Date()); if(dEl) dEl.value = bd; }
+    st.textContent = "엑셀 만드는 중…"; await liqTick();
+    const ExcelJS = await fiLoadScript("https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js","ExcelJS");
+    const { wb, got } = await kdWorkbook(ExcelJS, D, R, bd);
+    const bytes = new Uint8Array(await wb.xlsx.writeBuffer());
+    const outName = String(f.name).replace(/\.xlsx$/i,"") + "_매장분배표.xlsx";
+    _kdCur = { D, R, got, bytes, outName, bd, sec:((Date.now()-t0)/1000).toFixed(1) };
+    st.innerHTML = `✓ 매장 분배표 생성 완료 (${_kdCur.sec}초) — 아래에서 받으세요`;
+    kdRender();
+  }catch(e){ console.error(e); st.innerHTML = '<span style="color:var(--red)">생성 실패: '+escHtml(e && e.message || e)+'</span>'; }
+}
+function kdRender(){
+  const el = document.getElementById("kdResult"); if(!el) return;
+  const fi = document.getElementById("kdFileInfo"); if(fi) fi.innerHTML = _kdFile ? `낙찰파일: <b>${escHtml(_kdFile.name)}</b>` : "";
+  if(!_kdCur){ el.innerHTML = ""; return; }
+  const c = _kdCur, R = c.R, won = v=> Math.round(v).toLocaleString();
+  const nb = [...R.kind.values()].filter(k=> k==="해체").length;
+  el.innerHTML = `<div class="fi-file" style="margin-top:10px">
+    <div class="fi-file-hd"><span class="fi-type" style="border-color:#33C784;color:#33C784">${escHtml(KD_LABEL[c.D.type]||"분배")} 분배표</span> <span class="fi-fname">${escHtml(c.outName)}</span>
+      <button class="act primary fi-mini" id="kdDl">⬇ 다운로드</button> <button class="act fi-mini fi-del" id="kdDel" title="화면에서 결과 지우기">✕</button></div>
+    <div class="fi-mut" style="margin:4px 0 6px">기준일 ${escHtml(c.bd)} · 전체 ${R.pallets.length}PLT(통짜 ${R.pallets.length-nb} · 해체 ${nb}) · 매장판매가 총액 ${won(R.total)}원 · 상품 ${c.D.recs.length.toLocaleString()}행${c.D.excluded && c.D.excluded.length ? ` · <b>분배 제외(XL 그룹)</b>: ${escHtml(c.D.excluded.join(", "))}` : ""}</div>
+    <table class="fi-tbl"><thead><tr><th>매장</th><th class="n">목표금액</th><th class="n">배정금액</th><th class="n">편차</th><th class="n">편차%</th><th class="n">수량</th><th class="n">라인</th></tr></thead><tbody>
+    ${[...R.targets.keys()].map(s=>{ const g = c.got[s], t = R.targets.get(s); return `<tr><td>${escHtml(s)}</td><td class="n">${won(t)}</td><td class="n">${won(g.a)}</td><td class="n">${(g.a-t>=0?"+":"")+won(g.a-t)}</td><td class="n">${R.total?((g.a-t)/R.total*100).toFixed(2):"0.00"}%</td><td class="n">${g.q.toLocaleString()}</td><td class="n">${g.n.toLocaleString()}</td></tr>`; }).join("")}
+    </tbody></table>
+    <div class="fi-mut" style="margin-top:6px">시트: 요약 · 매장별 PLT배정 · 매장 ${R.targets.size}개 · ${escHtml(KD_LABEL[c.D.type]||"")}분배표(해체대상) · (전체) · RAW · 배분이력 · 원본${c.D.extra.length?" · "+escHtml(c.D.extra.map(x=>x.name).join(" · ")):""}</div>
+  </div>`;
+}
+function wireKdDist(){
+  const box = document.getElementById("kdBox"); if(!box || box._wired) return; box._wired = true;
+  const dz = document.getElementById("kdDrop"), inp = document.getElementById("kdInput");
+  const dEl = document.getElementById("kdDate"); if(dEl && !dEl.value) dEl.value = fmtDate(new Date());
+  dz.addEventListener("click", e=>{ if(e.target.closest("button")) return; inp.click(); });
+  dz.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); inp.click(); } });
+  inp.addEventListener("change", ()=>{ kdHandleFile(inp.files && inp.files[0]); inp.value = ""; });
+  dz.addEventListener("dragover", e=>{ e.preventDefault(); dz.classList.add("drag"); });
+  dz.addEventListener("dragleave", ()=> dz.classList.remove("drag"));
+  dz.addEventListener("drop", e=>{ e.preventDefault(); dz.classList.remove("drag"); kdHandleFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]); });
+  box.addEventListener("click", e=>{
+    if(e.target.closest("#kdDl") && _kdCur) fiDownloadBytes(_kdCur.outName, _kdCur.bytes);
+    else if(e.target.closest("#kdDel")){ _kdCur = null; kdRender(); document.getElementById("kdStatus").textContent = ""; }
+    else if(e.target.closest("#kdRedo") && _kdFile) kdHandleFile(_kdFile);
+  });
+  kdRender();
+}
+
 function wireEosLiq(){
   const box = document.getElementById("eosBox");
   if(!box || box._wired) return; box._wired = true;
@@ -19349,6 +19675,7 @@ async function fiDispFromFile(f){
 }
 /* build 139: 초기화 — 올려 둔(출력 대기 중인) 원본 · 입력칸 · 화면 결과 지우기. 각 기록(히스토리)은 그대로, ⑥ "전체 초기화"만 배차 요청 기록까지 삭제 */
 function fiResetCard(k){
+  if(k==="kd"){ try{ _kdFile = null; _kdCur = null; const st = document.getElementById("kdStatus"); if(st) st.textContent = ""; kdRender(); }catch(_){} return; }   // build 214
   const clr = id=>{ const e = document.getElementById(id); if(e) e.textContent = ""; };
   const val = id=>{ const e = document.getElementById(id); if(e) e.value = ""; };
   if(k==="ls"){ try{ _lsCur = null; }catch(_){} clr("lsStatus"); const i=document.getElementById("lsInput"); if(i) i.value=""; try{ lsRender(); }catch(_){} }
@@ -19369,7 +19696,7 @@ document.addEventListener("click", e=>{
   const b = e.target.closest && e.target.closest("button[data-all-dl]"); if(!b) return;
   e.preventDefault(); e.stopPropagation();
   const C = fiComboBuild();
-  if(!C.rows.length){ showNotice("받을 출고요청이 없습니다 — ④ 배차요청 & 직출 분배표에 메일(.mhtml)·글·캡처를 넣거나, 배차 요청 기록에서 '열기'로 올려 주세요."); return; }
+  if(!C.rows.length){ showNotice("받을 출고요청이 없습니다 — ⑤ 배차요청 & 직출 분배표에 메일(.mhtml)·글·캡처를 넣거나, 배차 요청 기록에서 '열기'로 올려 주세요."); return; }
   const lk = C.ents.filter(h=> !_fiCombo.off[h.id]).map(h=>({ h, s:fiComboState(h) })).filter(x=> x.s.pending || x.s.destMiss);
   if(lk.length){ showNotice("아직 끝나지 않은 배차 요청이 있습니다 — " + lk.map(x=> `${fiComboLabel(x.h)}: ${[x.s.pending?`확인 질문 ${x.s.pending}개`:"", x.s.destMiss?`도착지 미선택 ${x.s.destMiss}곳`:""].filter(Boolean).join(" · ")}`).join(" / ")); const el=document.getElementById("fiDispCombo"); if(el) el.scrollIntoView({behavior:"smooth"}); return; }
   const ds = C.dates.filter(Boolean), tag = ds.length ? (ds.length>1 ? `${ds[0].replace(/-/g,"")}-${ds[ds.length-1].slice(5).replace(/-/g,"")}` : ds[0].replace(/-/g,"")) : "날짜미정";
@@ -19379,14 +19706,14 @@ document.addEventListener("click", e=>{
   const b = e.target.closest && e.target.closest("button[data-reset]"); if(!b) return;
   e.preventDefault(); e.stopPropagation();
   const k = b.dataset.reset;
-  const name = { ls:"① 요약본 생성기 · 정기비딩", liq:"② 낙찰파일 생성기 · 정기비딩", es:"① 요약본 생성기 · 임박식품", eos:"② 낙찰파일 생성기 · 임박식품", fds:"① 요약본 생성기 · FC파손/데드우드", fd:"② 낙찰파일 생성기 · FC파손/데드우드", fi:"③ 고정인수 · 낙찰파일 생성", disp:"④ 배차요청 & 직출 분배표" }[k];
+  const name = { ls:"① 요약본 생성기 · 정기비딩", liq:"② 낙찰파일 생성기 · 정기비딩", es:"① 요약본 생성기 · 임박식품", eos:"② 낙찰파일 생성기 · 임박식품", fds:"① 요약본 생성기 · FC파손/데드우드", fd:"② 낙찰파일 생성기 · FC파손/데드우드", kd:"③ 매장 분배표", fi:"④ 고정인수 · 낙찰파일 생성", disp:"⑤ 배차요청 & 직출 분배표" }[k];
   if(k==="all"){
-    if(!confirm("①~④에 올린 원본 파일 · 입력한 LOT · 화면 결과를 모두 지울까요?\n(낙찰파일 기록 · 분배 히스토리 · 배차 요청 기록은 그대로 남습니다)")) return;
-    ["ls","liq","es","eos","fds","fd","fi","disp"].forEach(fiResetCard); if(typeof flash==="function") flash("초기화 완료 ✓", "업로드 자료"); return;
+    if(!confirm("①~⑤에 올린 원본 파일 · 입력한 LOT · 화면 결과를 모두 지울까요?\n(낙찰파일 기록 · 분배 히스토리 · 배차 요청 기록은 그대로 남습니다)")) return;
+    ["ls","liq","es","eos","fds","fd","kd","fi","disp"].forEach(fiResetCard); if(typeof flash==="function") flash("초기화 완료 ✓", "업로드 자료"); return;
   }
   if(k==="dispAll"){
     const n = (FI_DISPATCH_HISTORY||[]).length;
-    if(!confirm(`④ 배차요청 & 직출 분배표의 배차 요청서를 전체 초기화할까요?\n인식 결과 · 붙여넣은 글과 함께 배차 요청 기록 ${n}개(합본 대상)를 모두 삭제합니다.`)) return;
+    if(!confirm(`⑤ 배차요청 & 직출 분배표의 배차 요청서를 전체 초기화할까요?\n인식 결과 · 붙여넣은 글과 함께 배차 요청 기록 ${n}개(합본 대상)를 모두 삭제합니다.`)) return;
     fiResetCard("dispAll"); return;
   }
   if(!confirm(`${name}의 올린 원본 · 입력칸 · 화면 결과를 지울까요? (기록은 그대로)`)) return;
