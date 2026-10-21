@@ -1203,7 +1203,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 210 · 2026-10-21</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 211 · 2026-10-21</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1764,8 +1764,8 @@
           <div class="fi-disp-paste">
             <textarea id="eosLots" class="fi-text" style="min-height:96px" placeholder="낙찰된 LOT 알파벳 (쉼표·점·띄어쓰기로 구분)&#10;예) C, E, G"></textarea>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-              <label class="fi-mut">낙찰일 <input id="eosDate" class="fi-sel" style="width:80px" placeholder="YYMMDD"></label>
-              <span class="fi-mut">파일명 맨 앞(YYMMDD) — 기본 오늘</span>
+              <label class="fi-mut">낙찰일 <input id="eosDate" class="fi-sel" style="width:96px" placeholder="YYYYMMDD"></label>
+              <span class="fi-mut">파일명 맨 앞(YYYYMMDD) — 기본 오늘</span>
               <button class="act primary fi-mini" id="eosGo" style="margin-left:auto">낙찰파일 생성</button>
             </div>
           </div>
@@ -16965,8 +16965,10 @@ function esXlLabel(src, g, codeHint){
   let fcs = [...new Set(src.filter(r=> esT(r[0]).toUpperCase()===g).map(r=> esT(r[2]).replace(/[\s\u00a0]+/g,"").toUpperCase()).filter(Boolean))];
   const hp = (/^([A-Z]+)/.exec(esT(codeHint).toUpperCase())||[])[1];
   if(hp && fcs.some(f=> f.indexOf(hp)===0)) fcs = fcs.filter(f=> f.indexOf(hp)===0);   // 같은 그룹이 여러 센터면 괄호 안 코드와 같은 센터만
-  let regs = [...new Set(fcs.map(esRegionKo).filter(Boolean))];
-  if(!regs.length && codeHint){ const k = esRegionKo(codeHint); if(k) regs = [k]; }
+  // build 211: 센터 번호까지 그대로 (CHA3 → 천안3, YEO2 → 여주2) — RAW 표의 센터 그대로
+  const full = fc=>{ const n = kkFcKo(fc); return /[가-힣]/.test(n) ? n.replace(/\s+/g,"") : esRegionKo(fc); };
+  let regs = [...new Set(fcs.map(full).filter(Boolean))];
+  if(!regs.length && codeHint){ const k = full(codeHint); if(k) regs = [k]; }
   if(!regs.length) return codeHint ? `${esT(codeHint).replace(/\d.*$/,"").toUpperCase()} ${g}` : g;
   return `${regs.join("·")} ${g}`;
 }
@@ -18448,8 +18450,12 @@ function eosReadAoa(sheets){
   const es = names.find(n=> eosT(n).toUpperCase()==="EOS");
   if(es && sheets[es]){
     const aoa = sheets[es];
-    for(let i=0;i<Math.min(aoa.length,10);i++){ const s = Array.from(aoa[i]||[], eosT); if(s[0]==="NO." && s[1]==="FC"){ eosHdr = (aoa[i]||[]).slice(0,4);
-      for(let j=i+1;j<aoa.length;j++){ const v=aoa[j]||[]; if(!eosT(v[0]) || !eosT(v[1])) continue; eos.push(v.slice(0,4)); }
+      for(let i=0;i<Math.min(aoa.length,10);i++){ const s = Array.from(aoa[i]||[], eosT); if(s[0]==="NO." && s[1]==="FC"){
+      // build 211: 열은 머리글 이름으로 (NO. | FC | 센터 | Unit | Pallet | Remark 처럼 Unit이 끼어 있어도 Pallet 칸을 읽음)
+      const cC = s.findIndex((h,k)=> k>1 && /센터|center/i.test(h)), pC = s.findIndex((h,k)=> k>1 && /^(pallet|plt|팔레트|파렛트)$/i.test(h));
+      const ci = cC>=0 ? cC : 2, pi = pC>=0 ? pC : 3, H0 = aoa[i]||[];
+      eosHdr = [H0[0], H0[1], H0[ci], H0[pi]];
+      for(let j=i+1;j<aoa.length;j++){ const v=aoa[j]||[]; if(!eosT(v[0]) || !eosT(v[1])) continue; eos.push([v[0], v[1], v[ci], v[pi]]); }
       break; } }
   }
   if(!eosHdr){
@@ -18459,7 +18465,13 @@ function eosReadAoa(sheets){
         const fc = eosT(v[u+1]); const nm = (typeof fiCenterName==="function" ? fiCenterName(fc) : fc) || fc;
         eos.push([" "+eosT(v[u])+" ", fc, " "+nm+" ", v[u+2]==null?null:+v[u+2]]); } }
   }
-  return { hdr, rows, eosHdr: eosHdr || ["NO.","FC"," 센터 "," Pallet "], eos, sheet: rawName, eosFromSheet: !!es };
+  // build 211: RAW 오른쪽 LOT 합계표(NO | PLT | MIN BID AMT) — 있으면 LOT PLT는 이 표 기준
+  const lotPlt = {};
+  { const s = Array.from(raw.aoa[raw.hi]||[], eosT);
+    for(let c=19;c<s.length;c++) if(/^no$/i.test(s[c]) && /^(plt|pallet)$/i.test(s[c+1]||"")){
+      for(let i=raw.hi+1;i<raw.aoa.length;i++){ const v = raw.aoa[i]||[]; const n = eosT(v[c]).toUpperCase(), p = v[c+1]; if(n && p!=null && p!=="" && !isNaN(+p)) lotPlt[n] = +p; }
+      break; } }
+  return { hdr, rows, eosHdr: eosHdr || ["NO.","FC"," 센터 "," Pallet "], eos, sheet: rawName, eosFromSheet: !!es, lotPlt };
 }
 function eosRateOf(cate2, cate3, cate4){
   const o = { CATE2:cate2, CATE3:cate3, CATE4:cate4 };
@@ -18467,7 +18479,7 @@ function eosRateOf(cate2, cate3, cate4){
   const s = liqSiblingRate(o); if(s!=null) return { r:s, guess:true };
   return { r:0, miss:true };
 }
-function eosYYMMDD(s){ const d = String(s||"").replace(/\D/g,""); return d.length===8 ? d.slice(2) : d.length===6 ? d : ""; }
+function eosYYMMDD(s){ const d = String(s||"").replace(/\D/g,""); return d.length===8 ? d : d.length===6 ? "20"+d : ""; }   // build 211: 파일명 날짜 YYYYMMDD
 // LOT 하나 → 낙찰파일 내용
 function eosBuildLot(D, lot, date6){
   const src = D.rows.filter(r=> eosT(r[1]).toUpperCase()===lot);
@@ -18491,14 +18503,17 @@ function eosBuildLot(D, lot, date6){
     if(!grp.has(key)) grp.set(key, { g, fc, locs:new Set() }); const l = eosT(r[10]); if(l) grp.get(key).locs.add(l); });
   const eosPltTbl = eos.reduce((s,r)=> s + (+r[3]||0), 0);
   const eosPlt = eos.length ? eosPltTbl : (grp.get("EOS") ? grp.get("EOS").locs.size : 0);
-  const others = [...grp.values()].filter(x=> x.g!=="EOS").map(x=>({ g:x.g, fc:x.fc, plt:x.locs.size, label:`${x.fc.replace(/[^A-Z].*$/i,"").toUpperCase()} ${x.g} ${x.locs.size}PLT` }));
-  const plt = eosPlt + others.reduce((s,x)=> s+x.plt, 0);
-  const centers = eos.map(r=> eosT(r[2])).filter(Boolean);
+  const others = [...grp.values()].filter(x=> x.g!=="EOS").map(x=>({ g:x.g, fc:x.fc, plt:x.locs.size, label:`${kkFcKo(x.fc)||x.fc} ${x.g} ${x.locs.size}PLT` }));
+  let plt = eosPlt + others.reduce((s,x)=> s+x.plt, 0);
+  const tblPlt = D.lotPlt && D.lotPlt[lot];   // build 211: RAW 오른쪽 LOT 합계표가 있으면 그 PLT
+  const pltCalc = plt; if(tblPlt!=null) plt = tblPlt;
+  // build 211: 센터 칸이 "VF by Vendor" 같은 문구면 FC 코드(VF186), 코드면 한글 센터명
+  const centers = [...new Set(eos.map(r=>{ const c = eosT(r[2]), f = eosT(r[1]); return esIsCenter(c) ? kkFcKo(c).replace(/\s+/g,"") : (esIsCenter(f) ? kkFcKo(f) : c); }).filter(Boolean))];
   // build 133: 파일명 조각 = LOT(EOS 센터명 붙여쓰기, nPLT) — 여러 LOT은 한 파일, "_"로 연결
   const name = `${date6}_FC_임박식품_${lot}(${centers.join("")}, ${plt}PLT)`;
   const tot = raw.reduce((a,r)=>{ a.q += +r[13]||0; a.s += r[16]; a.w += r[18]; return a; }, { q:0, s:0, w:0 });
   const sales = src.reduce((s,r)=> s + (+r[18]||0), 0);
-  return { lot, src, raw, eos, centers, eosPlt, others, plt, name, outName: eosSafeFile(name)+".xlsx", rows: src.length, qty: tot.q, shop: tot.s, whole: tot.w, sales, missingRate, guessRate };
+  return { lot, src, raw, eos, centers, eosPlt, others, plt, pltCalc, tblPlt, name, outName: eosSafeFile(name)+".xlsx", rows: src.length, qty: tot.q, shop: tot.s, whole: tot.w, sales, missingRate, guessRate };
 }
 // build 133: 낙찰 LOT 여러 개 → 낙찰파일 1개 (원본/RAW 행·EOS 표를 LOT 입력 순서대로 이어 붙임)
 //   파일명 = YYMMDD_FC_임박식품_C(경기광주1경기광주3경기광주5, 83PLT)_F(인천16인천28…, 43PLT)
@@ -18782,10 +18797,11 @@ async function eosDispHistTable(date, lots){
   const ymd6 = String(date||"").replace(/-/g,"").slice(2);
   const list = (typeof EOS_HISTORY!=="undefined" && Array.isArray(EOS_HISTORY)) ? EOS_HISTORY : [];
   const want = new Set(lots);
-  const score = h=>{ const hl = new Set(h.lots||[]); let s = 0; want.forEach(l=>{ if(hl.has(l)) s+=2; }); if(h.date===ymd6) s+=3; return s; };
+  const sameD = h=> String(h.date||"").replace(/\D/g,"").slice(-6)===ymd6;   // build 211: 기록 날짜가 YYMMDD · YYYYMMDD 둘 다 가능
+  const score = h=>{ const hl = new Set(h.lots||[]); let s = 0; want.forEach(l=>{ if(hl.has(l)) s+=2; }); if(sameD(h)) s+=3; return s; };
   const cand = list.filter(h=> (h.lots||[]).some(l=> want.has(l))).sort((a,b)=> score(b)-score(a) || b.id-a.id);
   for(const h of cand.slice(0,3)){
-    if(h.date!==ymd6 && Math.abs(h.id - Date.parse(date)) > 4*86400000) continue;   // 날짜가 다르면 4일 이내 기록만
+    if(!sameD(h) && Math.abs(h.id - Date.parse(date)) > 4*86400000) continue;   // 날짜가 다르면 4일 이내 기록만
     let tbl = Array.isArray(h.eos) ? h.eos : null;
     if(!tbl){
       tbl = [];
