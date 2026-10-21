@@ -1203,7 +1203,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 211 · 2026-10-21</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 212 · 2026-10-21</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -18466,12 +18466,18 @@ function eosReadAoa(sheets){
         eos.push([" "+eosT(v[u])+" ", fc, " "+nm+" ", v[u+2]==null?null:+v[u+2]]); } }
   }
   // build 211: RAW 오른쪽 LOT 합계표(NO | PLT | MIN BID AMT) — 있으면 LOT PLT는 이 표 기준
-  const lotPlt = {};
+  const lotPlt = {}, lotFc = {};   // build 212: lotFc = RAW 오른쪽 FC별 표(NO. | FC | Pallet) — "XLC(CHA3) 9" 같은 추가 그룹 PLT
+  { const s = Array.from(raw.aoa[raw.hi]||[], eosT);
+    for(let c=19;c<s.length;c++) if(/^no\.?$/i.test(s[c]) && /^fc/i.test(s[c+1]||"") && /^(plt|pallet)$/i.test(s[c+2]||"")){
+      let last = "";
+      for(let i=raw.hi+1;i<raw.aoa.length;i++){ const v = raw.aoa[i]||[]; let n = eosT(v[c]).toUpperCase(); const fc = eosT(v[c+1]); if(!fc) continue; if(!n) n = last; if(!n) continue; last = n;
+        (lotFc[n] = lotFc[n] || []).push({ fc, plt: v[c+2]==null||v[c+2]==="" ? null : +v[c+2] }); }
+      break; } }
   { const s = Array.from(raw.aoa[raw.hi]||[], eosT);
     for(let c=19;c<s.length;c++) if(/^no$/i.test(s[c]) && /^(plt|pallet)$/i.test(s[c+1]||"")){
       for(let i=raw.hi+1;i<raw.aoa.length;i++){ const v = raw.aoa[i]||[]; const n = eosT(v[c]).toUpperCase(), p = v[c+1]; if(n && p!=null && p!=="" && !isNaN(+p)) lotPlt[n] = +p; }
       break; } }
-  return { hdr, rows, eosHdr: eosHdr || ["NO.","FC"," 센터 "," Pallet "], eos, sheet: rawName, eosFromSheet: !!es, lotPlt };
+  return { hdr, rows, eosHdr: eosHdr || ["NO.","FC"," 센터 "," Pallet "], eos, sheet: rawName, eosFromSheet: !!es, lotPlt, lotFc };
 }
 function eosRateOf(cate2, cate3, cate4){
   const o = { CATE2:cate2, CATE3:cate3, CATE4:cate4 };
@@ -18503,17 +18509,24 @@ function eosBuildLot(D, lot, date6){
     if(!grp.has(key)) grp.set(key, { g, fc, locs:new Set() }); const l = eosT(r[10]); if(l) grp.get(key).locs.add(l); });
   const eosPltTbl = eos.reduce((s,r)=> s + (+r[3]||0), 0);
   const eosPlt = eos.length ? eosPltTbl : (grp.get("EOS") ? grp.get("EOS").locs.size : 0);
-  const others = [...grp.values()].filter(x=> x.g!=="EOS").map(x=>({ g:x.g, fc:x.fc, plt:x.locs.size, label:`${kkFcKo(x.fc)||x.fc} ${x.g} ${x.locs.size}PLT` }));
+  // build 212: 추가 그룹(XLA·XLB·XLC…) PLT = RAW 오른쪽 FC별 표 "XLC(CHA3) 9"가 있으면 그 값, 없으면 로케이션 수
+  const fcTbl = (D.lotFc && D.lotFc[lot]) || [];
+  const others = [...grp.values()].filter(x=> x.g!=="EOS").map(x=>{
+    const code = eosT(x.fc).toUpperCase(), t = fcTbl.find(y=>{ const m = /^(XL[A-Z])\s*\(\s*([^)]+)\)$/i.exec(y.fc); return m && m[1].toUpperCase()===x.g.toUpperCase() && m[2].replace(/\s/g,"").toUpperCase()===code; });
+    const plt = t && t.plt!=null ? t.plt : x.locs.size, nm = kkFcKo(x.fc) || x.fc;
+    return { g:x.g, fc:x.fc, name:nm, plt, tblFc: t ? t.fc : `${x.g}(${x.fc})`, label:`${nm} ${x.g} ${plt}PLT` }; });
   let plt = eosPlt + others.reduce((s,x)=> s+x.plt, 0);
   const tblPlt = D.lotPlt && D.lotPlt[lot];   // build 211: RAW 오른쪽 LOT 합계표가 있으면 그 PLT
   const pltCalc = plt; if(tblPlt!=null) plt = tblPlt;
   // build 211: 센터 칸이 "VF by Vendor" 같은 문구면 FC 코드(VF186), 코드면 한글 센터명
   const centers = [...new Set(eos.map(r=>{ const c = eosT(r[2]), f = eosT(r[1]); return esIsCenter(c) ? kkFcKo(c).replace(/\s+/g,"") : (esIsCenter(f) ? kkFcKo(f) : c); }).filter(Boolean))];
+  others.forEach(x=> centers.push(`${x.name}${x.g}`));   // build 212: 낙찰명에 추가 그룹 센터도 (… VF186천안3XLC)
+  const eosAll = eos.concat(others.map(x=> [lot, x.tblFc, `${x.name} ${x.g}`, x.plt]));   // 낙찰파일 원본·RAW 오른쪽 표에도 "B | XLC(CHA3) | 천안3 XLC | 9"
   // build 133: 파일명 조각 = LOT(EOS 센터명 붙여쓰기, nPLT) — 여러 LOT은 한 파일, "_"로 연결
   const name = `${date6}_FC_임박식품_${lot}(${centers.join("")}, ${plt}PLT)`;
   const tot = raw.reduce((a,r)=>{ a.q += +r[13]||0; a.s += r[16]; a.w += r[18]; return a; }, { q:0, s:0, w:0 });
   const sales = src.reduce((s,r)=> s + (+r[18]||0), 0);
-  return { lot, src, raw, eos, centers, eosPlt, others, plt, pltCalc, tblPlt, name, outName: eosSafeFile(name)+".xlsx", rows: src.length, qty: tot.q, shop: tot.s, whole: tot.w, sales, missingRate, guessRate };
+  return { lot, src, raw, eos: eosAll, eosOnly: eos, centers, eosPlt, others, plt, pltCalc, tblPlt, name, outName: eosSafeFile(name)+".xlsx", rows: src.length, qty: tot.q, shop: tot.s, whole: tot.w, sales, missingRate, guessRate };
 }
 // build 133: 낙찰 LOT 여러 개 → 낙찰파일 1개 (원본/RAW 행·EOS 표를 LOT 입력 순서대로 이어 붙임)
 //   파일명 = YYMMDD_FC_임박식품_C(경기광주1경기광주3경기광주5, 83PLT)_F(인천16인천28…, 43PLT)
@@ -18522,7 +18535,7 @@ function eosBuildAll(D, lots, date6){
   const cat = k=> [].concat(...parts.map(b=> b[k]));
   const sum = k=> parts.reduce((s,b)=> s + (+b[k]||0), 0);
   const name = `${date6}_FC_임박식품_` + parts.map(b=> `${b.lot}(${b.centers.join("")}, ${b.plt}PLT)`).join("_");
-  return { lot: lots.join(","), parts, src: cat("src"), raw: cat("raw"), eos: cat("eos"), centers: cat("centers"), others: cat("others"),
+  return { lot: lots.join(","), parts, src: cat("src"), raw: cat("raw"), eos: cat("eos"), eosOnly: cat("eosOnly"), centers: cat("centers"), others: cat("others"),
     eosPlt: sum("eosPlt"), plt: sum("plt"), name, outName: eosSafeFile(name)+".xlsx", rows: sum("rows"), qty: sum("qty"), shop: sum("shop"), whole: sum("whole"), sales: sum("sales"),
     missingRate: Object.assign({}, ...parts.map(b=>b.missingRate)), guessRate: Object.assign({}, ...parts.map(b=>b.guessRate)) };
 }
@@ -18537,12 +18550,12 @@ async function eosMakeWorkbook(ExcelJS, D, b){
   const ACC = '_-* #,##0_-;\\-* #,##0_-;_-* "-"_-;_-@_-', NUM0 = '0_);[Red]\\(0\\)';
   const F10 = { name:"맑은 고딕", size:10 }, F10B = { name:"맑은 고딕", size:10, bold:true }, F11 = { name:"맑은 고딕", size:11 };
   const MB = { style:"medium" };
-  const eosBlock = (ws, startRow)=>{
+  const eosBlock = (ws, startRow, rows)=>{
     const put = (r, vals, head)=> vals.forEach((v,j)=>{ const c = ws.getCell(r, 21+j); c.value = v==null ? null : v;
       c.font = { name:"Aptos", size:10, bold:!!head }; c.border = { left:j===0?MB:undefined, right:MB, top:head?MB:undefined, bottom:MB };
       if(head){ c.fill = { type:"pattern", pattern:"solid", fgColor:{ argb:"FFC0E6F5" } }; c.alignment = { horizontal:"center" }; } });
     put(startRow, D.eosHdr, true);
-    b.eos.forEach((r,i)=> put(startRow+1+i, r, false));
+    (rows || b.eos).forEach((r,i)=> put(startRow+1+i, r, false));
   };
   const sub = (ws, col, n, sum)=>{ const c = ws.getCell(1, col); c.value = { formula:`SUBTOTAL(9,${ws.getColumn(col).letter}3:${ws.getColumn(col).letter}1048576)`, result:sum }; c.font = F10B; c.numFmt = ACC; };
   // 원본
@@ -18554,17 +18567,42 @@ async function eosMakeWorkbook(ExcelJS, D, b){
   const colSum = (arr, j)=> arr.reduce((s,r)=> s + (typeof r[j]==="number" ? r[j] : 0), 0);
   [16,17,18,19].forEach(col=> sub(w1, col, b.src.length, colSum(b.src, col-1)));
   eosBlock(w1, 2);
-  // RAW
-  const w2 = wb.addWorksheet("RAW", { views:[{ zoomScale:85 }] });
-  [9,9,9,null,null,null,null,null,19.2,16.6,20.7,13.3,13.3,14.6,null,11.7,14.2,10.1,14.2,9].forEach((w,i)=>{ if(w) w2.getColumn(i+1).width = w; });
-  const h2 = EOS_RAW_PICK.map(i=> D.hdr[i]).concat(EOS_RAW_EXTRA);
-  for(let j=1;j<=19;j++){ const c = w2.getCell(2,j); if(h2[j-1]!=null) c.value = h2[j-1]; c.font = F10B; c.border = { bottom:{ style:"thin" } };
-    if(j===11) c.numFmt = NUM0; else if(j===12) c.numFmt = "@"; else if(j>=14 && j<=15) c.numFmt = ACC; else if(j>=16){ c.numFmt = ACC; c.font = { name:"맑은 고딕", size:9, bold:true }; c.alignment = { horizontal:"center" }; c.border = {}; } }
-  b.raw.forEach((r,i)=>{ const row = w2.getRow(3+i); r.forEach((v,j)=>{ if(v==null || v==="") return; const c = row.getCell(j+1); c.value = v;
-    if(j>=15){ c.font = F11; c.numFmt = ACC; c.alignment = { horizontal:"center" }; }
-    else { c.font = F10; if(j===10) c.numFmt = NUM0; else if(j===11) c.numFmt = "@"; else if(j===12) c.numFmt = NUM0; else if(j===13||j===14) c.numFmt = ACC; } }); });
-  [14,15,17,19].forEach(col=> sub(w2, col, b.raw.length, colSum(b.raw, col-1)));
-  eosBlock(w2, 2);
+  // build 212: 종합 (사용자 낙찰파일 예시와 같은 모양: 행 레이블 = No. > cate2 > cate4, 합계 : 수량 · 매장판매가 총액 · 도매판매가 총액, 금액 큰 순)
+  const w0 = wb.addWorksheet("종합", { views:[{ zoomScale:85 }] });
+  [28,14,22,22].forEach((w,i)=> w0.getColumn(i+1).width = w);
+  { const HF = { type:"pattern", pattern:"solid", fgColor:{ argb:"FFDDEBF7" } }, TB = { top:{ style:"thin", color:{ argb:"FF9BC2E6" } } };
+    const hd = ["행 레이블","합계 : 수량","합계 : 매장판매가 총액","합계 : 도매판매가 총액"];
+    hd.forEach((v,j)=>{ const c = w0.getCell(3, j+1); c.value = v; c.font = F10B; c.fill = HF; c.border = { bottom:{ style:"thin", color:{ argb:"FF9BC2E6" } } }; });
+    const agg = ()=>({ q:0, s:0, w:0, k:new Map() });
+    const tree = new Map(), tot = agg();
+    b.raw.forEach(r=>{ const no = eosT(r[0]).toUpperCase(), c2 = eosT(r[4]) || "(비어 있음)", c4 = eosT(r[6]) || "(비어 있음)";
+      const q = +r[13]||0, sh = +r[16]||0, wh = +r[18]||0;
+      const a = tree.get(no) || (tree.set(no, agg()), tree.get(no)); const b2 = a.k.get(c2) || (a.k.set(c2, agg()), a.k.get(c2)); const b4 = b2.k.get(c4) || (b2.k.set(c4, agg()), b2.k.get(c4));
+      [a,b2,b4,tot].forEach(o=>{ o.q += q; o.s += sh; o.w += wh; }); });
+    let r0 = 4;
+    const line = (label, o, lv)=>{ const row = w0.getRow(r0++);
+      [label, o.q, o.s, o.w].forEach((v,j)=>{ const c = row.getCell(j+1); c.value = v; c.font = lv<2 ? F10B : F10; if(j) c.numFmt = ACC; if(lv===0){ c.border = TB; } });
+      row.getCell(1).alignment = { indent: lv }; };
+    const byW = m=> [...m.entries()].sort((x,y)=> y[1].w - x[1].w);
+    [...tree.keys()].forEach(no=>{ const a = tree.get(no); line(no, a, 0);
+      byW(a.k).forEach(([c2, b2])=>{ line(c2, b2, 1); byW(b2.k).forEach(([c4, b4])=> line(c4, b4, 2)); }); });
+    const row = w0.getRow(r0); ["총합계", tot.q, tot.s, tot.w].forEach((v,j)=>{ const c = row.getCell(j+1); c.value = v; c.font = F10B; c.fill = HF; if(j) c.numFmt = ACC; c.border = TB; });
+  }
+  // RAW (+ build 212: 낙찰 LOT가 2개 이상이면 LOT별 시트도 — 예시 파일처럼 B · C · E)
+  const rawSheet = (name, rows, eosRows)=>{
+    const w2 = wb.addWorksheet(name, { views:[{ zoomScale:85 }] });
+    [9,9,9,null,null,null,null,null,19.2,16.6,20.7,13.3,13.3,14.6,null,11.7,14.2,10.1,14.2,9].forEach((w,i)=>{ if(w) w2.getColumn(i+1).width = w; });
+    const h2 = EOS_RAW_PICK.map(i=> D.hdr[i]).concat(EOS_RAW_EXTRA);
+    for(let j=1;j<=19;j++){ const c = w2.getCell(2,j); if(h2[j-1]!=null) c.value = h2[j-1]; c.font = F10B; c.border = { bottom:{ style:"thin" } };
+      if(j===11) c.numFmt = NUM0; else if(j===12) c.numFmt = "@"; else if(j>=14 && j<=15) c.numFmt = ACC; else if(j>=16){ c.numFmt = ACC; c.font = { name:"맑은 고딕", size:9, bold:true }; c.alignment = { horizontal:"center" }; c.border = {}; } }
+    rows.forEach((r,i)=>{ const row = w2.getRow(3+i); r.forEach((v,j)=>{ if(v==null || v==="") return; const c = row.getCell(j+1); c.value = v;
+      if(j>=15){ c.font = F11; c.numFmt = ACC; c.alignment = { horizontal:"center" }; }
+      else { c.font = F10; if(j===10) c.numFmt = NUM0; else if(j===11) c.numFmt = "@"; else if(j===12) c.numFmt = NUM0; else if(j===13||j===14) c.numFmt = ACC; } }); });
+    [14,15,17,19].forEach(col=> sub(w2, col, rows.length, colSum(rows, col-1)));
+    eosBlock(w2, 2, eosRows);
+  };
+  rawSheet("RAW", b.raw, b.eos);
+  if(b.parts && b.parts.length > 1) b.parts.forEach(pt=> rawSheet(pt.lot, pt.raw, pt.eos));
   return wb;
 }
 async function eosLoadFile(f, say){
@@ -18612,7 +18650,7 @@ async function eosGenerate(){
     _eosCur = { id, date6, files, notFound, srcName:_eosFile.name, eosFromSheet:D.eosFromSheet, sec:((Date.now()-t0)/1000).toFixed(1) };
     EOS_HISTORY = [{ id, at:new Date(id).toLocaleString("ko-KR"), date:date6, lots:ok, srcName:_eosFile.name,
       files: files.map(({b})=>({ lot:b.lot, name:b.name, outName:b.outName, plt:b.plt, rows:b.rows, qty:b.qty, shop:Math.round(b.shop), whole:Math.round(b.whole), sales:Math.round(b.sales) })),
-      eos: [].concat(...files.map(({b})=> (b.eos||[]).map(r=>[eosT(r[0]).toUpperCase(), eosT(r[1]).toUpperCase(), eosT(r[2]), +r[3]||0]))) }].concat(EOS_HISTORY);   // build 134: 배차 요청서 대조용 EOS 표
+      eos: [].concat(...files.map(({b})=> (b.eosOnly||b.eos||[]).map(r=>[eosT(r[0]).toUpperCase(), eosT(r[1]).toUpperCase(), eosT(r[2]), +r[3]||0]))) }].concat(EOS_HISTORY);   // build 134: 배차 요청서 대조용 EOS 표
     EOS_HISTORY.slice(40).forEach(h=> (h.files||[]).forEach(f=>{ try{ idbSet(`eos_file_${h.id}_${f.lot}`, null).catch(()=>{}); }catch(_){} }));
     eosPersist();
     say(`✓ 낙찰파일 생성 (LOT ${ok.join(", ")}) — ${files.reduce((s,x)=>s+x.b.plt,0)}PLT · ${files.reduce((s,x)=>s+x.b.rows,0).toLocaleString()}행 (${_eosCur.sec}초)`);
