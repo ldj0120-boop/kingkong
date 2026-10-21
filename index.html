@@ -1203,7 +1203,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 214 · 2026-10-21</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 215 · 2026-10-21</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -18910,36 +18910,42 @@ async function kdWorkbook(ExcelJS, D, R, baseDate){
     ws.getCell(r,1).fill = SUB;
     widths(ws, { A:12, B:10, C:40, D:30, E:20 });
   }
-  // (4) 분배표(해체대상)
+  // (4) 분배표(해체대상) — build 215: "기타 N종 일괄" 대신 상품 한 줄씩(바코드 · 상품명 · 단가 · 매장별 수량) — 센터에서 바로 나눌 수 있게
   { const ws = sheet(`${L}분배표(해체대상)`);
-    ws.getCell(1,1).value = `${L} (해체대상 PLT) — 분할단품 / 잔량 상세`; ws.getCell(1,1).font = { name:"맑은 고딕", size:12, bold:true };
-    ws.getCell(2,1).value = "※ 매장 칸은 수량, 합계 금액(E열)은 매장판매가 총액";
-    const hdr = ["로케이션","구분","상품명 / 잔량","합계수량","합계 금액(매장판매가 총액)"].concat(STORES);
+    ws.getCell(1,1).value = `${L} 해체 파렛트 — 상품별 매장 배정표  |  기준일 ${baseDate}`; ws.getCell(1,1).font = { name:"맑은 고딕", size:12, bold:true };
+    ws.getCell(2,1).value = "※ 해체 파렛트의 상품을 한 줄씩 적었습니다. 매장 칸 = 그 매장에 보낼 수량. 노란 줄 = 한 상품을 여러 매장에 나눔";
+    ws.getCell(2,1).font = { name:"맑은 고딕", size:10, color:{ argb:"FFC00000" } };
+    const hdr = ["로케이션","상품 바코드","상품명","매장판매가","총수량","금액(매장판매가 총액)","보낼 곳"].concat(STORES);
     hdr.forEach((h,c)=> ws.getCell(3,c+1).value = h); header(ws, 3, hdr.length);
-    const scol = new Map(STORES.map((s,i)=> [s, 6+i]));
+    const S0 = 8, scol = new Map(STORES.map((s,i)=> [s, S0+i])), YEL = fill("FFFFF2CC");
     const broken = R.pallets.map(p=> p[0]).filter(l=> R.kind.get(l)==="해체");
     let r = 4;
     broken.forEach(loc=>{
       const per = new Map();
-      R.alloc.filter(a=> a.loc===loc).forEach(a=>{ const k = a.it; const d = per.get(k) || { name:a.it.name, qty:new Map(), amt:0, stores:new Set() };
-        d.qty.set(a.store, (d.qty.get(a.store)||0) + a.qty); d.amt += a.amt; d.stores.add(a.store); per.set(k, d); });
-      const split = [...per.values()].filter(d=> d.stores.size>1).sort((a,b)=> b.amt-a.amt), single = [...per.values()].filter(d=> d.stores.size===1);
-      const fmt = (rr, from)=>{ for(let c=1;c<=hdr.length;c++){ const x = ws.getCell(rr,c); if(x.value==null && c>5) continue; x.border = BORD; x.font = F_REG;
-        if(c===4 || c===5 || c>5){ x.numFmt = NUM; x.alignment = RIG; } else x.alignment = c===3 ? LEF : CEN; } };
-      split.slice(0,15).forEach(d=>{ ws.getCell(r,1).value = loc; ws.getCell(r,2).value = "분할단품"; ws.getCell(r,3).value = d.name;
-        ws.getCell(r,4).value = [...d.qty.values()].reduce((a,b)=> a+b, 0); ws.getCell(r,5).value = Math.round(d.amt*1000)/1000;
-        d.qty.forEach((q,s)=> ws.getCell(r, scol.get(s)).value = q); fmt(r); r++; });
-      const jb = new Map(); single.forEach(d=>{ const s = [...d.stores][0]; const o = jb.get(s) || [0,0,0]; o[0] += [...d.qty.values()].reduce((a,b)=> a+b, 0); o[1] += d.amt; o[2]++; jb.set(s, o); });
-      jb.forEach(([q,amt,kinds], s)=>{ ws.getCell(r,1).value = loc; ws.getCell(r,2).value = "잔량"; ws.getCell(r,3).value = `기타 ${kinds}종 일괄  →  ${s}`;
-        ws.getCell(r,4).value = q; ws.getCell(r,5).value = Math.round(amt*1000)/1000; ws.getCell(r, scol.get(s)).value = q; fmt(r); r++; });
+      // 같은 상품(바코드 · 상품명 · 단가)이 여러 줄이면 한 줄로 합침
+      R.alloc.filter(a=> a.loc===loc).forEach(a=>{ const k = `${kdT(a.it.bar)}|${kdT(a.it.name)}|${a.it.price}`; const d = per.get(k) || { it:a.it, qty:new Map(), amt:0 };
+        d.qty.set(a.store, (d.qty.get(a.store)||0) + a.qty); d.amt += a.amt; per.set(k, d); });
+      const list = [...per.values()].sort((x,y)=> (y.qty.size>1) - (x.qty.size>1) || (STORES.indexOf([...x.qty.keys()][0]) - STORES.indexOf([...y.qty.keys()][0])) || (y.amt - x.amt));
+      const st = new Map();
+      list.forEach(d=>{
+        const tq = [...d.qty.values()].reduce((a,b)=> a+b, 0), split = d.qty.size > 1;
+        const vals = [loc, d.it.bar==null ? "" : String(d.it.bar), kdT(d.it.name).replace(/^★_/,""), d.it.price, tq, Math.round(d.amt), STORES.filter(s=> d.qty.has(s)).map(s=> `${s} ${d.qty.get(s)}`).join(" / ")];
+        vals.forEach((v,c)=> ws.getCell(r,c+1).value = v);
+        d.qty.forEach((q,s)=>{ ws.getCell(r, scol.get(s)).value = q; st.set(s, (st.get(s)||0) + q); });
+        for(let c=1;c<=hdr.length;c++){ const x = ws.getCell(r,c); x.border = BORD; x.font = c>=S0 && x.value!=null ? F_BOLD : F_REG;
+          if(c===4 || c===5 || c===6 || c>=S0){ x.numFmt = NUM; x.alignment = RIG; } else x.alignment = c===3 || c===7 ? LEF : CEN;
+          if(split) x.fill = YEL; }
+        r++; });
       const items = R.pallets.find(p=> p[0]===loc)[1], pv = items.reduce((a,i)=> a + i.price*i.qty, 0), pq = items.reduce((a,i)=> a + i.qty, 0);
-      ws.getCell(r,1).value = loc; ws.getCell(r,2).value = "파렛트 소계"; ws.getCell(r,3).value = `원파렛트 ${pq}개 / ${Math.round(pv).toLocaleString("en-US")}원`;
-      ws.getCell(r,4).value = pq; ws.getCell(r,5).value = Math.round(pv*1000)/1000;
-      STORES.forEach(s=>{ const t = R.alloc.filter(a=> a.loc===loc && a.store===s).reduce((a,b)=> a+b.qty, 0); if(t) ws.getCell(r, scol.get(s)).value = t; });
-      fmt(r); for(let c=1;c<=hdr.length;c++) ws.getCell(r,c).fill = SUB;
+      ws.getCell(r,1).value = loc; ws.getCell(r,3).value = `파렛트 합계 — 상품 ${list.length}종 · ${pq}개`; ws.getCell(r,5).value = pq; ws.getCell(r,6).value = Math.round(pv);
+      ws.getCell(r,7).value = STORES.filter(s=> st.has(s)).map(s=> `${s} ${st.get(s)}`).join(" / ");
+      st.forEach((q,s)=> ws.getCell(r, scol.get(s)).value = q);
+      for(let c=1;c<=hdr.length;c++){ const x = ws.getCell(r,c); x.border = BORD; x.font = F_BOLD; x.fill = SUB;
+        if(c===5 || c===6 || c>=S0){ x.numFmt = NUM; x.alignment = RIG; } else x.alignment = c===3 || c===7 ? LEF : CEN; }
       r += 2; });
     if(!broken.length) ws.getCell(4,1).value = "해체한 파렛트 없음 — 모든 파렛트를 통짜로 배정";
-    widths(ws, { A:18, B:10, C:34, D:9, E:16 }); STORES.forEach((s,i)=> ws.getColumn(6+i).width = 9);
+    widths(ws, { A:17, B:16, C:40, D:11, E:8, F:14, G:30 }); STORES.forEach((s,i)=> ws.getColumn(S0+i).width = 8.5);
+    ws.views = [{ state:"frozen", ySplit:3 }];
   }
   // (5) 분배표(전체)
   { const ws = sheet(`${L}분배표(전체)`);
