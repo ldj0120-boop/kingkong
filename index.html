@@ -1305,22 +1305,6 @@
   </section>
 
   <section id="view-sales" role="tabpanel" aria-labelledby="tab-sales" hidden>
-    <!-- 2026-10-21: 사용자 요청 — 전매장/매장별 "월별 일별 매출"을 막대그래프로. 막대 아래 날짜·요일,
-         막대에 마우스를 올리면 전일·전주(같은 요일)·전월(같은 날짜) 대비를 툴팁으로 보여준다. -->
-    <div class="agg-card" id="salesDailyCard" style="margin-top:0;margin-bottom:14px;">
-      <div class="p-hd">
-        <span class="store-name">일별 매출 (월별)</span>
-        <span class="meta" id="salesDailyMeta">막대에 마우스를 올리면 전일·전주·전월 대비가 표시됩니다</span>
-      </div>
-      <div style="padding:10px 18px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <label for="salesDailyMonth" style="font-family:'Oswald';font-size:11px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;">월</label>
-        <select id="salesDailyMonth" style="max-width:150px;"></select>
-        <label for="salesDailyStore" style="font-family:'Oswald';font-size:11px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;">매장</label>
-        <select id="salesDailyStore" style="max-width:220px;"></select>
-      </div>
-      <div id="salesDailyWrap" style="padding:12px 18px 18px;"></div>
-    </div>
-
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;flex-wrap:wrap;">
       <div style="display:flex;align-items:center;gap:10px;">
         <label for="salesDateSelect" style="font-family:'Oswald';font-size:11px;letter-spacing:.1em;color:var(--muted2);text-transform:uppercase;">기준일 (매출 스냅샷)</label>
@@ -1345,6 +1329,22 @@
       </div>
       <div id="salesTrendBody"></div>
     </div>
+    <!-- 2026-10-21: 사용자 요청 — 전매장/매장별 "월별 일별 매출"을 막대그래프로. 막대 아래 날짜·요일,
+         막대에 마우스를 올리면 전일·전주(같은 요일)·전월(같은 날짜) 대비를 툴팁으로 보여준다. -->
+    <div class="agg-card" id="salesDailyCard" >
+      <div class="p-hd">
+        <span class="store-name">일별 매출 (월별)</span>
+        <span class="meta" id="salesDailyMeta">막대에 마우스를 올리면 전일·전주·전월 대비가 표시됩니다</span>
+      </div>
+      <div style="padding:10px 18px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <label for="salesDailyMonth" style="font-family:'Oswald';font-size:11px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;">월</label>
+        <select id="salesDailyMonth" style="max-width:150px;"></select>
+        <label for="salesDailyStore" style="font-family:'Oswald';font-size:11px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;">매장</label>
+        <select id="salesDailyStore" style="max-width:220px;"></select>
+      </div>
+      <div id="salesDailyWrap" style="padding:12px 18px 18px;"></div>
+    </div>
+
 
     <div class="agg-card">
       <div class="p-hd">
