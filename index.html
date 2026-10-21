@@ -1203,7 +1203,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 212 · 2026-10-21</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 213 · 2026-10-21</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -18520,13 +18520,15 @@ function eosBuildLot(D, lot, date6){
   const pltCalc = plt; if(tblPlt!=null) plt = tblPlt;
   // build 211: 센터 칸이 "VF by Vendor" 같은 문구면 FC 코드(VF186), 코드면 한글 센터명
   const centers = [...new Set(eos.map(r=>{ const c = eosT(r[2]), f = eosT(r[1]); return esIsCenter(c) ? kkFcKo(c).replace(/\s+/g,"") : (esIsCenter(f) ? kkFcKo(f) : c); }).filter(Boolean))];
-  others.forEach(x=> centers.push(`${x.name}${x.g}`));   // build 212: 낙찰명에 추가 그룹 센터도 (… VF186천안3XLC)
+  // build 213: 낙찰명 = EOS 센터, EOS PLT + 추가 그룹마다 "천안3XLC, 9PLT" → B(이천1…VF186, 62PLT 천안3 XLC, 9PLT)
+  const eosPltN = tblPlt!=null ? tblPlt - others.reduce((a,x)=> a+(+x.plt||0), 0) : eosPlt;
+  const seg = `${lot}(${centers.join("")}, ${eosPltN}PLT` + others.map(x=> ` ${x.name} ${x.g}, ${x.plt}PLT`).join("") + ")";
   const eosAll = eos.concat(others.map(x=> [lot, x.tblFc, `${x.name} ${x.g}`, x.plt]));   // 낙찰파일 원본·RAW 오른쪽 표에도 "B | XLC(CHA3) | 천안3 XLC | 9"
   // build 133: 파일명 조각 = LOT(EOS 센터명 붙여쓰기, nPLT) — 여러 LOT은 한 파일, "_"로 연결
-  const name = `${date6}_FC_임박식품_${lot}(${centers.join("")}, ${plt}PLT)`;
+  const name = `${date6}_FC_임박식품_${seg}`;
   const tot = raw.reduce((a,r)=>{ a.q += +r[13]||0; a.s += r[16]; a.w += r[18]; return a; }, { q:0, s:0, w:0 });
   const sales = src.reduce((s,r)=> s + (+r[18]||0), 0);
-  return { lot, src, raw, eos: eosAll, eosOnly: eos, centers, eosPlt, others, plt, pltCalc, tblPlt, name, outName: eosSafeFile(name)+".xlsx", rows: src.length, qty: tot.q, shop: tot.s, whole: tot.w, sales, missingRate, guessRate };
+  return { lot, seg, src, raw, eos: eosAll, eosOnly: eos, centers, eosPlt, others, plt, pltCalc, tblPlt, name, outName: eosSafeFile(name)+".xlsx", rows: src.length, qty: tot.q, shop: tot.s, whole: tot.w, sales, missingRate, guessRate };
 }
 // build 133: 낙찰 LOT 여러 개 → 낙찰파일 1개 (원본/RAW 행·EOS 표를 LOT 입력 순서대로 이어 붙임)
 //   파일명 = YYMMDD_FC_임박식품_C(경기광주1경기광주3경기광주5, 83PLT)_F(인천16인천28…, 43PLT)
@@ -18534,7 +18536,7 @@ function eosBuildAll(D, lots, date6){
   const parts = lots.map(l=> eosBuildLot(D, l, date6));
   const cat = k=> [].concat(...parts.map(b=> b[k]));
   const sum = k=> parts.reduce((s,b)=> s + (+b[k]||0), 0);
-  const name = `${date6}_FC_임박식품_` + parts.map(b=> `${b.lot}(${b.centers.join("")}, ${b.plt}PLT)`).join("_");
+  const name = `${date6}_FC_임박식품_` + parts.map(b=> b.seg).join("_");
   return { lot: lots.join(","), parts, src: cat("src"), raw: cat("raw"), eos: cat("eos"), eosOnly: cat("eosOnly"), centers: cat("centers"), others: cat("others"),
     eosPlt: sum("eosPlt"), plt: sum("plt"), name, outName: eosSafeFile(name)+".xlsx", rows: sum("rows"), qty: sum("qty"), shop: sum("shop"), whole: sum("whole"), sales: sum("sales"),
     missingRate: Object.assign({}, ...parts.map(b=>b.missingRate)), guessRate: Object.assign({}, ...parts.map(b=>b.guessRate)) };
