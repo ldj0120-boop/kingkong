@@ -1203,7 +1203,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 216 · 2026-10-21</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 217 · 2026-10-21</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -19049,9 +19049,9 @@ function wireKdDist(){
   dz.addEventListener("click", e=>{ if(e.target.closest("button")) return; inp.click(); });
   dz.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); inp.click(); } });
   inp.addEventListener("change", ()=>{ kdHandleFile(inp.files && inp.files[0]); inp.value = ""; });
-  dz.addEventListener("dragover", e=>{ e.preventDefault(); dz.classList.add("drag"); });
-  dz.addEventListener("dragleave", ()=> dz.classList.remove("drag"));
-  dz.addEventListener("drop", e=>{ e.preventDefault(); dz.classList.remove("drag"); kdHandleFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]); });
+  ["dragenter","dragover"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("dragover"); }));   // build 217: 다른 칸과 같은 노란 표시
+  dz.addEventListener("dragleave", ()=> dz.classList.remove("dragover"));
+  dz.addEventListener("drop", e=>{ e.preventDefault(); dz.classList.remove("dragover"); kdHandleFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]); });
   box.addEventListener("click", e=>{
     if(e.target.closest("#kdDl") && _kdCur) fiDownloadBytes(_kdCur.outName, _kdCur.bytes);
     else if(e.target.closest("#kdDel")){ _kdCur = null; kdRender(); document.getElementById("kdStatus").textContent = ""; }
