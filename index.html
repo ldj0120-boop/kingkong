@@ -1203,7 +1203,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 208 · 2026-10-21</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 209 · 2026-10-21</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -15438,6 +15438,26 @@ function fiDispKnownDest(s){
   s = String(s||""); if(!s) return true;
   return s===FI_JINCHEON || Object.prototype.hasOwnProperty.call(fiEligMap(), s) || (typeof STORES!=="undefined" && STORES.includes(s));
 }
+/* build 209: 도착지 목록에 매장마다 그 카테고리 매장재고(최신 스냅샷 · XLG/XLS는 미반영 출고 포함) · 출고센터 → 매장 거리 표시
+   예) "수원점 · XLG 1PLT · 58km" */
+const FI_DEST_CAT_IDX = { XLA:0, XLB:1, XLC:2, XLE:3, XLG:4, XLGD:4, XLGH:4, XLGE:4, 임박:5, XLW:8, XLK:9, XLD:11, XLS:17 };
+let _fiDestStk = null, _fiDestStkAt = 0;
+function fiDestStock(){
+  if(_fiDestStk && Date.now()-_fiDestStkAt < 2000) return _fiDestStk;
+  const snap = typeof fiLatestSnap==="function" ? fiLatestSnap() : null;
+  let eff = {}; try{ if(snap) eff = fiEffStock(snap, null, null) || {}; }catch(_){}
+  _fiDestStk = { snap, raw: snap ? (snap.stock || {}) : {}, eff }; _fiDestStkAt = Date.now();
+  return _fiDestStk;
+}
+function fiDestStockOf(store, type){
+  const D = fiDestStock(); if(!D.snap || !store || store===FI_JINCHEON) return null;
+  const t = String(type||"").toUpperCase().replace(/\s/g,"");
+  if(t==="XLG" || t==="XLS"){ const e = D.eff[store]; if(e && e[t]!=null) return +e[t]||0; }
+  const idx = FI_DEST_CAT_IDX[t] != null ? FI_DEST_CAT_IDX[t] : FI_DEST_CAT_IDX[t.slice(0,3)];
+  if(idx==null) return null;
+  const a = D.raw[store]; if(!a) return null;
+  const v = a[idx]; return (v==null || v==="") ? 0 : (+v||0);   // 스냅샷에 매장이 있으면 빈칸 = 0
+}
 function fiDispDestOptions(r){
   const el = fiEligMap(), t = r.type || "XLG";
   const known = ["XLG","XLS","XLD"].includes(t);
@@ -15446,10 +15466,14 @@ function fiDispDestOptions(r){
   [FI_JINCHEON].concat(Object.keys(el), (typeof STORES!=="undefined" ? STORES : [])).forEach(s=>{ if(s && !top.includes(s) && !all.includes(s)) all.push(s); });
   const cur = String(r.dest||"");
   if(cur && !cur.includes(", ") && !top.includes(cur) && !all.includes(cur)) all.unshift(cur);   // 직접 입력한 값도 목록 맨 위에 보이게
-  const opt = s=>`<option value="${escHtml(s)}" ${s===cur?"selected":""}>${escHtml(s)+(FI_CLOSING.includes(s)?" (폐점예정)":"")}</option>`;
+  const D = fiDestStock(), tl = String(t).toUpperCase()==="임박" ? "임박" : String(t).toUpperCase();
+  const info = s=>{ const v = fiDestStockOf(s, t), k = r.fc ? fiKmTo(r.fc, s) : null;   // build 209
+    return (v!=null ? ` · ${tl} ${Math.round(v*10)/10}PLT` : "") + (k!=null ? ` · ${k}km` : ""); };
+  const opt = s=>`<option value="${escHtml(s)}" ${s===cur?"selected":""}>${escHtml(s+info(s)+(FI_CLOSING.includes(s)?" (폐점예정)":""))}</option>`;
+  const basis = (D.snap ? ` — 재고 ${String(D.snap.date||"").slice(0,10)} 기준` : " — 매장재고 없음") + (r.fc ? ` · ${fiCenterName(r.fc)||r.fc}에서 거리` : "");
   return `<option value="" ${cur?"":"selected"}>(선택)</option>`
-    + (top.length ? `<optgroup label="${escHtml(t)} 취급 매장">${top.map(opt).join("")}</optgroup>` : "")
-    + `<optgroup label="${top.length?"그 외 전체 매장":"전체 매장"}">${all.map(opt).join("")}</optgroup>`
+    + (top.length ? `<optgroup label="${escHtml(t+" 취급 매장"+basis)}">${top.map(opt).join("")}</optgroup>` : "")
+    + `<optgroup label="${escHtml((top.length?"그 외 전체 매장":"전체 매장")+(top.length?"":basis))}">${all.map(opt).join("")}</optgroup>`
     + (cur.includes(", ") ? `<option selected value="${escHtml(cur)}">${escHtml(cur)}</option>` : "");
 }
 // build 131: 출력 행 순서 = 사용자 배차표와 동일
@@ -15502,7 +15526,7 @@ function fiDispRender(){
   let h = `<div style="text-align:right;margin-bottom:6px"><button class="act fi-mini fi-del" id="fiDispCurDel" title="화면에서 이번 인식 결과 닫기 (기록은 아래 배차 요청 기록에서 ✕로 삭제)">✕ 인식 결과 닫기</button></div><div class="fi-match ${d.matchInfo.ok?"ok":"bad"}">${escHtml(d.matchInfo.text)}${!d.matchInfo.ok && d.matchInfo.latestId ? ` <button class="act fi-mini" id="fiDispUseLatest">최근 기록(${escHtml(d.matchInfo.latestDate||"")})으로 채우기</button>`:""}</div>`;
   if(d.matchInfo && d.matchInfo.eos){ d.rows.forEach(r=>{ r.memo = eosRowStatus(r); }); h += eosDispQHtml(eosDispQuestions(d), d); }   // build 136
   // build 134: 모든 행 도착지 한 번에 (임박식품처럼 도착지를 직접 고르는 경우)
-  h += `<div style="margin:10px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b style="font-size:13px">모든 행 도착지</b> <select id="fiDispBulkSel">${fiDispDestOptions({ type:(d.rows[0]||{}).type, dest:"" })}</select> <input id="fiDispBulkFree" placeholder="직접 입력" style="width:110px"> <button class="act fi-mini" id="fiDispBulkEmpty">빈 행에만 적용</button> <button class="act fi-mini" id="fiDispBulkAll">전체 행에 적용</button> <span class="fi-mut">행마다 다르면 아래 표에서 고르세요</span></div>`;
+  h += `<div style="margin:10px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b style="font-size:13px">모든 행 도착지</b> <select id="fiDispBulkSel">${fiDispDestOptions({ type:(d.rows[0]||{}).type, dest:"", fc: d.rows.length && d.rows.every(x=> x.fc===d.rows[0].fc) ? d.rows[0].fc : "" })}</select> <input id="fiDispBulkFree" placeholder="직접 입력" style="width:110px"> <button class="act fi-mini" id="fiDispBulkEmpty">빈 행에만 적용</button> <button class="act fi-mini" id="fiDispBulkAll">전체 행에 적용</button> <span class="fi-mut">행마다 다르면 아래 표에서 고르세요</span></div>`;
   h += `<div class="fi-sec-t" style="margin-top:12px">인식 결과 · 수정 <span class="fi-mut">노란 칸 = 자동 보정/확인 필요</span></div>
   <div style="overflow-x:auto"><table class="fi-tbl"><thead><tr><th>포함</th><th>#</th><th>낙찰일</th><th>입차CODE (BIDCODE)</th><th>Group (메일)</th><th>Group Number</th><th class="n">파렛트</th><th>출고일</th><th>오전/오후</th><th>FC</th><th>도착지</th><th>유형</th></tr></thead><tbody>
   ${d.rows.map((r,i)=>`<tr class="${r.memo?"fi-warnrow":""}" style="${r.skip?"opacity:.45":""}"><td><input type="checkbox" class="fi-dinp" data-fd-i="${i}" data-fd-k="skip" ${r.skip?"":"checked"}></td>
