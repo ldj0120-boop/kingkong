@@ -1203,7 +1203,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 207 · 2026-10-21</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 208 · 2026-10-21</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -16707,13 +16707,12 @@ async function esLoad(f, say){
   }
   return { raw, rawName, eos, eosName: en || null, std, map, missing, notes, lotTbl, lotSrc };
 }
-/* ===== build 207: 요약 시트 A4 가로 · 큰 글씨 (③ 임박 · ⑤ FC파손 · ⑥ 데드우드 공통) =====
+/* ===== build 207/208: 요약 시트 A4 가로 · 큰 글씨 (③ 임박 · ⑤ FC파손 · ⑥ 데드우드 공통) =====
    예전 요약 시트는 36pt 글자 + 25~70% 확대 템플릿이라 화면·인쇄에서 칸이 작게 보였다.
-   요약 시트만 다시 꾸민다(값·수식·다른 시트는 그대로):
-   · 100% 보기, 글자 14pt(NO 20pt · 머리글 13pt · 제목 20pt), 칸 너비·줄 높이는 내용에 맞춰 계산, 줄바꿈
-   · TOP 1~4는 한 칸에 4줄 "① 식품 1억 1,484만원"으로 모아 보여 줌(원래 TOP 1~4 칸은 숨김으로 남김)
-   · 인쇄: A4 가로, 너비 1페이지 맞춤, 머리글 줄 매 페이지 반복, 가운데 정렬, 쪽 번호 */
-const KK_A4 = { title:20, head:13, no:20, body:14, top:12.5, total:14, other:11 };
+   build 208: 양식(칸 순서 · TOP 1~4 각각 · 숨김 칸 · 병합 · 색 · 수식 · 값)은 그대로 두고
+   · 글자 크기(본문 12 · NO 18 · 머리글 12 · TOP 11 · 제목 20), 칸 너비 · 줄 높이를 내용에 맞게, 보기 100%
+   · 인쇄: A4 가로, 너비 1페이지 맞춤, 머리글 줄 반복, 가운데, 쪽 번호 만 바꾼다. */
+const KK_A4 = { title:20, head:12, no:18, body:12, top:11, total:12, other:11 };
 function kkA4Attr(tag, name, val){   // 첫 태그의 속성 바꾸기/넣기
   const m = /^<[^>]*?(\/?)>/.exec(tag); if(!m) return tag;
   let open = m[0]; const re = new RegExp('\\s'+name+'="[^"]*"');
@@ -16780,16 +16779,6 @@ function kkA4Lines(text, cw, pt, bold){
   return Math.max(1, n);
 }
 const kkA4Need = (text, pt, bold)=> Math.max(...String(text==null?"":text).split("\n").map(t=> kkA4W(t))) * pt / 11 * (bold?1.07:1) + 1.6;
-// 금액을 "1억 1,484만원" / "4,237만원"
-function kkA4Won(v){ v = Math.round(+v||0); if(Math.abs(v) < 10000) return v.toLocaleString("en-US")+"원";
-  const e = Math.floor(v/1e8), m = Math.round((v - e*1e8)/1e4);
-  return (e ? e+"억" + (m ? " "+m.toLocaleString("en-US")+"만원" : "원") : m.toLocaleString("en-US")+"만원"); }
-// "식품 (8252EA ₩114,840,754)" → "① 식품 1억 1,484만원"
-function kkA4TopLine(t, i){
-  const m = /^(.*?)\s*\(\s*([\d,.]+)\s*EA\s*₩\s*([\d,.\-]+)\s*\)\s*$/.exec(String(t||"").trim());
-  const mark = "①②③④⑤⑥⑦⑧⑨⑩"[i] || (i+1)+".";
-  return m ? `${mark} ${m[1]} ${kkA4Won(+m[3].replace(/,/g,""))}` : `${mark} ${String(t||"").trim()}`;
-}
 const kkA4Esc = s=> String(s).replace(/[&<>"]/g, c=> ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const kkA4Un = s=> String(s).replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,"&");
 const kkA4ColN = L=> { let n = 0; for(const ch of L) n = n*26 + ch.charCodeAt(0) - 64; return n; };   // A → 1
@@ -16800,7 +16789,7 @@ function kkA4Buf(){ const a = []; return { w:s=>{ a.push(s); }, end:()=>{}, text
    sst: 공유 문자열 배열 · sty: kkA4Styler · 반환 { xml, area:"B2:S12", titles:"3:3" } (실패하면 null → 원래 xml 사용) */
 function kkA4Fit(xml, sst, sty){
   try{
-  let Z = KK_A4, f = 1, cw = 30;
+  let Z = KK_A4, f = 1, cw = 20;
   const iD = xml.indexOf("<sheetData>"), iE = xml.indexOf("</sheetData>");
   if(iD<0 || iE<0 || !sty) return null;
   let pre = xml.slice(0, iD), body = xml.slice(iD+11, iE), post = xml.slice(iE);
@@ -16828,9 +16817,8 @@ function kkA4Fit(xml, sst, sty){
     role[c.c] = !h ? "" : h==="NO" ? "no" : h==="센터명" ? "center" : h==="PLT" ? "plt" : /^TOP\s*\d+$/i.test(h) ? "top" : "x"; });
   const tops = Object.keys(role).map(Number).filter(c=> role[c]==="top").sort((a,b)=> a-b);
   const c0 = 2;
-  let cTop = tops.length ? tops[tops.length-1] + 1 : 0;   // TOP 1~4를 모아 쓸 칸 (TOP 4 바로 오른쪽, 비어 있어야 함)
-  if(cTop && [H, ...dataRows].some(x=> x.cells.some(c=> c.c===cTop && c.val!=null && c.val!==""))) cTop = 0;
-  const lastC = cTop || Math.max(c0, ...Object.keys(role).map(Number).filter(c=> role[c]));
+  // build 208: 칸 구성은 원래 양식 그대로(TOP 1~4 각각 · 숨김 칸 · 병합 그대로) — 글자 크기 · 칸 너비 · 줄 높이 · 인쇄 설정만 바꿈
+  const lastC = tops.length ? tops[tops.length-1] : Math.max(c0, ...Object.keys(role).map(Number).filter(c=> role[c]));
   // 원래 열 정보(숨김 등)
   const colsM = /<cols>([\s\S]*?)<\/cols>/.exec(pre), colInfo = [];
   if(colsM) colsM[1].replace(/<col\b([^>]*)\/>/g, (_, a)=>{ const mn = +(/min="(\d+)"/.exec(a)||[])[1], mx = +(/max="(\d+)"/.exec(a)||[])[1]; colInfo.push({ mn, mx, a }); return ""; });
@@ -16839,39 +16827,37 @@ function kkA4Fit(xml, sst, sty){
   // 숫자 칸 판정
   const isPct = s=> [9,10].includes(sty.numFmt(s));
   const fmtNum = (v, s)=> isPct(s) ? (v*100).toFixed(1)+"%" : (Math.abs(v)>=1000 || Number.isInteger(v) ? Math.round(v).toLocaleString("en-US") : String(Math.round(v*100)/100));
-  // TOP 모음 글자
-  const topText = {};
-  if(cTop) dataRows.forEach(x=>{ const ls = tops.map(c=> x.cells.find(k=> k.c===c)).filter(k=> k && txt(k.val)).map((k,i)=> kkA4TopLine(k.val, i)); topText[x.r] = ls.join("\n"); });
   // 3) 칸 너비 — 칸이 적어 A4 폭이 남으면 글자·칸을 같이 키운다(최대 1.5배)
   let W = {};
   const calcW = ()=>{ W = {};
   for(let c=c0;c<=lastC;c++){
-    const rl = c===cTop ? "topc" : role[c] || "";
+    const rl = role[c] || "";
     const dv = dataRows.map(x=> x.cells.find(k=> k.c===c)).filter(k=> k && k.val!=null && k.val!=="");
     const tv = [T].map(x=> x.cells.find(k=> k.c===c)).filter(k=> k && k.val!=null && k.val!=="");
     const vals = dv.concat(tv);
     const disp = k=> typeof k.val==="number" ? fmtNum(k.val, k.s) : txt(k.val);
     const need = (pt, b, arr)=> Math.max(0, ...arr.map(t=> kkA4Need(t, pt, b)));
+    const needN = (pt, b, arr)=> Math.max(0, ...arr.map(k=> typeof k.val==="number" ? kkA4Need(disp(k), pt, b)*1.06 + 2.2 : kkA4Need(disp(k), pt, b)*1.08));   // 엑셀 회계 형식 여백 · 글자 폭 여유(#### 방지)
+    const tok = arr=> Math.max(0, ...arr.map(t=> Math.max(0, ...String(t).split(/[\s\n]+/).map(w=> kkA4Need(w, Z.top, false)*1.1))));
     let w;
     if(rl==="no") w = Math.max(7.5*f, need(Z.no, true, dv.map(disp)), kkA4Need("총합계", Z.total, true));
     else if(rl==="center") w = cw*f;
-    else if(rl==="plt") w = Math.min(19*f, Math.max(10*f, need(Z.body, true, vals.map(disp))));
-    else if(rl==="top") w = 20;
-    else if(rl==="topc") w = Math.min(36*f, Math.max(22*f, need(Z.top, false, Object.values(topText))));
+    else if(rl==="plt") w = Math.min(17*f, Math.max(9*f, need(Z.body, true, vals.map(disp))*1.05));
+    else if(rl==="top") w = Math.min(15*f, Math.max(11.5*f, tok(dv.map(disp)) + 0.5));
     else if(!rl && !vals.length) w = 3;
-    else if(vals.length && vals.every(k=> typeof k.val==="number") && vals.some(k=> isPct(k.s))) w = 11*f;
-    else w = Math.min(24*f, Math.max(11*f, need(Z.body, true, vals.map(disp))));
+    else if(vals.length && vals.every(k=> typeof k.val==="number") && vals.some(k=> isPct(k.s))) w = 10.5*f;
+    else w = Math.min(26*f, Math.max(10.5*f, needN(Z.body, true, dv), needN(Z.total, true, tv)));
     W[c] = Math.round(w*10)/10;
   }
   };
   const PAGE_PX = 1060;   // A4 가로 · 여백 0.25" → 약 1,070px
-  const pxOf = ()=>{ let p = 0; for(let c=c0;c<=lastC;c++) if(!hidden(c) && !(cTop && tops.includes(c))) p += Math.floor((W[c]||9)*7+5); return p; };
+  const pxOf = ()=>{ let p = 0; for(let c=c0;c<=lastC;c++) if(!hidden(c)) p += Math.floor((W[c]||9)*7+5); return p; };
   calcW();
   // 남는 폭은 먼저 센터명 칸에(줄 수가 줄어 한 장에 들어가게), 그다음 글자 키우기
   const spare = PAGE_PX - pxOf();
   if(spare > 40){
     const cMax = Math.max(0, ...[...dataRows].map(x=> x.cells.find(k=> role[k.c]==="center")).filter(Boolean).map(k=> kkA4Need(txt(k.val), Z.body, true)));
-    cw = Math.max(30, Math.min(60, 30 + spare*0.6/7, cMax)); calcW();
+    cw = Math.max(20, Math.min(60, 20 + spare*0.6/7, cMax)); calcW();
   }
   const f0 = Math.min(1.5, PAGE_PX / pxOf());
   if(f0 > 1.05){ f = Math.floor(f0*20)/20; Z = {}; Object.keys(KK_A4).forEach(k=> Z[k] = Math.round(KK_A4[k]*f*2)/2); Z.other = KK_A4.other; calcW(); }
@@ -16888,58 +16874,44 @@ function kkA4Fit(xml, sst, sty){
       else if(x.r>=titleR && x.r<=T.r && k.s) setS(k, sty.x(k.s, Z.other, { wrap:false }));
     });
   });
-  // TOP 모음 칸 (머리글 · 데이터)
-  if(cTop){
-    const L = kkA4ColL(cTop), hs = (H.cells.find(k=> k.c===tops[0])||{}).s || 0, ds = (dataRows[0] && (dataRows[0].cells.find(k=> k.c===tops[0])||{}).s) || 0;
-    const put = (x, k)=>{ const i = x.cells.findIndex(q=> q.c===cTop); if(i>=0) x.cells[i] = k; else { x.cells.push(k); x.cells.sort((a,b)=> a.c-b.c); } };
-    put(H, { L, c:cTop, ca:' s="'+sty.x(hs, Z.head, { b:true, h:"center" })+'" t="inlineStr"', ci:'<is><t>TOP 1~4 (판매가)</t></is>' });
-    dataRows.forEach(x=> put(x, { L, c:cTop, ca:' s="'+sty.x(ds, Z.top, { b:false, h:"left" })+'" t="inlineStr"', ci:'<is><t xml:space="preserve">'+kkA4Esc(topText[x.r]||"")+'</t></is>' }));
-    const tk = T.cells.find(k=> k.c===cTop); if(tk) setS(tk, sty.x(tk.s, Z.total, { b:true }));
-  }
   // 5) 줄 높이
   const htOf = (x, sizeOf, boldOf)=>{
     let mx = 1, mxPt = Z.body;
-    x.cells.forEach(k=>{ if(!inPrint(k.c) || hidden(k.c) || (tops.includes(k.c) && cTop)) return;
-      let v = k.c===cTop && x.r!==H.r && x.r!==T.r ? topText[x.r] : (typeof k.val==="number" ? fmtNum(k.val, k.s) : txt(k.val));
-      if(k.c===cTop && x.r===H.r) v = "TOP 1~4 (판매가)";
+    x.cells.forEach(k=>{ if(!inPrint(k.c) || hidden(k.c)) return;
+      const v = typeof k.val==="number" ? fmtNum(k.val, k.s) : txt(k.val);
       if(!v) return; const pt = sizeOf(k), n = kkA4Lines(v, W[k.c]||10, pt, boldOf(k));
       if(n*pt > mx*mxPt){ mx = n; mxPt = pt; } });
-    return mx * mxPt * 1.42 + 10;
+    return mx * mxPt * 1.6 + 8;   // 엑셀 맑은 고딕 줄 간격(약 1.5배) + 여유
   };
   const setHt = (x, ht)=>{ let a = x.at.replace(/\sht="[^"]*"/, "").replace(/\scustomHeight="[^"]*"/, ""); x.at = a + ' ht="'+(Math.round(ht*10)/10)+'" customHeight="1"'; };
   rows.forEach(x=>{
     if(x.r===titleR) setHt(x, Z.title*1.9);
     else if(x.r===H.r) setHt(x, Math.max(36, htOf(x, ()=> Z.head, ()=> true)));
     else if(x.r===T.r) setHt(x, Math.max(30, htOf(x, ()=> Z.total, ()=> true)));
-    else if(x.r>H.r && x.r<T.r) setHt(x, Math.max(36, htOf(x, k=> role[k.c]==="no" ? Z.no : k.c===cTop ? Z.top : Z.body, k=> role[k.c]==="no" || sty.bold(k.s))));
+    else if(x.r>H.r && x.r<T.r) setHt(x, Math.max(36, htOf(x, k=> role[k.c]==="no" ? Z.no : role[k.c]==="top" ? Z.top : Z.body, k=> role[k.c]==="no" || sty.bold(k.s))));
   });
   // 6) 다시 쓰기
   body = rows.map(x=> '<row'+x.at+(x.cells.length ? '>'+x.cells.map(k=> '<c r="'+k.L+x.r+'"'+k.ca+(k.ci==null ? '/>' : '>'+k.ci+'</c>')).join("")+'</row>' : '/>')).join("");
-  // 열: 인쇄 범위(B~마지막)는 계산한 너비, 원래 TOP 1~4는 숨김, 나머지는 원래대로
-  let cols = "";
-  for(let c=1;c<=Math.max(lastC, 1);c++){
-    const i = infoOf(c); let a = i ? i.a.replace(/\s(min|max)="\d+"/g, "") : ' width="9"';
-    if(c>=c0){ a = a.replace(/\swidth="[^"]*"/, "").replace(/\sbestFit="[^"]*"/, "") + ' width="'+(W[c]||9)+'"'; if(!/customWidth=/.test(a)) a += ' customWidth="1"'; }
-    if(cTop && tops.includes(c) && !/hidden="1"/.test(a)) a += ' hidden="1"';
-    if(c===1) a = a.replace(/\swidth="[^"]*"/, "") + ' width="1.5"';
-    cols += '<col min="'+c+'" max="'+c+'"'+a+'/>';
-  }
-  colInfo.forEach(x=>{ if(x.mx <= lastC) return; const mn = Math.max(x.mn, lastC+1); cols += '<col min="'+mn+'" max="'+x.mx+'"'+x.a.replace(/\s(min|max)="\d+"/g, "")+'/>'; });
-  pre = colsM ? pre.replace(colsM[0], "<cols>"+cols+"</cols>") : pre.replace(/(<sheetFormatPr\b[^>]*\/>)/, "$1<cols>"+cols+"</cols>");
+  // 열: 원래 <col> 그대로(숨김 · 그룹 · 스타일), 인쇄 범위 안 너비 값만 바꿈
+  const cols = colInfo.map(x=>{
+    let a = x.a;
+    if(x.mn>=c0 && x.mx<=lastC){ let w = 0; for(let c=x.mn;c<=x.mx;c++) w = Math.max(w, W[c]||0); if(w){
+      a = /\swidth="[^"]*"/.test(a) ? a.replace(/\swidth="[^"]*"/, ' width="'+w+'"') : a + ' width="'+w+'"';
+      a = a.replace(/\sbestFit="[^"]*"/, ""); if(!/customWidth=/.test(a)) a += ' customWidth="1"'; } }
+    return '<col'+a+'/>'; }).join("");
+  if(colsM) pre = pre.replace(colsM[0], "<cols>"+cols+"</cols>");
   pre = pre.replace(/\szoomScale="\d+"/, ' zoomScale="100"').replace(/\szoomScaleNormal="\d+"/, ' zoomScaleNormal="100"');
   if(/<sheetPr\b[^>]*\/>/.test(pre)) pre = pre.replace(/<sheetPr\b([^>]*)\/>/, '<sheetPr$1><pageSetUpPr fitToPage="1"/></sheetPr>');
   else if(/<sheetPr\b/.test(pre)){ if(!/pageSetUpPr/.test(pre)) pre = pre.replace("</sheetPr>", '<pageSetUpPr fitToPage="1"/></sheetPr>'); }
   else pre = pre.replace(/(<worksheet\b[^>]*>)/, '$1<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>');
-  // 제목 병합: B ~ 마지막 인쇄 칸
-  post = post.replace(new RegExp('<mergeCell ref="B'+titleR+':[A-Z]+'+titleR+'"/>'), '<mergeCell ref="B'+titleR+':'+kkA4ColL(lastC)+titleR+'"/>');
-  // 쪽 수 추정: 1~1.25쪽이면 1쪽으로 맞춤(조금 작아짐), 그보다 길면 세로는 여러 쪽(머리글 반복)
+  // 쪽 수 추정: 1~1.5쪽이면 1쪽으로 맞춤(조금 작아짐), 그보다 길면 세로는 여러 쪽(머리글 반복)
   const totH = rows.filter(x=> x.r>=titleR && x.r<=T.r).reduce((s,x)=> s + (+((/\sht="([\d.]+)"/.exec(x.at)||[])[1]) || 17.4), 0);
-  const pages = totH * scale / 520, fitH = pages > 1 && pages <= 1.25 ? 1 : 0;
+  const pages = totH * scale / 520, fitH = pages > 1 && pages <= 1.5 ? 1 : 0;
   const PRINT = '<printOptions horizontalCentered="1"/><pageMargins left="0.25" right="0.25" top="0.4" bottom="0.45" header="0.2" footer="0.2"/>'
     + '<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="'+fitH+'"/><headerFooter><oddFooter>&amp;C&amp;P / &amp;N</oddFooter></headerFooter>';
   post = post.replace(/<printOptions\b[^>]*\/>/g, "").replace(/<pageSetup\b[^>]*\/>/g, "").replace(/<headerFooter\b[\s\S]*?<\/headerFooter>|<headerFooter\b[^>]*\/>/g, "");
   post = /<pageMargins\b[^>]*\/>/.test(post) ? post.replace(/<pageMargins\b[^>]*\/>/, PRINT) : post.replace("</worksheet>", PRINT+"</worksheet>");
-  return { xml: pre + "<sheetData>" + body + post, area: "$B$"+titleR+":$"+kkA4ColL(lastC)+"$"+T.r, titles: "$"+H.r+":$"+H.r, lastC, cTop, widths:W, f, scale, pages, fitH };
+  return { xml: pre + "<sheetData>" + body + post, area: "$B$"+titleR+":$"+kkA4ColL(lastC)+"$"+T.r, titles: "$"+H.r+":$"+H.r, lastC, widths:W, f, scale, pages, fitH };
   }catch(e){ console.warn("kkA4Fit", e); return null; }
 }
 // workbook.xml 에 인쇄 영역 · 인쇄 제목 이름 넣기
