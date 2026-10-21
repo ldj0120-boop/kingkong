@@ -1203,7 +1203,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 215 · 2026-10-21</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 216 · 2026-10-21</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -18890,25 +18890,41 @@ async function kdWorkbook(ExcelJS, D, R, baseDate){
     if(D.excluded && D.excluded.length){ ws.getCell(tot+3,1).value = "※ 분배 제외(XLA·XLB·XLC 등 일반 리퀴데이션 그룹): " + D.excluded.join(", "); ws.getCell(tot+3,1).font = { name:"맑은 고딕", size:9, italic:true, color:{ argb:"FFC00000" } }; }
     widths(ws, { A:12, B:14, C:20, D:13, E:9, F:8, G:8 });
   }
-  // (3) 매장별 PLT배정
+  // (3) 매장별 PLT배정 — build 216: 통짜 PLT + 해체 파렛트별 받을 수량을 한 표에서 (해체 파렛트마다 한 칸)
   { const ws = wsPlt;
     const rep = loc=>{ const it = (R.pallets.find(p=> p[0]===loc)||[0,[{}]])[1][0]; return kdT(it.name).replace(/^★_/,"").slice(0,16); };
-    ws.getCell(1,1).value = `매장별 PLT 배정 구분  |  통짜=파렛트 통째 / 잔량=해체 후 나머지 통짜 / 분할=단품 나눠 받음  |  기준일 ${baseDate}`;
+    const broken = R.pallets.filter(p=> R.kind.get(p[0])==="해체");
+    const bq = new Map(broken.map(([l,items])=> [l, items.reduce((a,i)=> a+i.qty, 0)]));
+    ws.getCell(1,1).value = `매장별 PLT 배정  |  기준일 ${baseDate}  |  통짜 ${R.pallets.length-broken.length}PLT + 해체 ${broken.length}PLT = 총 ${R.pallets.length}PLT`;
     ws.getCell(1,1).font = { name:"맑은 고딕", size:12, bold:true };
-    ["매장","통짜 PLT수","통짜 로케이션(대표품목)","해체잔량(로케이션)","분할단품(로케이션)"].forEach((h,c)=> ws.getCell(3,c+1).value = h); header(ws, 3, 5);
-    const whole = new Map(), janr = new Map(), bun = new Map(); STORES.forEach(s=>{ whole.set(s, []); janr.set(s, new Set()); bun.set(s, new Set()); });
-    R.alloc.forEach(a=>{ if(a.kind==="통짜"){ if(!whole.get(a.store).includes(a.loc)) whole.get(a.store).push(a.loc); } else if(a.kind==="잔량") janr.get(a.store).add(a.loc); else bun.get(a.store).add(a.loc); });
-    let r = 4, tw = 0;
+    ws.getCell(2,1).value = broken.length ? `※ 해체할 파렛트 ${broken.length}개: ` + broken.map(([l])=> `${l} (${rep(l)} 외, 총 ${bq.get(l)}개)`).join("  ·  ") + "  —  노란 칸 = 그 파렛트를 풀어서 그 매장에 보낼 수량(개)"
+                                  : "※ 해체할 파렛트 없음 — 모두 통짜";
+    ws.getCell(2,1).font = { name:"맑은 고딕", size:10, color:{ argb:"FFC00000" } };
+    const B0 = 4, hdr = ["매장","통짜 PLT수","통짜 로케이션(대표품목)"].concat(broken.map(([l])=> `해체 ${l}\n(총 ${bq.get(l)}개)`), ["해체분 합계(개)","받는 파렛트"]);
+    hdr.forEach((h,c)=> ws.getCell(3,c+1).value = h); header(ws, 3, hdr.length);
+    broken.forEach((p,j)=> ws.getCell(3, B0+j).fill = fill("FFBF8F00"));
+    const whole = new Map(STORES.map(s=> [s, []])), q = new Map();
+    R.alloc.forEach(a=>{ if(a.kind==="통짜"){ if(!whole.get(a.store).includes(a.loc)) whole.get(a.store).push(a.loc); } else { const k = a.loc+"|"+a.store; q.set(k, (q.get(k)||0) + a.qty); } });
+    const YEL = fill("FFFFF2CC");
+    let r = 4, tw = 0; const colT = broken.map(()=> 0);
     STORES.forEach(s=>{ const wl = whole.get(s); tw += wl.length;
       ws.getCell(r,1).value = s; ws.getCell(r,2).value = wl.length;
       ws.getCell(r,3).value = wl.length ? wl.map(l=> `${l} (${rep(l)})`).join("\n") : "-";
-      ws.getCell(r,4).value = janr.get(s).size ? [...janr.get(s)].sort().map(l=> `${l} (${rep(l)} 잔량)`).join("\n") : "-";
-      ws.getCell(r,5).value = bun.get(s).size ? [...bun.get(s)].sort().join("\n") : "-"; r++; });
-    const nb = [...R.kind.values()].filter(k=> k==="해체").length;
-    ws.getCell(r,1).value = "합계"; ws.getCell(r,2).value = tw; ws.getCell(r,3).value = `통짜 ${tw}개 + 해체 ${nb}개 = 총 ${R.pallets.length} PLT`;
-    for(let rr=4;rr<=r;rr++) for(let c=1;c<=5;c++){ const x = ws.getCell(rr,c); x.border = BORD; x.font = rr===r ? F_BOLD : F_REG; x.alignment = c<=2 ? CEN : LEF; }
-    ws.getCell(r,1).fill = SUB;
-    widths(ws, { A:12, B:10, C:40, D:30, E:20 });
+      let sum = 0, n = 0;
+      broken.forEach(([l],j)=>{ const v = q.get(l+"|"+s)||0; if(v){ ws.getCell(r, B0+j).value = v; ws.getCell(r, B0+j).fill = YEL; sum += v; n++; colT[j] += v; } });
+      ws.getCell(r, B0+broken.length).value = sum || null;
+      ws.getCell(r, B0+broken.length+1).value = `통짜 ${wl.length}` + (n ? ` + 해체분 ${n}곳` : "");
+      r++; });
+    ws.getCell(r,1).value = "합계"; ws.getCell(r,2).value = tw; ws.getCell(r,3).value = `통짜 ${tw}PLT`;
+    broken.forEach((p,j)=> ws.getCell(r, B0+j).value = colT[j]);
+    ws.getCell(r, B0+broken.length).value = colT.reduce((a,b)=> a+b, 0);
+    ws.getCell(r, B0+broken.length+1).value = `총 ${R.pallets.length}PLT`;
+    for(let rr=4;rr<=r;rr++) for(let c=1;c<=hdr.length;c++){ const x = ws.getCell(rr,c); x.border = BORD; x.font = rr===r || (c>=B0 && c<B0+broken.length && x.value!=null) ? F_BOLD : F_REG;
+      if(c===2 || (c>=B0 && c<=B0+broken.length)){ x.numFmt = NUM; x.alignment = { horizontal:"center", vertical:"middle" }; } else x.alignment = c===1 ? CEN : LEF;
+      if(rr===r) x.fill = SUB; }
+    ws.getRow(3).height = 34;
+    widths(ws, { A:12, B:10, C:40 }); broken.forEach((p,j)=> ws.getColumn(B0+j).width = 17); ws.getColumn(B0+broken.length).width = 13; ws.getColumn(B0+broken.length+1).width = 22;
+    ws.views = [{ state:"frozen", ySplit:3, xSplit:1 }];
   }
   // (4) 분배표(해체대상) — build 215: "기타 N종 일괄" 대신 상품 한 줄씩(바코드 · 상품명 · 단가 · 매장별 수량) — 센터에서 바로 나눌 수 있게
   { const ws = sheet(`${L}분배표(해체대상)`);
