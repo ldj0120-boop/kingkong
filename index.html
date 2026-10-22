@@ -1876,7 +1876,7 @@
         <span class="store-name">⑤ 배차요청 & 직출 분배표</span>
         <button class="act primary" data-all-dl="1" style="font-size:14px;padding:8px 18px;font-weight:700" title="넣은 배차 요청 전부(고정인수·일반 리퀴·임박식품)를 출고일자별 시트로 한 파일에">⬇ 전체 출고요청서 다운로드</button>
         <span class="meta">쿠팡 출고일정 메일 · 임박식품(FC EOS) 입찰 결과 메일 → 입차코드·상차일시·도착지 표 + 물류업체 문구 + 엑셀</span>
-        <button class="act fi-mini fi-del" data-reset="disp" style="margin-left:auto" title="붙여넣은 글 · 인식 결과 · 합본 화면을 지웁니다 (배차 요청 기록은 그대로)">↺ 초기화</button>
+        <button class="act fi-mini fi-del" data-reset="disp" style="margin-left:auto" title="직출 분배표 · 붙여넣은 글 · 인식 결과 · 합본 화면을 모두 지웁니다 (분배 히스토리 · 배차 요청 기록은 그대로)">↺ 초기화</button>
       </div>
       <div class="fi-body">
         <!-- build 189: 고정인수 직출 분배표 · 카톡 문구 (④에서 낙찰파일을 만들면 여기에) -->
@@ -13732,7 +13732,7 @@ function fiRenderPlanTable(type, rows, editable){
       h += `<tr>${ai===0?`<td rowspan="${r.alloc.length}"><b>${escHtml(r.name)}</b> <span class="fi-mut">${escHtml(r.fc)}</span>${r.warn?`<br><span style="color:var(--red)">${escHtml(r.warn)}</span>`:""}</td><td class="n" rowspan="${r.alloc.length}">${r.plt}</td>`:""}
         <td>${editable && type!=="XLD" ? `<select class="fi-sel" data-fi-t="${type}" data-fi-r="${ri}" data-fi-a="${ai}">${fiStoreOptions(type,a.store)}</select>` : `<b>${escHtml(a.store)}</b>`}</td>
         ${type!=="XLD" ? stockCell(a.store) : ""}
-        <td class="n">${editable && type==="XLS" ? `<input class="fi-plt" type="number" min="0" step="1" value="${a.plt}" data-fi-t="${type}" data-fi-r="${ri}" data-fi-a="${ai}">` : a.plt}</td>
+        <td class="n">${editable && type==="XLS" ? `<input class="fi-plt" type="number" min="0" step="1" value="${a.plt}" data-fi-t="${type}" data-fi-r="${ri}" data-fi-a="${ai}">${r.alloc.length>1 ? ` <button class="act fi-mini fi-del" data-fi-rm="${ri}:${ai}" title="이 하차지 줄 삭제">✕</button>` : ""}` : a.plt}</td>
         <td class="fi-mut fi-why">${escHtml(/km/.test(a.why||"") || a.store===undefined ? (a.why||"") : [a.why, fiKmLabel(r.region || r.fc, a.store, r.name)].filter(Boolean).join(" · "))}</td></tr>`;
     });
     if(editable && type==="XLS") h += `<tr class="fi-addrow"><td colspan="6"><button class="act fi-mini" data-fi-add="${ri}">+ ${escHtml(r.name)} 하차지 추가</button>
@@ -14382,6 +14382,8 @@ function wireFixedIntake(){
     else if(t.dataset.fiOpen){ fiOpenHistory(+t.dataset.fiOpen); }
     else if(t.dataset.fiCopyh){ const hh=FIXED_INTAKE_HISTORY.find(x=>x.id===+t.dataset.fiCopyh); if(hh) fiCopyText(hh.text, t); if(hh) setTimeout(()=>t.textContent="문구 복사",1500); }
     else if(t.dataset.fiDel){ if(confirm("이 히스토리 기록을 삭제할까요?")){ const id=+t.dataset.fiDel; fiHistDeleteIds([id]); } }   // build 168: 지운 기록이 서버 저장본에서 다시 살아나지 않게
+    else if(t.dataset.fiRm!=null && _fiCur){ const [ri, ai] = t.dataset.fiRm.split(":").map(Number); const r=_fiCur.plan.XLS[ri];   // build 221: 하차지 줄 삭제(최소 1줄)
+      if(r && r.alloc.length>1 && r.alloc[ai]){ r.alloc.splice(ai, 1); fiSaveCurrentToHistory(false); fiRender(); } }
     else if(t.dataset.fiAdd!=null && _fiCur){ const r=_fiCur.plan.XLS[+t.dataset.fiAdd]; if(r){ r.alloc.push({ store:FI_JINCHEON, plt:0, why:"수동 추가" }); fiSaveCurrentToHistory(false); fiRender(); } }
     else if(t.id==="fiReplan" && _fiCur && _fiCur.builds[0] && _fiCur.builds[0].raw){ _fiCur.stockMap = fiEffStock(fiLatestSnap(), _fiCur.id, fiCurDate()); _fiCur.plan = fiPlan(_fiCur.builds, _fiCur.stockMap, Object.assign({ eligible:fiEligMap() }, fiSettings())); fiSaveCurrentToHistory(false); fiRender(); }
     else if(t.id==="fiReplan"){ showNotice("다시 분배는 이번에 파일을 올려 만든 결과에서만 됩니다(히스토리 결과는 하차지를 직접 바꿔 주세요)."); }
@@ -19885,6 +19887,11 @@ function fiResetCard(k){
   if(k==="disp" || k==="dispAll"){
     _fiDisp = null; val("fiDispPaste"); clr("fiDispStatus"); try{ fiPhotoMsg(""); const pv=document.getElementById("fiDispPhotoPrev"); if(pv){ pv.hidden=true; pv.innerHTML=""; } }catch(_){} val("fiDispInput"); fiComboReset();
     if(k==="dispAll"){ FI_DISPATCH_HISTORY = []; fiDispPersist(); }
+    if(k==="disp"){   // build 221: ⑤ 초기화 = 카드 전체(직출 분배표 · 올린 낙찰파일 · 데드우드/FC파손 낙찰파일 읽은 값까지). 분배 히스토리 · 배차 요청 기록은 그대로
+      try{ _fiCur = null; }catch(_){} clr("fiPlanStatus"); clr("fiStatus"); val("fiPlanInput"); val("fiInput");
+      try{ _dwBidMap = null; _dwLastText = ""; }catch(_){}
+      try{ fiRender(); }catch(_){}
+    }
     fiDispRender();
   }
 }
@@ -19913,7 +19920,8 @@ document.addEventListener("click", e=>{
     if(!confirm(`⑤ 배차요청 & 직출 분배표의 배차 요청서를 전체 초기화할까요?\n인식 결과 · 붙여넣은 글과 함께 배차 요청 기록 ${n}개(합본 대상)를 모두 삭제합니다.`)) return;
     fiResetCard("dispAll"); return;
   }
-  if(!confirm(`${name}의 올린 원본 · 입력칸 · 화면 결과를 지울까요? (기록은 그대로)`)) return;
+  if(!confirm(k==="disp" ? `⑤ 배차요청 & 직출 분배표를 전체 초기화할까요?\n직출 분배표 · 올린 낙찰파일 · 붙여넣은 글 · 인식 결과 · 합본 화면을 모두 지웁니다.\n(분배 히스토리 · 배차 요청 기록은 그대로 — ④ 화면의 이번 낙찰파일 결과도 같이 닫힙니다)`
+    : `${name}의 올린 원본 · 입력칸 · 화면 결과를 지울까요? (기록은 그대로)`)) return;
   fiResetCard(k);
 }, true);
 // build 221: 여러 파일 — 고정인수 낙찰파일(XLG·XLS·XLD)은 한 번에 묶어 분배표 하나로, 나머지(데드우드·FC파손 낙찰파일 → 메일)는 엑셀 먼저 차례로
