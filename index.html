@@ -1204,7 +1204,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 225 · 2026-10-22</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 226 · 2026-10-22</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -15499,6 +15499,7 @@ function dwDispApplyDest(text){
   return true;
 }
 function fiDispFromText(text){
+  if(liqDispIsMail(text)){ liqDispFromText(text); return; }   // build 226
   if(dwDispIsMail(text)){ dwDispFromText(text); return; }   // build 196: 데드우드 입찰 결과 메일
   if(dwDispApplyDest(text)) return;                          // build 196: 데드우드 요청에 출고지 표만 붙여넣기
   if(eosDispIsMail(text)){ eosDispFromText(text); return; }   // build 134: 임박식품(FC EOS) 입찰 결과 메일
@@ -19887,7 +19888,7 @@ function fiHbParse(buf){
       if(!/^[A-Z0-9]{6,}$/.test(code)) code = "";
       if(!code && prev && prev.code && prev.bd===bd && prev.no===no && prev.cat===cat){ code = prev.code; inh = true; }
       const pv = g("plt"); const plt = typeof pv==="number" ? pv : (String(pv||"").match(/(\d+(?:\.\d+)?)/)||[])[1];
-      const r = { ri:i+1, bd, code, inh, fcs: fcRaw.split(/[\s,\/]+/).map(_fiHbFc).filter(Boolean), fcRaw, no, plt: plt==null||plt===""?null:+plt, cat, dest };
+      const r = { ri:i+1, bd, code, inh, pr: String(pv==null?"":pv).trim(), fcs: fcRaw.split(/[\s,\/]+/).map(_fiHbFc).filter(Boolean), fcRaw, no, plt: plt==null||plt===""?null:+plt, cat, dest };
       rows.push(r); prev = r;
     }
     return { rows, sheets:[sn] };
@@ -19906,11 +19907,12 @@ async function fiHbSave(){
 async function fiHbLoadFile(f, how, quiet){
   const p = fiHbParse(await f.arrayBuffer());
   if(!p.rows.length) throw new Error(`${f.name}에서 종합 표(입금코드 · 센터명 · 출고지 머리글)를 찾지 못했습니다`);
-  FI_HB = { name:f.name, mtime:f.lastModified||0, at:new Date().toISOString(), sheets:p.sheets, rows:p.rows, how:how||"" };
+  FI_HB = { v:2, name:f.name, mtime:f.lastModified||0, at:new Date().toISOString(), sheets:p.sheets, rows:p.rows, how:how||"" };
   _fiHbPerm = ""; _fiHbMsg = quiet ? "" : `✓ 낙찰금액 읽음 — ${f.name} · ${p.sheets.join(",")} 시트 ${p.rows.length}행`;
   await fiHbSave(); fiHbRenderBar(); fiHbReapply();
   return FI_HB;
 }
+// build 226: 예전 형식(v 없음)으로 읽어 둔 내용이면 파일이 같아도 다시 읽음
 // 연결된 파일 다시 읽기 (gesture = 버튼 클릭처럼 사용자가 누른 경우에만 크롬 권한 창을 띄울 수 있음)
 async function fiHbRefresh(gesture){
   let h = null; try{ h = await idbGet(FI_HB_HANDLE); }catch(_){}
@@ -19921,7 +19923,7 @@ async function fiHbRefresh(gesture){
   _fiHbPerm = "";
   try{
     const f = await h.getFile(); _fiHbAt = Date.now();
-    if(FI_HB && FI_HB.name===f.name && FI_HB.mtime===f.lastModified && FI_HB.rows && FI_HB.rows.length){ FI_HB.checkedAt = new Date().toISOString(); fiHbRenderBar(); return "same"; }
+    if(FI_HB && FI_HB.v===2 && FI_HB.name===f.name && FI_HB.mtime===f.lastModified && FI_HB.rows && FI_HB.rows.length){ FI_HB.checkedAt = new Date().toISOString(); fiHbRenderBar(); return "same"; }
     await fiHbLoadFile(f, "연결된 파일", !gesture); return "read";
   }catch(e){ _fiHbMsg = `⚠ 낙찰금액 파일을 읽지 못했습니다(${e && e.message || e}) — 마지막으로 읽은 내용으로 찾습니다`; fiHbRenderBar(); return "err"; }
 }
@@ -19947,8 +19949,17 @@ async function fiHbInit(){
 function fiHbCands(r){
   if(!FI_HB || !FI_HB.rows || !FI_HB.rows.length) return null;
   const R = FI_HB.rows, code = String(r.bidcode||"").toUpperCase().trim(), fc = _fiHbFc(r.fc);
-  if(!fc) return null;
-  if(code){ const c = R.filter(x=> x.code===code && x.fcs.includes(fc)); if(c.length) return { key:"c|"+code+"|"+fc, c, how:"입차코드 · 센터" }; }
+  if(!fc){   // build 226: 데드우드 · FC파손처럼 센터를 아직 모를 때 — 입차코드(+LOT) 줄의 출고지
+    if(!code || !r.dw) return null;
+    const c0 = R.filter(x=> x.code===code && (!r.dwLot || !x.no || x.no===r.dwLot));
+    return c0.length ? { key:"l|"+code, c:c0, how:"입차코드 · LOT", lot:true } : null;
+  }
+  if(code){
+    const c = R.filter(x=> x.code===code && x.fcs.includes(fc)); if(c.length) return { key:"c|"+code+"|"+fc, c, how:"입차코드 · 센터" };
+    // build 226: 센터명 칸이 빈 LOT 단위 줄(FC파손 B · D 등) — 입차코드(+LOT)로, 그 LOT의 모든 센터에 같은 출고지
+    const c2 = R.filter(x=> x.code===code && !x.fcs.length && (!r.dwLot || !x.no || x.no===r.dwLot));
+    if(c2.length) return { key:"l|"+code, c:c2, how:"입차코드 · LOT 단위 줄", lot:true };
+  }
   const bd = String(r.bidDate||"").slice(0,10); if(!bd) return null;
   const t = String(r.type||"").toUpperCase();
   const ok = x=>{ const k = String(x.cat||"").toUpperCase(); if(!k || !t) return true;
@@ -19964,16 +19975,19 @@ function fiHbApply(rows, reapply){
     const f = fiHbCands(r); if(!f) return;
     const k = used[f.key] = (used[f.key]||0) + 1;   // 직접 고친 행도 자리는 차지(순서 유지)
     if(reapply && r.destManual) return;
-    const x = f.c[Math.min(k, f.c.length) - 1]; if(!x || !x.dest) return;
+    if(!reapply && r.dw && r.dest) return;   // build 226: 데드우드 · FC파손에 사용자가 쓴 출고지(A= 진천센터)는 그대로
+    const x = f.lot ? f.c[0] : f.c[Math.min(k, f.c.length) - 1]; if(!x || !x.dest) return;
     const d = (typeof resolveStoreName==="function" && resolveStoreName(x.dest)) || x.dest;
     const prev = r.hbDest ? r.hbAuto : r.dest;
     if(!r.hbDest) r.hbAuto = r.dest || "";
     r.dest = d; r.hbDest = d;
-    const bits = [`📒 낙찰금액 ${FI_HB.sheets[0]||""} ${x.ri}행(${f.how}${f.c.length>1?` · ${f.c.length}줄 중 ${Math.min(k,f.c.length)}번째`:""}) → ${d}`];
+    const bits = [`📒 낙찰금액 ${FI_HB.sheets[0]||""} ${x.ri}행(${f.how}${!f.lot && f.c.length>1?` · ${f.c.length}줄 중 ${Math.min(k,f.c.length)}번째`:""}) → ${d}`];
     if(prev && prev!==d) bits.push(`자동 배정: ${prev}`);
-    if(k > f.c.length) bits.push(`메일 행이 낙찰금액 줄(${f.c.length})보다 많음 — 확인`);
-    if(r.pallets!=null && r.pallets!=="" && x.plt!=null && +r.pallets!==+x.plt) bits.push(`PLT 메일 ${r.pallets} / 낙찰금액 ${x.plt} — 확인`);
+    if(!f.lot && f.c.length>1 && k > f.c.length) bits.push(`메일 행이 낙찰금액 줄(${f.c.length})보다 많음 — 확인`);
+    if(!f.lot && r.pallets!=null && r.pallets!=="" && x.plt!=null && +r.pallets!==+x.plt) bits.push(`PLT 메일 ${r.pallets} / 낙찰금액 ${x.plt} — 확인`);
     r.destNote = bits.join(" · ");
+    if(r.warn) r.warn = r.warn.filter(w=> !/^출고지 선택/.test(w));
+    if(r.eos || r.dw){ r.warn = (r.warn||[]).filter(w=> !/^📒/.test(w)); r.warn.push(r.destNote); r.destNote = ""; }   // 임박 · 데드우드 · FC파손은 확인 줄이 warn에서 나옴
     n++;
   });
   return n;
@@ -20017,6 +20031,48 @@ function fiHbRenderBar(){
   if(_fiHbMsg) h += `<div style="margin-top:4px">${escHtml(_fiHbMsg)}</div>`;
   el.innerHTML = h;
 }
+
+/* build 226: 쿠팡 일반 리퀴 "MM-DD 마감 입찰 결과" 메일 — 표 No(46316BH) | FC | 인수가 | 인수가 | 입금코드
+   (예전엔 FC파손 메일로 잘못 보고 "LOT 표를 찾지 못했습니다"로 멈춤)
+   → 행: 입차코드 · FC · LOT, PLT = ② 일반 리퀴 낙찰 기록 → 낙찰금액 종합 PLT, 유형 = 낙찰금액 PLT 칸 "C-9" → XLC,
+     도착지 = 낙찰금액 출고지(fiDispStart에서). Group Number · 출고일은 쿠팡이 출고 때 공유 → 빈칸 + 안내 */
+function liqDispParse(text){
+  const out = []; let mode = false, fcI = -1, noI = 0;
+  String(text||"").split(/\r?\n/).forEach(l=>{
+    const c = l.split("\t").map(x=> String(x).replace(/[\s\u00a0]+/g," ").trim());
+    if(/^No\.?$/i.test(c[0]) && c.some(x=> /입금코드/.test(x))){ mode = true; fcI = c.findIndex(x=> /^FC$|센터/i.test(x)); noI = 0; return; }
+    if(!mode) return;
+    if(!/^\d{5}[A-Z]{2}$/.test(c[noI]||"")){ if(c.join("").trim()) mode = false; return; }
+    const code = (c.find(x=> /^AF[A-Z0-9]{8}$/i.test(x))||"").toUpperCase();
+    const fc = fcI>=0 ? String(c[fcI]||"").toUpperCase().replace(/\s/g,"") : "";
+    out.push({ no:c[noI], fc, code });
+  });
+  return out;
+}
+function liqDispIsMail(text){ return liqDispParse(text).length > 0; }
+function liqDispFromText(text){
+  const L = liqDispParse(text); const M = dwDispParseMail(text);
+  const lots = (typeof fiLiqLots==="function") ? fiLiqLots() : [];
+  const rows = L.map(x=>{
+    const w = [`일반 리퀴 입찰 결과 메일 — LOT ${x.no}`];
+    const lr = lots.find(y=> String(y.lot)===x.no && (!y.fc || !x.fc || String(y.fc).toUpperCase()===x.fc));
+    const fcK = _fiHbFc(x.fc);
+    const hb = FI_HB && FI_HB.rows ? (FI_HB.rows.find(y=> y.code===x.code && y.fcs.includes(fcK)) || FI_HB.rows.find(y=> y.code===x.code)) : null;
+    const pm = String(hb && hb.pr || "").match(/^([A-Z])\s*-/) || String(hb && hb.no || "").match(/^([A-Z])$/);
+    const pre = pm ? pm[1] : "";
+    const pallets = lr && lr.plt ? +lr.plt : (hb && hb.plt!=null ? hb.plt : null);
+    if(lr) w.push(`✓ ${lr.src}: ${x.no} ${lr.plt||"?"}PLT`); else if(hb && hb.plt!=null) w.push(`PLT는 낙찰금액 ${hb.ri}행(${hb.pr||hb.plt})`); else w.push("⚠ PLT 못 찾음 — 직접 입력");
+    if(!x.code) w.push("⚠ 입금코드 없음");
+    w.push("⚠ Group Number는 쿠팡이 출고 때 공유(이 메일엔 없음) — 받으면 입력");
+    if(!M.outDate) w.push("⚠ 출고일 메일에 없음 — 직접 입력");
+    const bi = fiBidInfo(x.code);
+    return { bidDate: M.bidDate || (bi && bi.date) || "", bidcode:x.code, group:x.no, number:"", numFull:"", pallets, outboundDate:M.outDate||"", outboundAmPm:M.ampm||"", outTime:M.time||"",
+      fc:x.fc, type: pre ? "XL"+pre : "", groupPrefix:pre, fromText:true, liqLot:x.no, warn:w };
+  });
+  if(!rows.length) return false;
+  fiDispStart(rows, "", "일반 리퀴 입찰 결과 메일");
+  return true;
+}
 async function fiDispFromFile(f){
   if(/\.xls[xm]$/i.test(f.name||"") && await fiHbIsFile(f)){   // build 225: 2026_쿠팡 낙찰금액 → 도착지 찾기 기준
     const st = document.getElementById("fiDispStatus");
@@ -20051,7 +20107,8 @@ async function fiDispFromFile(f){
     if(!html) throw new Error("메일 파일에서 본문을 찾지 못했습니다.");
     let text = mailHtmlToText(html);
     { const ttl = mailHtmlToText.title || ""; if(ttl && dwDispKind(ttl + "\n" + text) && !/마감\s*입찰\s*결과/.test(text)) text = ttl + "\n" + text; }   // build 220: 제목("10-21 마감 입찰 결과")으로 FC파손 판별 · 낙찰일
-    if(dwDispIsMail(text)){ const ta = document.getElementById("fiDispPaste"); if(ta) ta.value = text; await dwDispFromText(text); }   // build 196
+    if(liqDispIsMail(text)){ const ta = document.getElementById("fiDispPaste"); if(ta) ta.value = text; liqDispFromText(text); }   // build 226: 일반 리퀴 입찰 결과 메일(No 46316BH · FC · 입금코드)
+    else if(dwDispIsMail(text)){ const ta = document.getElementById("fiDispPaste"); if(ta) ta.value = text; await dwDispFromText(text); }   // build 196
     else if(eosDispIsMail(text)){ if(!(await eosDispFromText(text, "메일 파일"))) throw new Error("메일 파일에서 임박식품(FC EOS) 표를 찾지 못했습니다."); }
     else { const ta = document.getElementById("fiDispPaste"); if(ta) ta.value = text; fiDispFromText(text); }
   }catch(e){ if(st) st.textContent = "⚠ " + (e && e.message || e); }
