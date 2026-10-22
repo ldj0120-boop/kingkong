@@ -1193,6 +1193,7 @@
   .stale-warn{margin:0 18px 12px;padding:12px 14px;background:var(--red-dim);border:1px solid var(--red);border-radius:var(--r);font-size:12px;line-height:1.75;color:var(--pale);}
   .stale-warn b{color:var(--red);}
   .stale-warn .sw-ver{display:inline-block;margin-top:6px;font-family:"JetBrains Mono";font-size:10.5px;color:var(--muted2);}
+#fiDispBox.fi-card-drag{ outline:3px dashed var(--amber); outline-offset:-6px; }   /* build 223 */
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -1203,7 +1204,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 222 · 2026-10-22</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 223 · 2026-10-22</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1883,9 +1884,9 @@
         <div class="fi-sec-t" style="font-size:18px">직출 분배표 (고정인수)</div>
         <div id="fiPlanDrop" class="fi-drop" role="button" tabindex="0" style="padding:12px;margin-bottom:8px">
           <div class="fi-drop-t" style="font-size:15px">고정인수 낙찰파일(XLG · XLS · XLD 인수리스트 .xlsx)을 끌어다 놓거나 클릭 → 직출 분배표</div>
-          <div class="fi-drop-s">④에서 받은 낙찰파일 그대로 · 여러 개 한 번에 · 원본 고정 리스트도 됩니다 (아래 배차 요청서 칸에 놓아도 자동 인식)</div>
+          <div class="fi-drop-s">④에서 받은 낙찰파일 그대로 · 여러 개 한 번에 · 원본 고정 리스트도 됩니다 · <b>쿠팡 출고 요청 메일(.mhtml)을 놓으면 아래에 출고요청서</b> — ⑤ 카드 어디에 놓아도 파일 종류로 자동 처리</div>
         </div>
-        <input type="file" id="fiPlanInput" accept=".xlsx,.xlsm,.xls" multiple hidden>
+        <input type="file" id="fiPlanInput" accept=".xlsx,.xlsm,.xls,.mhtml,.mht,.html,.htm,.eml,image/*" multiple hidden>
         <div id="fiPlanStatus" class="fi-status"></div>
         <div id="fiPlanResult"></div>
         <div class="fi-sec-t" style="font-size:18px;margin-top:18px">배차 요청서 (입차코드)</div>
@@ -13649,6 +13650,7 @@ async function fiHandleFiles(fileList, opt){
   fiSaveCurrentToHistory(true);
   if(opt.statusId && opt.statusId!=="fiStatus"){ const s0 = document.getElementById("fiStatus"); if(s0) s0.textContent = `⑤에서 올린 고정인수 낙찰파일 ${builds.length}개로 분배표를 만들었습니다`; }   // build 221
   st.innerHTML = `✓ ${opt.fromDisp?"고정인수 낙찰파일 "+builds.length+"개 읽음 → 직출 분배표 작성":builds.length+"개 낙찰파일 생성"} · ${reused?"같은 날 기존 분배표(수정 포함)를 그대로 불러옴 — 새로 나누려면 아래 설정의 \"다시 분배\"":"분배표 작성 완료"} (히스토리 저장됨)` + (errs.length ? `<br><span style="color:var(--red)">${errs.map(escHtml).join("<br>")}</span>` : "");
+  if(opt.fromDisp && opt.statusId!=="fiPlanStatus"){ const ps = document.getElementById("fiPlanStatus"); if(ps) ps.innerHTML = st.innerHTML; }   // build 223: 직출 분배표 칸 바로 아래에도 같은 안내
   fiRender();
   if(opt.scroll){ const t = document.getElementById("fiPlanResult"); if(t) t.scrollIntoView({ behavior:"smooth", block:"start" }); }
   return builds.length;
@@ -19932,6 +19934,17 @@ async function fiDispFromFiles(all){
   rest.sort((a,b)=> /\.xlsx$/i.test(b.name) - /\.xlsx$/i.test(a.name));
   for(const x of rest) await fiDispFromFile(x);
 }
+// build 223: ⑤ 카드 어디에 놓아도(직출 분배표 칸 · 배차 요청서 칸 · 카드 빈 곳) 파일 종류로 자동 처리
+//   고정인수 낙찰파일 → 직출 분배표 / 출고일정 메일(.mhtml·.html·.eml) · 캡처 이미지 → 출고요청서 / 데드우드·FC파손 낙찰파일 → 센터별 PLT
+const FI_DISP_FILE_RE = /\.(mhtml|mht|html?|eml|xlsx|xlsm|xls|png|jpe?g|webp|gif|bmp|heic|heif)$/i;
+function fiDispDropFiles(list){
+  const all = Array.from(list||[]).filter(x=> /^image\//.test(x.type||"") || FI_DISP_FILE_RE.test(x.name||""));
+  const st = document.getElementById("fiDispStatus");
+  if(!all.length){ if(st) st.innerHTML = '<span style="color:var(--red)">⚠ 읽을 수 있는 파일이 아닙니다 — 출고일정 메일(.mhtml), 메일 캡처 이미지, 고정인수·데드우드·FC파손 낙찰파일(.xlsx)을 놓아 주세요.</span>'; return Promise.resolve(); }
+  if(st) st.textContent = `${all.length}개 파일 읽는 중…`;
+  const p = all.length>1 ? fiDispFromFiles(all) : Promise.resolve(fiDispFromFile(all[0]));
+  return p.then(()=>{ const r = document.getElementById("fiDispResult"); if(r && r.innerHTML.trim() && _fiDisp) r.scrollIntoView({ behavior:"smooth", block:"start" }); }).catch(e=>{ if(st) st.textContent = "⚠ " + (e && e.message || e); });
+}
 function wireFixedDispatch(){
   const box = document.getElementById("fiDispBox");
   if(!box || box._wired) return; box._wired = true;
@@ -19939,10 +19952,10 @@ function wireFixedDispatch(){
   { const pd = document.getElementById("fiPlanDrop"), pi = document.getElementById("fiPlanInput");   // build 221: 직출 분배표 전용 칸
     if(pd && pi){
       pd.addEventListener("click", ()=> pi.click());
-      pi.addEventListener("change", ()=>{ const fs = Array.from(pi.files||[]); pi.value=""; if(fs.length) fiHandleFiles(fs, { statusId:"fiPlanStatus", fromDisp:true, scroll:true }); });
+      pi.addEventListener("change", ()=>{ const fs = Array.from(pi.files||[]); pi.value=""; if(fs.length) fiDispDropFiles(fs); });   // build 223: 메일도
       ["dragenter","dragover"].forEach(ev=> pd.addEventListener(ev, e=>{ e.preventDefault(); pd.classList.add("dragover"); }));
       ["dragleave","drop"].forEach(ev=> pd.addEventListener(ev, e=>{ e.preventDefault(); pd.classList.remove("dragover"); }));
-      pd.addEventListener("drop", e=>{ const fs = Array.from((e.dataTransfer && e.dataTransfer.files)||[]).filter(x=>/\.xls[xm]?$/i.test(x.name)); if(fs.length) fiHandleFiles(fs, { statusId:"fiPlanStatus", fromDisp:true, scroll:true }); });
+      pd.addEventListener("drop", e=> fiDispDropFiles(e.dataTransfer && e.dataTransfer.files));   // build 223: 출고일정 메일을 이 칸에 놓아도 출고요청서
     } }
   const ph = document.getElementById("fiDispPhoto");   // build 158: 휴대폰 — 이미지 전용 선택창(앨범/사진이 바로 뜸)
   dz.addEventListener("click", e=>{ if(e.target.closest("#fiDispPhotoMsg,#fiDispPhotoPrev")) return; if(e.target.closest("#fiDispPhotoBtn")){ e.stopPropagation(); ph.click(); return; } inp.click(); });
@@ -19954,9 +19967,11 @@ function wireFixedDispatch(){
     if(f) fiDispFromFile(f); });
   ["dragenter","dragover"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("dragover"); }));
   ["dragleave","drop"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove("dragover"); }));
-  dz.addEventListener("drop", e=>{ const f=e.dataTransfer && Array.from(e.dataTransfer.files||[]).find(x=>/^image\//.test(x.type) || /\.(mhtml|mht|html?|eml|xlsx)$/i.test(x.name)); if(!f) return;
-    const all = Array.from(e.dataTransfer.files||[]).filter(x=> /\.(mhtml|mht|html?|eml|xlsx)$/i.test(x.name));   // build 197: 낙찰파일 + 메일 같이 놓기(엑셀 먼저)
-    if(all.length>1) fiDispFromFiles(all); else fiDispFromFile(f); });
+  dz.addEventListener("drop", e=> fiDispDropFiles(e.dataTransfer && e.dataTransfer.files));   // build 197 · 223: 낙찰파일 + 메일 같이 놓기(엑셀 먼저)
+  // build 223: 카드 빈 곳(제목 · 표 위 등)에 놓아도 — 안쪽 칸이 이미 처리한 drop(defaultPrevented)은 건너뜀. 브라우저가 파일을 여는 것도 막음
+  box.addEventListener("dragover", e=>{ if(e.dataTransfer && Array.from(e.dataTransfer.types||[]).includes("Files")){ e.preventDefault(); box.classList.add("fi-card-drag"); } });
+  box.addEventListener("dragleave", e=>{ if(!box.contains(e.relatedTarget)) box.classList.remove("fi-card-drag"); });
+  box.addEventListener("drop", e=>{ box.classList.remove("fi-card-drag"); if(e.defaultPrevented) return; if(!(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length)) return; e.preventDefault(); fiDispDropFiles(e.dataTransfer.files); });
   // 캡처 후 Ctrl+V: 이미지면 OCR, 글자면 텍스트 파싱 (고정인수 탭이 열려 있을 때만)
   document.addEventListener("paste", e=>{
     const view = document.getElementById("view-fixed");
