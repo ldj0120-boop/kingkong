@@ -1235,7 +1235,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 229 · 2026-10-22</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 230 · 2026-10-22</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1765,6 +1765,7 @@
           </div>
           <div class="fi-disp-paste">
             <textarea id="liqLots" class="fi-text" style="min-height:96px" placeholder="낙찰된 LOT No (한 줄에 하나, 또는 쉼표·띄어쓰기로 구분)&#10;예) 46254AG&#10;46260AK"></textarea>
+            <div id="liqPick" style="margin:4px 0 6px;font-size:12.5px"></div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <label class="fi-mut">낙찰일 <input id="liqDate" class="fi-sel" style="width:96px" placeholder="YYYYMMDD" data-auto="1"></label>
               <span class="fi-mut">비워 두면 원본의 "YYYYMMDD_아리바 비딩건" 날짜로 자동</span>
@@ -1772,7 +1773,7 @@
             </div>
           </div>
         </div>
-        <input type="file" id="liqInput" accept=".xlsb,.xlsx,.xlsm" hidden>
+        <input type="file" id="liqInput" accept=".xlsb,.xlsx,.xlsm,.mhtml,.mht,.html,.htm,.eml" hidden>
         <div id="liqStatus" class="fi-status"></div>
         <div id="liqResult"></div>
         <div class="fi-sec-t">일반 리퀴 낙찰파일 기록</div>
@@ -1794,6 +1795,7 @@
           </div>
           <div class="fi-disp-paste">
             <textarea id="eosLots" class="fi-text" style="min-height:96px" placeholder="낙찰된 LOT 알파벳 (쉼표·점·띄어쓰기로 구분)&#10;예) C, E, G"></textarea>
+            <div id="eosPick" style="margin:4px 0 6px;font-size:12.5px"></div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <label class="fi-mut">낙찰일 <input id="eosDate" class="fi-sel" style="width:96px" placeholder="YYYYMMDD"></label>
               <span class="fi-mut">파일명 맨 앞(YYYYMMDD) — 기본 오늘</span>
@@ -1801,7 +1803,7 @@
             </div>
           </div>
         </div>
-        <input type="file" id="eosInput" accept=".xlsx,.xlsm,.xlsb" hidden>
+        <input type="file" id="eosInput" accept=".xlsx,.xlsm,.xlsb,.mhtml,.mht,.html,.htm,.eml" hidden>
         <div id="eosStatus" class="fi-status"></div>
         <div id="eosResult"></div>
         <div class="fi-sec-t">임박식품 낙찰파일 기록</div>
@@ -1831,7 +1833,7 @@
             </div>
           </div>
         </div>
-        <input type="file" id="fdInput" accept=".xlsx,.xlsm,.xlsb,.xls" hidden>
+        <input type="file" id="fdInput" accept=".xlsx,.xlsm,.xlsb,.xls,.mhtml,.mht,.html,.htm,.eml" hidden>
         <div id="fdStatus" class="fi-status"></div>
         <div id="fdResult"></div>
         </div>
@@ -1852,7 +1854,7 @@
             </div>
           </div>
         </div>
-        <input type="file" id="dwInput" accept=".xlsx,.xlsm,.xlsb,.xls" hidden>
+        <input type="file" id="dwInput" accept=".xlsx,.xlsm,.xlsb,.xls,.mhtml,.mht,.html,.htm,.eml" hidden>
         <div id="dwStatus" class="fi-status"></div>
         <div id="dwResult"></div>
         </div>
@@ -16440,7 +16442,7 @@ async function lsHandleFile(f){
     if(!/\.xlsb$/i.test(f.name)){ st.textContent="원본 읽는 중…"; await new Promise(function(r){ setTimeout(r,0); }); var cv=lsXlsxToAoa(buf); opt.aoa=cv.aoa; opt.conv=cv.notes; }   // build 219
     var r=await lsBuild(ff,buf,f.name,window.LIQSUM_TPL,function(m){ st.textContent=m; },opt);
     try{ r._uc=ucHtml("원본 검증 리포트", lsChecks(r)); }catch(e){ console.warn("lsChecks", e); }
-    r.sec=((Date.now()-t0)/1000).toFixed(1); r.srcName=f.name; _lsCur=r;
+    r.sec=((Date.now()-t0)/1000).toFixed(1); r.srcName=f.name; _lsCur=r; try{ bidShareSrc("liq", f); }catch(e){ console.warn(e); }   /* build 230: ② 낙찰파일도 이 원본 */
     st.innerHTML="✓ 요약본 생성 완료 ("+r.sec+"초) — 아래에서 받으세요";
     lsRender();
   }catch(e){ console.error(e); st.innerHTML='<span style="color:var(--red)">생성 실패: '+escHtml(e&&e.message||e)+'</span>'; }
@@ -16775,6 +16777,8 @@ function liqRender(){
 }
 function liqSetFile(f){
   if(!f) return;
+  if(BID_MAIL_RE.test(f.name||"")){ bidMailToCard("liq", f); return; }   // build 230: 입찰 결과 메일
+  _liqFromSum = false;
   if(!/\.xls[bxm]?$/i.test(f.name)){ document.getElementById("liqStatus").innerHTML = `<span style="color:var(--red)">엑셀(.xlsb / .xlsx) 파일을 올려 주세요.</span>`; return; }
   _liqFile = f; _liqCur = null;
   const dEl = document.getElementById("liqDate");
@@ -17467,7 +17471,7 @@ async function esHandleFile(f){
     const D = await esLoad(f, say);
     const r = await esBuild(ff, D, f.name, say);
     try{ r._uc = ucHtml("원본 검증 리포트", esChecks(D, r)); }catch(e){ console.warn("esChecks", e); }
-    r.sec = ((Date.now()-t0)/1000).toFixed(1); r.srcName = f.name; _esCur = r;
+    r.sec = ((Date.now()-t0)/1000).toFixed(1); r.srcName = f.name; _esCur = r; try{ bidShareSrc("eos", f); }catch(e){ console.warn(e); }   // build 230
     st.innerHTML = `✓ 임박 요약본 생성 완료 (${r.sec}초) — 아래에서 받으세요`;
     esRender();
     // ④ 낙찰파일 생성기에도 같은 원본을 넣어 둔다(LOT만 입력하면 바로 생성)
@@ -17997,6 +18001,7 @@ function wireFdSum(){
 }
 function fdSetFile(f){
   if(!f) return;
+  if(BID_MAIL_RE.test(f.name||"")){ bidMailToCard("fd", f); return; }   // build 230
   if(!/\.(xlsx|xlsm|xlsb|xls)$/i.test(f.name)){ document.getElementById("fdStatus").innerHTML = `<span style="color:var(--red)">엑셀(.xlsx) 파일을 올려 주세요.</span>`; return; }
   _fdFile = f; _fdData = null; _fdCur = null; document.getElementById("fdStatus").textContent = "";
   fdRender();
@@ -18502,6 +18507,7 @@ async function dwBidWorkbook(ff, D, b){
 // ⑥ 데드우드: 원본만 넣기(요약본은 ⑤에서)
 function dwSetFile(f){
   if(!f) return;
+  if(BID_MAIL_RE.test(f.name||"")){ bidMailToCard("dw", f); return; }   // build 230
   if(!/\.(xlsx|xlsm|xlsb|xls)$/i.test(f.name)){ document.getElementById("dwStatus").innerHTML = `<span style="color:var(--red)">엑셀(.xlsx) 파일을 올려 주세요.</span>`; return; }
   _dwFile = f; _dwData = null; _dwCur = null; document.getElementById("dwStatus").textContent = "";
   dwRender();
@@ -18940,6 +18946,8 @@ function eosRender(){
 }
 function eosSetFile(f){
   if(!f) return;
+  if(BID_MAIL_RE.test(f.name||"")){ bidMailToCard("eos", f); return; }   // build 230
+  _eosFromSum = false;
   if(!/\.xls[xmb]?$/i.test(f.name)){ document.getElementById("eosStatus").innerHTML = `<span style="color:var(--red)">엑셀(.xlsx) 파일을 올려 주세요.</span>`; return; }
   _eosFile = f; _eosData = null; _eosCur = null;
   document.getElementById("eosStatus").textContent = "";
@@ -20532,6 +20540,205 @@ function fiResultChecks(c){
   return C;
 }
 function vfBox(title, fn, arg){ try{ return ucHtml(title, fn(arg)); }catch(e){ console.warn(title, e); return ""; } }
+
+/* ================= build 230: ② 낙찰파일 — 원본 한 번 · LOT 고르기 · 입찰 결과 메일 · 낙찰금액 "종합" 줄 =================
+   1) ① 요약본에 올린 원본을 ② 낙찰파일이 그대로 씀(정기비딩 · 임박식품. FC파손 · 데드우드는 예전부터).
+   2) 낙찰 LOT 입력이 기본(낙찰 직후 바로 낙찰파일을 만들어 공유) — ① 요약본 LOT 목록에서 눌러 고르기,
+      입찰 결과 메일(.mhtml)을 ② 칸에 놓으면 LOT · 낙찰일 · 입금코드 · 금액을 채움(있으면 쓰고, 없어도 LOT 입력만으로 됨).
+   3) 낙찰파일을 만들면 2026_쿠팡 낙찰금액 "종합" 시트에 붙여넣을 줄(낙찰일자 | 입금코드 | 센터명 | 낙찰금액(-vat) | (+vat) | NO. | PLT 수량 | 분류 | 출고지 | 배차일)
+      → 표에서 고치고 [📋 복사] → 엑셀 B열에 붙여넣기. 입금코드는 메일 값, 없으면 규칙으로 만든 "예상"(메일이 오면 확정). 낙찰금액 파일을 연결해 두면 이미 있는 줄은 빼고 복사. */
+let _liqFromSum = false, _eosFromSum = false;
+const BID_RES_LS = "kk_bidres_v1";
+let BID_RES = {}; try{ BID_RES = JSON.parse(localStorage.getItem(BID_RES_LS)||"{}") || {}; }catch(_){ BID_RES = {}; }
+function bidResSave(){ try{ const k = Object.keys(BID_RES); if(k.length > 600) k.sort((a,b)=> (BID_RES[a].at||0)-(BID_RES[b].at||0)).slice(0, k.length-600).forEach(x=> delete BID_RES[x]); localStorage.setItem(BID_RES_LS, JSON.stringify(BID_RES)); }catch(_){} }
+function bidResKey(kind, lot, date8){ return `${kind}|${String(lot||"").toUpperCase()}|${kind==="liq" ? "" : String(date8||"").replace(/\D/g,"")}`; }
+function bidResGet(kind, lot, date8){ return BID_RES[bidResKey(kind, lot, date8)] || BID_RES[bidResKey(kind, lot, "")] || null; }
+function bidResPut(kind, lot, date8, o){ const k = bidResKey(kind, lot, date8); BID_RES[k] = Object.assign({}, BID_RES[k]||{}, o, { at:Date.now() }); bidResSave(); }
+// 입금코드 규칙(낙찰금액 종합 · 메일에서 확인): 정기 AF+LOT 5번째 숫자+연2+월(1~9·A~C)+일2+LOT 끝 2글자 / 임박 AFH+연월일+LOT 두 번 / 데드우드 AFG+연월일+"A"+LOT
+function bidCodeGuess(kind, lot, date8){
+  const d = String(date8||"").replace(/\D/g,""); if(!/^20\d{6}$/.test(d)) return "";
+  const ymd = d.slice(2,4) + (+d.slice(4,6)).toString(16).toUpperCase() + d.slice(6,8), L = String(lot||"").toUpperCase();
+  if(kind==="liq"){ const m = L.match(/^\d{4}(\d)([A-Z]{2})$/); return m ? `AF${m[1]}${ymd}${m[2]}` : ""; }
+  if(kind==="eos" && /^[A-Z]$/.test(L)) return `AFH${ymd}${L}${L}`;
+  if(kind==="dw" && /^[A-Z]$/.test(L)) return `AFG${ymd}A${L}`;
+  return "";   // FC파손은 마감일 · 원본 날짜가 달라 규칙으로 만들지 않음(메일 값만)
+}
+const bidD8 = v=>{ const s = String(v||"").replace(/\D/g,""); return s.length===6 ? "20"+s : s; };
+const bidDash = d8=> /^20\d{6}$/.test(d8) ? `${d8.slice(0,4)}-${d8.slice(4,6)}-${d8.slice(6,8)}` : "";
+
+// ---- 1) ① → ② 원본 공유
+function bidShareSrc(kind, f){
+  if(!f) return;
+  if(kind==="liq"){
+    if(_liqFile===f) return;
+    _liqFile = f; _liqCur = null; _liqFromSum = true;
+    const dEl = document.getElementById("liqDate");
+    if(dEl && (dEl.dataset.auto==="1" || !dEl.value)){ const m = String(f.name).match(/(20\d{6})(?!\d)/); dEl.value = m ? m[1] : ""; dEl.dataset.auto = "1"; }
+    try{ liqRender(); }catch(_){} bidPickRender("liq");
+  } else if(kind==="eos"){
+    if(_eosFile===f) return;
+    eosSetFile(f); _eosFromSum = true; try{ eosRender(); }catch(_){} bidPickRender("eos");
+  }
+}
+// ---- 2) LOT 고르기 (① 요약본 LOT 목록 / 임박 원본 LOT)
+function bidLotCands(kind){
+  if(kind==="liq" && typeof _lsCur!=="undefined" && _lsCur && _lsCur.rows && _liqFile && _lsCur.srcName===_liqFile.name)
+    return _lsCur.rows.map(x=> ({ lot:String(x.no), sub:`${x.fc||""}${x.plt!=null?` · ${x.plt}PLT`:""}` }));
+  if(kind==="eos"){
+    if(typeof _esCur!=="undefined" && _esCur && _esCur.lots && _eosFile && _esCur.srcName===_eosFile.name) return _esCur.lots.map(o=> ({ lot:String(o.no), sub: o.pltText || (o.plt!=null ? o.plt+"PLT" : "") }));
+    if(typeof _eosData!=="undefined" && _eosData && _eosData._file===_eosFile) return eosLotList(_eosData).map(l=> ({ lot:l, sub:"" }));
+  }
+  return [];
+}
+function bidLotsOf(kind){ const ta = document.getElementById(kind==="liq" ? "liqLots" : "eosLots"); if(!ta) return []; return kind==="liq" ? liqParseLots(ta.value) : eosParseLots(ta.value); }
+function bidPickRender(kind){
+  const el = document.getElementById(kind==="liq" ? "liqPick" : "eosPick"); if(!el) return;
+  const C = bidLotCands(kind), on = new Set(bidLotsOf(kind).map(x=> String(x).toUpperCase()));
+  const mailTip = `<span class="fi-mut">📧 쿠팡 입찰 결과 메일(.mhtml)을 왼쪽 칸에 놓으면 낙찰 LOT · 낙찰일 · 입금코드 · 금액이 채워집니다(없어도 LOT만 넣으면 됨)</span>`;
+  if(!C.length){ el.innerHTML = mailTip; return; }
+  el.innerHTML = `<div class="fi-mut" style="margin:2px 0 4px">${kind==="liq" ? "① 요약본" : "원본"} LOT ${C.length}개 — 눌러서 낙찰 LOT 고르기 <b>(선택 ${C.filter(c=> on.has(c.lot.toUpperCase())).length})</b></div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;max-height:132px;overflow:auto">${C.map(c=> `<button type="button" class="act fi-mini bid-chip${on.has(c.lot.toUpperCase())?" primary":""}" data-bid-chip="${escHtml(kind)}" data-lot="${escHtml(c.lot)}" title="${escHtml(c.sub)}">${escHtml(c.lot)}${c.sub?` <span style="opacity:.7;font-size:11px">${escHtml(c.sub)}</span>`:""}</button>`).join("")}</div>
+    <div style="margin-top:4px">${mailTip}</div>`;
+}
+function bidToggleLot(kind, lot){
+  const ta = document.getElementById(kind==="liq" ? "liqLots" : "eosLots"); if(!ta) return;
+  const cur = bidLotsOf(kind).map(x=> String(x).toUpperCase()), L = String(lot).toUpperCase();
+  const next = cur.includes(L) ? cur.filter(x=> x!==L) : cur.concat(L);
+  ta.value = next.join(kind==="liq" ? "\n" : ", ");
+  bidPickRender(kind);
+}
+document.addEventListener("click", e=>{ const b = e.target.closest && e.target.closest("button[data-bid-chip]"); if(!b) return; e.preventDefault(); bidToggleLot(b.dataset.bidChip, b.dataset.lot); });
+document.addEventListener("input", e=>{ const id = e.target && e.target.id; if(id==="liqLots") bidPickRender("liq"); else if(id==="eosLots") bidPickRender("eos"); });
+
+// ---- 2) 입찰 결과 메일 → 낙찰 LOT · 낙찰일 · 입금코드 · 금액
+const BID_MAIL_RE = /\.(mhtml|mht|html?|eml)$/i;
+async function bidMailText(f){
+  const buf = await f.arrayBuffer();
+  const html = /\.html?$/i.test(f.name) ? new TextDecoder("utf-8").decode(buf) : mhtmlToHtml(buf);
+  if(!html) throw new Error("메일 파일에서 본문을 찾지 못했습니다");
+  let text = mailHtmlToText(html); const ttl = mailHtmlToText.title || ""; if(ttl) text = ttl + "\n" + text;
+  return text;
+}
+// 메일 글 → { kind, date8, lots:[{lot, code, fc, amt, amtVat, plt}] }  (기록만 남기고 화면은 안 바꿈)
+function bidParseMail(text){
+  const M = dwDispParseMail(text), d8 = String(M.bidDate||"").replace(/-/g,"");
+  const num = x=> +String(x||"").replace(/[^\d.]/g,"") || null;
+  // 정기(일반 리퀴): No(46316BH) | FC | 인수가 | 인수가 | 입금코드
+  const lines = String(text||"").split(/\r?\n/); const liq = []; let mode = null;
+  lines.forEach(l=>{ const c = l.split("\t").map(x=> String(x).replace(/[\s ]+/g," ").trim());
+    if(/^No\.?$/i.test(c[0]) && c.some(x=> /입금코드/.test(x))){ mode = { fc: c.findIndex(x=> /^FC$|센터/i.test(x)), a: c.findIndex(x=> /미포함|VAT\s*X|부가세\s*별도/i.test(x)), b: c.findIndex(x=> /\(부가세 포함\)|포함\)|VAT\s*O/i.test(x) && !/미포함/.test(x)) }; return; }
+    if(!mode) return;
+    if(!/^\d{5}[A-Z]{2}$/.test(c[0]||"")){ if(c.join("").trim()) mode = null; return; }
+    const code = (c.find(x=> /^AF[A-Z0-9]{8}$/i.test(x))||"").toUpperCase(), nums = c.filter(x=> /^[\d,]{4,}$/.test(x)).map(num);
+    liq.push({ lot:c[0], code, fc: mode.fc>=0 ? String(c[mode.fc]||"").toUpperCase() : "", amt: mode.a>=0 ? num(c[mode.a]) : nums[0]||null, amtVat: mode.b>=0 ? num(c[mode.b]) : nums[1]||null }); });
+  if(liq.length) return { kind:"liq", date8: d8 || (fiUniCodeDate(liq[0].code)||"").replace(/-/g,""), lots: liq };
+  const kd = dwDispKind(text);
+  if(kd && M.lots.length) return { kind: kd==="dw" ? "dw" : "fd", date8: d8, lots: M.lots.map(x=> ({ lot:x.lot, code:x.code, amt:x.amt, amtVat:x.amtVat })) };
+  if(typeof eosDispIsMail==="function" && eosDispIsMail(text)){
+    const R = eosDispParseText(text), by = {};
+    R.forEach(r=>{ const L = r.lot || ""; if(!L) return; const o = by[L] = by[L] || { lot:L, code:r.bidcode, plt:0, fcs:[] }; o.plt += +r.pallets||0; o.fcs.push(r.fc); });
+    const lots = Object.values(by); const cd = lots[0] && fiUniCodeDate(lots[0].code);
+    if(lots.length) return { kind:"eos", date8: d8 || (cd||"").replace(/-/g,""), lots };
+  }
+  return null;
+}
+function bidRecordMail(P){
+  if(!P) return 0;
+  P.lots.forEach(x=>{ const o = {}; ["code","amt","amtVat","fc"].forEach(k=>{ if(x[k]!=null && x[k]!=="") o[k] = x[k]; }); o.src = "메일"; if(P.date8) o.date8 = P.date8; bidResPut(P.kind, x.lot, P.date8, o); });
+  return P.lots.length;
+}
+async function bidMailToCard(card, f){
+  const st = document.getElementById(card+"Status"); const say = (m, bad)=>{ if(st) st.innerHTML = bad ? `<span style="color:var(--red)">${m}</span>` : m; };
+  try{
+    const text = await bidMailText(f), P = bidParseMail(text);
+    if(!P){ say("⚠ 이 메일에서 입찰 결과 표(No · 입금코드)를 찾지 못했습니다 — 낙찰 LOT을 직접 입력해 주세요.", true); return; }
+    const want = { liq:"liq", eos:"eos", fd:"fd", dw:"dw" }[card];
+    if(P.kind!==want){ say(`⚠ ${({liq:"정기비딩",eos:"임박식품",fd:"FC파손",dw:"데드우드"})[P.kind]} 입찰 결과 메일입니다 — 그 낙찰파일 칸에 놓아 주세요. (기록은 남겨 둠: 낙찰금액 줄에 금액 · 입금코드로 씀)`, true); bidRecordMail(P); return; }
+    bidRecordMail(P);
+    const ta = document.getElementById(card+"Lots"), dEl = document.getElementById(card+"Date");
+    const have = card==="liq" ? liqParseLots(ta.value) : card==="eos" ? eosParseLots(ta.value) : fdParseLots(ta.value).lots;
+    const add = P.lots.map(x=> x.lot).filter(l=> !have.map(String).map(s=> s.toUpperCase()).includes(String(l).toUpperCase()));
+    if(add.length) ta.value = (ta.value.trim() ? ta.value.trim() + (card==="liq" ? "\n" : ", ") : "") + add.join(card==="liq" ? "\n" : ", ");
+    if(dEl && P.date8){ dEl.value = card==="eos" ? P.date8 : P.date8; if(dEl.dataset) dEl.dataset.auto = "0"; }
+    try{ bidPickRender(card); }catch(_){}
+    const fileOk = card==="liq" ? !!_liqFile : card==="eos" ? !!_eosFile : card==="fd" ? !!_fdFile : !!_dwFile;
+    say(`✓ 입찰 결과 메일 — 낙찰 LOT ${P.lots.map(x=> x.lot).join(", ")} · 낙찰일 ${bidDash(P.date8)||"?"}${P.lots.some(x=> x.amt) ? " · 금액 · 입금코드 기록" : ""}${fileOk ? " — 낙찰파일 만드는 중…" : " — 원본을 올리면 낙찰파일을 만듭니다"}`);
+    if(fileOk){ if(card==="liq") await liqGenerate(); else if(card==="eos") await eosGenerate(); else if(card==="fd") await fdGenerate(); else await dwGenerate(); }
+  }catch(e){ say("⚠ " + escHtml(e && e.message || e), true); }
+}
+
+// ---- 3) 2026_쿠팡 낙찰금액 "종합" 줄
+const BAM_HDR = ["낙찰일자","입금코드","센터명","낙찰금액(-vat)","낙찰금액(+vat)","NO.","PLT 수량","분류","출고지","배차일"];
+function bamGrpLetter(rows, lot){   // 정기: RAW GROUPING(XLC …) 다수결 → C
+  const cnt = {}; (rows||[]).forEach(r=>{ if(String(r["NO."])!==String(lot)) return; const g = String(r.GROUPING||"").toUpperCase(); const m = g.match(/XL([A-Z])/) || g.match(/^([A-Z])$/); if(m) cnt[m[1]] = (cnt[m[1]]||0)+1; });
+  return Object.keys(cnt).sort((a,b)=> cnt[b]-cnt[a])[0] || "";
+}
+function bamRows(kind){
+  const out = [], push = (o)=> out.push(o);
+  const res = (lot, d8)=> bidResGet(kind, lot, d8) || {};
+  const codeOf = (lot, d8)=>{ const r = res(lot, d8); if(r.code) return { v:r.code, guess:false, src:r.src||"" }; const g = bidCodeGuess(kind, lot, d8); return { v:g, guess:!!g, src:"" }; };
+  if(kind==="liq" && _liqCur){ const b = _liqCur.b, d8 = String(b.date||"");
+    b.perLot.forEach(x=>{ const r = res(x.lot, d8), L = bamGrpLetter(b.raw, x.lot);
+      push({ key:bidResKey("liq", x.lot, d8), lot:x.lot, d8, code:codeOf(x.lot, d8), center:x.name || fiCenterName(x.fc), amt:r.amt, amtVat:r.amtVat, no:x.lot, plt: L ? `${L}-${x.plt}` : String(x.plt), cat:"리퀴", fcK:_fiHbFc(x.fc), first:true, warnPlt: !L }); }); }
+  if(kind==="eos" && _eosCur && _eosCur.files[0]){ const B = _eosCur.files[0].b, d8 = bidD8(_eosCur.date6);
+    (B.parts || [B]).forEach(p=>{ const r = res(p.lot, d8); let first = true;
+      (p.eosOnly||[]).forEach(e=>{ const fc = eosT(e[1]).toUpperCase(), c = eosT(e[2]); push({ key:bidResKey("eos", p.lot, d8), lot:p.lot, d8, code:codeOf(p.lot, d8), center: esIsCenter(c) ? kkFcKo(c).replace(/\s+/g,"") : (esIsCenter(fc) ? kkFcKo(fc) : (c||fc)), amt: first ? r.amt : null, amtVat: first ? r.amtVat : null, no:p.lot, plt:String(+e[3]||0), cat:"임박", fcK:_fiHbFc(fc), first }); first = false; });
+      (p.others||[]).forEach(x=>{ const L = String(x.g||"").replace(/^XL/i,""); push({ key:bidResKey("eos", p.lot, d8), lot:p.lot, d8, code:codeOf(p.lot, d8), center:x.name || kkFcKo(x.fc), amt:first ? r.amt : null, amtVat:first ? r.amtVat : null, no:x.g, plt:`${L}-${x.plt}`, cat:"임박"+x.g, fcK:_fiHbFc(x.fc), first }); first = false; }); }); }
+  if((kind==="fd" && _fdCur) || (kind==="dw" && _dwCur)){ const C = kind==="fd" ? _fdCur : _dwCur, d8 = String(C.date8||"");
+    C.b.parts.forEach(p=>{ const r = res(p.no, d8); push({ key:bidResKey(kind, p.no, d8), lot:p.no, d8, code:codeOf(p.no, d8), center: kind==="dw" ? (p.centerText||"") : "", amt:r.amt, amtVat:r.amtVat, no:p.no, plt: p.plt==null ? "" : String(p.plt), cat: kind==="dw" ? "데드우드" : "FC파손", fcK:"", first:true }); }); }
+  // 이미 낙찰금액 종합에 있는 줄(연결한 파일 기준): 정기 = NO.(LOT) · 그 외 = 입금코드 + (센터 또는 NO.)
+  const H = (typeof FI_HB!=="undefined" && FI_HB && FI_HB.rows) ? FI_HB.rows : null;
+  out.forEach(o=>{ o.have = !!H && H.some(x=>{
+    if(o.cat==="리퀴") return String(x.no||"")===String(o.no) || (!!o.code.v && !o.code.guess && x.code===o.code.v);
+    if(!o.code.v || x.code!==o.code.v) return false;
+    if(o.fcK && x.fcs.length) return x.fcs.includes(o.fcK) && (!/^XL/.test(o.no) || String(x.no||"").toUpperCase()===o.no.toUpperCase() || /XL/.test(x.cat||""));
+    return !x.no || String(x.no).toUpperCase()===String(o.no).toUpperCase(); }); });
+  return out;
+}
+function bamTsv(rows){ return rows.map(o=> [bidDash(o.d8), o.code.v||"", o.center||"", o.amt==null?"":o.amt, o.amtVat==null?"":o.amtVat, o.no||"", o.plt||"", o.cat||"", "", ""].join("\t")).join("\n"); }
+function bamHtml(kind){
+  let R; try{ R = bamRows(kind); }catch(e){ console.warn("bamRows", e); return ""; }
+  if(!R.length) return "";
+  const newR = R.filter(o=> !o.have), guess = R.filter(o=> o.code.guess).length, noCode = R.filter(o=> !o.code.v).length, noAmt = R.filter(o=> o.first && o.amt==null).length, noL = R.filter(o=> o.warnPlt).length;
+  const hb = (typeof FI_HB!=="undefined" && FI_HB && FI_HB.rows);
+  const inp = (o, f, w, v)=> o.first ? `<input class="fi-dinp bam-inp" data-bam-key="${escHtml(o.key)}" data-bam-f="${f}" value="${escHtml(v==null?"":v)}" style="width:${w}px">` : `<span class="fi-mut">${escHtml(v==null?"":v)}</span>`;
+  return `<div class="bam-box" data-bam-kind="${escHtml(kind)}" style="margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:8px 10px">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>📒 2026_쿠팡 낙찰금액 "종합"에 붙여넣을 줄</b>
+      <button class="act primary fi-mini" data-bam-copy="${escHtml(kind)}">📋 ${hb ? `새 줄 ${newR.length}개` : `${R.length}줄`} 복사</button>
+      <span class="fi-mut">엑셀 종합 시트 맨 아래 빈 줄의 <b>B열(낙찰일자)</b>을 누르고 붙여넣기 · 출고지 · 배차일은 배차 때</span> <span class="bam-msg fi-mut"></span></div>
+    <div class="fi-mut" style="margin:4px 0">${[guess ? `⚠ 입금코드 ${guess}줄은 규칙으로 만든 <b>예상</b> — 입찰 결과 메일을 ② 칸에 놓거나 직접 고치면 확정` : "", noCode ? `⚠ 입금코드 없음 ${noCode}줄(FC파손은 메일 값만)` : "", noAmt ? `⚠ 금액 없음 ${noAmt}줄 — 메일을 놓거나 표에 입력` : "", noL ? `⚠ PLT 분류 글자(A/B/C…)를 원본 GROUPING에서 못 찾은 줄 ${noL}개` : "", hb ? `낙찰금액 파일(${escHtml(FI_HB.name)}) 대조: 이미 있음 ${R.length-newR.length}줄 → 복사에서 뺌` : "낙찰금액 파일을 ⑤에서 연결하면 이미 있는 줄은 빼고 복사합니다"].filter(Boolean).join(" · ")}</div>
+    <div style="overflow-x:auto"><table class="fi-tbl"><thead><tr>${BAM_HDR.map(h=> `<th>${escHtml(h)}</th>`).join("")}<th></th></tr></thead><tbody>
+    ${R.map(o=> `<tr style="${o.have?"opacity:.45":""}"><td>${escHtml(bidDash(o.d8))}</td><td>${inp(o,"code",104,o.code.v)}${o.code.guess && o.first ? ` <span style="color:var(--amber);font-size:11px">예상</span>` : ""}</td><td>${escHtml(o.center||"")}</td><td class="n">${inp(o,"amt",92,o.amt)}</td><td class="n">${inp(o,"amtVat",92,o.amtVat)}</td><td>${escHtml(o.no||"")}</td><td>${escHtml(o.plt||"")}</td><td>${escHtml(o.cat||"")}</td><td></td><td></td><td>${o.have ? `<span class="fi-mut" style="font-size:11px">이미 있음</span>` : ""}</td></tr>`).join("")}
+    </tbody></table></div></div>`;
+}
+function bamRefresh(kind){ const el = document.querySelector(`.bam-box[data-bam-kind="${kind}"]`); if(!el) return; const t = document.createElement("div"); t.innerHTML = bamHtml(kind); if(t.firstElementChild) el.replaceWith(t.firstElementChild); }
+document.addEventListener("change", e=>{ const t = e.target; if(!t || !t.classList || !t.classList.contains("bam-inp")) return;
+  const [kind, lot, d8] = t.dataset.bamKey.split("|"), f = t.dataset.bamF; let v = String(t.value||"").trim();
+  if(f!=="code"){ v = v==="" ? null : (+v.replace(/[^\d.]/g,"") || null); } else v = v.toUpperCase();
+  bidResPut(kind, lot, d8, { [f]: v, src:"입력" }); bamRefresh(kind); });
+document.addEventListener("click", async e=>{ const b = e.target.closest && e.target.closest("button[data-bam-copy]"); if(!b) return; e.preventDefault();
+  const kind = b.dataset.bamCopy, R = bamRows(kind), hb = (typeof FI_HB!=="undefined" && FI_HB && FI_HB.rows), use = hb ? R.filter(o=> !o.have) : R;
+  const msg = b.parentElement && b.parentElement.querySelector(".bam-msg");
+  if(!use.length){ if(msg) msg.textContent = "복사할 새 줄이 없습니다(모두 낙찰금액에 있음)"; return; }
+  const tsv = bamTsv(use); let ok = false;
+  try{ await navigator.clipboard.writeText(tsv); ok = true; }catch(_){ try{ const ta = document.createElement("textarea"); ta.value = tsv; document.body.appendChild(ta); ta.select(); ok = document.execCommand("copy"); ta.remove(); }catch(_){} }
+  window._bamLastCopy = tsv;
+  if(msg) msg.textContent = ok ? `✓ ${use.length}줄 복사됨 — 엑셀 B열에 붙여넣기` : "복사 실패 — 표를 직접 선택해 복사해 주세요"; });
+
+// 결과 화면에 붙이기 (② 정기 · 임박 · FC파손 · 데드우드 낙찰파일 결과 아래) + ① 원본 그대로 표시 · LOT 고르기
+(function(){
+  const wrapR = (name, kind, resId, cur)=>{ const f0 = window[name]; if(typeof f0!=="function") return;
+    window[name] = function(){ const r = f0.apply(this, arguments);
+      try{ const w = document.getElementById(resId); if(w && cur() && !w.querySelector(".bam-box")) w.insertAdjacentHTML("beforeend", bamHtml(kind)); }catch(e){ console.warn("bam", e); }
+      try{ if(kind==="liq" || kind==="eos"){ const fi = document.getElementById(kind+"FileInfo"); const on = kind==="liq" ? (_liqFromSum && _liqFile) : (_eosFromSum && _eosFile);
+        if(fi && on && !fi.querySelector(".bid-fromsum")) fi.insertAdjacentHTML("afterbegin", `<div class="bid-fromsum" style="color:var(--green);font-weight:600">✓ ① 요약본에 올린 원본을 그대로 씁니다 — 다시 올릴 필요 없음</div>`);
+        bidPickRender(kind); } }catch(_){}
+      return r; }; };
+  wrapR("liqRender", "liq", "liqResult", ()=> _liqCur);
+  wrapR("eosRender", "eos", "eosResult", ()=> _eosCur);
+  wrapR("fdRender", "fd", "fdResult", ()=> _fdCur);
+  wrapR("dwRender", "dw", "dwResult", ()=> _dwCur);
+})();
 async function fiDispFromFile(f){
   if(/\.xls[xm]$/i.test(f.name||"") && await fiHbIsFile(f)){   // build 225: 2026_쿠팡 낙찰금액 → 도착지 찾기 기준
     const st = document.getElementById("fiDispStatus");
@@ -20566,6 +20773,7 @@ async function fiDispFromFile(f){
     if(!html) throw new Error("메일 파일에서 본문을 찾지 못했습니다.");
     let text = mailHtmlToText(html);
     { const ttl = mailHtmlToText.title || ""; if(ttl && dwDispKind(ttl + "\n" + text) && !/마감\s*입찰\s*결과/.test(text)) text = ttl + "\n" + text; }   // build 220: 제목("10-21 마감 입찰 결과")으로 FC파손 판별 · 낙찰일
+    try{ bidRecordMail(bidParseMail(text)); }catch(_){}   // build 230: 입찰 결과 메일 금액 · 입금코드 → 낙찰금액 줄
     text = fiUniMain(text); const _b4 = _fiDisp && _fiDisp.id; _fiDispSrc = text;   // build 227: 이전 메일 인용 빼기
     if(liqDispIsMail(text)){ const ta = document.getElementById("fiDispPaste"); if(ta) ta.value = text; liqDispFromText(text); }   // build 226: 일반 리퀴 입찰 결과 메일(No 46316BH · FC · 입금코드)
     else if(dwDispIsMail(text)){ const ta = document.getElementById("fiDispPaste"); if(ta) ta.value = text; await dwDispFromText(text); if((_fiDisp && _fiDisp.id)===_b4) fiUniStart(text, "메일 파일(범용 인식)"); }   // build 196 · 227: 못 읽으면 범용 인식
