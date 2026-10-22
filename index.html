@@ -1203,7 +1203,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 221 · 2026-10-22</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 222 · 2026-10-22</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -13553,7 +13553,7 @@ function fiPlanText(builds, plan){
     plan[t].filter(r=>r.file===b.outName).forEach(r=>{
       const head = `${r.name}(${r.plt}PLT)_`;
       if(t==="XLG") out.push(head + r.alloc.map(a=>a.store).join(" "));
-      else out.push(head + r.alloc.map(a=>`${a.store} ${a.plt}PLT`).join(" "));
+      else out.push(head + r.alloc.filter(a=> (+a.plt||0)>0).map(a=>`${a.store} ${a.plt}PLT`).join(" "));   // build 221: 0PLT 줄(추가만 하고 비운 하차지)은 문구에서 뺌
     });
     out.push(""); out.push("");
   });
@@ -13562,7 +13562,7 @@ function fiPlanText(builds, plan){
     if(builds.findIndex(x=>x.type===b.type)===i) return;
     out.push(b.outName.replace(/\.xlsx$/,"")); out.push("");
     (plan[b.type]||[]).filter(r=>r.file===b.outName).forEach(r=>{
-      out.push(`${r.name}(${r.plt}PLT)_` + r.alloc.map(a=> b.type==="XLS" ? `${a.store} ${a.plt}PLT` : a.store).join(" "));
+      out.push(`${r.name}(${r.plt}PLT)_` + r.alloc.filter(a=> b.type!=="XLS" || (+a.plt||0)>0).map(a=> b.type==="XLS" ? `${a.store} ${a.plt}PLT` : a.store).join(" "));
     });
     out.push(""); out.push("");
   });
@@ -14324,7 +14324,7 @@ function fiAfterEdit(){
   ["XLS","XLG"].forEach(t=> (_fiCur.plan[t]||[]).forEach(r=>{
     const m = {}; const out=[];
     r.alloc.forEach(a=>{ if(m[a.store]){ m[a.store].plt += (+a.plt||0); } else { m[a.store] = a; out.push(a); } });
-    r.alloc = out.filter((a,i)=> (+a.plt||0)>0 || out.length===1);
+    r.alloc = out;   // build 221: 0PLT 줄을 자동으로 지우지 않음 — 추가한 하차지에서 매장을 고르는 순간(아직 0PLT) 줄이 사라지던 버그. 줄 삭제는 ✕로
   }));
   fiSaveCurrentToHistory(false);
   fiRender();
@@ -14384,7 +14384,7 @@ function wireFixedIntake(){
     else if(t.dataset.fiDel){ if(confirm("이 히스토리 기록을 삭제할까요?")){ const id=+t.dataset.fiDel; fiHistDeleteIds([id]); } }   // build 168: 지운 기록이 서버 저장본에서 다시 살아나지 않게
     else if(t.dataset.fiRm!=null && _fiCur){ const [ri, ai] = t.dataset.fiRm.split(":").map(Number); const r=_fiCur.plan.XLS[ri];   // build 221: 하차지 줄 삭제(최소 1줄)
       if(r && r.alloc.length>1 && r.alloc[ai]){ r.alloc.splice(ai, 1); fiSaveCurrentToHistory(false); fiRender(); } }
-    else if(t.dataset.fiAdd!=null && _fiCur){ const r=_fiCur.plan.XLS[+t.dataset.fiAdd]; if(r){ r.alloc.push({ store:FI_JINCHEON, plt:0, why:"수동 추가" }); fiSaveCurrentToHistory(false); fiRender(); } }
+    else if(t.dataset.fiAdd!=null && _fiCur){ const r=_fiCur.plan.XLS[+t.dataset.fiAdd]; if(r){ const rest = Math.max(0, (+r.plt||0) - r.alloc.reduce((x,a)=> x+(+a.plt||0), 0)); r.alloc.push({ store:FI_JINCHEON, plt:rest, why:"수동 추가" }); /* build 221: 남은 PLT를 새 줄에 */ fiSaveCurrentToHistory(false); fiRender(); } }
     else if(t.id==="fiReplan" && _fiCur && _fiCur.builds[0] && _fiCur.builds[0].raw){ _fiCur.stockMap = fiEffStock(fiLatestSnap(), _fiCur.id, fiCurDate()); _fiCur.plan = fiPlan(_fiCur.builds, _fiCur.stockMap, Object.assign({ eligible:fiEligMap() }, fiSettings())); fiSaveCurrentToHistory(false); fiRender(); }
     else if(t.id==="fiReplan"){ showNotice("다시 분배는 이번에 파일을 올려 만든 결과에서만 됩니다(히스토리 결과는 하차지를 직접 바꿔 주세요)."); }
     else if(t.id==="fiResetSet"){ FI_SETTINGS_SAVED=null; FI_ELIG=null; fiPersist(); fiRenderSettings(); }
