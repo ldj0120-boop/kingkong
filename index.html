@@ -1204,7 +1204,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 227 · 2026-10-22</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 228 · 2026-10-22</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -13789,6 +13789,7 @@ function fiRender(){
   h += `<div class="fi-match ${pu.length?"bad":"ok"}" style="margin-bottom:10px">${pu.length
     ? `ⓘ 매장재고는 ${escHtml(sd)} 파일 기준입니다. 그 이후 이 사이트에서 이미 배정한 출고 — ${pu.map(u=>`${u.date.slice(4,6)}/${u.date.slice(6)} XLS ${u.XLS}PLT · XLG ${u.XLG}PLT`).join(" / ")} — 는 매장재고·출고내역서가 아직 안 올라와도 <b>미반영 입고(파란 +숫자)</b>로 재고에 더해 하차지를 정했습니다. 해당 날짜 출고가 취소·변경됐다면 하차지를 직접 조정해 주세요.`
     : `매장재고 ${escHtml(sd)} 기준 — 그 이후 이 사이트에서 배정한 출고 기록은 없습니다(이전 출고내역이 재고 파일에 반영됐는지 확인).`}</div>`;
+  h += vfBox("결과 검산 — 낙찰파일 · 직출 분배표(하차지를 바꾸면 다시 확인)", fiResultChecks, c);   // build 228
   ["XLS","XLG","XLD"].forEach(t=> h += fiRenderPlanTable(t, c.plan[t], true));
   h += fiRenderStockRef();
   h += `<div class="fi-sec-t">카카오톡 문구 <button class="act primary fi-mini" id="fiCopy">복사</button> <span id="fiCopyMsg" class="fi-mut"></span></div>
@@ -16715,6 +16716,7 @@ function liqRender(){
         <button class="act primary fi-mini" id="liqDl">⬇ 다운로드</button> <button class="act fi-mini fi-del" id="liqResDel" title="화면에서 결과 지우기 (기록은 아래에서 삭제)">✕</button></div>
       <div style="display:flex;gap:6px;align-items:flex-start;margin:4px 0 8px"><textarea class="fi-text" id="liqFullName" readonly style="min-height:54px;font-size:12.5px">${escHtml(b.fullName||b.outName)}</textarea><button class="act primary fi-mini" id="liqCopyName" style="white-space:nowrap">낙찰파일명 복사</button></div>
       ${liqLotTable(b.perLot, tot)}
+      ${c._vf==null ? (c._vf = vfBox("결과 검산 — 받을 파일을 다시 열어 확인", liqResultChecks, c)) : c._vf}
       ${b.notFound.length?`<div style="color:var(--red);font-size:12.5px;margin-top:6px">⚠ 원본에 없는 LOT No: ${b.notFound.map(escHtml).join(", ")} — 파일에서 빠졌습니다</div>`:""}
       ${miss.length?`<div style="color:var(--red);font-size:12.5px;margin-top:6px">⚠ 도매요율표에 없는 분류 ${miss.length}개 → 도매가 0 처리: ${miss.map(escHtml).join(", ")}</div>`:""}
       ${Object.keys(b.guessRate||{}).length?`<div style="color:var(--amber);font-size:12.5px;margin-top:6px">ⓘ 도매요율표에 없는 소분류(엑셀 수식이면 #N/A) → 같은 상위 분류 요율로 계산: ${Object.entries(b.guessRate).map(([k,v])=>escHtml(k)+" = "+v).join(", ")}</div>`:""}
@@ -18876,6 +18878,7 @@ function eosRender(){
           <td class="n">${fiFmt(b.rows)}</td><td class="n">${fiFmt(b.qty)}</td><td class="n">${fiFmt(b.sales)}</td><td class="n">${fiFmt(b.shop)}</td><td class="n">${fiFmt(b.whole)}</td>
           <td></td></tr>`).join("")}
         </tbody></table>
+        ${c._vf==null ? (c._vf = vfBox("결과 검산 — 받을 파일을 다시 열어 확인", eosResultChecks, c)) : c._vf}
         ${c.notFound.length?`<div style="color:var(--red);font-size:12.5px;margin-top:6px">⚠ 원본에 없는 LOT: ${c.notFound.map(escHtml).join(", ")} — 만들지 않았습니다</div>`:""}
         ${Object.keys(miss).length?`<div style="color:var(--red);font-size:12.5px;margin-top:6px">⚠ 도매요율표에 없는 분류 → 도매가 0 처리: ${Object.keys(miss).map(escHtml).join(", ")}</div>`:""}
         ${Object.keys(guess).length?`<div style="color:var(--amber);font-size:12.5px;margin-top:6px">ⓘ 도매요율표에 없는 소분류 → 같은 상위 분류 요율로 계산: ${Object.entries(guess).map(([k,v])=>escHtml(k)+" = "+v).join(", ")}</div>`:""}
@@ -19222,6 +19225,7 @@ function kdRender(){
     <table class="fi-tbl"><thead><tr><th>매장</th><th class="n">목표금액</th><th class="n">배정금액</th><th class="n">편차</th><th class="n">편차%</th><th class="n">수량</th><th class="n">라인</th></tr></thead><tbody>
     ${[...R.targets.keys()].map(s=>{ const g = c.got[s], t = R.targets.get(s); return `<tr><td>${escHtml(s)}</td><td class="n">${won(t)}</td><td class="n">${won(g.a)}</td><td class="n">${(g.a-t>=0?"+":"")+won(g.a-t)}</td><td class="n">${R.total?((g.a-t)/R.total*100).toFixed(2):"0.00"}%</td><td class="n">${g.q.toLocaleString()}</td><td class="n">${g.n.toLocaleString()}</td></tr>`; }).join("")}
     </tbody></table>
+    ${c._vf==null ? (c._vf = vfBox("결과 검산 — 배정 합 · 파렛트 · 편차", kdResultChecks, c)) : c._vf}
     <div class="fi-mut" style="margin-top:6px">시트: 요약 · 매장별 PLT배정 · 매장 ${R.targets.size}개 · ${escHtml(KD_LABEL[c.D.type]||"")}분배표(해체대상) · (전체) · RAW · 배분이력 · 원본${c.D.extra.length?" · "+escHtml(c.D.extra.map(x=>x.name).join(" · ")):""}</div>
   </div>`;
 }
@@ -20356,6 +20360,142 @@ function fiVerifyHtml(d){
 function fiUniScore(rows){
   return (rows||[]).reduce((s,r)=> s + (/^AF[A-Z0-9]{8}$/.test(String(r.bidcode||""))?2:0) + (r.fc?2:0) + ((r.number||r.group)?1:0) + (+r.pallets>0?1:0) + (r.outboundDate?1:0) + (r.bidDate && r.bidDate!==r.outboundDate?1:0), 0);
 }
+
+/* ================= build 228: 결과 검산(출력 파일 1차 검증) — 반복 작업 공통 =================
+   만든 파일을 다시 열어(실제로 받는 엑셀 그대로) 원본 · 화면 숫자와 맞는지 확인하고, 결과 위에 "🔎 결과 검산" 칸으로 보여 준다.
+   ✔ 맞음 · ⚠ 확인 필요(파일은 만들어짐) · ✖ 결과가 틀릴 수 있음. 표시는 build 178 원본 검증 리포트(ucHtml)와 같은 모양.
+   대상: ② 정기비딩 낙찰파일(liq) · ② 임박 낙찰파일(eos) · ③ 매장 분배표(kd) · ④ 고정인수 낙찰파일 · 직출 분배표(fi). ⑤ 배차요청은 build 227 1차 검증. */
+function vfSheet(bytes, name){
+  try{ const wb = XLSX.read(bytes, { type:"array", sheets: name ? [name] : undefined }); const n = name || wb.SheetNames[0]; const ws = wb.Sheets[n];
+    return ws ? XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:null }) : null; }catch(_){ return null; }
+}
+function vfNames(bytes){ try{ return XLSX.read(bytes, { type:"array", bookSheets:true }).SheetNames || []; }catch(_){ return []; } }
+function vfCol(A, name, maxRow){ for(let i=0;i<Math.min(A.length, maxRow||6);i++){ const j = (A[i]||[]).findIndex(v=> String(v==null?"":v).trim()===name); if(j>=0) return { r:i, c:j }; } return null; }
+function vfSum(A, at){ if(!at) return null; let s = 0; for(let i=at.r+1;i<A.length;i++){ const v = (A[i]||[])[at.c]; if(typeof v==="number") s += v; else if(v!=null && v!=="" && !isNaN(+v)) s += +v; } return s; }
+function vfCount(A, at){ if(!at) return 0; let n = 0; for(let i=at.r+1;i<A.length;i++){ const v = (A[i]||[])[at.c]; if(v!=null && v!=="") n++; } return n; }
+const vfEq = (a, b, tol)=> Math.abs((+a||0) - (+b||0)) <= (tol==null ? 1 : tol);
+function vfBarcodeBad(A, at, bytes, sheet){   // 바코드가 지수표기(8.8E+12)로 보이는 칸 — 숫자여도 정수 서식("0")이면 정상
+  if(!at) return 0;
+  let ws = null; if(bytes && sheet){ try{ ws = XLSX.read(bytes, { type:"array", sheets:[sheet], cellNF:true }).Sheets[sheet]; }catch(_){} }
+  const rg = ws && ws["!ref"] ? XLSX.utils.decode_range(ws["!ref"]) : { s:{ r:0, c:0 } };
+  let n = 0; for(let i=at.r+1;i<A.length;i++){ const v = (A[i]||[])[at.c]; if(v==null || v==="") continue;
+    if(/E\+\d/i.test(String(v))){ n++; continue; }
+    if(typeof v==="number"){ const c = ws && ws[XLSX.utils.encode_cell({ r:i+rg.s.r, c:at.c+rg.s.c })]; const z = c && c.z ? String(c.z) : "General";
+      if(!/^0|^#|@/.test(z) || /E\+/i.test(String(c && c.w || ""))) n++; } }
+  return n;
+}
+
+// ---- ② 정기비딩 낙찰파일
+function liqResultChecks(c){
+  const C = [], b = c.b, bytes = c.bytes;
+  const names = vfNames(bytes);
+  C.push(["원본","RAW","총액"].every(n=> names.includes(n)) ? { lv:"ok", t:`시트 ${names.join(" · ")}` } : { lv:"err", t:`시트 빠짐 — 있는 시트: ${names.join(", ")||"없음"}` });
+  const S = vfSheet(bytes, "원본"), R = vfSheet(bytes, "RAW"), T = vfSheet(bytes, "총액");
+  if(S && R){
+    const sq = vfSum(S, vfCol(S, "QUANTITY")), rq = vfSum(R, vfCol(R, "QUANTITY")), sn = vfCount(S, vfCol(S, "NO.")), rn = vfCount(R, vfCol(R, "NO."));
+    C.push(sn===b.src.length && rn===b.raw.length && sn===rn ? { lv:"ok", t:`행 수 일치 — 원본 ${ucFmt(sn)} = RAW ${ucFmt(rn)}` } : { lv:"err", t:`행 수 다름 — 원본 ${ucFmt(sn)} · RAW ${ucFmt(rn)} · 계산 ${ucFmt(b.raw.length)}` });
+    C.push(vfEq(sq, rq, 1e-6) && vfEq(rq, b.totals.q, 1e-6) ? { lv:"ok", t:`수량 일치 — ${ucFmt(rq)}개` } : { lv:"err", t:`수량 다름 — 원본 ${ucFmt(sq)} · RAW ${ucFmt(rq)} · 화면 ${ucFmt(b.totals.q)}` });
+    const rs = vfSum(R, vfCol(R, "매장판매가 총액")), tt = T ? (T.find(r=> String((r||[])[0]||"").trim()==="총합계")||[])[1] : null;
+    C.push(vfEq(rs, b.totals.s, 2) && (tt==null || vfEq(tt, rs, 2)) ? { lv:"ok", t:`매장판매가 총액 일치 — ${ucFmt(rs)}원`, d: tt!=null ? "RAW 합 = 총액 시트 총합계 = 화면" : "" } : { lv:"err", t:"매장판매가 총액 다름", d:`RAW ${ucFmt(rs)} · 총액 시트 ${ucFmt(tt)} · 화면 ${ucFmt(b.totals.s)}` });
+    const bad = vfBarcodeBad(R, vfCol(R, "BARCODE"), bytes, "RAW") + vfBarcodeBad(S, vfCol(S, "BARCODE"), bytes, "원본");
+    C.push(bad ? { lv:"err", t:`바코드 숫자 · 지수표기 ${ucFmt(bad)}칸`, d:"텍스트(8801…)여야 함" } : { lv:"ok", t:"바코드 텍스트 저장" });
+  }
+  // 매장판매가 계산식(부가세 1.1, 면세 Y는 1.0) 재계산
+  let calcBad = 0; (b.raw||[]).forEach((r,i)=>{ const s = b.src[i]; if(!s) return; const unit = +s["Unit_Sales_Price (VAT X)"]||0, df = String(s.isdutyfree||"").trim().toUpperCase()==="Y"; if(!vfEq(r["매장판매가"], unit*(df?1:1.1), 0.01)) calcBad++; });
+  C.push(calcBad ? { lv:"err", t:`매장판매가 계산 다른 행 ${ucFmt(calcBad)}개` } : { lv:"ok", t:"매장판매가 = 판매단가 × 1.1(면세 Y는 × 1.0) 전 행 확인" });
+  if(b.notFound && b.notFound.length) C.push({ lv:"err", t:`원본에 없는 LOT ${b.notFound.length}개 — 파일에 빠짐`, d: ucList(b.notFound) });
+  else C.push({ lv:"ok", t:`입력한 LOT ${b.perLot.length}개 모두 들어감` });
+  const p0 = b.perLot.filter(x=> !(+x.plt>0)).map(x=> x.lot), p40 = b.perLot.filter(x=> +x.plt>FI_PLT_MAX).map(x=> `${x.lot}(${x.plt})`), nf = b.perLot.filter(x=> !x.fc).map(x=> x.lot);
+  if(p0.length) C.push({ lv:"err", t:`PLT 0 LOT: ${p0.join(", ")}`, d:"LOT_FULL_NAME_Original(로케이션) 빈칸" });
+  if(p40.length) C.push({ lv:"warn", t:`PLT ${FI_PLT_MAX} 초과 LOT: ${p40.join(", ")}` });
+  if(nf.length) C.push({ lv:"warn", t:`FC 없는 LOT: ${nf.join(", ")}`, d:"파일명 센터 빈칸" });
+  const miss = Object.keys(b.missingRate||{}), guess = Object.keys(b.guessRate||{});
+  if(miss.length) C.push({ lv:"warn", t:`도매요율 없는 분류 ${miss.length}개 → 도매가 0`, d: ucList(miss, 6) });
+  if(guess.length) C.push({ lv:"warn", t:`상위 분류 요율로 계산 ${guess.length}개`, d: ucList(guess, 6) });
+  const fnBad = b.perLot.filter(x=> !String(b.fullName||"").includes(`${x.lot}(${x.plt}PLT)`)).map(x=> x.lot);
+  C.push(!fnBad.length && /^20\d{6}_/.test(b.fullName||"") && String(b.outName||"").length<=255 ? { lv:"ok", t:"파일명 — 날짜 · 모든 LOT(PLT) 포함" } : { lv:"warn", t:"파일명 확인", d:`${fnBad.length?`빠진 LOT ${fnBad.join(", ")} · `:""}${escHtml(b.outName||"")}` });
+  return C;
+}
+
+// ---- ② 임박 낙찰파일
+function eosResultChecks(c){
+  const C = [], f = c.files && c.files[0]; if(!f) return C;
+  const b = f.b, parts = b.parts || [b];
+  const names = vfNames(f.bytes);
+  C.push(names.length ? { lv:"ok", t:`시트 ${names.length}개`, d: ucList(names, 8) } : { lv:"err", t:"파일을 다시 열 수 없음" });
+  parts.forEach(p=>{
+    if(!(p.rows>0)) C.push({ lv:"err", t:`LOT ${p.lot}: 원본 행 0개` });
+    if(!(+p.plt>0)) C.push({ lv:"err", t:`LOT ${p.lot}: PLT 0` });
+    if(p.tblPlt!=null && p.pltCalc!=null && +p.tblPlt!==+p.pltCalc) C.push({ lv:"warn", t:`LOT ${p.lot}: 합계표 PLT ${p.tblPlt} ≠ EOS · 그룹 계산 ${p.pltCalc}`, d:"합계표 값 사용" });
+    if(!p.centers || !p.centers.length) C.push({ lv:"warn", t:`LOT ${p.lot}: EOS 센터 없음` });
+    if(!String(b.name||"").includes(`${p.lot}(`)) C.push({ lv:"warn", t:`파일명에 LOT ${p.lot} 없음` });
+  });
+  C.push({ lv:"ok", t:`LOT ${parts.map(p=> `${p.lot} ${p.plt}PLT`).join(" · ")}`, d:`행 ${ucFmt(b.rows)} · 수량 ${ucFmt(b.qty)}` });
+  // 파일 다시 열어 행 · 수량 확인 (머리글에 "수량"/"QUANTITY"가 있는 시트 중 행이 가장 많은 것)
+  let best = null;
+  names.forEach(n=>{ const A = vfSheet(f.bytes, n); if(!A) return; const at = vfCol(A, "Quantity") || vfCol(A, "QUANTITY") || vfCol(A, "수량"); if(!at) return; const cnt = vfCount(A, at); if(!best || cnt > best.cnt) best = { n, A, at, cnt }; });
+  if(best){ const q = vfSum(best.A, best.at);
+    C.push(vfEq(q, b.qty, 1e-6) ? { lv:"ok", t:`파일 "${best.n}" 수량 ${ucFmt(q)} = 화면` } : { lv:"err", t:`파일 "${best.n}" 수량 ${ucFmt(q)} ≠ 화면 ${ucFmt(b.qty)}` });
+    const bc = vfCol(best.A, "상품 바코드") || vfCol(best.A, "BARCODE") || vfCol(best.A, "바코드"); const bad = vfBarcodeBad(best.A, bc, f.bytes, best.n);
+    if(bc) C.push(bad ? { lv:"err", t:`바코드 숫자 · 지수표기 ${ucFmt(bad)}칸` } : { lv:"ok", t:"바코드 텍스트 저장" });
+  } else C.push({ lv:"warn", t:"파일에서 수량 열을 찾지 못해 수량 대조 못 함" });
+  if(c.notFound && c.notFound.length) C.push({ lv:"err", t:`원본에 없는 LOT: ${c.notFound.join(", ")} — 만들지 않음` });
+  const miss = Object.keys(b.missingRate||{}); if(miss.length) C.push({ lv:"warn", t:`도매요율 없는 분류 ${miss.length}개 → 도매가 0`, d: ucList(miss, 6) });
+  if(String(b.outName||"").length > 210) C.push({ lv:"warn", t:"파일명이 길어 잘림(…)" });
+  return C;
+}
+
+// ---- ③ 매장 분배표
+function kdResultChecks(c){
+  const C = [], R = c.R, D = c.D;
+  const tot = R.alloc.reduce((s,a)=> s + (+a.amt||0), 0);
+  C.push(vfEq(tot, R.total, 2) ? { lv:"ok", t:`배정 합 = 전체 매장판매가 ${ucFmt(R.total)}원` } : { lv:"err", t:`배정 합 ${ucFmt(tot)}원 ≠ 전체 ${ucFmt(R.total)}원` });
+  const qIn = D.recs.reduce((s,r)=> s + (+r.qty||0), 0), qOut = R.alloc.reduce((s,a)=> s + (+a.qty||0), 0);
+  C.push(vfEq(qIn, qOut, 1e-6) ? { lv:"ok", t:`수량 ${ucFmt(qIn)}개 전부 배정` } : { lv:"err", t:`수량 원본 ${ucFmt(qIn)} ≠ 배정 ${ucFmt(qOut)}` });
+  const locs = new Set(R.alloc.map(a=> a.loc)), miss = R.pallets.map(p=> p[0]).filter(l=> !locs.has(l));
+  C.push(miss.length ? { lv:"err", t:`배정 안 된 파렛트 ${miss.length}개`, d: ucList(miss) } : { lv:"ok", t:`파렛트 ${R.pallets.length}개 모두 배정(통짜 ${[...R.kind.values()].filter(k=> k==="통짜").length} · 해체 ${[...R.kind.values()].filter(k=> k==="해체").length})` });
+  const closed = [...R.targets.keys()].filter(s=> FI_CLOSING.includes(s)); if(closed.length) C.push({ lv:"err", t:`폐점(예정) 매장 배정: ${closed.join(", ")}` });
+  const dev = [...R.targets.keys()].map(s=>{ const t = R.targets.get(s), g = (c.got[s]||{}).a||0; return { s, p: t ? (g-t)/t*100 : 0 }; });
+  const big = dev.filter(x=> Math.abs(x.p) > 15);
+  C.push(big.length ? { lv:"warn", t:`목표 대비 편차 15% 넘는 매장 ${big.length}곳`, d: escHtml(big.map(x=> `${x.s} ${x.p>0?"+":""}${x.p.toFixed(1)}%`).join(", ")) } : { lv:"ok", t:`매장별 편차 ±15% 이내 (최대 ${Math.max(0,...dev.map(x=> Math.abs(x.p))).toFixed(1)}%)` });
+  const names = vfNames(c.bytes); C.push(names.length ? { lv:"ok", t:`파일 시트 ${names.length}개`, d: ucList(names, 8) } : { lv:"err", t:"파일을 다시 열 수 없음" });
+  if(D.excluded) C.push({ lv:"ok", t:`XL 그룹 등 분배 제외 ${ucFmt(D.excluded)}행` });
+  return C;
+}
+
+// ---- ④ 고정인수 낙찰파일 · 직출 분배표
+function fiResultChecks(c){
+  const C = [];
+  (c.builds||[]).forEach(b=>{
+    const cp = (b.centers||[]).reduce((s,x)=> s + (+x.plt||0), 0);
+    if(b._bytes){
+      if(!b._vfF){ const names = vfNames(b._bytes); const A = names.length ? vfSheet(b._bytes, names.find(n=> /RAW/i.test(n)) || names[0]) : null; const bc0 = A && vfCol(A, "BARCODE"); b._vfF = { rq: A ? vfSum(A, vfCol(A, "QUANTITY")) : null, bc: !!bc0, bad: A ? vfBarcodeBad(A, bc0, b._bytes, names.find(n=> /RAW/i.test(n)) || names[0]) : 0 }; }
+      const rq = b._vfF.rq;
+      if(rq!=null && b.totals) C.push(vfEq(rq, b.totals.q, 1e-6) ? { lv:"ok", t:`${b.type} 낙찰파일 수량 ${ucFmt(rq)} = 화면` } : { lv:"err", t:`${b.type} 낙찰파일 수량 ${ucFmt(rq)} ≠ 화면 ${ucFmt(b.totals.q)}` });
+      if(b._vfF.bc && b._vfF.bad) C.push({ lv:"err", t:`${b.type} 바코드 숫자 · 지수표기 ${b._vfF.bad}칸` }); }
+    const miss = Object.keys(b.missingRate||{}); if(miss.length) C.push({ lv:"warn", t:`${b.type} 도매요율 없는 분류 ${miss.length}개 → 도매가 0`, d: ucList(miss, 6) });
+    const plan = (c.plan||{})[b.type] || [];
+    // 센터별: 낙찰파일 PLT = 분배표 센터 PLT = 하차지 배정 PLT 합
+    (b.centers||[]).forEach(x=>{
+      const pr = plan.find(p=> p.fc===x.fc); if(!pr){ C.push({ lv:"err", t:`${b.type} ${x.name}: 분배표에 없음` }); return; }
+      const asum = (pr.alloc||[]).reduce((s,a)=> s + (+a.plt||0), 0);
+      if(+pr.plt!==+x.plt) C.push({ lv:"warn", t:`${b.type} ${x.name}: 분배표 PLT ${pr.plt} ≠ 낙찰파일 ${x.plt}` });
+      if(asum!==+pr.plt) C.push({ lv:"err", t:`${b.type} ${x.name}: 하차지 배정 합 ${asum} ≠ ${pr.plt}PLT` });
+    });
+    const bad = [], clo = [];
+    plan.forEach(pr=> (pr.alloc||[]).forEach(a=>{ if(!a.store || +a.plt<=0) return; if(FI_CLOSING.includes(a.store)) clo.push(`${pr.name}→${a.store}`);
+      else if(a.store!==FI_JINCHEON && !fiEligible(a.store, b.type, fiEligMap())) bad.push(`${pr.name}→${a.store}`); }));
+    if(clo.length) C.push({ lv:"err", t:`${b.type} 폐점(예정) 매장 하차: ${clo.join(", ")}` });
+    if(bad.length) C.push({ lv:"warn", t:`${b.type} 취급표에 없는 매장 하차: ${bad.join(", ")}`, d:"분배 기준 설정 · 취급 가능 유형 확인" });
+    if(!clo.length && !bad.length && plan.length) C.push({ lv:"ok", t:`${b.type} ${(b.centers||[]).length}센터 ${cp}PLT — 하차지 배정 합 · 취급 매장 확인` });
+  });
+  const sd = c.stockDate ? String(c.stockDate).slice(0,10) : "";
+  if(!sd) C.push({ lv:"warn", t:"매장 재고 데이터 없음 — 거리만으로 분배" });
+  else if(sd < fmtDate(new Date(Date.now() - 86400000))) C.push({ lv:"warn", t:`매장 재고 기준 ${sd} — 오늘 재고가 아님`, d:"최신 재고 파일을 올리면 다시 계산" });
+  else C.push({ lv:"ok", t:`매장 재고 기준 ${sd}` });
+  return C;
+}
+function vfBox(title, fn, arg){ try{ return ucHtml(title, fn(arg)); }catch(e){ console.warn(title, e); return ""; } }
 async function fiDispFromFile(f){
   if(/\.xls[xm]$/i.test(f.name||"") && await fiHbIsFile(f)){   // build 225: 2026_쿠팡 낙찰금액 → 도착지 찾기 기준
     const st = document.getElementById("fiDispStatus");
