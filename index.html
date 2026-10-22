@@ -1204,7 +1204,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 223 · 2026-10-22</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 225 · 2026-10-22</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1890,6 +1890,7 @@
         <div id="fiPlanStatus" class="fi-status"></div>
         <div id="fiPlanResult"></div>
         <div class="fi-sec-t" style="font-size:18px;margin-top:18px">배차 요청서 (입차코드)</div>
+        <div id="fiHbBar" class="fi-status" style="color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:4px 0 8px;font-size:13px;line-height:1.6"></div>
         <div class="fi-disp-in">
           <div id="fiDispDrop" class="fi-drop" role="button" tabindex="0">
             <div class="fi-drop-t">출고일정 메일 캡처 이미지 또는 저장한 메일 파일(.mhtml)을 끌어다 놓거나 클릭</div>
@@ -15520,6 +15521,7 @@ function fiDispStart(rows, note, src, opt){
   const matchInfo = (opt && opt.matchInfo) ? opt.matchInfo : smsN ? { ok: rows.every(r=> r.dest && r.fc), date:"", text:`문자 XLG 당일 출고요청 ${smsN}행 — 도착지 ${rows.filter(r=>r.dest).length}/${rows.length}행 자동 지정(여주2 이천점 고정 · 경산2 평일 진천센터/주말 김해점 · 그 외 가까운 매장 중 XLG 재고 최소) · 각 행 아래 "확인" 줄의 근거를 보고 필요하면 바꿔 주세요` } : got ? { ok: !miss.length, date:ents.join(","), text:`고정인수 분배표(${ents.join(", ")||"-"})로 ${got}/${rows.length}행 도착지 지정 · 고정인수 기록과 일치 ${dictN}행${miss.length?` — 도착지 없는 ${miss.length}행(${miss.map(r=>r.group||r.number).slice(0,4).join(", ")}${miss.length>4?" …":""})은 직접 선택`:""}` }
     : { ok:false, latestId: hit.latest && hit.latest.id, latestDate: hit.latest && hit.latest.date,
         text:`낙찰일 ${r0.bidDate||"?"} 과 같은 날짜의 고정인수 분배 기록이 없습니다 — 도착지를 직접 고르세요.` };
+  if(fiHbApply(rows)) fiHbMatchInfo(rows, matchInfo);   // build 225: 2026_쿠팡 낙찰금액 종합에 같은 입차코드 · 센터가 있으면 그 출고지
   rows.forEach(r=>{ r.memo = (r.warn||[]).concat(r.destNote?[r.destNote]:[]).join(" / "); });
   _fiDisp = { id: Date.now(), at: new Date().toLocaleString("ko-KR"), rows, note: note || "", matchInfo, src };
   fiComboAdd(_fiDisp.id);   // build 141
@@ -19846,7 +19848,187 @@ function mailHtmlToText(html){
   walk(root);
   return out.join("").replace(/[ \u00a0]+/g," ").replace(/\n\s*\n+/g,"\n");
 }
+/* build 225: 2026_쿠팡 낙찰금액.xlsx(사용자 PC) "종합" 시트에서 입차코드 · 출고센터로 도착지(출고지) 찾기
+   (build 224는 ★_출고요청서_합본을 봤음 — 사용자 정정: 낙찰금액 파일이 기준)
+   - 종합 머리글: 낙찰일자 | 입금코드(=입차코드 · BIDCODE) | 센터명(출고센터) | 낙찰금액 | NO. | PLT 수량 | 분류 | 출고지(=도착지) | 배차일
+   - 입금코드가 빈 줄은 바로 위 같은 날짜 · 같은 NO. · 같은 분류 줄의 입금코드를 이어 받음(묶음의 첫 줄에만 적는 경우)
+   - 메일 행 ↔ 낙찰금액 행: ① 입차코드 + 센터 ② (입차코드가 없는 XLG 등) 낙찰일 + 센터 + 분류
+     같은 입차코드 · 센터 행이 여러 개면(XLS 여주2 4LOT 등) 메일 순서대로 위에서부터 하나씩
+   - 찾으면 낙찰금액 출고지가 우선(분배표 · 재고 추천보다), 못 찾으면 기존 규칙 그대로 */
+const FI_HB_KEY = "fi_bidamt_v1", FI_HB_HANDLE = "fi_bidamt_handle", FI_HB_LABEL = "낙찰금액";
+let FI_HB = null, _fiHbPerm = "", _fiHbMsg = "", _fiHbAt = 0;
+function _fiHbFc(v){ const s = String(v||"").trim(); if(!s) return ""; return String(fiCenterName(s.toUpperCase()) || s).replace(/\s/g,""); }
+function _fiHbDate(v){
+  if(v==null || v==="") return "";
+  if(typeof v==="number" && v>20000 && v<80000){ const d = XLSX.SSF.parse_date_code(v); return d ? `${d.y}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}` : ""; }
+  if(v instanceof Date) return fmtDate(v);
+  const m = String(v).match(/(20\d{2})[-./](\d{1,2})[-./](\d{1,2})/); return m ? `${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}` : "";
+}
+const FI_HB_COLS = { bd:["낙찰일자","낙찰일","낙찰날짜"], code:["입금코드","입차CODE","입차코드","BIDCODE"], fc:["센터명","FC","출고센터"], no:["NO.","NO","낙찰NO"], plt:["PLT 수량","PLT수량","PLT","파렛트"], cat:["분류","카테.","카테"], dest:["출고지","도착지","하차지"] };
+function fiHbParse(buf){
+  const names = XLSX.read(buf, { type:"array", bookSheets:true }).SheetNames || [];
+  const order = names.filter(n=> /^종합$/.test(n.trim())).concat(names.filter(n=> !/^종합$/.test(n.trim()) && !/낙찰상세|월보|일보|입금코드/.test(n)));
+  for(const sn of order){
+    const wb = XLSX.read(buf, { type:"array", sheets:[sn] }); const ws = wb.Sheets[sn]; if(!ws) continue;
+    const A = XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:null });
+    let hr = -1, map = null;
+    for(let i=0;i<Math.min(10, A.length);i++){
+      const m = {}; (A[i]||[]).forEach((c,j)=>{ const t = String(c==null?"":c).trim(); Object.keys(FI_HB_COLS).forEach(k=>{ if(m[k]==null && FI_HB_COLS[k].includes(t)) m[k] = j; }); });
+      if(m.code!=null && m.fc!=null && m.dest!=null){ hr = i; map = m; break; }
+    }
+    if(hr<0) continue;
+    const rows = []; let prev = null;
+    for(let i=hr+1;i<A.length;i++){
+      const a = A[i]||[]; const g = k=> map[k]==null ? null : a[map[k]];
+      const fcRaw = String(g("fc")==null?"":g("fc")).trim(), dest = String(g("dest")==null?"":g("dest")).trim();
+      if(!fcRaw && !dest) continue;
+      const bd = _fiHbDate(g("bd")), no = String(g("no")==null?"":g("no")).trim(), cat = String(g("cat")==null?"":g("cat")).trim();
+      let code = String(g("code")||"").toUpperCase().replace(/\s/g,""), inh = false;
+      if(!/^[A-Z0-9]{6,}$/.test(code)) code = "";
+      if(!code && prev && prev.code && prev.bd===bd && prev.no===no && prev.cat===cat){ code = prev.code; inh = true; }
+      const pv = g("plt"); const plt = typeof pv==="number" ? pv : (String(pv||"").match(/(\d+(?:\.\d+)?)/)||[])[1];
+      const r = { ri:i+1, bd, code, inh, fcs: fcRaw.split(/[\s,\/]+/).map(_fiHbFc).filter(Boolean), fcRaw, no, plt: plt==null||plt===""?null:+plt, cat, dest };
+      rows.push(r); prev = r;
+    }
+    return { rows, sheets:[sn] };
+  }
+  return { rows:[], sheets:[] };
+}
+async function fiHbIsFile(f){
+  if(!/\.xls[xm]$/i.test(f && f.name || "")) return false;
+  if(!/낙찰금액/.test(f.name)) return false;
+  try{ const p = fiHbParse(await f.arrayBuffer()); return p.sheets.length>0 && p.rows.length>0; }catch(_){ return false; }
+}
+async function fiHbSave(){
+  try{ await idbSet(FI_HB_KEY, FI_HB); }catch(_){}
+  try{ const ref = fiLedgerRef("bidamt"); if(ref && typeof IS_ADMIN!=="undefined" && IS_ADMIN) await ref.set(FI_HB); }catch(_){}
+}
+async function fiHbLoadFile(f, how, quiet){
+  const p = fiHbParse(await f.arrayBuffer());
+  if(!p.rows.length) throw new Error(`${f.name}에서 종합 표(입금코드 · 센터명 · 출고지 머리글)를 찾지 못했습니다`);
+  FI_HB = { name:f.name, mtime:f.lastModified||0, at:new Date().toISOString(), sheets:p.sheets, rows:p.rows, how:how||"" };
+  _fiHbPerm = ""; _fiHbMsg = quiet ? "" : `✓ 낙찰금액 읽음 — ${f.name} · ${p.sheets.join(",")} 시트 ${p.rows.length}행`;
+  await fiHbSave(); fiHbRenderBar(); fiHbReapply();
+  return FI_HB;
+}
+// 연결된 파일 다시 읽기 (gesture = 버튼 클릭처럼 사용자가 누른 경우에만 크롬 권한 창을 띄울 수 있음)
+async function fiHbRefresh(gesture){
+  let h = null; try{ h = await idbGet(FI_HB_HANDLE); }catch(_){}
+  if(!h || typeof h.getFile!=="function") return "nohandle";
+  let p = "prompt"; try{ p = await h.queryPermission({ mode:"read" }); }catch(_){}
+  if(p!=="granted" && gesture){ try{ p = await h.requestPermission({ mode:"read" }); }catch(_){} }
+  if(p!=="granted"){ _fiHbPerm = "prompt"; fiHbRenderBar(); return "perm"; }
+  _fiHbPerm = "";
+  try{
+    const f = await h.getFile(); _fiHbAt = Date.now();
+    if(FI_HB && FI_HB.name===f.name && FI_HB.mtime===f.lastModified && FI_HB.rows && FI_HB.rows.length){ FI_HB.checkedAt = new Date().toISOString(); fiHbRenderBar(); return "same"; }
+    await fiHbLoadFile(f, "연결된 파일", !gesture); return "read";
+  }catch(e){ _fiHbMsg = `⚠ 낙찰금액 파일을 읽지 못했습니다(${e && e.message || e}) — 마지막으로 읽은 내용으로 찾습니다`; fiHbRenderBar(); return "err"; }
+}
+// 메일을 넣을 때 자동으로(권한이 있으면 최신 파일, 없으면 마지막으로 읽은 내용)
+async function fiHbAuto(gesture){
+  if(Date.now() - _fiHbAt < 3000) return;
+  try{ await Promise.race([ fiHbRefresh(!!gesture), new Promise(r=> setTimeout(r, 4000)) ]); }catch(_){}
+}
+async function fiHbConnect(){
+  if(typeof window.showOpenFilePicker!=="function"){ _fiHbMsg = "이 브라우저는 파일 연결을 지원하지 않습니다 — 2026_쿠팡 낙찰금액.xlsx를 ⑤에 끌어다 놓아 주세요(크롬 · 엣지 PC에서는 연결 가능)"; fiHbRenderBar(); return; }
+  let hs; try{ hs = await window.showOpenFilePicker({ multiple:false, types:[{ description:"쿠팡 낙찰금액 엑셀", accept:{ "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":[".xlsx"], "application/vnd.ms-excel.sheet.macroEnabled.12":[".xlsm"] } }] }); }catch(_){ return; }
+  const h = hs && hs[0]; if(!h) return;
+  try{ await _idbSetRaw(FI_HB_HANDLE, h); }catch(_){}
+  try{ _fiHbAt = Date.now(); await fiHbLoadFile(await h.getFile(), "연결된 파일"); }catch(e){ _fiHbMsg = "⚠ " + (e && e.message || e); fiHbRenderBar(); }
+}
+async function fiHbInit(){
+  try{ const v = await idbGet(FI_HB_KEY); if(v && v.rows) FI_HB = v; }catch(_){}
+  try{ const ref = fiLedgerRef("bidamt"); if(ref){ const v = (await ref.once("value")).val(); if(v && v.rows && (!FI_HB || String(v.at||"") > String(FI_HB.at||""))){ v.rows = Array.isArray(v.rows) ? v.rows : Object.values(v.rows); FI_HB = v; try{ await idbSet(FI_HB_KEY, FI_HB); }catch(_){} } } }catch(_){}
+  fiHbRenderBar();
+  fiHbRefresh(false);
+}
+// 메일 행 → 낙찰금액 후보 줄 (같은 키의 줄들, 위에서부터)
+function fiHbCands(r){
+  if(!FI_HB || !FI_HB.rows || !FI_HB.rows.length) return null;
+  const R = FI_HB.rows, code = String(r.bidcode||"").toUpperCase().trim(), fc = _fiHbFc(r.fc);
+  if(!fc) return null;
+  if(code){ const c = R.filter(x=> x.code===code && x.fcs.includes(fc)); if(c.length) return { key:"c|"+code+"|"+fc, c, how:"입차코드 · 센터" }; }
+  const bd = String(r.bidDate||"").slice(0,10); if(!bd) return null;
+  const t = String(r.type||"").toUpperCase();
+  const ok = x=>{ const k = String(x.cat||"").toUpperCase(); if(!k || !t) return true;
+    if(/^XLG|^XLD?G/.test(t) || /^XLGD/.test(t)) return /XLG|XLDG|XLGD/.test(k);
+    if(t==="XLS") return /XLS|물/.test(k); if(t==="XLD") return /기저귀|XLD$/.test(k); if(t==="임박") return /임박/.test(k);
+    return k.includes(t) || /리퀴/.test(k); };
+  const c = R.filter(x=> !x.code && x.bd===bd && x.fcs.includes(fc) && ok(x));
+  return c.length ? { key:"d|"+bd+"|"+fc+"|"+t, c, how:"낙찰일 · 센터 · 분류(입금코드 없는 줄)" } : null;
+}
+function fiHbApply(rows, reapply){
+  let n = 0; const used = {};
+  (rows||[]).forEach(r=>{
+    const f = fiHbCands(r); if(!f) return;
+    const k = used[f.key] = (used[f.key]||0) + 1;   // 직접 고친 행도 자리는 차지(순서 유지)
+    if(reapply && r.destManual) return;
+    const x = f.c[Math.min(k, f.c.length) - 1]; if(!x || !x.dest) return;
+    const d = (typeof resolveStoreName==="function" && resolveStoreName(x.dest)) || x.dest;
+    const prev = r.hbDest ? r.hbAuto : r.dest;
+    if(!r.hbDest) r.hbAuto = r.dest || "";
+    r.dest = d; r.hbDest = d;
+    const bits = [`📒 낙찰금액 ${FI_HB.sheets[0]||""} ${x.ri}행(${f.how}${f.c.length>1?` · ${f.c.length}줄 중 ${Math.min(k,f.c.length)}번째`:""}) → ${d}`];
+    if(prev && prev!==d) bits.push(`자동 배정: ${prev}`);
+    if(k > f.c.length) bits.push(`메일 행이 낙찰금액 줄(${f.c.length})보다 많음 — 확인`);
+    if(r.pallets!=null && r.pallets!=="" && x.plt!=null && +r.pallets!==+x.plt) bits.push(`PLT 메일 ${r.pallets} / 낙찰금액 ${x.plt} — 확인`);
+    r.destNote = bits.join(" · ");
+    n++;
+  });
+  return n;
+}
+function fiHbInfoText(rows){
+  const n = (rows||[]).filter(r=> r.hbDest && r.dest===r.hbDest).length;
+  if(!n || !FI_HB) return "";
+  return `📒 낙찰금액(${FI_HB.name}${FI_HB.mtime ? ` · 파일 ${new Date(FI_HB.mtime).toLocaleString("ko-KR")}` : ""})에서 ${n}/${rows.length}행 도착지`;
+}
+function fiHbMatchInfo(rows, mi){
+  if(!mi) return mi;
+  if(mi.base==null) mi.base = mi.text || "";
+  const t = fiHbInfoText(rows);
+  const all = t && (rows||[]).every(r=> r.skip || (r.hbDest && r.dest===r.hbDest));
+  const rest = (rows||[]).filter(r=> !r.skip && !(r.hbDest && r.dest===r.hbDest));
+  mi.text = !t ? mi.base : all ? `${t} — 낙찰금액 출고지 그대로 채웠습니다(다르면 표에서 고치세요)`
+    : `${t} · 나머지 ${rest.length}행(${rest.map(r=> r.group||r.number).slice(0,4).join(", ")}${rest.length>4?" …":""})은 낙찰금액에 없어 기존 규칙(분배표 · 재고 추천) — 각 행 "확인" 줄 참고`;
+  if(t && !mi.eos && !(rows||[]).some(r=> r.sms)) mi.ok = rows.every(r=> r.dest || r.skip);
+  return mi;
+}
+// 낙찰금액을 새로 읽으면 지금 열린 배차 요청에도 다시 적용(직접 바꾼 도착지는 그대로)
+function fiHbReapply(){
+  if(typeof _fiDisp==="undefined" || !_fiDisp || !_fiDisp.rows) return;
+  const n = fiHbApply(_fiDisp.rows, true); if(!n) return;
+  _fiDisp.rows.forEach(r=>{ r.memo = (r.warn||[]).concat(r.destNote?[r.destNote]:[]).join(" / "); });
+  fiHbMatchInfo(_fiDisp.rows, _fiDisp.matchInfo);
+  fiDispSave(); fiDispRender();
+}
+function fiHbRenderBar(){
+  const el = document.getElementById("fiHbBar"); if(!el) return;
+  const can = typeof window.showOpenFilePicker==="function";
+  const H = FI_HB;
+  let h = `<b>📒 도착지 찾을 낙찰금액 파일</b> `;
+  if(H && H.rows){
+    const last = H.rows.map(x=> x.bd).filter(Boolean).sort().pop() || "";
+    h += `<span>${escHtml(H.name)} · ${escHtml((H.sheets||[]).join(","))} 시트 ${H.rows.length}행${last?` (마지막 낙찰일 ${escHtml(last)})`:""} · 파일 ${H.mtime ? escHtml(new Date(H.mtime).toLocaleString("ko-KR")) : "-"} · 읽은 시각 ${escHtml(new Date(H.checkedAt||H.at).toLocaleString("ko-KR"))}</span> `;
+  } else h += `<span class="fi-mut">아직 없음 — 연결하거나 2026_쿠팡 낙찰금액.xlsx를 ⑤에 끌어다 놓으면, 메일의 입차코드(BIDCODE)와 출고센터(GroupNumber 뒤 영문 센터)로 종합 시트를 찾아 출고지를 도착지로 채웁니다</span> `;
+  if(can) h += `<button class="act fi-mini" id="fiHbConnect" title="필요자료 폴더의 2026_쿠팡 낙찰금액.xlsx를 한 번 고르면, 메일을 넣을 때마다 최신 내용을 다시 읽습니다">📂 ${H?"다른 파일 연결":"낙찰금액 파일 연결"}</button> `;
+  if(can && H) h += `<button class="act fi-mini" id="fiHbReload" title="연결한 낙찰금액 파일을 지금 다시 읽기">↻ 다시 읽기</button> `;
+  if(_fiHbPerm==="prompt") h += `<div style="margin-top:4px;color:var(--amber)">🔓 크롬이 낙찰금액 파일 읽기 허용을 기다립니다 — <button class="act fi-mini" id="fiHbAllow">허용하고 다시 읽기</button> (권한 창에서 <b>"방문할 때마다 허용"</b>을 고르면 다음부터 메일만 넣어도 자동으로 최신 낙찰금액 파일을 읽습니다 · 지금은 마지막으로 읽은 내용으로 찾음)</div>`;
+  if(_fiHbMsg) h += `<div style="margin-top:4px">${escHtml(_fiHbMsg)}</div>`;
+  el.innerHTML = h;
+}
 async function fiDispFromFile(f){
+  if(/\.xls[xm]$/i.test(f.name||"") && await fiHbIsFile(f)){   // build 225: 2026_쿠팡 낙찰금액 → 도착지 찾기 기준
+    const st = document.getElementById("fiDispStatus");
+    if(FI_HB && FI_HB.name && FI_HB.name!==f.name && !confirm(`도착지 찾을 낙찰금액 파일을 바꿀까요?\n지금: ${FI_HB.name}\n새 파일: ${f.name}`)){ if(st) st.textContent = "낙찰금액 파일 교체 취소"; return; }
+    try{
+      try{ const h = await idbGet(FI_HB_HANDLE); if(h && h.name && h.name!==f.name) await _idbSetRaw(FI_HB_HANDLE, null); }catch(_){}
+      _fiHbAt = Date.now(); await fiHbLoadFile(f, "끌어다 놓은 파일");
+      if(st) st.textContent = `✓ 낙찰금액 읽음 — ${f.name} · ${FI_HB.sheets.join(",")} 시트 ${FI_HB.rows.length}행 · 이제 출고 요청 메일을 넣으면 입차코드 · 출고센터로 출고지(도착지)를 찾습니다`;
+    }catch(e){ if(st) st.textContent = "⚠ " + (e && e.message || e); }
+    return;
+  }
+  if(!/\.xls[xmb]?$/i.test(f.name||"")) await fiHbAuto(false);   // build 225: 메일 · 캡처 — 연결된 낙찰금액 최신 내용
   if(/\.xlsx$/i.test(f.name||"") && await fiIsFixedXlsx(f)){   // build 221: 고정인수 낙찰파일 → ④와 같은 직출 분배표
     return fiHandleFiles([f], { statusId:"fiDispStatus", fromDisp:true, scroll:true });
   }
@@ -19928,8 +20110,9 @@ document.addEventListener("click", e=>{
 }, true);
 // build 221: 여러 파일 — 고정인수 낙찰파일(XLG·XLS·XLD)은 한 번에 묶어 분배표 하나로, 나머지(데드우드·FC파손 낙찰파일 → 메일)는 엑셀 먼저 차례로
 async function fiDispFromFiles(all){
-  const fixed = [], rest = [];
-  for(const x of all){ if(/\.xlsx$/i.test(x.name) && await fiIsFixedXlsx(x)) fixed.push(x); else rest.push(x); }
+  const fixed = [], rest = [], hbf = [];
+  for(const x of all){ if(await fiHbIsFile(x)) hbf.push(x); else if(/\.xlsx$/i.test(x.name) && await fiIsFixedXlsx(x)) fixed.push(x); else rest.push(x); }
+  for(const x of hbf) await fiDispFromFile(x);   // build 225: 낙찰금액 먼저 읽고 메일
   if(fixed.length) await fiHandleFiles(fixed, { statusId:"fiDispStatus", fromDisp:true, scroll:!rest.length });
   rest.sort((a,b)=> /\.xlsx$/i.test(b.name) - /\.xlsx$/i.test(a.name));
   for(const x of rest) await fiDispFromFile(x);
@@ -19948,6 +20131,17 @@ function fiDispDropFiles(list){
 function wireFixedDispatch(){
   const box = document.getElementById("fiDispBox");
   if(!box || box._wired) return; box._wired = true;
+  try{ fiHbInit(); }catch(e){ console.error(e); }   // build 225
+  box.addEventListener("click", e=>{
+    const b = e.target.closest && e.target.closest("#fiHbConnect,#fiHbReload,#fiHbAllow"); if(!b) return;
+    e.preventDefault(); e.stopPropagation();
+    if(b.id==="fiHbConnect"){ fiHbConnect(); return; }
+    _fiHbAt = 0;
+    fiHbRefresh(true).then(s=>{
+      if(s==="same"){ _fiHbMsg = "✓ 낙찰금액 파일 변경 없음 — 최신 내용"; fiHbRenderBar(); fiHbReapply(); }
+      else if(s==="nohandle"){ _fiHbMsg = "연결된 파일이 없습니다 — 📂 낙찰금액 파일 연결을 누르거나 2026_쿠팡 낙찰금액.xlsx를 끌어다 놓아 주세요"; fiHbRenderBar(); }
+    });
+  });
   const dz = document.getElementById("fiDispDrop"), inp = document.getElementById("fiDispInput"), ta = document.getElementById("fiDispPaste");
   { const pd = document.getElementById("fiPlanDrop"), pi = document.getElementById("fiPlanInput");   // build 221: 직출 분배표 전용 칸
     if(pd && pi){
@@ -19961,7 +20155,7 @@ function wireFixedDispatch(){
   dz.addEventListener("click", e=>{ if(e.target.closest("#fiDispPhotoMsg,#fiDispPhotoPrev")) return; if(e.target.closest("#fiDispPhotoBtn")){ e.stopPropagation(); ph.click(); return; } inp.click(); });
   // build 164: 안드로이드 크롬 — 파일 선택칸을 비우면(value="") 고른 사진 권한이 끊겨 NotReadableError가 난다.
   //   → 먼저 사진을 메모리로 다 읽어 둔 다음에 칸을 비운다.
-  ph.addEventListener("change", async ()=>{ const f = await fiGrabFile(ph); ph.value=""; if(f) fiDispFromImage(f); });
+  ph.addEventListener("change", async ()=>{ const f = await fiGrabFile(ph); ph.value=""; if(f){ await fiHbAuto(false); fiDispFromImage(f); } });
   inp.addEventListener("change", async ()=>{ if(inp.files && inp.files.length>1){ const all = Array.from(inp.files); fiDispFromFiles(all).finally(()=>{ inp.value=""; }); return; }
     const f = await fiGrabFile(inp); inp.value=""; if(f && !/^image\//.test(f.type||"") && !/\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(f.name||"")) try{ fiPhotoMsg(""); }catch(_){}   // build 221: 엑셀·메일 파일엔 "사진 받는 중" 안 남김
     if(f) fiDispFromFile(f); });
@@ -19981,17 +20175,18 @@ function wireFixedDispatch(){
     //            글자가 있으면 항상 글자를 쓰고, 그림만 있을 때(캡처)만 OCR. 다른 입력칸에 붙여넣을 때는 건드리지 않음.
     const txt = (e.clipboardData && e.clipboardData.getData("text/plain")) || "";
     const other = e.target && e.target !== ta && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName||"");
-    if(txt.trim()){ if(e.target === ta) setTimeout(()=> fiDispFromText(ta.value), 0); return; }
+    if(txt.trim()){ if(e.target === ta) fiHbAuto(true).then(()=> fiDispFromText(ta.value)); return; }
     if(other) return;
     const img = items.find(it=> it.kind==="file" && /^image\//.test(it.type));
-    if(img){ e.preventDefault(); fiDispFromImage(img.getAsFile()); return; }
+    if(img){ e.preventDefault(); const fl = img.getAsFile(); fiHbAuto(true).then(()=> fiDispFromImage(fl)); return; }
   });
-  document.getElementById("fiDispParseBtn").addEventListener("click", ()=> fiDispFromText(ta.value));
+  document.getElementById("fiDispParseBtn").addEventListener("click", ()=> fiHbAuto(true).then(()=> fiDispFromText(ta.value)));
   box.addEventListener("input", e=>{
     const t = e.target; if(!t.classList.contains("fi-dinp") || !_fiDisp) return;
     const r = _fiDisp.rows[+t.dataset.fdI]; const k = t.dataset.fdK;
     r[k] = k==="pallets" ? (t.value===""?null:+t.value) : k==="skip" ? !t.checked : t.value;
     if(k==="number"){ r.numFull = ""; if(!fiNumFullSet(r, t.value)) r.number = String(t.value).trim(); }   // build 169: 전체 NUMBER 입력 허용
+    if(k==="dest") r.destManual = true;   // build 225: 낙찰금액을 다시 읽어도 직접 고른 도착지는 그대로
     if(k==="dest" && !t.classList.contains("fi-dfree")) fiDispDestChanged(r);   // build 161
     if(k==="dest" && r.dw){ _fiDisp.rows.forEach(x=>{ if(x!==r && x.dw && x.dwLot===r.dwLot){ x.dest = r.dest; x.warn = (x.warn||[]).filter(w=>!/출고지/.test(w)); x.memo = x.warn.join(" / "); } }); r.warn = (r.warn||[]).filter(w=>!/출고지/.test(w)); r.memo = r.warn.join(" / "); }   // build 196: 같은 LOT 전체
     if(k==="fc") r.fc = String(t.value).toUpperCase().trim();
