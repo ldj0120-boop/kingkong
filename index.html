@@ -1204,7 +1204,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 226 · 2026-10-22</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 227 · 2026-10-22</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -15499,14 +15499,19 @@ function dwDispApplyDest(text){
   return true;
 }
 function fiDispFromText(text){
+  text = fiUniMain(text); _fiDispSrc = text;   // build 227: 답장 · 전달의 이전 메일 인용은 빼고 · 1차 검증(빠진 입차코드)
   if(liqDispIsMail(text)){ liqDispFromText(text); return; }   // build 226
   if(dwDispIsMail(text)){ dwDispFromText(text); return; }   // build 196: 데드우드 입찰 결과 메일
   if(dwDispApplyDest(text)) return;                          // build 196: 데드우드 요청에 출고지 표만 붙여넣기
   if(eosDispIsMail(text)){ eosDispFromText(text); return; }   // build 134: 임박식품(FC EOS) 입찰 결과 메일
   const rows = fiDispParseText(text);
   const st = document.getElementById("fiDispStatus");
-  if(!rows.length){ eosDispFromText(text).then(ok=>{ if(!ok && st) st.textContent = "⚠ 붙여넣은 내용에서 출고 행(날짜·BIDCODE·GroupNumber 또는 FC·센터·Pallet)을 찾지 못했습니다."; }); return; }
-  fiDispStart(fiDispPost(rows, text), fiDispNote(text), "텍스트");
+  if(!rows.length){ eosDispFromText(text).then(ok=>{ if(ok) return; if(fiUniStart(text, "글(범용 인식)")) return; if(st) st.textContent = "⚠ 붙여넣은 내용에서 출고 행(입차코드 · 그룹 · 센터 · PLT)을 찾지 못했습니다 — 메일 원문(.mhtml)을 보내 주시면 인식 규칙을 추가합니다."; }); return; }   // build 227: 범용 인식
+  let post = null;
+  { const U = fiUniParse(text); if(U.rows.length >= rows.length && fiUniScore(U.rows) > fiUniScore(rows)){ post = fiDispPost(U.rows, text); post.forEach(r=> r.warn.unshift("범용 인식(메일 형식 자동 판단) — 표 머리글 · 칸 모양으로 읽음")); } }   // build 227: 더 많이 읽은 쪽
+  if(!post) post = fiDispPost(rows, text);
+  { const sup = fiUniSupplement(post, text); if(sup.length) fiDispPost(sup, text).forEach(r=>{ r.warn.unshift("전용 인식에서 빠진 입차코드 — 범용 인식으로 추가(확인)"); post.push(r); }); }   // build 227
+  fiDispStart(post, fiDispNote(text), "텍스트");
 }
 function fiDispStart(rows, note, src, opt){
   const r0 = rows[0] || {};
@@ -15636,6 +15641,7 @@ function fiDispRender(){
   const ed = (r,i,k,val,w)=>`<input class="fi-dinp" data-fd-i="${i}" data-fd-k="${k}" value="${escHtml(val==null?"":val)}" style="width:${w}px">`;
   let h = `<div style="text-align:right;margin-bottom:6px"><button class="act fi-mini fi-del" id="fiDispCurDel" title="화면에서 이번 인식 결과 닫기 (기록은 아래 배차 요청 기록에서 ✕로 삭제)">✕ 인식 결과 닫기</button></div><div class="fi-match ${d.matchInfo.ok?"ok":"bad"}">${escHtml(d.matchInfo.text)}${!d.matchInfo.ok && d.matchInfo.latestId ? ` <button class="act fi-mini" id="fiDispUseLatest">최근 기록(${escHtml(d.matchInfo.latestDate||"")})으로 채우기</button>`:""}</div>`;
   if(d.matchInfo && d.matchInfo.eos){ d.rows.forEach(r=>{ r.memo = eosRowStatus(r); }); h += eosDispQHtml(eosDispQuestions(d), d); }   // build 136
+  const V = fiVerify(d); h += fiVerifyHtml(d);   // build 227: 1차 검증
   // build 134: 모든 행 도착지 한 번에 (임박식품처럼 도착지를 직접 고르는 경우)
   h += `<div style="margin:10px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b style="font-size:13px">모든 행 도착지</b> <select id="fiDispBulkSel">${fiDispDestOptions({ type:(d.rows[0]||{}).type, dest:"", fc: d.rows.length && d.rows.every(x=> x.fc===d.rows[0].fc) ? d.rows[0].fc : "" })}</select> <input id="fiDispBulkFree" placeholder="직접 입력" style="width:110px"> <button class="act fi-mini" id="fiDispBulkEmpty">빈 행에만 적용</button> <button class="act fi-mini" id="fiDispBulkAll">전체 행에 적용</button> <span class="fi-mut">행마다 다르면 아래 표에서 고르세요</span></div>`;
   h += `<div class="fi-sec-t" style="margin-top:12px">인식 결과 · 수정 <span class="fi-mut">노란 칸 = 자동 보정/확인 필요</span></div>
@@ -15648,7 +15654,7 @@ function fiDispRender(){
     <td>${ed(r,i,"fc",r.fc,62)} <span class="fi-mut">${escHtml(fiCenterName(r.fc)||"")}</span></td>
     <td style="white-space:nowrap"><select class="fi-dinp" data-fd-i="${i}" data-fd-k="dest">${fiDispDestOptions(r)}</select> <input class="fi-dinp fi-dfree" data-fd-i="${i}" data-fd-k="dest" placeholder="직접 입력" title="목록에 없는 도착지는 여기에 입력" value="${escHtml(r.dest && !fiDispKnownDest(r.dest) ? r.dest : "")}" style="width:96px">${r.dest && r.fc ? `<div class="fi-mut" style="font-size:11.5px;margin-top:2px">📍 ${escHtml(fiKmLabel(r.fc, r.dest))}</div>` : ""}</td>
     <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="type">${["XLG","XLS","XLD","XLA","XLB","XLC","XLE","XLK","XLW","임박"].concat(r.type&&!["XLG","XLS","XLD","XLA","XLB","XLC","XLE","XLK","XLW","임박"].includes(r.type)?[r.type]:[]).map(x=>`<option ${x===r.type?"selected":""}>${x}</option>`).join("")}</select></td>
-    </tr>${r.memo ? `<tr class="fi-whyrow ${r.memo?"fi-warnrow":""}" style="${r.skip?"opacity:.45":""}"><td></td><td colspan="11" class="fi-whynote">확인: ${escHtml(r.memo)}</td></tr>` : ""}${fiDispEosSubRow(r,i)}`).join("")}
+    </tr>${r.memo ? `<tr class="fi-whyrow ${r.memo?"fi-warnrow":""}" style="${r.skip?"opacity:.45":""}"><td></td><td colspan="11" class="fi-whynote">확인: ${escHtml(r.memo)}${V && V.rows[i] && V.rows[i].length ? ` <span style="color:var(--amber)">🔎 ${escHtml(V.rows[i].join(" · "))}</span>` : ""}</td></tr>` : (V && V.rows[i] && V.rows[i].length ? `<tr class="fi-whyrow fi-warnrow"><td></td><td colspan="11" class="fi-whynote"><span style="color:var(--amber)">🔎 ${escHtml(V.rows[i].join(" · "))}</span></td></tr>` : "")}${fiDispEosSubRow(r,i)}`).join("")}
   </tbody></table></div>`;
   h += `<div id="fiDispOut">${fiDispOutHtml(d)}</div>`;
   wrap.innerHTML = h;
@@ -15682,7 +15688,7 @@ function fiDispEosSubRow(r, i){
     <span class="fi-mut">비고</span> <input class="fi-dinp" data-fd-i="${i}" data-fd-k="remark" value="${escHtml(nt)}" placeholder="운영 특이사항(없으면 비움)" style="width:320px"></td></tr>`;
 }
 // build 117: 미리보기·문구만 따로 다시 그림 — 표의 칸(PLT 등)을 고치는 즉시 반영(입력 중인 칸 포커스 유지)
-function fiDispRenderOut(){ const el=document.getElementById("fiDispOut"); if(el && _fiDisp) el.innerHTML = fiDispOutHtml(_fiDisp); try{ fiComboRender(); }catch(_){} }
+function fiDispRenderOut(){ const el=document.getElementById("fiDispOut"); if(el && _fiDisp) el.innerHTML = fiDispOutHtml(_fiDisp); try{ fiComboRender(); }catch(_){} try{ const vb = document.getElementById("fiVerifyBox"); if(vb && _fiDisp){ const t = document.createElement("div"); t.innerHTML = fiVerifyHtml(_fiDisp); if(t.firstElementChild) vb.replaceWith(t.firstElementChild); } }catch(_){} }   // build 227
 /* build 137: 최종 출고요청서(같은 상차일 합본) — 고정인수 · 일반 리퀴 · 임박식품 배차 요청이 같은 날 겹치면 한 장으로 합친다.
    배차 요청 기록(FI_DISPATCH_HISTORY)에서 상차일이 같은 요청을 모아(체크로 빼기 가능) 거래처(더한/KPP)별 표 · 엑셀 · 물류 문구 · 누적 출고요청서 추가.
    같은 행(입차코드·Group·FC·유형)이 두 요청에 있으면 최근 것 하나만. 임박식품 요청에 확인 질문이 남았거나 도착지가 비면 잠금. */
@@ -19839,7 +19845,13 @@ function mailHtmlToText(html){
     if(el.nodeType===3){ out.push(el.nodeValue); return; }
     if(el.nodeType!==1) return;
     const tag = el.tagName;
-    if(tag==="TABLE"){ out.push("\n"); el.querySelectorAll("tr").forEach(tr=>{ out.push(Array.from(tr.children).map(td=> String(td.textContent||"").replace(/\s+/g," ").trim()).join("\t") + "\n"); }); return; }
+    if(tag==="TABLE"){ out.push("\n"); if(Array.from(el.querySelectorAll("[rowspan],[colspan]")).some(c=> c.closest("table")===el && ((+c.getAttribute("rowspan")||1)>1 || (+c.getAttribute("colspan")||1)>1))){   // build 227: 병합 칸 펼치기
+        const trs = Array.from(el.querySelectorAll("tr")).filter(tr=> tr.closest("table")===el), G = [];
+        trs.forEach((tr,ri)=>{ const row = G[ri] = G[ri] || []; let ci = 0;
+          Array.from(tr.children).forEach(td=>{ while(row[ci]!=null) ci++; const v = String(td.textContent||"").replace(/\s+/g," ").trim(), rs = Math.max(1, +td.getAttribute("rowspan")||1), cs = Math.max(1, +td.getAttribute("colspan")||1);
+            for(let a=0;a<rs;a++){ const rr = G[ri+a] = G[ri+a] || []; for(let b=0;b<cs;b++) rr[ci+b] = b===0 ? v : ""; } ci += cs; }); });
+        G.forEach(r=>{ out.push(Array.from(r, x=> x==null ? "" : x).join("\t") + "\n"); }); return; }
+      el.querySelectorAll("tr").forEach(tr=>{ out.push(Array.from(tr.children).map(td=> String(td.textContent||"").replace(/\s+/g," ").trim()).join("\t") + "\n"); }); return; }
     if(tag==="BR"){ out.push("\n"); return; }
     const block = /^(DIV|P|LI|H\d|TR|SECTION|ARTICLE|BLOCKQUOTE)$/.test(tag);
     if(block) out.push("\n");
@@ -20073,6 +20085,277 @@ function liqDispFromText(text){
   fiDispStart(rows, "", "일반 리퀴 입찰 결과 메일");
   return true;
 }
+
+/* build 227: 출고요청 메일 범용 인식 + 1차 검증
+   거래처 출고요청 메일은 형식이 매번 다름(머리글 이름 · 열 순서 · 빠진 열 · 머리글 없는 표 · 표 없이 글 · 병합 칸 · 날짜를 본문에만 씀).
+   1) 전용 인식(출고일정 표 · 문자 XLG · 임박 · 데드우드 · FC파손 · 일반 리퀴 입찰 결과)을 먼저 하고,
+   2) 아무것도 못 찾았거나 메일에 있는 입차코드를 빠뜨렸으면 범용 인식(fiUniParse)으로 채움:
+      - 표: 머리글 이름(여러 표기) → 없으면 칸 값 모양(AF코드 · S(102214)_YEO2 · 6자리 번호 · 센터 · 날짜 · PLT)으로 열 역할 판정
+      - 병합 칸(rowspan) · 빈 칸은 바로 위 행 값 이어 받기(입차코드 · 날짜 · 센터)
+      - 표가 없으면 줄마다 입차코드 · 그룹 · 번호 · 센터 · PLT · 날짜를 찾음, 입차코드가 메일에 하나뿐이면 모든 줄에
+      - 낙찰일 · 출고일이 표에 없으면 본문 문장("10/24(토) 오전 출고", "낙찰일자: 2026-10-22", "10-21 마감")에서, 그래도 없으면 입차코드 날짜
+   3) 1차 검증(fiVerify): 행마다 입차코드 형식 · 낙찰일=입차코드 날짜 · FC · 낙찰금액에 있는지/센터 · PLT · 출고일 · 도착지 · Group Number · 중복,
+      메일 전체에서 출고요청서에 빠진 입차코드 — 결과 위 "🔎 1차 검증" 칸 + 각 행 확인 줄 */
+let _fiDispSrc = "";   // 마지막으로 읽은 메일 글(1차 검증의 "빠진 입차코드" 확인용, 저장 안 함)
+// 답장 · 전달 메일의 인용 부분(이전 메일)은 빼고 — 보충 · 빠진 코드 확인은 이번 메일 본문만
+function fiUniMain(text){ const t = String(text||""); const m = t.search(/-{3,}\s*(?:Original Message|원본 메시지|Forwarded)|^\s*(?:From|보낸\s*사람|발신)\s*[:：]|^\s*>/im); return m>40 ? t.slice(0, m) : t; }
+const FI_UNI_ROLE = [
+  ["bidDate", /낙찰일|낙찰날짜|입찰일|BIDDATE|AWARD/],
+  ["bidcode", /BIDCODE|BID_?CODE|입차|입금|CODE|코드/],
+  ["fc", /^FC|FC$|센터|CENTER|WAREHOUSE|창고|상차지/],
+  ["group", /GROUP|그룹|낙찰NO|낙찰번호|LOT/],
+  ["number", /NUMBER|넘버|NUMB|번호/],
+  ["pallets", /파렛|팔레|파레|PALLET|PLT|수량|QTY/],
+  ["vendor", /업체|VENDOR|벤더|거래처/],
+  ["outbound", /출고|OUTBOUND|상차|배차|예정|SHIP|PICK|입고일/],
+  ["dest", /도착|하차|입고지|DEST/],
+  ["bidDate", /일자|DATE|날짜/]
+];
+function fiUniRole(h){ const t = String(h||"").toUpperCase().replace(/[\s.:()\[\]]/g,""); if(!t) return ""; for(const [k,re] of FI_UNI_ROLE) if(re.test(t)) return k; return /^NO$/.test(t) ? "no" : ""; }
+// 센터: 코드(YEO2) · "YEO2(여주2)" · 한글(여주2 · 여주2센터) → 코드
+function fiUniFc(v){
+  const s = String(v==null?"":v).toUpperCase().replace(/\s/g,""); if(!s || /^AF[A-Z0-9]{8}$/.test(s)) return "";
+  const F = (typeof FI_REF!=="undefined" && FI_REF.fc) || {}, P = (typeof FI_FC_PREFIX!=="undefined" && FI_FC_PREFIX) || {};
+  let m = s.match(/^([A-Z]{2,4})(\d{1,3})([A-Z]{0,4})$/); if(m && (F[s] || P[m[1]])) return s;
+  m = s.match(/(?:^|[^A-Z])([A-Z]{3})(\d{1,3})([A-Z]{0,4})(?:[^A-Z0-9]|$)/); if(m && P[m[1]] && !/\(\d{5,7}\)/.test(s)) return m[1]+m[2]+m[3];
+  const ko = s.replace(/센터$/,"").replace(/[^가-힣0-9A-Z]/g,"");
+  const hit = Object.keys(F).find(k=> String(F[k][0]).replace(/\s/g,"").toUpperCase()===ko); if(hit) return hit;
+  const km = ko.match(/^([가-힣]{2,4})(\d{1,3})([A-Z]{0,4})$/);
+  if(km){ const pre = Object.keys(P).find(k=> P[k]===km[1]); if(pre) return pre+km[2]+km[3]; }
+  return "";
+}
+// 날짜: 2026-10-24 · 2026.10.24 · 10/24 · 10-24 · 10월 24일 (+오전/오후) → { d, ap }
+function fiUniDate(v, y0){
+  const t = String(v==null?"":v); if(!t.trim()) return null;
+  if(typeof v==="number" && v>40000 && v<80000 && typeof XLSX!=="undefined"){ const d = XLSX.SSF.parse_date_code(v); if(d) return { d:`${d.y}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}`, ap:"" }; }
+  const ap = fiFixAmPm(t.replace(/AF[A-Z0-9]{8}/gi,"")) || "";
+  let m = t.match(/(20\d{2})\s*[-.\/년]\s*(\d{1,2})\s*[-.\/월]\s*(\d{1,2})/), y, mo, d;
+  if(m){ y = +m[1]; mo = +m[2]; d = +m[3]; }
+  else { m = t.match(/(?:^|[^\d])(\d{1,2})\s*(?:[\/.]|-(?!\d{3})|월\s*)\s*(\d{1,2})\s*일?(?![\d\/])/); if(!m) return null; mo = +m[1]; d = +m[2]; y = y0 || new Date().getFullYear(); }
+  if(mo<1 || mo>12 || d<1 || d>31) return null;
+  return { d:`${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`, ap };
+}
+const FI_UNI_GROUP_RE = /\b([A-Z]{1,3})\s*[\(\[]\s*(\d{5,7})\s*[\)\]]\s*[_\-]?\s*([A-Z]{3}\d{1,3}[A-Z]{0,4})?/i;
+function fiUniKind(v){   // 칸 값 모양
+  const s = String(v==null?"":v).trim(); if(!s) return "";
+  if(/^AF[A-Z0-9]{8}$/i.test(s.replace(/\s/g,""))) return "bidcode";
+  if(FI_UNI_GROUP_RE.test(s)) return "group";
+  if(fiNumFull(s) || /^\d{5,7}$/.test(s)) return "number";
+  if(/^\d{5}[A-Z]{2}$/.test(s)) return "lot";
+  if(fiUniDate(s) && /\d{1,2}\s*[\/.\-월]\s*\d{1,2}|20\d{2}/.test(s) && !/^\d{1,3}(\.\d+)?$/.test(s)) return "date";
+  if(/^\d{1,3}\s*(PLT|P|파렛트|팔레트|파레트)?$/i.test(s) && +s.replace(/\D/g,"") <= 300) return "pallets";
+  if(fiUniFc(s)) return "fc";
+  if(/^(오전|오후|AM|PM)$/i.test(s)) return "ampm";
+  return "";
+}
+// 메일 본문 문장에서 날짜 · 입차코드
+function fiUniContext(text){
+  const flat = String(text||"").replace(/\s+/g," ");
+  const y = new Date().getFullYear(), p2 = n=> String(n).padStart(2,"0");
+  const c = { bidDates:[], out:"", ap:"", codes:[] };
+  let m = flat.match(/낙찰\s*(?:일자|일|날짜)\s*[:：]?\s*((?:20\d{2}[-.\/]\d{1,2}[-.\/]\d{1,2}\s*[,·/및]?\s*)+)/);
+  if(m) c.bidDates = (m[1].match(/20\d{2}[-.\/]\d{1,2}[-.\/]\d{1,2}/g)||[]).map(x=> fiUniDate(x).d);
+  if(!c.bidDates.length){ m = flat.match(/(\d{1,2})-(\d{1,2})\s*마감/); if(m) c.bidDates = [`${y}-${p2(m[1])}-${p2(m[2])}`]; }
+  const outRe = [
+    /(?:출고|상차|배차|입고)\s*(?:예정)?\s*(?:일|일자|일시|날짜)?\s*[:：]\s*([^\n]{0,40})/,
+    /((?:20\d{2}\s*[-.\/년]\s*)?\d{1,2}\s*[\/.\-월]\s*\d{1,2}\s*일?\s*(?:\([^)]{1,4}\))?\s*(?:오전|오후)?\s*(?:\d{1,2}\s*시)?)\s*(?:에\s*)?(?:출고|상차|배차)/
+  ];
+  for(const re of outRe){ const mm = flat.match(re); if(mm){ const d = fiUniDate(mm[1], y); if(d){ c.out = d.d; c.ap = d.ap; break; } } }
+  if(!c.ap){ const am = flat.match(/(오전|오후)\s*(?:\d{1,2}\s*시\s*)?(?:출고|상차)/); if(am) c.ap = am[1]; }
+  c.codes = Array.from(new Set((String(text||"").toUpperCase().match(/\bAF[A-Z0-9]{8}\b/g)||[])));
+  return c;
+}
+// 입차코드 날짜: AF + (LOT끝자리/유형 1글자) + 연도 2 + 월(1~9 · A=10 · B=11 · C=12) + 일 2 + 2글자 — AFA26A22ZS · AF626A21BH · AFH26A21BB 모두
+function fiUniCodeDate(code){
+  const m = String(code||"").toUpperCase().match(/^AF[A-Z0-9](\d{2})([1-9ABC])(\d{2})[A-Z0-9]{2}$/); if(!m) return "";
+  const mo = parseInt(m[2],16), d = +m[3]; if(d<1 || d>31) return "";
+  return `20${m[1]}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+}
+function fiUniTypeOf(prefix, code, fc){
+  const p = String(prefix||"").toUpperCase();
+  if(p){ if(p==="S") return "XLS"; if(p==="D") return "XLD"; if(/^G/.test(p)) return "XLG"; if(/^[ABCEKW]$/.test(p)) return "XL"+p; }
+  if(typeof FI_HB!=="undefined" && FI_HB && FI_HB.rows && code){
+    const fk = _fiHbFc(fc); const x = FI_HB.rows.find(y=> y.code===code && (!fk || y.fcs.includes(fk))) || FI_HB.rows.find(y=> y.code===code);
+    if(x){ const pm = String(x.pr||"").match(/^([A-Z])\s*-/); if(pm) return "XL"+pm[1]; const k = String(x.cat||"").toUpperCase();
+      if(/XLG|XLDG/.test(k)) return "XLG"; if(/XLS|물/.test(k)) return "XLS"; if(/기저귀/.test(k)) return "XLD"; if(/임박/.test(k)) return "임박"; }
+  }
+  return "";
+}
+// 표 한 덩어리(탭 줄들) → 행
+function fiUniTable(lines, ctx){
+  const grid = lines.map(l=> l.split("\t").map(x=> String(x).replace(/[\s ]+/g," ").trim()));
+  const W = Math.max(...grid.map(r=> r.length));
+  let hi = -1, roles = [];
+  for(let i=0;i<Math.min(grid.length,4);i++){
+    const rr = grid[i].map(fiUniRole), n = rr.filter(Boolean).length, vals = grid[i].filter(x=> fiUniKind(x) && fiUniKind(x)!=="fc").length;
+    if(n>=2 && n>vals){ hi = i; roles = rr; break; }
+  }
+  const data = grid.slice(hi+1).filter(r=> r.some(Boolean));
+  if(!data.length) return [];
+  // 값 모양으로 열 역할 확인/보정 (머리글이 없거나 값이 머리글과 다를 때)
+  for(let j=0;j<W;j++){
+    const ks = data.map(r=> fiUniKind(r[j])).filter(Boolean);
+    if(!ks.length) continue;
+    const cnt = {}; ks.forEach(k=> cnt[k]=(cnt[k]||0)+1); const top = Object.keys(cnt).sort((a,b)=> cnt[b]-cnt[a])[0];
+    const share = cnt[top]/ks.length, h = roles[j]||"";
+    const fit = { bidcode:["bidcode"], group:["group"], number:["number"], pallets:["pallets","number"], fc:["fc"], bidDate:["date"], outbound:["date","ampm"], no:["lot","pallets","number"], vendor:[""], dest:["fc",""] };
+    if(!h || (share>=0.6 && fit[h] && !fit[h].includes(top))){
+      const map = { bidcode:"bidcode", group:"group", number:"number", pallets:"pallets", fc:"fc", lot:"lot", date:"date", ampm:"ampm" };
+      if(h==="dest" && top==="fc") continue;   // 도착지 열에 센터 이름처럼 보이는 값
+      if(h==="vendor") continue;
+      roles[j] = map[top] || h;
+    }
+  }
+  // 날짜 열이 둘 이상이고 머리글이 없으면 앞 = 낙찰일, 뒤 = 출고일
+  const dcols = roles.map((r,j)=> r==="date" ? j : -1).filter(j=> j>=0);
+  dcols.forEach((j,i)=>{ roles[j] = dcols.length>1 ? (i===0 ? "bidDate" : "outbound") : (ctx.bidDates.length && !ctx.out ? "outbound" : (roles.includes("outbound") ? "bidDate" : "outbound")); });
+  if(!roles.some(r=> r==="bidcode" || r==="group" || r==="fc")) return [];
+  const out = []; let prev = {};
+  data.forEach(c=>{
+    const g = k=>{ const j = roles.indexOf(k); return j>=0 ? (c[j]||"") : ""; };
+    const all = k=> roles.map((r,j)=> r===k ? (c[j]||"") : "").filter(Boolean);
+    const o = { bidcode:g("bidcode").replace(/\s/g,"").toUpperCase(), group:g("group"), number:g("number"), pallets:g("pallets"), fc:all("fc")[0]||"",
+      bidDate:g("bidDate"), outbound:[g("outbound"), g("ampm")].filter(Boolean).join(" "), lot:g("lot") || g("no"), line:c.filter(Boolean).join(" | ") };
+    if(!/^AF[A-Z0-9]{8}$/.test(o.bidcode)){ const any = c.join(" ").toUpperCase().match(/\bAF[A-Z0-9]{8}\b/); o.bidcode = any ? any[0] : ""; }
+    if(!o.group){ const gm = c.join(" ").match(FI_UNI_GROUP_RE); if(gm) o.group = gm[0]; }
+    // 병합 칸 · 빈 칸: 위 행 값 이어 받기
+    ["bidcode","bidDate","outbound","fc"].forEach(k=>{ if(!o[k] && prev[k] && (o.group || o.number || o.pallets)) { o[k] = prev[k]; o["inh_"+k] = true; } });
+    if(!(o.bidcode || o.group || (o.fc && (o.number || o.pallets)))) return;
+    out.push(o); prev = o;
+  });
+  return out;
+}
+// 표가 아닌 글 한 줄 → 행
+function fiUniLine(l, ctx){
+  const s = String(l||"").replace(/\s+/g," ").trim(); if(!s) return null;
+  const U = s.toUpperCase();
+  const code = (U.match(/\bAF[A-Z0-9]{8}\b/)||[""])[0];
+  const gm = s.match(FI_UNI_GROUP_RE);
+  const nf = s.match(/\b\d{5,7}\s*-\s*[A-Z]{1,2}\s*-\s*\d{2,4}\s*-\s*\d{2}\b/i);
+  let rest = s.replace(/\bAF[A-Z0-9]{8}\b/ig," ").replace(gm ? gm[0] : "§§"," ").replace(nf ? nf[0] : "§§"," ");
+  const restP = rest.replace(/\d{4,}/g," ").replace(/[가-힣]{2,4}\s*\d{1,3}\s*(?:센터)?(?=\s|$|[,/·])/g," ").replace(/\b[A-Z]{3}\d{1,3}[A-Z]{0,4}\b/gi," ");   // 번호 · 센터 숫자는 빼고
+  const pm = restP.match(/(?:^|[^\d])(\d{1,3})\s*(?:PLT|P(?![A-Z])|파렛트|팔레트|파레트)/i) || restP.match(/(?:PLT|파렛트|팔레트|파레트)\s*[:：]?\s*(\d{1,3})(?!\d)/i);
+  const datesRaw = rest.match(/(?:20\d{2}\s*[-.\/년]\s*)?\d{1,2}\s*[\/.월]\s*\d{1,2}\s*일?(?:\s*\([^)]{1,4}\))?(?:\s*(?:오전|오후))?/g) || [];
+  rest = rest.replace(/(?:20\d{2}\s*[-.\/년]\s*)?\d{1,2}\s*[\/.월]\s*\d{1,2}\s*일?/g," ");
+  const num = gm ? gm[2] : (nf ? nf[0].match(/\d+/)[0] : ((rest.match(/\b(\d{6})\b/)||[])[1]||""));
+  let fc = gm && gm[3] ? gm[3].toUpperCase() : "";
+  if(!fc){ const fm = rest.match(/\b([A-Z]{3}\d{1,3}[A-Z]{0,4})\b/i) || rest.match(/([가-힣]{2,4}\s*\d{1,3})\s*(?:센터)?/); if(fm) fc = fiUniFc(fm[1]); }
+  if(!gm && !(fc && num) && !(code && (fc || num || pm))) return null;   // 입차코드만 있는 줄("입금코드 : AF…")은 행이 아님
+  const ds = datesRaw.map(x=> fiUniDate(x)).filter(Boolean);
+  return { bidcode:code, group:gm ? gm[0].replace(/\s/g,"") : "", number: nf ? nf[0].replace(/\s/g,"") : num, pallets: pm ? pm[1] : "", fc,
+    bidDate: ds.length>1 ? ds[0].d : "", outbound: ds.length ? (ds[ds.length-1].d + " " + (ds[ds.length-1].ap || fiFixAmPm(s) || "")) : (fiFixAmPm(s)||""), lot:(U.match(/\b\d{5}[A-Z]{2}\b/)||[""])[0], line:s };
+}
+function fiUniParse(text){
+  const ctx = fiUniContext(text);
+  const lines = String(text||"").split(/\r?\n/);
+  const raw = []; let blk = [];
+  const flush = ()=>{ if(blk.length){ if(blk.length>=1) fiUniTable(blk, ctx).forEach(o=> raw.push(o)); blk = []; } };
+  lines.forEach(l=>{ if(/\t/.test(l) && l.split("\t").filter(x=> x.trim()).length>=2) blk.push(l); else { flush(); const o = fiUniLine(l, ctx); if(o) raw.push(o); } });
+  flush();
+  // 입차코드가 메일 전체에 하나뿐이면(문자 · 짧은 메일) 코드 없는 행에 채움
+  if(ctx.codes.length===1) raw.forEach(o=>{ if(!o.bidcode && (o.fc || o.group)){ o.bidcode = ctx.codes[0]; o.oneCode = true; } });
+  const seen = new Set(), rows = [];
+  raw.forEach(o=>{
+    const g = fiParseGroup(o.group || "");
+    const nfull = fiNumFull(o.number);
+    const number = nfull ? nfull.num : (String(o.number||"").replace(/\D/g,"").length>=5 ? String(o.number).replace(/\D/g,"") : (g.num||""));
+    let fc = fiUniFc(o.fc) || g.fc || "";
+    let prefix = g.prefix || (nfull ? nfull.suf[0] : "");
+    const bi = (d=> d ? { date:d } : null)(fiUniCodeDate(o.bidcode));
+    const lot = /^\d{5}[A-Z]{2}$/.test(String(o.lot||"")) ? o.lot : "";   // "NO." 칸의 1 · 2 · 3 같은 순번은 LOT 아님
+    const bd = (fiUniDate(o.bidDate)||{}).d || (ctx.bidDates.length===1 ? ctx.bidDates[0] : (bi && ctx.bidDates.includes(bi.date) ? bi.date : "")) || (bi ? bi.date : "");
+    const od = fiUniDate(o.outbound, +(bd||"").slice(0,4) || undefined);
+    const outD = od ? od.d : ctx.out, ap = (od && od.ap) || fiFixAmPm(o.outbound) || ctx.ap || "";
+    const p = String(o.pallets||"").replace(/[^\d.]/g,"");
+    const type = fiUniTypeOf(prefix, o.bidcode, fc);
+    if(!prefix && type) prefix = ({ XLS:"S", XLD:"D", XLG:"GD", XLA:"A", XLB:"B", XLC:"C", XLE:"E", XLK:"K", XLW:"W" })[type] || "";   // 그룹 글자가 메일에 없으면 유형(낙찰금액 분류)으로
+    const key = [o.bidcode, number, fc, p, lot].join("|"); if(seen.has(key)) return; seen.add(key);
+    const nr = { bidDate:bd, bidcode:o.bidcode, groupPrefix:prefix, groupNum:g.num||"", number, numFull: nfull ? nfull.full : "",
+      group: prefix && number && fc ? `${prefix}(${number})_${fc}` : (o.group || lot || ""), pallets: p==="" ? null : +p, outboundDate: outD || "", outboundAmPm: ap,
+      fc, fcRaw: o.fc ? [o.fc] : [], numCands: number ? [number] : [], type, fromText:true, uni:true, srcLine:o.line, liqLot: lot || undefined,
+      uniInh: ["bidcode","bidDate","outbound","fc"].filter(k=> o["inh_"+k]), oneCode: !!o.oneCode };
+    rows.push(nr);
+  });
+  // PLT가 메일에 없으면 낙찰금액 · 낙찰 기록에서
+  rows.forEach(r=>{
+    if(r.pallets!=null) return;
+    if(r.liqLot && typeof fiLiqLots==="function"){ const x = fiLiqLots().find(y=> y.lot===r.liqLot); if(x && x.plt){ r.pallets = +x.plt; r.pltFrom = x.src; return; } }
+    if(typeof FI_HB!=="undefined" && FI_HB && FI_HB.rows && r.bidcode){ const fk = _fiHbFc(r.fc); const c = FI_HB.rows.filter(y=> y.code===r.bidcode && (!fk || y.fcs.includes(fk)));
+      const ps = Array.from(new Set(c.map(y=> y.plt).filter(v=> v!=null)));
+      if(c.length && ps.length===1){ r.pallets = ps[0]; r.pltFrom = `낙찰금액 ${c.map(y=> y.ri).join(",")}행`; } }
+  });
+  return { rows, ctx };
+}
+// 범용 인식으로 배차 요청 만들기 (전용 인식이 못 했을 때). 성공하면 true
+function fiUniStart(text, src){
+  const U = fiUniParse(text); if(!U.rows.length) return false;
+  const rows = fiDispPost(U.rows, text);
+  rows.forEach(r=>{
+    r.warn = (r.warn||[]).filter(w=> !/인식 보정\(확인\)/.test(w));
+    r.warn.unshift(`범용 인식(메일 형식 자동 판단)${r.srcLine ? ` — 원문: ${String(r.srcLine).slice(0,80)}` : ""}`);
+    if(r.uniInh && r.uniInh.length) r.warn.push(`빈 칸을 위 행 값으로 채움(${r.uniInh.map(k=> ({bidcode:"입차코드",bidDate:"낙찰일",outbound:"출고일",fc:"센터"})[k]).join(" · ")}) — 확인`);
+    if(r.oneCode) r.warn.push(`입차코드는 메일에 하나뿐인 ${r.bidcode}를 모든 줄에 사용`);
+    if(r.pltFrom) r.warn.push(`PLT는 ${r.pltFrom}에서 — 확인`);
+    if(!r.outboundDate) r.warn.push("⚠ 출고일 메일에서 못 찾음 — 직접 입력");
+  });
+  _fiDispSrc = text;
+  fiDispStart(rows, fiDispNote(text), src || "메일(범용 인식)");
+  return true;
+}
+// 전용 인식 결과에서 빠진 입차코드가 있으면 범용 인식 행으로 보충 (같은 코드 · 번호 · 센터면 건너뜀)
+function fiUniSupplement(rows, text){
+  const U = fiUniParse(fiUniMain(text));
+  const have = new Set(rows.map(r=> String(r.bidcode||"").toUpperCase()));
+  const add = U.rows.filter(u=> u.bidcode && !have.has(u.bidcode) && u.fc && (u.number || u.pallets!=null));
+  add.forEach(u=>{ u.uniAdd = true; });
+  return add;
+}
+// 1차 검증
+function fiVerify(d){
+  if(!d || !d.rows) return null;
+  const today = fmtDate(new Date()), out = { rows:[], items:{}, missing:[], n:0 };
+  const add = (i, k, t)=>{ out.rows[i].push(t); out.items[k] = (out.items[k]||0) + 1; };
+  const hb = (typeof FI_HB!=="undefined" && FI_HB && FI_HB.rows) ? FI_HB.rows : null;
+  const keyCnt = {};
+  d.rows.forEach(r=>{ if(r.skip) return; const k = [r.bidcode, r.number, r.fc, r.dwLot||"", r.type].join("|"); keyCnt[k] = (keyCnt[k]||0) + 1; });
+  d.rows.forEach((r,i)=>{
+    out.rows.push([]); if(r.skip) return; out.n++;
+    const code = String(r.bidcode||"").toUpperCase(), bi = (d=> d ? { date:d } : null)(fiUniCodeDate(code)), lotRow = fiIsDw(r) || r.eos || r.type==="임박";
+    if(!/^AF[A-Z0-9]{8}$/.test(code)) add(i, "입차코드", `입차코드 ${code||"없음"} — 형식(AF+8자리) 확인`);
+    else if(bi && r.bidDate && bi.date!==r.bidDate && !lotRow) add(i, "낙찰일", `낙찰일 ${r.bidDate} ≠ 입차코드 날짜 ${bi.date}`);
+    if(!r.fc){ if(!fiIsDw(r)) add(i, "FC", "FC(출고센터) 없음"); }
+    else if(!fiIsDw(r) && !r.eos && fiCenterName(r.fc)===r.fc && !/[가-힣]/.test(r.fc) && !(FI_FC_PREFIX||{})[String(r.fc).slice(0,3)]) add(i, "FC", `모르는 센터 코드 ${r.fc}`);
+    if(hb && /^AF[A-Z0-9]{8}$/.test(code)){
+      const c = hb.filter(x=> x.code===code);
+      if(!c.length && !(r.type==="XLG" && hb.some(x=> !x.code && x.bd===r.bidDate && x.fcs.includes(_fiHbFc(r.fc))))) add(i, "낙찰금액", "낙찰금액 종합에 이 입차코드 없음 — 낙찰 · 입금코드 확인");
+      else if(c.length && r.fc && c.some(x=> x.fcs.length) && !c.some(x=> x.fcs.includes(_fiHbFc(r.fc))) && !fiIsDw(r)) add(i, "센터", `낙찰금액 센터 ${Array.from(new Set(c.map(x=> x.fcRaw))).join(", ")} ≠ 메일 ${fiCenterName(r.fc)}`);
+    }
+    if(r.pallets==null || r.pallets==="" || !(+r.pallets>0)) add(i, "PLT", "PLT 없음");
+    if(!r.outboundDate) add(i, "출고일", "출고일 없음");
+    else { if(r.bidDate && r.outboundDate < r.bidDate) add(i, "출고일", `출고일 ${r.outboundDate}이 낙찰일보다 빠름`); else if(r.outboundDate < today) add(i, "출고일", `지난 출고일 ${r.outboundDate}`); }
+    if(!r.dest) add(i, "도착지", "도착지 없음");
+    if(!lotRow && !r.number && !r.liqLot) add(i, "Group", "Group Number 없음");
+    const k = [r.bidcode, r.number, r.fc, r.dwLot||"", r.type].join("|"); if(keyCnt[k]>1 && !fiIsDw(r) && !r.eos) add(i, "중복", "같은 입차코드 · 번호 · 센터 행이 또 있음(중복?)");
+    if(r.uniAdd) add(i, "보충", "전용 인식에서 빠져 범용 인식으로 추가한 행 — 확인");
+  });
+  if(_fiDispSrc){
+    const have = new Set(d.rows.map(r=> String(r.bidcode||"").toUpperCase()));
+    out.missing = fiUniContext(fiUniMain(_fiDispSrc)).codes.filter(c=> !have.has(c));
+  }
+  out.bad = out.rows.filter(a=> a.length).length;
+  return out;
+}
+function fiVerifyHtml(d){
+  const V = fiVerify(d); if(!V || !V.n) return "";
+  const items = Object.entries(V.items).map(([k,n])=> `${escHtml(k)} ${n}`).join(" · ");
+  const ok = !V.bad && !V.missing.length;
+  return `<div class="fi-match ${ok?"ok":"bad"}" id="fiVerifyBox" style="margin-top:6px">🔎 <b>1차 검증</b> — ${V.n}행 중 ✓ 이상 없음 ${V.n - V.bad}행${V.bad ? ` · ⚠ 확인 ${V.bad}행 (${items})` : ""}${V.missing.length ? ` · ⚠ 메일에 있는데 출고요청서에 없는 입차코드 ${V.missing.length}개: ${escHtml(V.missing.join(", "))} (이전 메일 인용이면 무시)` : ""}${ok ? " — 입차코드 · 센터 · PLT · 출고일 · 도착지 모두 확인됨" : " — 아래 각 행 \"확인\" 줄의 🔎 항목을 보고 고쳐 주세요"}</div>`;
+}
+
+// 전용 표 인식 결과와 범용 인식 결과 중 메일 정보를 더 많이 읽은 쪽 (빈 칸을 날짜 추정으로 채우기 전 값으로 비교)
+function fiUniScore(rows){
+  return (rows||[]).reduce((s,r)=> s + (/^AF[A-Z0-9]{8}$/.test(String(r.bidcode||""))?2:0) + (r.fc?2:0) + ((r.number||r.group)?1:0) + (+r.pallets>0?1:0) + (r.outboundDate?1:0) + (r.bidDate && r.bidDate!==r.outboundDate?1:0), 0);
+}
 async function fiDispFromFile(f){
   if(/\.xls[xm]$/i.test(f.name||"") && await fiHbIsFile(f)){   // build 225: 2026_쿠팡 낙찰금액 → 도착지 찾기 기준
     const st = document.getElementById("fiDispStatus");
@@ -20107,9 +20390,10 @@ async function fiDispFromFile(f){
     if(!html) throw new Error("메일 파일에서 본문을 찾지 못했습니다.");
     let text = mailHtmlToText(html);
     { const ttl = mailHtmlToText.title || ""; if(ttl && dwDispKind(ttl + "\n" + text) && !/마감\s*입찰\s*결과/.test(text)) text = ttl + "\n" + text; }   // build 220: 제목("10-21 마감 입찰 결과")으로 FC파손 판별 · 낙찰일
+    text = fiUniMain(text); const _b4 = _fiDisp && _fiDisp.id; _fiDispSrc = text;   // build 227: 이전 메일 인용 빼기
     if(liqDispIsMail(text)){ const ta = document.getElementById("fiDispPaste"); if(ta) ta.value = text; liqDispFromText(text); }   // build 226: 일반 리퀴 입찰 결과 메일(No 46316BH · FC · 입금코드)
-    else if(dwDispIsMail(text)){ const ta = document.getElementById("fiDispPaste"); if(ta) ta.value = text; await dwDispFromText(text); }   // build 196
-    else if(eosDispIsMail(text)){ if(!(await eosDispFromText(text, "메일 파일"))) throw new Error("메일 파일에서 임박식품(FC EOS) 표를 찾지 못했습니다."); }
+    else if(dwDispIsMail(text)){ const ta = document.getElementById("fiDispPaste"); if(ta) ta.value = text; await dwDispFromText(text); if((_fiDisp && _fiDisp.id)===_b4) fiUniStart(text, "메일 파일(범용 인식)"); }   // build 196 · 227: 못 읽으면 범용 인식
+    else if(eosDispIsMail(text)){ if(!(await eosDispFromText(text, "메일 파일")) && !fiUniStart(text, "메일 파일(범용 인식)")) throw new Error("메일 파일에서 임박식품(FC EOS) 표를 찾지 못했습니다."); }
     else { const ta = document.getElementById("fiDispPaste"); if(ta) ta.value = text; fiDispFromText(text); }
   }catch(e){ if(st) st.textContent = "⚠ " + (e && e.message || e); }
 }
