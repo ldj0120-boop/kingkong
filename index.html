@@ -1203,7 +1203,7 @@
   <header class="top">
     <div class="brand">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 218 · 2026-10-21</span></span>
+      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 221 · 2026-10-22</span></span>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1646,7 +1646,7 @@
 <div class="agg-card kk-sub" id="lsBox">
       <div class="p-hd">
         <span class="store-name">정기비딩(일반 리퀴데이션) 요약본</span>
-        <span class="meta">일반 리퀴 원본 · 바이나우 원본(.xlsb)을 놓으면 종류를 자동 판별 → 요약본(종합 피벗 · PLT CATE · RAW · ★리퀴 요약) 엑셀</span>
+        <span class="meta">일반 리퀴 원본 · 바이나우 원본(.xlsb · .xlsx, 임박형 RAW도 정기비딩 열로 바꿔서)을 놓으면 종류를 자동 판별 → 요약본(종합 피벗 · PLT CATE · RAW · ★리퀴 요약) 엑셀</span>
         <button class="act fi-mini fi-del" data-reset="ls" style="margin-left:auto" title="올린 원본 · 입력칸 · 화면 결과를 지웁니다 (기록은 그대로)">↺ 초기화</button>
       </div>
       <div class="fi-body">
@@ -1654,7 +1654,7 @@
           <div class="fi-drop-t">아리바 비딩 원본 파일(AR_Bidding_Liquidation_… - 원본 / 바이나우원본 .xlsb)을 끌어다 놓거나 클릭</div>
           <div class="fi-drop-s">RAW 시트 머리글에 "BUY NOW"가 있으면 바이나우 요약본, 없으면 일반 리퀴 요약본 양식으로 만듭니다 · 30MB 원본 기준 20~40초</div>
         </div>
-        <input type="file" id="lsInput" accept=".xlsb" hidden>
+        <input type="file" id="lsInput" accept=".xlsb,.xlsx,.xlsm,.xls" hidden>
         <div id="lsStatus" class="fi-status"></div>
         <div id="lsResult"></div>
       </div>
@@ -1881,6 +1881,12 @@
       <div class="fi-body">
         <!-- build 189: 고정인수 직출 분배표 · 카톡 문구 (④에서 낙찰파일을 만들면 여기에) -->
         <div class="fi-sec-t" style="font-size:18px">직출 분배표 (고정인수)</div>
+        <div id="fiPlanDrop" class="fi-drop" role="button" tabindex="0" style="padding:12px;margin-bottom:8px">
+          <div class="fi-drop-t" style="font-size:15px">고정인수 낙찰파일(XLG · XLS · XLD 인수리스트 .xlsx)을 끌어다 놓거나 클릭 → 직출 분배표</div>
+          <div class="fi-drop-s">④에서 받은 낙찰파일 그대로 · 여러 개 한 번에 · 원본 고정 리스트도 됩니다 (아래 배차 요청서 칸에 놓아도 자동 인식)</div>
+        </div>
+        <input type="file" id="fiPlanInput" accept=".xlsx,.xlsm,.xls" multiple hidden>
+        <div id="fiPlanStatus" class="fi-status"></div>
         <div id="fiPlanResult"></div>
         <div class="fi-sec-t" style="font-size:18px;margin-top:18px">배차 요청서 (입차코드)</div>
         <div class="fi-disp-in">
@@ -1896,7 +1902,7 @@
             <button class="act fi-mini" id="fiDispParseBtn">붙여넣은 글 인식</button>
           </div>
         </div>
-        <input type="file" id="fiDispInput" accept="image/*,.mhtml,.mht,.html,.htm,.eml,.xlsx" hidden>
+        <input type="file" id="fiDispInput" accept="image/*,.mhtml,.mht,.html,.htm,.eml,.xlsx" multiple hidden>
         <input type="file" id="fiDispPhoto" accept="image/*" hidden>
         <div id="fiDispStatus" class="fi-status"></div>
         <div id="fiDispResult"></div>
@@ -12766,16 +12772,29 @@ function pltLiveBadgeHtml(){
   return `<span id="pltLiveBadge" class="g-chip ${m.cls}" title="출처: seunghyun.vercel.app 매장 PLT 현황(Supabase Realtime) — 재고/입고/해체/이월만 자동 반영됩니다.">${m.text}</span>`;
 }
 
+// build 221: 1,000줄 제한 없이 전부 — id 순으로 1,000줄씩 (순서가 고정돼야 페이지 사이에 빠지거나 겹치는 줄이 없다)
+async function pltFetchAllRows(mk){
+  const out = [];
+  for(let off=0; off<1000000; off+=1000){
+    const r = await mk().order("id").range(off, off+999);
+    if(r.error) return { data:null, error:r.error };
+    out.push(...(r.data||[]));
+    if(!r.data || r.data.length<1000) break;
+  }
+  return { data:out, error:null };
+}
 async function pltLiveFetchAll(){
   const sb = pltLiveClient;
   const curMonth = pltMonthKey(new Date());
   const monthStart = `${curMonth}-01`;
   // date 컬럼은 이번 달 이후만 서버에서 걸러 받아온다. month 컬럼(store_plt_carryover)은 실제 표기 포맷을
   // 이 환경에서 직접 확인할 수 없었으므로 전체를 받아 클라이언트에서 앞 7글자(YYYY-MM)로 안전하게 비교한다.
+  // build 221: Supabase는 한 번에 1,000줄까지만 준다 → 이번 달 일별 입력이 1,000줄을 넘은 10/21부터 뒤쪽 매장(천안점 등)의
+  //            입고·해체가 통째로 빠져 재고가 이월값(0)만 남았다. 전부 받을 때까지 1,000줄씩 나눠 받는다.
   const [statusRes, carryRes, dailyRes] = await Promise.all([
-    sb.from("store_plt_status").select("store,date,warehouse_capacity,outdoor_stock,note,updated_at").gte("date", monthStart),
-    sb.from("store_plt_carryover").select("store,month,component,qty"),
-    sb.from("store_plt_daily").select("store,date,component,inbound,dismantled").gte("date", monthStart),
+    pltFetchAllRows(()=> sb.from("store_plt_status").select("store,date,warehouse_capacity,outdoor_stock,note,updated_at").gte("date", monthStart)),
+    pltFetchAllRows(()=> sb.from("store_plt_carryover").select("store,month,component,qty")),
+    pltFetchAllRows(()=> sb.from("store_plt_daily").select("store,date,component,inbound,dismantled").gte("date", monthStart)),
   ]);
   if(statusRes.error) throw statusRes.error;
   if(carryRes.error) throw carryRes.error;
@@ -12859,7 +12878,7 @@ async function pltFreshFetch(){
   const rows = [];
   for(let off=0; off<50000; off+=1000){
     const { data, error } = await sb.from("liquidation_rows_effective").select("date,store,dest,qty,code,source")
-      .or("source.eq.fresh,code.eq.신선").gte("date", from).order("date").range(off, off+999);
+      .or("source.eq.fresh,code.eq.신선").gte("date", from).order("date").order("id").range(off, off+999);
     if(error) throw error;
     (data||[]).forEach(r=> rows.push(r));
     if(!data || data.length < 1000) break;
@@ -13587,9 +13606,10 @@ function fiLatestSnap(){
 const fiFmt = v => (v==null||isNaN(v)) ? "-" : Math.round(v).toLocaleString("ko-KR");
 function fiTypeBadge(t){ const c={XLS:"#4FA3E0",XLG:"#33C784",XLD:"#F5B211"}[t]||"#93A5B6"; return `<span class="fi-type" style="border-color:${c};color:${c}">${escHtml(t||"?")}</span>`; }
 
-async function fiHandleFiles(fileList){
+async function fiHandleFiles(fileList, opt){
+  opt = opt || {};
   const files = Array.from(fileList||[]).filter(f=>/\.xls[xm]?$/i.test(f.name));
-  const st = document.getElementById("fiStatus");
+  const st = document.getElementById(opt.statusId || "fiStatus");
   if(!files.length){ st.textContent = "엑셀(.xlsx) 파일을 올려주세요."; return; }
   st.textContent = `${files.length}개 파일 읽는 중…`;
   const builds = [], errs = [];
@@ -13598,7 +13618,7 @@ async function fiHandleFiles(fileList){
       const buf = await f.arrayBuffer();
       const wb = XLSX.read(buf, { type:"array" });
       const p = fiParseWorkbook(wb);
-      if(!p || !p.rows.length){ errs.push(`${f.name}: RESULT 시트(FC·LOT_FULL_NAME 헤더)를 찾지 못했습니다`); continue; }
+      if(!p || !p.rows.length){ errs.push(`${f.name}: RESULT 시트 · 낙찰파일 원본 시트(FC·LOT_FULL_NAME 헤더)를 찾지 못했습니다`); continue; }
       const b = fiBuild(f.name, p.rows);
       if(!b.type){ errs.push(`${f.name}: XLG/XLS/XLD 유형을 판별하지 못했습니다`); continue; }
       b.srcName = f.name;
@@ -13627,8 +13647,21 @@ async function fiHandleFiles(fileList){
     }catch(e){ errs.push(`${b.outName}: 엑셀 생성 실패 ${e && e.message || e}`); }
   });
   fiSaveCurrentToHistory(true);
-  st.innerHTML = `✓ ${builds.length}개 낙찰파일 생성 · ${reused?"같은 날 기존 분배표(수정 포함)를 그대로 불러옴 — 새로 나누려면 아래 설정의 \"다시 분배\"":"분배표 작성 완료"} (히스토리 저장됨)` + (errs.length ? `<br><span style="color:var(--red)">${errs.map(escHtml).join("<br>")}</span>` : "");
+  if(opt.statusId && opt.statusId!=="fiStatus"){ const s0 = document.getElementById("fiStatus"); if(s0) s0.textContent = `⑤에서 올린 고정인수 낙찰파일 ${builds.length}개로 분배표를 만들었습니다`; }   // build 221
+  st.innerHTML = `✓ ${opt.fromDisp?"고정인수 낙찰파일 "+builds.length+"개 읽음 → 직출 분배표 작성":builds.length+"개 낙찰파일 생성"} · ${reused?"같은 날 기존 분배표(수정 포함)를 그대로 불러옴 — 새로 나누려면 아래 설정의 \"다시 분배\"":"분배표 작성 완료"} (히스토리 저장됨)` + (errs.length ? `<br><span style="color:var(--red)">${errs.map(escHtml).join("<br>")}</span>` : "");
   fiRender();
+  if(opt.scroll){ const t = document.getElementById("fiPlanResult"); if(t) t.scrollIntoView({ behavior:"smooth", block:"start" }); }
+  return builds.length;
+}
+// build 221: ⑤ 배차요청에 올린 엑셀이 고정인수(XLG·XLS·XLD) 리스트 / ④에서 만든 낙찰파일(원본·종합·RAW)인지
+async function fiIsFixedXlsx(f){
+  try{
+    if(!/\.xls[xm]?$/i.test(f && f.name || "")) return false;
+    const wb = XLSX.read(await f.arrayBuffer(), { type:"array" });
+    const p = fiParseWorkbook(wb);
+    if(!p || !p.rows.length) return false;
+    return !!fiDetectType("", p.rows) || (/인수리스트|고정\s*리스트/.test(f.name) && !!fiDetectType(f.name, p.rows));
+  }catch(_){ return false; }
 }
 function fiPlanCompact(plan){
   const o = {};
@@ -13728,7 +13761,7 @@ function fiRender(){
   if(meta) meta.textContent = snap ? `매장 재고 기준 ${snap.date} (최신 스냅샷)` : "매장 재고 데이터 없음 — 재고 없이 거리만으로 분배";
   const planEl = document.getElementById("fiPlanResult");   // build 189: 직출 분배표 · 카톡 문구는 ④ 배차요청 & 직출 분배표 카드로
   if(!_fiCur){ wrap.innerHTML = `<div class="fi-empty">아직 이번 화면에서 만든 결과가 없습니다. 위에 파일을 놓으면 낙찰파일이 여기에, 직출 분배표는 ⑤ 배차요청 & 직출 분배표에 나옵니다. 지난 분배표는 아래 분배 히스토리에서 볼 수 있습니다.</div>`;
-    if(planEl) planEl.innerHTML = `<div class="fi-empty">④ 고정인수에 리스트 파일을 올리면 여기에 직출 분배표와 카톡 문구가 나옵니다.</div>`; fiRenderHistory(); return; }
+    if(planEl) planEl.innerHTML = `<div class="fi-empty">④ 고정인수에 리스트 파일을 올리거나, 위 칸에 ④에서 받은 고정인수 낙찰파일을 놓으면 여기에 직출 분배표와 카톡 문구가 나옵니다.</div>`; fiRenderHistory(); return; }
   _fiCur.stockMap = fiEffStock(fiLatestSnap(), _fiCur.id, fiCurDate());   // build 113/114: 최신 스냅샷 + 미반영 출고
   const c = _fiCur, live = !!c.builds[0] && !!c.builds[0].raw;
   let h = `<div class="fi-sec-t">낙찰파일 (인수리스트) <button class="act fi-mini fi-del" id="fiCurDel" title="화면에서 이번 결과 닫기 (히스토리 기록은 아래 분배 히스토리에서 ✕로 삭제)">✕ 결과 닫기</button></div><div class="fi-files">`;
@@ -13778,10 +13811,10 @@ async function pltDailyFetch(){
   const from = `${pltMonthKey(new Date(now.getFullYear(), now.getMonth()-2, 1))}-01`;
   const rows = [];
   for(let off=0; off<100000; off+=1000){
-    const r = await sb.from("store_plt_daily").select("store,date,component,inbound,dismantled").gte("date", from).order("date").range(off, off+999);
+    const r = await sb.from("store_plt_daily").select("store,date,component,inbound,dismantled").gte("date", from).order("date").order("id").range(off, off+999);
     if(r.error) throw r.error; rows.push(...(r.data||[])); if(!r.data || r.data.length<1000) break;
   }
-  const cr = await sb.from("store_plt_carryover").select("store,month,component,qty"); if(cr.error) throw cr.error;
+  const cr = await pltFetchAllRows(()=> sb.from("store_plt_carryover").select("store,month,component,qty")); if(cr.error) throw cr.error;   // build 221: 1,000줄 넘어도 전부
   const d = {}, carry = {}, last = {};
   rows.forEach(x=>{ const dt = String(x.date||"").slice(0,10), s = resolveStoreName(x.store), c = String(x.component||""); if(!dt || !s || !c) return;
     const i = +x.inbound||0, o = +x.dismantled||0; if(!i && !o) return;
@@ -14931,7 +14964,7 @@ function fiDispText(rows, meta){
       out.push(`■ 상차 ${d}(${fiDispWeekday(d)}) ${ap||""} ${tm}`.replace(/\s+/g," ").trim()); }
     by[k].forEach((r,i)=>{
       out.push(`${i+1}. ${fiCenterName(r.fc)||r.fc} → ${r.dest||"(도착지 미정)"} / ${r.pallets||"?"}PLT`);
-      if(r.type==="데드우드"){   // build 196
+      if(fiIsDw(r)){   // build 196 · 220 FC파손
         out.push(`   입차코드 ${r.bidcode||"?"} · ${r.group||""}`);
         out.push(`   상차지 ${r.addr || "(주소 확인 필요)"}`);
         out.push(`   연락처 ${r.phone || "(연락처 확인 필요)"}`);
@@ -14946,7 +14979,7 @@ function fiDispText(rows, meta){
     });
     out.push("");
   });
-  out.push(rows.length && rows.every(r=>r.type==="임박" || r.type==="데드우드") ? "입차 시 위 입차코드(BIDCODE)를 입력해 주세요. 감사합니다." : "입차 시 위 입차코드(BIDCODE)와 Group Number를 입력해 주세요. 감사합니다.");
+  out.push(rows.length && rows.every(r=>r.type==="임박" || fiIsDw(r)) ? "입차 시 위 입차코드(BIDCODE)를 입력해 주세요. 감사합니다." : "입차 시 위 입차코드(BIDCODE)와 Group Number를 입력해 주세요. 감사합니다.");
   return out.join("\n");
 }
 // 칸별 검증(읽은 값이 형식에 맞는지) — 안 맞으면 더 크게 확대해서 다시 읽는다
@@ -15046,7 +15079,7 @@ function fiDispGeneralFix(r){
   }
 }
 const FI_PLT_MAX = 40;
-function fiDispPltOdd(r){ return r.type!=="임박" && !r.palOk && (r.pallets==null || r.pallets==="" || !(+r.pallets>0) || (r.type!=="데드우드" && +r.pallets > FI_PLT_MAX)); }   // build 199: 데드우드는 낙찰파일 PLT라 40 초과도 정상
+function fiDispPltOdd(r){ return r.type!=="임박" && !r.palOk && (r.pallets==null || r.pallets==="" || !(+r.pallets>0) || (!fiIsDw(r) && +r.pallets > FI_PLT_MAX)); }   // build 199: 데드우드는 낙찰파일 PLT라 40 초과도 정상
 function fiDispPost(rows, head){
   const date0 = _fiVote(rows.map(r=>r.bidDate));
   const out0 = _fiVote(rows.map(r=>r.outboundDate));
@@ -15233,9 +15266,43 @@ async function fiDispFromImage(file){
 const DW_ADDR_LS = "dw_center_addr_v1";
 let DW_ADDR = {}; try{ DW_ADDR = JSON.parse(localStorage.getItem(DW_ADDR_LS)||"{}") || {}; }catch(_){ DW_ADDR = {}; }
 function dwAddrSave(){ try{ localStorage.setItem(DW_ADDR_LS, JSON.stringify(DW_ADDR)); }catch(_){} }
-function dwDispIsMail(text){
+function dwDispIsMail(text){ return !!dwDispKind(text); }
+/* build 220: 쿠팡 "[쿠팡_Liquidation] ** MM-DD 마감 입찰 결과" 메일 종류
+   - 데드우드: LOT 표(No · 입금코드) + FC 표(FC · 주소 · Phone)
+   - FC파손:   LOT 표(No · 입금코드)만 (센터 · PLT는 ② FC파손 낙찰 기록 / 낙찰파일에서) */
+function dwDispKind(text){
   const t = String(text||"");
-  return /^\s*No\t[^\n]*입금코드/mi.test(t) && /^\s*FC\t\s*주소/mi.test(t);
+  if(!/^\s*No\.?\t[^\n]*입금코드/mi.test(t)) return "";
+  if(/^\s*FC\t\s*주소/mi.test(t)) return "dw";
+  if(eosDispIsMail(t)) return "";
+  return /입찰\s*결과|Liquidation/i.test(t) ? "fd" : "";
+}
+const DW_KIND_LABEL = { dw:"데드우드", fd:"FC파손" };
+function fiIsDw(r){ return !!r && (r.type==="데드우드" || r.type==="FC파손"); }
+// FC파손 낙찰 결과(b.fcRows: NO. · FC · PLT 표) → { FC: PLT } (같은 FC 줄은 더함, PLT 칸 없으면 null)
+function fdFcPltOf(b, no){
+  const o = {}; let any = false;
+  (b && b.fcRows || []).filter(x=> x.no===no).forEach(x=>{ const fc = fdT(x.fc || x.center).toUpperCase().replace(/\s+/g,""); if(!fc) return; if(x.plt!=null) any = true; o[fc] = (o[fc]||0) + (+x.plt||0); });
+  return any && Object.keys(o).length ? o : null;
+}
+// FC파손 낙찰파일(.xlsx) RAW 시트 오른쪽 "NO. | FC | PLT" 표 → { LOT: [{fc, plt}] }
+function fdBidMapFromWb(wb){
+  const names = wb.SheetNames.slice().sort((a,b)=> (/^raw$/i.test(b)?1:0) - (/^raw$/i.test(a)?1:0));
+  for(const n of names){
+    const A = XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1, defval:null, raw:true });
+    for(let hi=0; hi<Math.min(A.length,6); hi++){
+      const H = (A[hi]||[]).map(x=> fdT(x).replace(/\s+/g,"").toUpperCase());
+      let j = -1;
+      for(let c=H.length-3; c>=0; c--) if(/^NO\.?$/.test(H[c]) && H[c+1]==="FC" && /PLT|파렛트|팔레트/.test(H[c+2]||"")){ j = c; break; }
+      if(j<0) continue;
+      const map = {};
+      for(let i=hi+1;i<A.length;i++){ const r = A[i]||[]; const no = fdT(r[j]).toUpperCase(), fc = fdT(r[j+1]).toUpperCase().replace(/\s+/g,"");
+        if(!/^[A-Z]{1,3}$/.test(no) || !fc) continue; const a = map[no] = map[no] || []; const v = +String(r[j+2]==null?"":r[j+2]).replace(/[^\d.]/g,"") || 0;
+        const o = a.find(x=> x.fc===fc); if(o) o.plt += v; else a.push({ fc, plt:v }); }
+      if(Object.keys(map).length) return map;
+    }
+  }
+  return null;
 }
 function dwDispParseMail(text){
   const lines = String(text||"").split(/\r?\n/);
@@ -15320,17 +15387,25 @@ function dwDispParseLotTable(text){
   return out;
 }
 // 낙찰 기록에서 LOT → [{fc, plt}] (기록에 저장된 fcPlt, 없으면 보관본 엑셀 raw 시트의 로케이션 수)
-async function dwDispFcPlt(bidDate, lots){
+async function dwDispFcPlt(bidDate, lots, kind){
   const ymd = String(bidDate||"").replace(/-/g,"");
-  const cand = (FD_HISTORY||[]).filter(h=> h && h.kind==="dw" && lots.every(l=> (h.lots||[]).includes(l)));
-  const h = cand.find(x=> x.date===ymd) || cand[0];
+  const isKind = h=> kind==="fd" ? (!h.kind || h.kind==="fd") : h.kind==="dw";   // build 220: FC파손 기록(예전 기록은 kind 없음)
+  const cand = (FD_HISTORY||[]).filter(h=> h && isKind(h) && lots.every(l=> (h.lots||[]).includes(l)));
+  // 낙찰일과 같은 날 → 그 전 가장 가까운 날(원본 파일 날짜가 하루 앞섬: 10-21 마감 ← 20261020 원본) → 최근 기록
+  const h = cand.find(x=> x.date===ymd) || (ymd ? cand.filter(x=> String(x.date||"") <= ymd).sort((a,b)=> String(b.date).localeCompare(String(a.date)) || b.id-a.id)[0] : null) || cand[0];
   if(!h) return { rec:null, map:null };
   const map = {}, lotPlt = {};
   (h.parts||[]).forEach(p=>{ lotPlt[p.lot] = p.plt; if(p.fcPlt) map[p.lot] = Object.entries(p.fcPlt).map(([fc,plt])=>({ fc, plt })); });
   if(lots.every(l=> map[l])) return { rec:h, map, lotPlt };
   try{
-    const v = await idbGet(`fd_file_${h.id}`); if(!v || !v.data) return { rec:h, map:null, lotPlt };
-    const wb = XLSX.read(v.data, { type:"array" }); const ws = wb.Sheets["raw"] || wb.Sheets[wb.SheetNames.find(n=>/^raw$/i.test(n))];
+    const v = await idbGet(`fd_file_${h.id}`);
+    if(!v || !v.data){   // 보관본도 없으면 기록의 센터 목록만(PLT 빈칸)
+      if(kind==="fd" && (h.parts||[]).every(p=> lots.indexOf(p.lot)<0 || (p.fc||[]).length)){ const m2 = {}; (h.parts||[]).forEach(p=>{ m2[p.lot] = [...new Set((p.fc||[]).map(x=> String(x).toUpperCase()))].map(fc=>({ fc, plt:null })); }); return { rec:h, map:m2, lotPlt, noPlt:true }; }
+      return { rec:h, map:null, lotPlt };
+    }
+    const wb = XLSX.read(v.data, { type:"array" });
+    if(kind==="fd"){ const m3 = fdBidMapFromWb(wb); if(m3 && lots.every(l=> m3[l])) return { rec:h, map:m3, lotPlt }; }
+    const ws = wb.Sheets["raw"] || wb.Sheets[wb.SheetNames.find(n=>/^raw$/i.test(n))];
     const A = XLSX.utils.sheet_to_json(ws, { header:1, defval:null, raw:true });
     const H = (A[1]||[]).map(x=> dwH(x));
     const iNo = H.findIndex(x=> DW_KEYS.no(x)), iFc = H.findIndex(x=> DW_KEYS.fc(x)), iLoc = H.findIndex(x=> DW_KEYS.loc(x));
@@ -15344,21 +15419,25 @@ async function dwDispFcPlt(bidDate, lots){
 }
 // FC 주소록: 메일 → 저장 / 없으면 저장본 → CFC는 본 센터(GOY1CFC → GOY1)
 function dwDispAddrOf(fc, mailFcs){
-  const k = String(fc||"").toUpperCase(), base = k.replace(/_?CFC.*$/,"");
+  const k = String(fc||"").toUpperCase(), base = k.replace(/_?(CFC|HUB|_H$).*$/,"");   // build 220: HUB 줄도 본 센터 주소
+  const eosAt = x=>{ const o = (typeof EOS_CENTER_INFO!=="undefined" && EOS_CENTER_INFO[x]) || null; return o && o.addr ? { addr:[o.addr], phones: o.phone ? [o.phone] : [], at:o.at||"" } : null; };
   if(mailFcs[k]) return { ...mailFcs[k], src:"메일" };
   if(DW_ADDR[k]) return { ...DW_ADDR[k], src:"주소록" };
   if(base!==k && mailFcs[base]) return { ...mailFcs[base], src:`메일(${kkFcKo(base)})`, inherit:base };
   if(base!==k && DW_ADDR[base]) return { ...DW_ADDR[base], src:`주소록(${kkFcKo(base)})`, inherit:base };
+  if(eosAt(k)) return { ...eosAt(k), src:"임박 센터 정보" };   // build 220: 임박식품 메일에서 기억한 상차지
+  if(base!==k && eosAt(base)) return { ...eosAt(base), src:`임박 센터 정보(${kkFcKo(base)})`, inherit:base };
   return null;
 }
 async function dwDispFromText(text){
   const st = document.getElementById("fiDispStatus");
+  const kind = dwDispKind(text) || "dw", KL = DW_KIND_LABEL[kind];   // build 220: FC파손 메일도
   const M = dwDispParseMail(text);
-  if(!M.lots.length){ if(st) st.textContent = "⚠ 데드우드 메일에서 LOT 표(No · 입금코드)를 찾지 못했습니다."; return; }
+  if(!M.lots.length){ if(st) st.textContent = `⚠ ${KL} 메일에서 LOT 표(No · 입금코드)를 찾지 못했습니다.`; return; }
   Object.entries(M.fcs).forEach(([fc,o])=>{ DW_ADDR[fc] = { addr:o.addr.slice(), phones:o.phones.slice(), at:new Date().toISOString().slice(0,10) }; }); dwAddrSave();
   const destMap = dwDispParseDest(text);
   const lots = M.lots.map(x=> x.lot);
-  let F = await dwDispFcPlt(M.bidDate, lots);
+  let F = await dwDispFcPlt(M.bidDate, lots, kind);
   _dwLastText = text;
   // build 197: 기록이 없거나 못 읽으면 → ④에 올린 낙찰파일 → 출고지 표 센터명 · PLT
   let fcSrc = F.map ? "낙찰 기록" : "";
@@ -15370,11 +15449,13 @@ async function dwDispFromText(text){
   }
   const rows = [];
   M.lots.forEach(L=>{
-    const list = F.map && F.map[L.lot] ? F.map[L.lot] : [{ fc:"", plt:null }];
+    let list = F.map && F.map[L.lot] ? F.map[L.lot] : [{ fc:"", plt:null }];
+    if(kind==="fd" && list.length>1) list = list.filter(x=> x.plt==null || +x.plt>0);   // build 220: PLT 0 센터는 출고 없음
     const lotPlt = F.lotPlt ? F.lotPlt[L.lot] : null, sum = list.reduce((s,x)=> s+(+x.plt||0), 0);
     list.forEach(x=>{
       const a = x.fc ? dwDispAddrOf(x.fc, M.fcs) : null, w = [];
-      if(!F.map) w.push("⚠ 센터 · PLT를 못 찾음 — 데드우드 낙찰파일(.xlsx)을 여기에 같이 끌어다 놓거나, 센터명 · PLT · 출고지가 있는 표를 붙여넣어 주세요");
+      if(!F.map) w.push(kind==="fd" ? `⚠ 센터 · PLT를 못 찾음 — ② FC파손 낙찰파일 생성기에서 LOT ${lots.join(", ")} 낙찰파일을 만들거나, 그 낙찰파일(.xlsx)을 여기에 같이 끌어다 놓아 주세요` : "⚠ 센터 · PLT를 못 찾음 — 데드우드 낙찰파일(.xlsx)을 여기에 같이 끌어다 놓거나, 센터명 · PLT · 출고지가 있는 표를 붙여넣어 주세요");
+      if(F.noPlt) w.push("⚠ 센터별 PLT 없음(낙찰 기록 보관본 없음) — PLT 직접 입력");
       if(F.fromTable && x.split) w.push(`⚠ ${L.lot} 센터 ${list.length}곳 — 센터별 PLT는 표에 없음(LOT ${T[L.lot].plt}PLT를 첫 센터에 넣음) · 나눠서 입력`);
       if(!L.code) w.push("⚠ 입금코드 없음");
       else if(!/^AF[A-Z0-9]{8}$/.test(L.code)) w.push(`⚠ 입금코드 형식 확인 ${L.code}`);
@@ -15384,20 +15465,20 @@ async function dwDispFromText(text){
       if(a){ const bad = a.phones.filter(p=> !/^0\d{1,2}-\d{3,4}-\d{4}$/.test(p)); if(bad.length) w.push(`⚠ 연락처 형식 확인 ${bad.join(", ")}`); }
       if(!F.fromTable && T[L.lot] && T[L.lot].plt!=null && F.map && sum!==T[L.lot].plt) w.push(`⚠ ${L.lot} 센터별 PLT 합 ${sum} ≠ 출고지 표 ${T[L.lot].plt}`);
       if(lotPlt!=null && F.map && !F.fromTable && sum!==+lotPlt) w.push(`⚠ ${L.lot} 센터별 PLT 합 ${sum} ≠ 낙찰파일 ${lotPlt}`);
-      if(a && a.src!=="메일" && !a.inherit) w.push(`주소 · 연락처는 주소록(${DW_ADDR[String(x.fc).toUpperCase()].at||""})에서`);
-      rows.push({ bidDate:M.bidDate, bidcode:L.code, group:`데드우드 ${L.lot}`, number: L.code ? `${L.code} / 킹콩백화점` : "킹콩백화점", numFull:"", pallets:x.plt,
-        outboundDate:M.outDate, outboundAmPm:M.ampm, outTime:M.time, fc:x.fc, type:"데드우드", dwLot:L.lot, dw:true, fromText:true,
+      if(a && a.src!=="메일" && !a.inherit) w.push(`주소 · 연락처는 ${a.src}(${a.at||""})에서`);
+      rows.push({ bidDate:M.bidDate, bidcode:L.code, group:`${KL} ${L.lot}`, number: L.code ? `${L.code} / 킹콩백화점` : "킹콩백화점", numFull:"", pallets:x.plt,
+        outboundDate:M.outDate, outboundAmPm:M.ampm, outTime:M.time, fc:x.fc, type:KL, dwLot:L.lot, dw:true, dwKind:kind, fromText:true,
         addr: a ? a.addr[0] : "", person:"", phone: a ? `${kkFcKo(a.inherit || x.fc)} ${a.phones.join(" / ")}` : "", dest: destMap[L.lot] || "", warn:w });
     });
   });
   const today = fmtDate(new Date());
-  rows.forEach(r=>{ if(!r.outboundDate) r.warn.push("⚠ 출고일 못 읽음 — 직접 입력");
+  rows.forEach(r=>{ if(!r.bidDate) r.warn.push("⚠ 낙찰일 못 읽음 — 직접 입력"); if(!r.outboundDate) r.warn.push("⚠ 출고일 못 읽음 — 직접 입력");
     else { if(r.outboundDate < today) r.warn.push(`⚠ 출고일 ${r.outboundDate} 지난 날짜`); const wd = fiDispWeekday(r.outboundDate); if(wd==="토"||wd==="일") r.warn.push(`출고일 ${wd}요일`); }
     if(!r.dest) r.warn.push("출고지 선택(같은 LOT은 한 번만 고르면 전체 적용)"); else if(!fiDispKnownDest(r.dest)) r.warn.push(`⚠ 출고지 "${r.dest}" 매장 목록에 없음`); });
   const nP = rows.reduce((s,r)=> s+(+r.pallets||0), 0), bad = rows.filter(r=> r.warn.some(w=>/^⚠/.test(w))).length;
   const info = { ok: !bad && rows.every(r=> r.dest), date:"", dw:true,
-    text:`데드우드 입찰 결과 메일 — LOT ${lots.join(", ")} · 센터 ${rows.length}곳 · ${nP}PLT · 출고 ${M.outDate||"?"} ${M.ampm} ${M.time} · 센터·PLT 출처: ${fcSrc||"없음(⚠)"}${F.rec?` (기록 ${F.rec.date})`:""} · 주소록 ${Object.keys(M.fcs).length}개 센터 저장${bad?` · ⚠ 확인 ${bad}행`:""}` };
-  fiDispStart(rows, "", "데드우드 메일", { eos:true, matchInfo:info });
+    text:`${KL} 입찰 결과 메일 — LOT ${lots.join(", ")} · 센터 ${rows.length}곳 · ${nP}PLT · 출고 ${M.outDate||"?"} ${M.ampm} ${M.time} · 센터·PLT 출처: ${fcSrc||"없음(⚠)"}${F.rec?` (기록 ${F.rec.date})`:""} · 주소록 ${Object.keys(M.fcs).length}개 센터 저장${bad?` · ⚠ 확인 ${bad}행`:""}` };
+  fiDispStart(rows, "", `${KL} 메일`, { eos:true, matchInfo:info });
 }
 // 이미 연 데드우드 요청에 사용자 출고지 표만 붙여넣기
 function dwDispApplyDest(text){
@@ -15505,7 +15586,7 @@ const FI_ORDER_TYPE = ["XLS","XLG","XLD","XLB","XLE","XLA","XLC","XLK","XLW"];
 const FI_ORDER_FC = [/여주|YEO/i, /시흥|SIH/i, /고양|GOY/i, /경산|GYS/i, /인천|INC/i];
 function fiOrderRows(rows){
   const tk = r=>{ const i = FI_ORDER_TYPE.indexOf(String(r.type||"").toUpperCase()); return i<0 ? 99 : i; };
-  const fk = r=>{ if(r.type==="임박" || r.type==="데드우드") return 0; const n = String(fiCenterName(r.fc)||"")+" "+String(r.fc||""); const i = FI_ORDER_FC.findIndex(re=>re.test(n)); return i<0 ? 99 : i; };
+  const fk = r=>{ if(r.type==="임박" || fiIsDw(r)) return 0; const n = String(fiCenterName(r.fc)||"")+" "+String(r.fc||""); const i = FI_ORDER_FC.findIndex(re=>re.test(n)); return i<0 ? 99 : i; };
   const ak = r=> r.outboundAmPm==="오전" ? 0 : r.outboundAmPm==="오후" ? 1 : 2;
   const dk = v=> String(v||"") || "9999";
   return (rows||[]).map((r,i)=>({ r, i })).sort((a,b)=>
@@ -15531,7 +15612,7 @@ const FI_DISP_WIDTH = [12,13,14,18,15,9,17,10,14,8,24];
 // build 135: 임박식품 행이 있으면 FC 옆에 상차지 주소 · 담당자 · 연락처 열, 비고(운영 특이사항) 넓게
 function fiDispCols(rows){
   if(!(rows||[]).some(r=> r.type==="임박")){
-    if((rows||[]).some(r=> r.type==="데드우드")){ const w = FI_DISP_WIDTH.slice(); w[w.length-1] = 46; return { hdr:FI_DISP_HDR.concat(["연락처"]), keys:FI_DISP_KEYS.concat(["연락처"]), width:w.concat([60]) }; }   // build 196: 데드우드 — 비고 = 상차지 주소, 오른쪽 연락처
+    if((rows||[]).some(r=> fiIsDw(r))){ const w = FI_DISP_WIDTH.slice(); w[w.length-1] = 46; return { hdr:FI_DISP_HDR.concat(["연락처"]), keys:FI_DISP_KEYS.concat(["연락처"]), width:w.concat([60]) }; }   // build 196: 데드우드 — 비고 = 상차지 주소, 오른쪽 연락처
     return { hdr:FI_DISP_HDR, keys:FI_DISP_KEYS, width:FI_DISP_WIDTH };
   }
   // build 149: 기존 배차표와 같은 열 순서(… FC | 도착지 | 카테. | 비고) 그대로 두고, 상차지 주소 · 담당자 · 연락처는 비고 오른쪽에 붙인다(복사·붙여넣기 그대로)
@@ -15571,13 +15652,19 @@ const FI_REMARK_DEFAULT = { XLS:"물/탄산수", XLG:"센터 최우선 입차가
 function fiRemarkOf(r){
   if(r.remark!=null && String(r.remark).trim()!=="") return r.remark;
   if(r.type==="임박") return r.opNote||"";
-  if(r.type==="데드우드") return r.addr||"";   // build 196: 데드우드 비고 = 상차지 주소(사용자 최종본과 같음)
+  if(fiIsDw(r)) return r.addr||"";   // build 196: 데드우드 비고 = 상차지 주소(사용자 최종본과 같음)
   const t = String(r.type||"").toUpperCase();
   if(/^XLD/.test(t)) return "";   // build 198: XLD(기저귀/분유)는 최우선 입차 아님
   return FI_REMARK_DEFAULT[t] || (/^XLG/.test(t) ? FI_REMARK_DEFAULT.XLG : (r.opNote||""));
 }
 // build 135: 임박식품 행 — 상차지 주소 · 담당자 · 연락처 · 비고(필수) 입력줄
 function fiDispEosSubRow(r, i){
+  if(fiIsDw(r)){   // build 220
+    const g = (k, v, w, ph)=>`<input class="fi-dinp" data-fd-i="${i}" data-fd-k="${k}" value="${escHtml(v==null?"":v)}" placeholder="${ph}" style="width:${w}px;${v?"":"border-color:var(--red,#e5534b)"}">`;
+    return `<tr class="fi-eosinfo" style="${r.skip?"opacity:.45":""}"><td></td><td colspan="11" style="padding:0 6px 10px;font-size:12px;white-space:nowrap">
+      <span class="fi-mut">상차지</span> ${g("addr", r.addr, 420, "상차지 주소(비고 칸에 들어감)")}
+      <span class="fi-mut">연락처</span> ${g("phone", r.phone, 260, "센터명 번호 / 번호")}</td></tr>`;
+  }
   if(r.type!=="임박") return "";
   const f = (k, v, w, ph)=>`<input class="fi-dinp" data-fd-i="${i}" data-fd-k="${k}" value="${escHtml(v==null?"":v)}" placeholder="${ph}" style="width:${w}px;${v?"":"border-color:var(--red,#e5534b)"}">`;
   const nt = r.remark!=null ? r.remark : (r.opNote||"");
@@ -15899,9 +15986,9 @@ function lsOpenXlsb(ff, u8){
   return sheets;
 }
 // ── 1단계: 원본 분석
-function lsAnalyze(u8, sst, maxRows){
+function lsAnalyze(iter, maxRows){   // build 219: iter(fn) = 행 읽기(xlsb 또는 xlsx 변환 표)
   var fcOfNo=new Map(), rawTot=[0,0,0,0], hdr=null, kind=null, L=null, lots=[], lotNo=new Map(), lotOrder=[], byNo=new Map(), aCol=[], bCol=[], rowIdx=[], maxRow=0, maxColSeen=0;
-  lsRows(u8,sst,60,function(ri,v){
+  iter(function(ri,v){
     if(ri===1){
       hdr=v.slice(); var h=v.map(function(x){ return x==null?"":String(x).trim(); });
       // build 126: LOT 목록 열은 위치가 아니라 머리글 이름으로 찾는다 (원본마다 FC/NO. 순서·FC 유무가 다름)
@@ -16022,13 +16109,18 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
   prog = prog || function(){};
   var tick = function(){ return new Promise(function(r){ setTimeout(r,0); }); };
   prog("원본 구조 읽는 중…"); await tick();
-  var sheets=lsOpenXlsb(ff,u8);
-  var raw=sheets.find(function(s){ return s.name.trim().toUpperCase()==="RAW"; }) || sheets[0];
-  var files=ff.unzipSync(u8,{filter:function(f){ return f.name===raw.path || f.name==="xl/sharedStrings.bin"; }});
-  var sst=files["xl/sharedStrings.bin"]?lsSst(files["xl/sharedStrings.bin"]):[];
-  var rawU8=files[raw.path]; if(!rawU8) throw new Error("RAW 시트를 읽지 못했습니다");
+  var iter;
+  if(opt.aoa){ iter=lsIterAoa(opt.aoa); }   // build 219: .xlsx 등 → 정기비딩 RAW 열로 맞춘 표
+  else {
+    var sheets=lsOpenXlsb(ff,u8);
+    var raw=sheets.find(function(s){ return s.name.trim().toUpperCase()==="RAW"; }) || sheets[0];
+    var files=ff.unzipSync(u8,{filter:function(f){ return f.name===raw.path || f.name==="xl/sharedStrings.bin"; }});
+    var sst=files["xl/sharedStrings.bin"]?lsSst(files["xl/sharedStrings.bin"]):[];
+    var rawU8=files[raw.path]; if(!rawU8) throw new Error("RAW 시트를 읽지 못했습니다");
+    iter=function(fn){ lsRows(rawU8,sst,60,fn); };
+  }
   prog("원본 분석 중…"); await tick();
-  var A=lsAnalyze(rawU8,sst,opt.maxRows);
+  var A=lsAnalyze(iter,opt.maxRows);
   var T=TPL[A.kind]; if(!T) throw new Error("템플릿 없음: "+A.kind);
   var SP=T.summary, N=A.rows.length, M=A.lotOrder.length;
   var out=[], zip=new ff.Zip(function(err,dat){ if(err) throw err; out.push(dat); });
@@ -16110,7 +16202,7 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
     var nameCol = A.L.nameCol, fcCol=A.L.fc, tot=[0,0,0,0], lotFc=new Map(); A.lots.forEach(function(l){ lotFc.set(l.no,l.fc); });
     s.w(lsSheetHead({sel:false, zoom:zoomOf(nm), cols:sp.cols}));
     var lastR=A.maxRow+1;
-    lsRows(rawU8,sst,60,function(ri,v){
+    iter(function(ri,v){
       var r=ri+1, x="";
       if(opt.maxRows && ri>opt.maxRows) return false;
       if(ri===0){ for(var t0=0;t0<4;t0++){ var cc=lsCol(15+t0); x+=lsCell(cc+"1",{f:"SUBTOTAL(9,"+cc+"3:"+cc+"1048576)",v:A.rawTot[t0]},s0[15+t0],sst2); } s.w('<row r="1">'+x+'</row>'); return; }
@@ -16213,7 +16305,74 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
   var total=out.reduce(function(a,b){ return a+b.length; },0), res=new Uint8Array(total), o2=0; out.forEach(function(b){ res.set(b,o2); o2+=b.length; });
   var base=String(srcName||"AR_Bidding_Liquidation").replace(/\.xls[bxm]?$/i,"");
   var outName = /바이나우\s*원본/.test(base) ? base.replace(/바이나우\s*원본/,"바이나우 요약본") : (/원본/.test(base) ? base.replace(/원본/,"요약본") : base+" - "+(A.kind==="buy"?"바이나우 요약본":"요약본"));
-  return { bytes:res, name:outName+".xlsx", kind:A.kind, n:N, lots:M, rawRows:A.aCol.length, nos:A.noList.length, totalSales:gs, rows:A.rows };
+  return { bytes:res, name:outName+".xlsx", kind:A.kind, n:N, lots:M, rawRows:A.aCol.length, nos:A.noList.length, totalSales:gs, rows:A.rows, conv:opt.conv||null };
+}
+/* build 219: 정기비딩 요약본 — .xlsx · .xlsm · .xls도 받음
+   1) 정기비딩 RAW(2행 FC | NO. | … | S Sales_Price (VAT X))를 xlsx로 저장한 파일 → 그대로
+   2) 임박 · FC파손형 RAW(No. · FC · cate2~5 · 로케이션 · 상품명 · 수량 · 판매가, 오른쪽 FC | NO. | PLT | MIN BID AMT 표) → 정기비딩 RAW 열로 바꿔서 요약
+      · 로케이션 → LOT_FULL_NAME (PLT CATE 유형 A/B/C… 계산) · 상품명 → DESCRIPTION · 수량 → QUANTITY · 판매가(부가세x) → Sales_Price (VAT X)
+      · NO.: RAW No.가 오른쪽 표 NO.에 있으면 그대로, 없으면 같은 FC의 표 NO.(46254AZ 등), 표에 NO.가 하나뿐이면 그 NO. */
+var LS_AR_HDR=["FC","NO.","INVENTORY_ID","GROUPING","UNIT_CATEGORY1","UNIT_CATEGORY2","CATE2","CATE3","CATE4","CATE5","LOT_FULL_NAME_Original","EXTERNAL_SKU_ID","INTERNAL_SKU_ID","BARCODE","DESCRIPTION","QUANTITY","isdutyfree","Unit_Sales_Price (VAT X)","Sales_Price (VAT X)","REASON CODE"];
+function lsIterAoa(aoa){ return function(fn){ for(var i=0;i<aoa.length;i++){ if(fn(i, aoa[i]||[])===false) return; } }; }
+function lsXlsxToAoa(buf){
+  var wb=XLSX.read(buf,{type:"array",dense:true}), notes=[];
+  var names=wb.SheetNames.slice().sort(function(a,b){ var r=function(n){ return /^raw$/i.test(String(n).trim())?0:/raw|원본|data/i.test(n)?1:2; }; return r(a)-r(b); });
+  var T=function(v){ return v==null?"":String(v).replace(/[\s\u00a0]+/g," ").trim(); };
+  var aoaOf=function(n){ var ws=wb.Sheets[n]; if(!ws||!ws["!ref"]) return null; var rg=XLSX.utils.decode_range(ws["!ref"]); rg.s.r=0; rg.s.c=0;
+    return XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true,range:rg}); };
+  // 1) 정기비딩 RAW 그대로
+  for(var a=0;a<names.length;a++){ var A=aoaOf(names[a]); if(!A) continue; var h=Array.from(A[1]||[],T);
+    if(h[0].toUpperCase()==="FC" && /^NO\.?$/i.test(h[1]) && /sales_price/i.test(h[18]||"")){ notes.push('정기비딩 RAW 양식 그대로(시트 "'+names[a]+'")'); return { aoa:A, notes:notes, sheet:names[a] }; } }
+  // 2) 임박 · FC파손형 RAW → 정기비딩 열
+  if(typeof esMapHeader!=="function") throw new Error("정기비딩 RAW 머리글(FC · NO. · … · Sales_Price)을 찾지 못했습니다");
+  for(var b=0;b<names.length;b++){
+    if(/요약|summary|종합|피벗|pivot/i.test(names[b])) continue;
+    var S=aoaOf(names[b]); if(!S) continue;
+    for(var hi=0;hi<Math.min(S.length,30);hi++){
+      var H=Array.from(S[hi]||[],T), hm=esMapHeader(H); if(!hm) continue;
+      var m=hm.map;
+      // 오른쪽 LOT 표: NO. · FC · PLT · MIN BID 머리글(본 표 오른쪽)
+      var L={no:-1,fc:-1,plt:-1,min:-1};
+      for(var c=hm.j1+1;c<H.length;c++){ var u=H[c].toUpperCase();
+        if(L.no<0 && /^(NO\.?|LOT)$/.test(u)) L.no=c; else if(L.fc<0 && /^FC$/.test(u)) L.fc=c; else if(L.plt<0 && /^(PLT|PALLET)$/.test(u)) L.plt=c; else if(L.min<0 && /MIN/.test(u) && /BID/.test(u)) L.min=c; }
+      var lot=[];
+      if(L.no>=0) for(var i=hi+1;i<S.length;i++){ var v=S[i]||[], no=T(v[L.no]); if(!no) continue; lot.push({ no:no, fc:L.fc>=0?T(v[L.fc]):"", plt:L.plt>=0?v[L.plt]:null, min:L.min>=0?v[L.min]:null }); }
+      var lotNos=new Set(lot.map(function(x){ return x.no.toUpperCase(); })), fcNo=new Map(), fcDup=new Set();
+      lot.forEach(function(x){ var f=x.fc.toUpperCase(); if(!f) return; if(fcNo.has(f) && fcNo.get(f)!==x.no) fcDup.add(f); else fcNo.set(f,x.no); });
+      var one = lot.length && new Set(lot.map(function(x){ return x.no; })).size===1 ? lot[0].no : null;
+      var get=function(v,k){ return m[k]>=0 ? (v[m[k]]===""?null:v[m[k]]) : null; };
+      var num=function(x){ if(typeof x==="number") return x; var t=T(x).replace(/[,₩\s원]/g,""); if(!t) return null; var n=+t; return isNaN(n)?null:n; };
+      var out=[[], LS_AR_HDR.slice()], remap=new Map(), keep=0;
+      var lc = L.fc>=0 && L.fc<L.no ? ["fc","no","plt","min"] : ["no","fc","plt","min"], lh={no:"NO.",fc:"FC",plt:"PLT",min:"MIN BID AMT"};
+      if(lot.length) lc.forEach(function(k,j){ out[1][25+j]=lh[k]; });
+      var nLot=0;
+      for(var r=hi+1;r<S.length;r++){
+        var v=S[r]||[], no0=T(get(v,1)), row=new Array(20).fill(null);
+        if(no0){
+          var fc=T(get(v,2)), no=no0;
+          if(lot.length && !lotNos.has(no0.toUpperCase())){
+            var f=fc.toUpperCase(); no = (fcNo.has(f) && !fcDup.has(f)) ? fcNo.get(f) : (one || no0);
+            if(no!==no0) remap.set(no0+(fc?" ("+fc+")":""), no); else keep++;
+          }
+          var q=num(get(v,15)), up=num(get(v,17)), sp=num(get(v,18));
+          row[0]=fc||null; row[1]=no; row[3]=get(v,0); row[4]=get(v,4); row[5]=get(v,5);
+          row[6]=get(v,6); row[7]=get(v,7); row[8]=get(v,8); row[9]=get(v,9); row[10]=get(v,10);
+          row[11]=get(v,11); row[12]=get(v,12); row[13]=get(v,13)==null?null:String(get(v,13)); row[14]=get(v,14);
+          row[15]=q; row[16]=get(v,16); row[17]= up!=null?up:(sp!=null&&q?sp/q:null); row[18]= sp!=null?sp:(up!=null&&q!=null?up*q:null);
+        }
+        if(nLot<lot.length){ var x=lot[nLot++]; lc.forEach(function(k,j){ row[25+j]= k==="plt"||k==="min" ? (num(x[k])!=null?num(x[k]):x[k]) : x[k]; }); }
+        if(!no0 && row.every(function(z){ return z==null; })) continue;
+        out.push(row);
+      }
+      while(nLot<lot.length){ var x2=lot[nLot++], row2=new Array(20).fill(null); lc.forEach(function(k,j){ row2[25+j]=x2[k]; }); out.push(row2); }
+      notes.push('임박 · FC파손형 RAW를 정기비딩 열로 바꿔서 요약(시트 "'+names[b]+'", 머리글 '+(hi+1)+'행) — 로케이션 → LOT_FULL_NAME, 상품명 → DESCRIPTION, 판매가(부가세x) → Sales_Price');
+      if(!lot.length) notes.push("⚠ 오른쪽 LOT 표(NO. · FC · PLT · MIN BID AMT)가 없음 — 요약 행이 비어 있을 수 있음");
+      remap.forEach(function(to,from){ notes.push("No. "+from+" → 표 NO. "+to); });
+      if(keep) notes.push("⚠ 표 NO.와 맞지 않는 행 "+keep.toLocaleString()+"개는 RAW No. 그대로");
+      return { aoa:out, notes:notes, sheet:names[b] };
+    }
+  }
+  throw new Error("RAW 표를 찾지 못했습니다 — 정기비딩 RAW(FC · NO. · … · Sales_Price) 또는 No. · 수량 · 판매가 · 상품명 머리글이 필요합니다");
 }
 
 // ---- build 125: 요약본 생성기 화면
@@ -16221,13 +16380,15 @@ var _lsCur = null;
 async function lsHandleFile(f){
   var st=document.getElementById("lsStatus");
   if(!f) return;
-  if(!/\.xlsb$/i.test(f.name)){ st.innerHTML='<span style="color:var(--red)">원본 .xlsb 파일을 올려 주세요 (AR_Bidding_Liquidation_… - 원본 / 바이나우원본)</span>'; return; }
+  if(!/\.(xlsb|xlsx|xlsm|xls)$/i.test(f.name)){ st.innerHTML='<span style="color:var(--red)">원본 엑셀(.xlsb · .xlsx)을 올려 주세요 (AR_Bidding_Liquidation_… - 원본 / 바이나우원본)</span>'; return; }
   _lsCur=null; lsRender(); st.textContent="준비 중…";
   try{
     var ff=await fiLoadScript(LIQ_FFLATE_URL,"fflate");
     await fiLoadScript("liq_summary_tpl.js?v=125","LIQSUM_TPL");
     var buf=new Uint8Array(await f.arrayBuffer()), t0=Date.now();
-    var r=await lsBuild(ff,buf,f.name,window.LIQSUM_TPL,function(m){ st.textContent=m; });
+    var opt={};
+    if(!/\.xlsb$/i.test(f.name)){ st.textContent="원본 읽는 중…"; await new Promise(function(r){ setTimeout(r,0); }); var cv=lsXlsxToAoa(buf); opt.aoa=cv.aoa; opt.conv=cv.notes; }   // build 219
+    var r=await lsBuild(ff,buf,f.name,window.LIQSUM_TPL,function(m){ st.textContent=m; },opt);
     try{ r._uc=ucHtml("원본 검증 리포트", lsChecks(r)); }catch(e){ console.warn("lsChecks", e); }
     r.sec=((Date.now()-t0)/1000).toFixed(1); r.srcName=f.name; _lsCur=r;
     st.innerHTML="✓ 요약본 생성 완료 ("+r.sec+"초) — 아래에서 받으세요";
@@ -16245,6 +16406,7 @@ function lsRender(){
     +'<div style="overflow-x:auto"><table class="fi-tbl"><thead><tr><th>NO</th><th>FC</th><th class="n">PLT</th><th class="n">MIN Bid</th>'+(buy?'<th class="n">BUY NOW</th>':'')+'<th>카테고리</th><th class="n">쿠팡판매총액</th></tr></thead><tbody>'
     +r.rows.slice(0,12).map(function(x){ return '<tr><td><b>'+escHtml(x.no)+'</b></td><td>'+escHtml(x.fc||"")+'</td><td class="n">'+(x.plt==null?"":x.plt)+'</td><td class="n">'+fiFmt(x.min)+'</td>'+(buy?'<td class="n">'+fiFmt(x.buy)+'</td>':'')+'<td>'+escHtml(x.cat||"")+'</td><td class="n">'+fiFmt(x.total)+'</td></tr>'; }).join("")
     +(r.rows.length>12?'<tr><td colspan="'+(buy?7:6)+'" class="fi-mut">… 외 '+(r.rows.length-12)+'건 (엑셀에서 확인)</td></tr>':'')+'</tbody></table></div>'
+    +(r.conv&&r.conv.length?'<div class="fi-mut" style="margin-top:6px;line-height:1.6">읽은 방식: '+r.conv.map(function(t){ return /^⚠/.test(t)?'<span style="color:var(--red)">'+escHtml(t)+'</span>':escHtml(t); }).join(" · ")+'</div>':'')
     +'<div class="fi-mut" style="margin-top:6px">엑셀로 열면 수식·피벗(종합 / '+(buy?"Sheet2":"Sheet3")+')이 자동으로 다시 계산·새로 고침됩니다. 행이 많아 처음 열 때 몇십 초 걸릴 수 있습니다.</div>'+(r._uc||'')+'</div>';
 }
 function wireLiqSum(){
@@ -17810,8 +17972,8 @@ async function fdGenerate(){
     const id = Date.now();
     try{ await idbSet(`fd_file_${id}`, { name:b.outName, data:bytes }); }catch(_){}
     _fdCur = { id, date8, b, bytes, notFound, sec:((Date.now()-t0)/1000).toFixed(1) };
-    FD_HISTORY = [{ id, at:new Date(id).toLocaleString("ko-KR"), date:date8, lots:ok, plt:P.plt, srcName:_fdFile.name, name:b.name, outName:b.outName,
-      parts: b.parts.map(p=>({ lot:p.no, fc:p.fcList, plt:p.plt, rows:p.rows, sales:Math.round(p.F) })), rows:b.rows, qty:b.qty, shop:Math.round(b.shop), whole:Math.round(b.whole), sales:Math.round(b.sales) }].concat(FD_HISTORY);
+    FD_HISTORY = [{ id, kind:"fd", at:new Date(id).toLocaleString("ko-KR"), date:date8, lots:ok, plt:P.plt, srcName:_fdFile.name, name:b.name, outName:b.outName,
+      parts: b.parts.map(p=>({ lot:p.no, fc:p.fcList, plt:p.plt, rows:p.rows, sales:Math.round(p.F), fcPlt: fdFcPltOf(b, p.no) /* build 220: ⑤ 배차요청(FC파손)용 센터별 PLT */ })), rows:b.rows, qty:b.qty, shop:Math.round(b.shop), whole:Math.round(b.whole), sales:Math.round(b.sales) }].concat(FD_HISTORY);
     FD_HISTORY.slice(40).forEach(h=>{ try{ idbSet(`fd_file_${h.id}`, null).catch(()=>{}); }catch(_){} });
     fdPersist();
     say(`✓ 낙찰파일 생성 (LOT ${ok.join(", ")}) — ${b.rows.toLocaleString()}행 (${_fdCur.sec}초)${notFound.length?` · <span style="color:var(--red)">원본에 없는 LOT: ${escHtml(notFound.join(", "))}</span>`:""}`);
@@ -19584,7 +19746,7 @@ function eosDispQuestions(d){
       add({ id:k+"|wd", i, type:"pick", field:"outboundDate", text:`${nm(r)} — 비고 "${r.remark||r.opNote||""}" 인데 상차일이 ${r.outboundDate}(${r.wdBad})입니다. 상차일을 어떻게 할까요?`, opts:[[`그대로 ${r.outboundDate} (쿠팡 요청일)`, r.outboundDate]], input:true, ph:"YYYY-MM-DD" });
     if(r.dirFilled && !(r.srcs||[]).some(l=> !_eosIsImg(l)))
       add({ id:k+"|dir", i, type:"confirm", text:`${nm(r)} — 상차지 주소·담당자·연락처·비고를 지난 메일(${r.dirFilled}) 기준으로 채웠습니다(아래 칸). 맞나요?`, opts:[["맞음","ok"]] });
-    ["addr","person","phone"].forEach(f=>{
+    (r.type==="FC파손" ? [] : fiIsDw(r) ? ["addr"] : ["addr","person","phone"]).forEach(f=>{   // build 220: 데드우드는 담당자 칸 없음 · FC파손 메일엔 주소가 없어 경고만(잠그지 않음)
       add({ id:k+"|need|"+f, i, type:"input", field:f, text:`${nm(r)} · ${EOS_FLD[f]} 없음(필수)`, ph:EOS_FLD[f], check:()=> !!String(r[f]||"").trim() });
     });
   });
@@ -19662,7 +19824,8 @@ function mailHtmlToText(html){
   doc.querySelectorAll("script,style,noscript").forEach(e=> e.remove());
   // 메일 본문(인사말이 들어 있는 가장 작은 덩어리)이 있으면 그것만
   let root = doc.body;
-  const t = Array.from(doc.querySelectorAll("table")).find(x=> /BIDCODE/i.test(x.textContent||""));
+  const t = Array.from(doc.querySelectorAll("table")).find(x=> /BIDCODE|입금코드/i.test(x.textContent||""));   // build 220: 입금코드 표(데드우드 · FC파손 메일)도
+  try{ mailHtmlToText.title = String(doc.title||"").trim(); }catch(_){}
   if(t){ let p = t; while(p && p !== doc.body && !/안녕하세요|출고\s*요청/.test(p.textContent||"")) p = p.parentElement; if(p) root = p; }
   const out = [];
   const walk = el=>{
@@ -19680,10 +19843,13 @@ function mailHtmlToText(html){
   return out.join("").replace(/[ \u00a0]+/g," ").replace(/\n\s*\n+/g,"\n");
 }
 async function fiDispFromFile(f){
+  if(/\.xlsx$/i.test(f.name||"") && await fiIsFixedXlsx(f)){   // build 221: 고정인수 낙찰파일 → ④와 같은 직출 분배표
+    return fiHandleFiles([f], { statusId:"fiDispStatus", fromDisp:true, scroll:true });
+  }
   if(/\.xlsx$/i.test(f.name||"")){   // build 197: 데드우드 낙찰파일 → 센터별 PLT
     const st = document.getElementById("fiDispStatus");
-    try{ const wb = XLSX.read(await f.arrayBuffer(), { type:"array" }); const map = dwBidMapFromWb(wb);
-      if(!map) throw new Error("이 엑셀에서 NO. · FC · Location(로케이션) 열을 찾지 못했습니다 — 데드우드 낙찰파일을 올려 주세요");
+    try{ const wb = XLSX.read(await f.arrayBuffer(), { type:"array" }); const map = fdBidMapFromWb(wb) || dwBidMapFromWb(wb);   // build 220: FC파손 낙찰파일(NO. · FC · PLT 표)도
+      if(!map) throw new Error("이 엑셀에서 NO. · FC · PLT 표나 NO. · FC · Location(로케이션) 열을 찾지 못했습니다 — 데드우드 / FC파손 낙찰파일을 올려 주세요");
       _dwBidMap = map; if(st) st.textContent = `✓ 낙찰파일 읽음 — LOT ${Object.keys(map).join(", ")} · 센터 ${Object.values(map).reduce((s,a)=> s+a.length,0)}곳`;
       if(_dwLastText) dwDispFromText(_dwLastText); else if(st) st.textContent += " · 이제 쿠팡 입찰 결과 메일(.mhtml)을 올려 주세요";
     }catch(e){ if(st) st.textContent = "⚠ " + (e && e.message || e); }
@@ -19697,7 +19863,8 @@ async function fiDispFromFile(f){
     const buf = await f.arrayBuffer();
     const html = /\.html?$/i.test(f.name) ? new TextDecoder("utf-8").decode(buf) : mhtmlToHtml(buf);
     if(!html) throw new Error("메일 파일에서 본문을 찾지 못했습니다.");
-    const text = mailHtmlToText(html);
+    let text = mailHtmlToText(html);
+    { const ttl = mailHtmlToText.title || ""; if(ttl && dwDispKind(ttl + "\n" + text) && !/마감\s*입찰\s*결과/.test(text)) text = ttl + "\n" + text; }   // build 220: 제목("10-21 마감 입찰 결과")으로 FC파손 판별 · 낙찰일
     if(dwDispIsMail(text)){ const ta = document.getElementById("fiDispPaste"); if(ta) ta.value = text; await dwDispFromText(text); }   // build 196
     else if(eosDispIsMail(text)){ if(!(await eosDispFromText(text, "메일 파일"))) throw new Error("메일 파일에서 임박식품(FC EOS) 표를 찾지 못했습니다."); }
     else { const ta = document.getElementById("fiDispPaste"); if(ta) ta.value = text; fiDispFromText(text); }
@@ -19749,21 +19916,39 @@ document.addEventListener("click", e=>{
   if(!confirm(`${name}의 올린 원본 · 입력칸 · 화면 결과를 지울까요? (기록은 그대로)`)) return;
   fiResetCard(k);
 }, true);
+// build 221: 여러 파일 — 고정인수 낙찰파일(XLG·XLS·XLD)은 한 번에 묶어 분배표 하나로, 나머지(데드우드·FC파손 낙찰파일 → 메일)는 엑셀 먼저 차례로
+async function fiDispFromFiles(all){
+  const fixed = [], rest = [];
+  for(const x of all){ if(/\.xlsx$/i.test(x.name) && await fiIsFixedXlsx(x)) fixed.push(x); else rest.push(x); }
+  if(fixed.length) await fiHandleFiles(fixed, { statusId:"fiDispStatus", fromDisp:true, scroll:!rest.length });
+  rest.sort((a,b)=> /\.xlsx$/i.test(b.name) - /\.xlsx$/i.test(a.name));
+  for(const x of rest) await fiDispFromFile(x);
+}
 function wireFixedDispatch(){
   const box = document.getElementById("fiDispBox");
   if(!box || box._wired) return; box._wired = true;
   const dz = document.getElementById("fiDispDrop"), inp = document.getElementById("fiDispInput"), ta = document.getElementById("fiDispPaste");
+  { const pd = document.getElementById("fiPlanDrop"), pi = document.getElementById("fiPlanInput");   // build 221: 직출 분배표 전용 칸
+    if(pd && pi){
+      pd.addEventListener("click", ()=> pi.click());
+      pi.addEventListener("change", ()=>{ const fs = Array.from(pi.files||[]); pi.value=""; if(fs.length) fiHandleFiles(fs, { statusId:"fiPlanStatus", fromDisp:true, scroll:true }); });
+      ["dragenter","dragover"].forEach(ev=> pd.addEventListener(ev, e=>{ e.preventDefault(); pd.classList.add("dragover"); }));
+      ["dragleave","drop"].forEach(ev=> pd.addEventListener(ev, e=>{ e.preventDefault(); pd.classList.remove("dragover"); }));
+      pd.addEventListener("drop", e=>{ const fs = Array.from((e.dataTransfer && e.dataTransfer.files)||[]).filter(x=>/\.xls[xm]?$/i.test(x.name)); if(fs.length) fiHandleFiles(fs, { statusId:"fiPlanStatus", fromDisp:true, scroll:true }); });
+    } }
   const ph = document.getElementById("fiDispPhoto");   // build 158: 휴대폰 — 이미지 전용 선택창(앨범/사진이 바로 뜸)
   dz.addEventListener("click", e=>{ if(e.target.closest("#fiDispPhotoMsg,#fiDispPhotoPrev")) return; if(e.target.closest("#fiDispPhotoBtn")){ e.stopPropagation(); ph.click(); return; } inp.click(); });
   // build 164: 안드로이드 크롬 — 파일 선택칸을 비우면(value="") 고른 사진 권한이 끊겨 NotReadableError가 난다.
   //   → 먼저 사진을 메모리로 다 읽어 둔 다음에 칸을 비운다.
   ph.addEventListener("change", async ()=>{ const f = await fiGrabFile(ph); ph.value=""; if(f) fiDispFromImage(f); });
-  inp.addEventListener("change", async ()=>{ const f = await fiGrabFile(inp); inp.value=""; if(f) fiDispFromFile(f); });
+  inp.addEventListener("change", async ()=>{ if(inp.files && inp.files.length>1){ const all = Array.from(inp.files); fiDispFromFiles(all).finally(()=>{ inp.value=""; }); return; }
+    const f = await fiGrabFile(inp); inp.value=""; if(f && !/^image\//.test(f.type||"") && !/\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(f.name||"")) try{ fiPhotoMsg(""); }catch(_){}   // build 221: 엑셀·메일 파일엔 "사진 받는 중" 안 남김
+    if(f) fiDispFromFile(f); });
   ["dragenter","dragover"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("dragover"); }));
   ["dragleave","drop"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove("dragover"); }));
   dz.addEventListener("drop", e=>{ const f=e.dataTransfer && Array.from(e.dataTransfer.files||[]).find(x=>/^image\//.test(x.type) || /\.(mhtml|mht|html?|eml|xlsx)$/i.test(x.name)); if(!f) return;
     const all = Array.from(e.dataTransfer.files||[]).filter(x=> /\.(mhtml|mht|html?|eml|xlsx)$/i.test(x.name));   // build 197: 낙찰파일 + 메일 같이 놓기(엑셀 먼저)
-    if(all.length>1){ all.sort((a,b)=> /\.xlsx$/i.test(b.name) - /\.xlsx$/i.test(a.name)); (async()=>{ for(const x of all) await fiDispFromFile(x); })(); } else fiDispFromFile(f); });
+    if(all.length>1) fiDispFromFiles(all); else fiDispFromFile(f); });
   // 캡처 후 Ctrl+V: 이미지면 OCR, 글자면 텍스트 파싱 (고정인수 탭이 열려 있을 때만)
   document.addEventListener("paste", e=>{
     const view = document.getElementById("view-fixed");
@@ -19787,6 +19972,12 @@ function wireFixedDispatch(){
     if(k==="dest" && !t.classList.contains("fi-dfree")) fiDispDestChanged(r);   // build 161
     if(k==="dest" && r.dw){ _fiDisp.rows.forEach(x=>{ if(x!==r && x.dw && x.dwLot===r.dwLot){ x.dest = r.dest; x.warn = (x.warn||[]).filter(w=>!/출고지/.test(w)); x.memo = x.warn.join(" / "); } }); r.warn = (r.warn||[]).filter(w=>!/출고지/.test(w)); r.memo = r.warn.join(" / "); }   // build 196: 같은 LOT 전체
     if(k==="fc") r.fc = String(t.value).toUpperCase().trim();
+    if(fiIsDw(r) && (k==="addr" || k==="phone")){   // build 220: 데드우드 · FC파손 상차지 직접 입력 → 센터 주소록에 저장, 같은 센터 행에도
+      const fc = String(r.fc||"").toUpperCase();
+      if(fc){ const ph = String(r.phone||"").replace(/^[^\d(]*/,"").split(/\s*\/\s*/).filter(Boolean); DW_ADDR[fc] = { addr: r.addr ? [r.addr] : [], phones: ph, at:new Date().toISOString().slice(0,10) }; dwAddrSave();
+        _fiDisp.rows.forEach(x=>{ if(x!==r && fiIsDw(x) && String(x.fc||"").toUpperCase()===fc) x[k] = r[k]; }); }
+      _fiDisp.rows.forEach(x=>{ if(fiIsDw(x) && x.addr){ x.warn = (x.warn||[]).filter(w=> !/상차지 주소 · 연락처 없음/.test(w)); x.memo = x.warn.join(" / "); } });
+    }
     if(r.type==="임박" && ["addr","person","phone","remark"].includes(k)){ if(k==="remark") r.opNote = r.remark; try{ eosCenterSave(r); }catch(_){} }   // build 135
     fiDispSave();
     if(t.tagName==="SELECT" || k==="fc" || k==="type" || k==="skip") fiDispRender(); else fiDispRenderOut();
