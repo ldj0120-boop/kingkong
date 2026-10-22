@@ -1225,6 +1225,128 @@
   .imp-risk{font-size:11px;color:var(--muted2);border:1px solid var(--line-soft);border-radius:5px;padding:0 6px;margin-left:4px;white-space:nowrap;}
   .imp-panel button:disabled, .imp-panel input:disabled, .imp-panel textarea:disabled{opacity:.4;cursor:not-allowed;}
   .imp-reqrow{font-size:12.5px;padding:5px 0;border-top:1px solid var(--line-soft);}
+  /* ================= build 231: 쉬운 화면(메뉴 · 레이아웃) ================= */
+  :root{ --c-ls:#F5B211; --c-es:#33C784; --c-fd:#EF6F6F; --c-dw:#C9925E; }
+  body{font-size:15px;}
+  /* 헤더 한 줄 */
+  header.top{padding:14px 20px;gap:16px;margin-bottom:14px;border-radius:16px;}
+  .brand{flex-direction:row;align-items:center;gap:12px;}
+  .brand::before{content:"📦";width:46px;height:46px;border-radius:12px;background:var(--amber);display:grid;place-items:center;font-size:25px;flex:none;}
+  .brand-tx{display:flex;flex-direction:column;gap:2px;}
+  .brand h1{font-size:27px;letter-spacing:.03em;text-transform:none;}
+  .brand .sub{font-size:13px;}
+  .datefield label{font-size:11.5px;letter-spacing:.06em;}
+  .datefield select{font-size:14px;}
+  .count-pill .n{font-size:20px;color:var(--green);}
+  header.top #impBtn, header.top .set-open{font-family:inherit;text-transform:none;letter-spacing:0;font-size:15px;font-weight:700;padding:10px 16px;border-radius:10px;}
+  /* 자료 올리기 */
+  .up-panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 20px;margin:0 0 16px;}
+  .up-hd{display:flex;align-items:center;gap:12px;flex-wrap:wrap;cursor:pointer;user-select:none;}
+  .up-hd h2{margin:0;font-size:20px;font-weight:800;}
+  .up-sum{display:flex;gap:6px;flex-wrap:wrap;}
+  .up-pill{font-size:13.5px;font-weight:700;border-radius:99px;padding:3px 11px;}
+  .up-pill.ok{color:var(--green);background:var(--green-dim);} .up-pill.warn{color:var(--amber);background:var(--amber-dim);} .up-pill.bad{color:var(--red);background:var(--red-dim);}
+  .up-how{color:var(--muted2);font-size:13px;}
+  .up-tog{margin-left:auto;color:var(--muted);font-size:14px;font-weight:600;}
+  .up-panel.fold .up-body{display:none;} .up-panel.fold .up-how{display:none;}
+  .up-body{margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;}
+  .up-panel .tool-group.uploads{background:none;border:0;padding:0;flex:none;}
+  .set-drawer .tool-group.manage{flex:none;}
+  .up-panel .tool-group.uploads, .up-panel .tool-group-body, .up-panel .up-info{display:contents;}
+  .up-panel .tool-group-body > input{display:none;}
+  .up-panel button.act, .up-card{font-family:inherit;text-transform:none;letter-spacing:0;font-size:15.5px;font-weight:700;min-height:92px;min-width:0;width:100%;
+    border-radius:14px;padding:12px 12px;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:4px;text-align:left;white-space:normal;line-height:1.3;}
+  .up-ic{font-size:24px;line-height:1;margin-bottom:2px;}
+  .up-panel button.act small{font-size:12.5px;font-weight:600;opacity:.8;}
+  #importFolderBtn{background:var(--amber);color:var(--amber-ink);border:0;}
+  .up-panel button.act.dropzone{border-width:2px;background:var(--panel2);}
+  .up-panel button.act.dropzone::after{content:"⬇ 누르거나 끌어다 놓기";font-size:12px;margin-top:auto;}
+  .up-panel button.act.dropzone[data-fresh]::after{content:attr(data-fresh);font-family:"JetBrains Mono",monospace;font-size:13px;font-weight:700;border-radius:6px;padding:2px 8px;}
+  .up-panel button.act.dropzone.loaded{background:var(--panel2);color:var(--text);border-color:var(--line);border-style:solid;}
+  .up-panel button.act.dropzone.loaded:hover{background:var(--raise);border-color:var(--amber);filter:none;}
+  .up-panel button.act.dropzone.fr-ok::after,.up-card.fr-ok .up-d{color:var(--green);background:var(--green-dim);opacity:1;}
+  .up-panel button.act.dropzone.fr-warn::after,.up-card.fr-warn .up-d{color:var(--amber);background:var(--amber-dim);opacity:1;}
+  .up-panel button.act.dropzone.fr-bad::after,.up-card.fr-bad .up-d{color:var(--red);background:var(--red-dim);opacity:1;}
+  .up-panel button.act.dropzone.dragover{background:var(--amber-dim);color:var(--amber);border-color:var(--amber);border-style:solid;}
+  .up-panel button.act.dropzone.dragover::after{content:"여기에 놓으세요";color:var(--amber);background:none;}
+  .up-card{background:var(--ink);border:1px dashed var(--line);color:var(--pale);min-height:78px;cursor:default;}
+  .up-card .up-d{font-family:"JetBrains Mono",monospace;font-size:13px;border-radius:6px;padding:2px 8px;}
+  .up-card small{font-size:11.5px;color:var(--muted2);font-weight:500;margin-top:auto;}
+  .up-hint{color:var(--red);font-size:13.5px;grid-column:1/-1;} .up-hint:empty{display:none;}
+  /* 관리자 화면: 자료 날짜는 카드에 → 기준일 줄은 뷰어에게만 */
+  body:not(.viewer-mode) #freshStrip{display:none;}
+  .fresh-strip{font-size:13px;} .fresh-chip{padding:4px 12px;}
+  /* ⚙ 설정 */
+  .set-dim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9998;}
+  .set-drawer{position:fixed;top:0;right:0;height:100%;width:min(420px,92vw);background:var(--panel);border-left:1px solid var(--line);z-index:9999;
+    transform:translateX(105%);transition:transform .2s;overflow:auto;padding:18px 18px 40px;box-shadow:-12px 0 30px rgba(0,0,0,.4);}
+  .set-drawer.open{transform:none;}
+  .set-hd{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;} .set-hd b{font-size:21px;} .set-hd span{color:var(--muted);font-size:13px;}
+  .set-x{margin-left:auto;background:none;border:0;color:var(--muted);font-size:22px;cursor:pointer;}
+  .set-drawer .tool-group.manage{background:none;border:0;padding:0;}
+  .set-drawer .tool-cap{font-size:12px;letter-spacing:.04em;margin-top:6px;}
+  .set-drawer button.act{font-family:inherit;text-transform:none;letter-spacing:0;font-size:14px;}
+  /* 큰 메뉴 3개 */
+  .tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin:4px 0 18px;}
+  .tab{display:flex;align-items:center;gap:16px;padding:16px 20px;border:2px solid var(--line);border-radius:16px;background:var(--panel);color:var(--text);
+    text-align:left;top:0;font-family:inherit;text-transform:none;letter-spacing:0;transition:.15s;}
+  .tab:hover{border-color:rgba(245,178,17,.55);}
+  .tab-ic{font-size:34px;width:60px;height:60px;border-radius:14px;background:var(--ink);display:grid;place-items:center;flex:none;}
+  .tab-tx{display:flex;flex-direction:column;gap:3px;min-width:0;}
+  .tab-tx b{font-size:23px;font-weight:800;}
+  .tab-tx small{font-size:14px;color:var(--muted);}
+  .tab[aria-selected="true"]{border-color:var(--amber);background:linear-gradient(180deg,#2c2a14,#1d2416);}
+  .tab[aria-selected="true"] .tab-ic{background:var(--amber);}
+  .tab[aria-selected="true"] .tab-tx b{color:var(--amber);}
+  .tab[aria-selected="true"]::after{display:none;}
+  /* 비딩 탭 고정 줄 */
+  #view-fixed .kk-nav{display:block;padding:10px 12px;border-radius:14px;}
+  #view-fixed .kk-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  #view-fixed .kk-row1{padding-right:180px;}
+  #view-fixed .kk-row2{margin-top:8px;flex-wrap:nowrap;}
+  #view-fixed .kk-q{display:flex;align-items:center;gap:7px;font-size:15.5px;font-weight:800;white-space:nowrap;min-width:116px;}
+  #view-fixed .kk-q i{font-style:normal;width:24px;height:24px;border-radius:50%;background:var(--amber);color:var(--amber-ink);display:grid;place-items:center;font-size:13px;}
+  #view-fixed .kk-sep{width:1px;height:30px;background:var(--line);margin:0 6px;}
+  #view-fixed .kk-nav .act.kk-ty{font-family:inherit;text-transform:none;letter-spacing:0;font-size:17px;font-weight:800;padding:9px 20px;border-radius:12px;border-width:2px;
+    display:inline-flex;align-items:center;gap:8px;background:var(--panel);color:var(--text);min-width:128px;justify-content:center;}
+  .kk-dot{width:13px;height:13px;border-radius:50%;display:inline-block;}
+  .kk-ty[data-gen="ls"] .kk-dot{background:var(--c-ls);} .kk-ty[data-gen="es"] .kk-dot{background:var(--c-es);}
+  .kk-ty[data-gen="fd"] .kk-dot{background:var(--c-fd);} .kk-ty[data-gen="dw"] .kk-dot{background:var(--c-dw);}
+  #view-fixed .kk-nav .act.kk-ty.primary{color:#141414;} #view-fixed .kk-nav .act.kk-ty.primary .kk-dot{background:#141414 !important;}
+  #view-fixed .kk-nav .act.kk-ty[data-gen="ls"].primary{background:var(--c-ls);border-color:var(--c-ls);}
+  #view-fixed .kk-nav .act.kk-ty[data-gen="es"].primary{background:var(--c-es);border-color:var(--c-es);}
+  #view-fixed .kk-nav .act.kk-ty[data-gen="fd"].primary{background:var(--c-fd);border-color:var(--c-fd);}
+  #view-fixed .kk-nav .act.kk-ty[data-gen="dw"].primary{background:var(--c-dw);border-color:var(--c-dw);}
+  #view-fixed .kk-nav .kk-alldl{font-family:inherit;text-transform:none;letter-spacing:0;font-size:15px;font-weight:800;padding:9px 16px;border-radius:10px;background:var(--info);border-color:var(--info);color:#fff;}
+  #view-fixed .kk-nav .kk-reset{font-family:inherit;text-transform:none;font-size:13px;padding:7px 12px;border-color:rgba(239,111,111,.6);color:var(--red);background:transparent;}
+  #view-fixed .kk-nav a.kk-st{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:10px;padding:8px 12px;border:2px solid var(--line);border-radius:12px;background:var(--panel);position:relative;}
+  #view-fixed .kk-nav a.kk-st:not(:last-child)::after{content:"➜";position:absolute;right:-15px;top:50%;transform:translateY(-50%);color:var(--muted2);font-size:13px;z-index:1;}
+  #view-fixed .kk-row2{gap:14px;}
+  .kk-n{width:32px;height:32px;border-radius:50%;border:2px solid var(--muted2);display:grid;place-items:center;font-weight:800;font-size:16px;flex:none;background:var(--ink);}
+  .kk-tt{display:flex;flex-direction:column;min-width:0;line-height:1.25;}
+  .kk-tt b{font-size:17px;font-weight:800;white-space:nowrap;}
+  .kk-s{font-size:12.5px;font-weight:700;color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #view-fixed .kk-nav a.kk-st.st-done .kk-n{background:var(--green);border-color:var(--green);color:#111;} #view-fixed .kk-nav a.kk-st.st-done .kk-s{color:var(--green);}
+  #view-fixed .kk-nav a.kk-st.st-todo .kk-s{color:var(--amber);}
+  #view-fixed .kk-nav a.kk-st.st-skip{opacity:.6;}
+  #view-fixed .kk-nav a.kk-st.on{border-color:var(--amber);box-shadow:0 0 0 3px rgba(245,178,17,.2);}
+  #view-fixed .kk-nav a.kk-st.on .kk-n{background:var(--amber);border-color:var(--amber);color:var(--amber-ink);}
+  #view-fixed .kk-nav a.kk-st:hover{border-color:var(--amber);color:var(--text);}
+  /* 오늘 할 일: 한 줄 + 자세히 */
+  .td-box{border-radius:12px;padding:10px 14px;background:var(--ink);}
+  .td-hd{margin-bottom:0;font-size:15px;} .td-box.open .td-hd{margin-bottom:10px;}
+  .td-box:not(.open) .td-list{display:none;}
+  .td-prog{width:200px;height:10px;border-radius:6px;}
+  .td-more{margin-left:6px;}
+  /* 단계 카드 제목 크게 · 고른 종류 색 */
+  #view-fixed > .agg-card > .p-hd .store-name{font-size:23px;font-weight:800;}
+  #view-fixed > .agg-card.kk-gen{border-width:2px;}
+  #view-fixed[data-kkgen="ls"] > .kk-gen{border-color:var(--c-ls);} #view-fixed[data-kkgen="es"] > .kk-gen{border-color:var(--c-es);}
+  #view-fixed[data-kkgen="fd"] > .kk-gen{border-color:var(--c-fd);} #view-fixed[data-kkgen="dw"] > .kk-gen{border-color:var(--c-dw);}
+  #view-fixed .fi-drop{padding:30px 18px;border-width:3px;border-radius:14px;}
+  #view-fixed .fi-drop-t{font-size:18px;font-weight:800;}
+  #view-fixed .fi-drop-t::before{content:"📥 ";}
+  #view-fixed .fi-drop-s{font-size:13.5px;}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -1233,9 +1355,10 @@
 <body>
 <div class="wrap">
   <header class="top">
-    <div class="brand">
+    <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장별 재고 · 출고예정/출고완료 · 실시간 집계 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 230 · 2026-10-22</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 231 · 2026-10-22</span></span>
+    </div>
     </div>
     <div class="grow"></div>
     <div class="datefield">
@@ -1251,31 +1374,48 @@
       </div>
     </div>
     <div class="count-pill"><span class="dot"></span><span class="n" id="totalCount">0</span><span class="lab">건 출고</span></div>
+    <button type="button" id="impBtn" class="act" title="Claude가 점검해서 올린 개선안 — 승인한 것만 반영합니다">💡 개선 제안<span id="impBadge" style="display:none">0</span></button>
+    <button type="button" id="setOpenBtn" class="act set-open admin-only" title="엑셀 내보내기 · 카테고리 지정 · 승현 PLT 로그인 · 초기화">⚙ 설정</button>
+  </header>
 
-    <div class="toolbar">
+  <!-- build 231: 자료 올리기(헤더에서 꺼냄) — 카드마다 마지막 자료 날짜 · 접기 -->
+  <section class="up-panel admin-only" id="upPanel">
+    <div class="up-hd" id="upHd" role="button" tabindex="0" title="눌러서 접기 / 펴기">
+      <h2>📂 자료 올리기</h2><span class="up-sum" id="upSum"></span>
+      <span class="up-how">카드를 누르거나 파일을 카드 위에 끌어다 놓으세요</span><span class="up-tog" id="upTog">접기 ▴</span>
+    </div>
+    <div class="up-body">
       <div class="tool-group uploads">
-        <span class="tool-group-label">데이터 업로드 (클릭 또는 파일 끌어다 놓기)</span>
-        <div class="tool-group-body">
+                <div class="tool-group-body">
           <input type="file" id="importFolderFile" webkitdirectory multiple hidden>
-          <button class="act primary" id="importFolderBtn" title="'업로드용자료' 폴더를 통째로 선택하면, 하위 폴더 이름(센터출고내역서·본사출고내역서·가전센터출고내역서·매장재고현황·매장별매출현황·카테고리별매출현황)을 자동 인식해 각 슬롯에 한 번에 불러옵니다.">📁 폴더 통째로 불러오기</button>
+          <button class="act primary" id="importFolderBtn" title="'업로드용자료' 폴더를 통째로 선택하면, 하위 폴더 이름(센터출고내역서·본사출고내역서·가전센터출고내역서·매장재고현황·매장별매출현황·카테고리별매출현황)을 자동 인식해 각 슬롯에 한 번에 불러옵니다."><span class="up-ic">📁</span>폴더 통째로 올리기<small>한 번에 전부</small></button>
           <input type="file" id="importFile" accept=".xlsx,.xls" hidden>
           <button class="act dropzone" id="importBtn" style="display:none" data-retired="build 205: 매장 재고는 승현 사이트 실시간으로 받음" title="클릭하거나 엑셀 파일을 끌어다 놓으세요">매장 재고 업로드</button>
           <input type="file" id="importActualFile" accept=".xlsx,.xlsm,.xls" hidden>
-          <button class="act dropzone" id="importActualBtn" title="클릭하거나 엑셀 파일을 끌어다 놓으세요 (예: 출고내역서_26년_7월.xlsx)">출고내역서 업로드 (센터)</button>
+          <button class="act dropzone" id="importActualBtn" title="클릭하거나 엑셀 파일을 끌어다 놓으세요 (예: 출고내역서_26년_7월.xlsx)"><span class="up-ic">🏭</span>센터 출고내역서</button>
           <input type="file" id="importHQFile" accept=".xlsx,.xlsm,.xls" hidden>
-          <button class="act dropzone" id="importHQBtn" title="클릭하거나 엑셀 파일을 끌어다 놓으세요 (예: 07월 출고계획서_0728.xlsx) — 센터와 겹치는 매장·카테고리는 본사 수치가 우선 적용됩니다">본사 출고내역서 업로드</button>
+          <button class="act dropzone" id="importHQBtn" title="클릭하거나 엑셀 파일을 끌어다 놓으세요 (예: 07월 출고계획서_0728.xlsx) — 센터와 겹치는 매장·카테고리는 본사 수치가 우선 적용됩니다"><span class="up-ic">🧾</span>본사 출고내역서</button>
           <input type="file" id="importApplianceFile" accept=".xlsx,.xlsm,.xls" hidden>
           <button class="act dropzone" id="importApplianceBtn" style="display:none" data-retired="build 205: 가전센터 출고 종료" title="클릭하거나 엑셀 파일을 끌어다 놓으세요 (예: 방도리 출고내역서_26년_07월.xlsx)">가전센터 출고내역서 업로드</button>
           <input type="file" id="importFreshFile" accept=".xlsx,.xls" multiple hidden>
           <button class="act dropzone" id="importFreshBtn" style="display:none" data-retired="build 205: 신선 공급은 승현 사이트 실시간으로 받음" title="신선 취합본(신선식품·수박) 파일을 클릭 또는 끌어다 놓으세요. 파일명에 '수박'이 있으면 수박, 아니면 신선식품으로 집계합니다. 매장명 열(낱개 수량)을 매장별로 합산합니다.">신선 출고내역서 업로드</button>
           <input type="file" id="importSalesFile" accept=".xlsx,.xls" multiple hidden>
-          <button class="act dropzone" id="importSalesBtn" title="일자별 매출현황 파일(매출현황-YYYYMMDD.xlsx)을 클릭 또는 끌어다 놓으세요. 여러 날짜를 한 번에 올려도 됩니다. 금액은 G열 청구금액 기준으로 누적 집계됩니다.">매장별 매출 업로드 (일자별)</button>
+          <button class="act dropzone" id="importSalesBtn" title="일자별 매출현황 파일(매출현황-YYYYMMDD.xlsx)을 클릭 또는 끌어다 놓으세요. 여러 날짜를 한 번에 올려도 됩니다. 금액은 G열 청구금액 기준으로 누적 집계됩니다."><span class="up-ic">🏬</span>매장별 매출 (일자별)</button>
           <input type="file" id="importCatSalesFile" accept=".xlsx,.xls" multiple hidden>
-          <button class="act dropzone" id="importCatSalesBtn" title="카테고리별 매출용 상품별 매출현황 파일(상품분류 포함)을 클릭 또는 끌어다 놓으세요">카테고리별 매출 업로드</button>
+          <button class="act dropzone" id="importCatSalesBtn" title="카테고리별 매출용 상품별 매출현황 파일(상품분류 포함)을 클릭 또는 끌어다 놓으세요"><span class="up-ic">🗂</span>카테고리별 매출</button>
           <input type="file" id="importSalesSummaryFile" accept=".json" multiple hidden>
-          <button class="act dropzone" id="importSalesSummaryBtn" title="매출요약변환기로 만든 요약본(.json)을 올리면 대용량 원본 없이 즉시 반영됩니다(카테고리·시간대 포함)">매출 요약본 불러오기 (빠름)</button>
+          <button class="act dropzone" id="importSalesSummaryBtn" title="매출요약변환기로 만든 요약본(.json)을 올리면 대용량 원본 없이 즉시 반영됩니다(카테고리·시간대 포함)"><span class="up-ic">⚡</span>매출 요약본 (빠름)</button>
         </div>
       </div>
+
+      <div class="up-info" id="upInfo"></div>
+      <div class="up-hint" id="upHint"></div>
+    </div>
+  </section>
+  <!-- build 231: ⚙ 설정(가끔 쓰는 것) — 오른쪽에서 나오는 칸 -->
+  <div class="set-dim" id="setDim" hidden></div>
+  <aside class="set-drawer" id="setDrawer" aria-hidden="true">
+    <div class="set-hd"><b>⚙ 설정</b><span>가끔 쓰는 것들</span><button type="button" class="set-x" id="setCloseBtn" title="닫기">✕</button></div>
       <div class="tool-group manage">
         <span class="tool-group-label">데이터 관리</span>
         <div class="tool-group-body">
@@ -1310,13 +1450,12 @@
           </div>
         </div>
       </div>
-    </div>
-  </header>
+
+  </aside>
 
   <!-- build 150: 자료별 마지막 날짜(업로드 누락을 바로 알아보게) + 뷰어 모드 관리자 로그인 버튼 -->
   <div class="fresh-strip" id="freshStrip"><span class="fs-lab">자료 기준일</span><span class="fs-chips" id="freshChips"></span>
-    <button type="button" id="adminLoginBtn" class="act primary" title="업로드(폴더 통째로 불러오기)는 관리자 모드에서만 보입니다">🔑 관리자 로그인 (업로드하려면)</button>
-    <button type="button" id="impBtn" class="act" title="Claude가 점검해서 올린 개선안 — 승인한 것만 반영합니다">💡 개선 제안<span id="impBadge" style="display:none">0</span></button></div>
+    <button type="button" id="adminLoginBtn" class="act primary" title="업로드(폴더 통째로 불러오기)는 관리자 모드에서만 보입니다">🔑 관리자 로그인 (업로드하려면)</button></div>
   <div id="impPanel" class="imp-panel" hidden></div>
   <div id="noticeBar" class="notice-bar" hidden></div>
   <div id="qualityBar" class="notice-bar" style="border-color:var(--red);" hidden></div>
@@ -1329,9 +1468,9 @@
        활성 탭은 '매장별 재고/공급 현황'으로 변경(JS 초기화 블록의 selectTab("agg") 참고). -->
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" id="tab-agg" aria-selected="false" aria-controls="view-agg" hidden style="display:none">매장별 재고/공급 현황</button>
-    <button class="tab" role="tab" id="tab-sales" aria-selected="false" aria-controls="view-sales">매장별 매출</button>
-    <button class="tab" role="tab" id="tab-goals" aria-selected="false" aria-controls="view-goals">목표매출 달성 방안</button>
-    <button class="tab" role="tab" id="tab-fixed" aria-selected="false" aria-controls="view-fixed">비딩 요약 / 낙찰파일 / 분배표 생성기</button>
+    <button class="tab" role="tab" id="tab-sales" aria-selected="false" aria-controls="view-sales"><span class="tab-ic">📊</span><span class="tab-tx"><b>매장별 매출</b><small>매장마다 얼마 팔았나</small></span></button>
+    <button class="tab" role="tab" id="tab-goals" aria-selected="false" aria-controls="view-goals"><span class="tab-ic">🎯</span><span class="tab-tx"><b>목표매출 달성 방안</b><small>목표까지 얼마 남았나 · 재고 · 공급</small></span></button>
+    <button class="tab" role="tab" id="tab-fixed" aria-selected="false" aria-controls="view-fixed"><span class="tab-ic">🚚</span><span class="tab-tx"><b>비딩 · 낙찰 · 출고</b><small>요약본 → 낙찰파일 → 분배 → 배차</small></span></button>
   </div>
 
   <section id="view-agg" role="tabpanel" aria-labelledby="tab-agg" hidden>
@@ -1665,13 +1804,17 @@
     <div class="td-box" id="todayBox"></div>
     <!-- build 229: 위 고정 줄 — ①~⑤ 바로가기 · 유형 선택(①②같이) · 전체 출고요청서 · 전체 초기화 (중복 버튼 정리) -->
     <div class="kk-nav" id="kkNav">
-      <a data-go="genSumBox">①요약본</a><a data-go="genBidBox">②낙찰파일</a><a data-go="kdBox">③매장분배</a><a data-go="fiBox">④고정인수</a><a data-go="fiDispBox">⑤배차요청</a>
-      <span class="kk-nav-sep"></span>
-      <span class="kk-nav-l">유형</span>
-      <button class="act" data-gen="ls">정기비딩</button><button class="act" data-gen="es">임박식품</button><button class="act" data-gen="fd">FC파손</button><button class="act" data-gen="dw">데드우드</button>
-      <span class="kk-nav-sep"></span>
-      <button class="act primary" data-all-dl="1" style="font-weight:700" title="전체 출고요청서 다운로드 — ⑤ 배차요청 & 직출 분배표에 넣은 배차 요청 전부(고정인수 · 일반 리퀴 · 임박식품)를 출고일자별 시트로 한 파일에">⬇ 전체 출고요청서</button>
-      <button class="act fi-mini fi-del" data-reset="all" title="이 탭 전체 초기화 — ①~④에 올린 원본 · 입력칸 · 화면 결과를 모두 지웁니다 (각 기록은 그대로)">↺ 전체 초기화</button>
+      <div class="kk-row kk-row1">
+        <span class="kk-q"><i>1</i>어떤 비딩?</span>
+        <button class="act kk-ty" data-gen="ls"><span class="kk-dot"></span>정기비딩</button><button class="act kk-ty" data-gen="es"><span class="kk-dot"></span>임박식품</button><button class="act kk-ty" data-gen="fd"><span class="kk-dot"></span>FC파손</button><button class="act kk-ty" data-gen="dw"><span class="kk-dot"></span>데드우드</button>
+        <span class="kk-sep"></span>
+        <button class="act primary kk-alldl" data-all-dl="1" style="font-weight:700" title="전체 출고요청서 다운로드 — ⑤ 배차요청 & 직출 분배표에 넣은 배차 요청 전부(고정인수 · 일반 리퀴 · 임박식품)를 출고일자별 시트로 한 파일에">⬇ 전체 출고요청서</button>
+        <button class="act fi-mini fi-del kk-reset" data-reset="all" title="이 탭 전체 초기화 — ①~④에 올린 원본 · 입력칸 · 화면 결과를 모두 지웁니다 (각 기록은 그대로)">↺ 전체 초기화</button>
+      </div>
+      <div class="kk-row kk-row2">
+        <span class="kk-q"><i>2</i>순서대로</span>
+        <a data-go="genSumBox" class="kk-st" title="원본 파일을 넣으면 요약 엑셀"><span class="kk-n">1</span><span class="kk-tt"><b>요약본</b><span class="kk-s" data-st="1"></span></span></a><a data-go="genBidBox" class="kk-st" title="낙찰받은 LOT를 고르면 낙찰파일"><span class="kk-n">2</span><span class="kk-tt"><b>낙찰파일</b><span class="kk-s" data-st="2"></span></span></a><a data-go="kdBox" class="kk-st" title="PLT를 매장별로 나누기"><span class="kk-n">3</span><span class="kk-tt"><b>매장 분배</b><span class="kk-s" data-st="3"></span></span></a><a data-go="fiBox" class="kk-st" title="고정 매장 낙찰파일"><span class="kk-n">4</span><span class="kk-tt"><b>고정인수</b><span class="kk-s" data-st="4"></span></span></a><a data-go="fiDispBox" class="kk-st" title="출고요청 메일 → 출고요청서 · 직출 분배"><span class="kk-n">5</span><span class="kk-tt"><b>배차 요청</b><span class="kk-s" data-st="5"></span></span></a>
+      </div>
     </div>
     <!-- build 189: ①~⑥을 두 카드로 통합 — ① 요약본 생성기 · ② 낙찰파일 생성기 (위 버튼으로 정기비딩 · 임박식품 · FC파손 · 데드우드 선택, 두 카드가 같이 바뀜) -->
     <div class="agg-card kk-gen" id="genSumBox">
@@ -3556,6 +3699,7 @@ function renderFreshStrip(){
     ? `<span class="fresh-hint">⚠ ${late.map(i=>escHtml(i.label)).join("·")} 자료가 늦습니다 — 폴더에 파일이 있다면 ${viewer ? "관리자 로그인 후 " : ""}<b>📁 폴더 통째로 불러오기</b>를 눌러야 반영됩니다.</span>`
     : "";
   el.innerHTML = chips + hint;
+  try{ upFreshRender(info, late); }catch(_){}   // build 231
 }
 
 /* ================= 드래그앤드롭 (버튼 위에 엑셀 파일을 끌어다 놓기) ================= */
@@ -14095,9 +14239,11 @@ function tdRender(){
   const need = rows.filter(r=> !r.skip), ok = need.filter(r=> r.done).length;
   const ob = tdOutbound(), fmt = v=> (Math.round(v*10)/10).toLocaleString();
   const d = new Date(), wd = "일월화수목금토"[d.getDay()];
+  try{ kkStepStatus(rows); }catch(_){}   // build 231
   el.innerHTML = `<div class="td-hd"><b>📋 오늘 할 일</b> <span class="fi-mut">${d.getMonth()+1}/${d.getDate()} (${wd})</span>
       <span class="td-prog"><span style="width:${need.length ? ok/need.length*100 : 100}%"></span></span><b>${ok}/${need.length}</b>
-      <span class="td-ob">🚚 오늘 출고 <b>${ob.a.n}건 ${fmt(ob.a.plt)}PLT</b> · 내일 <b>${ob.b.n}건 ${fmt(ob.b.plt)}PLT</b></span></div>
+      <span class="td-ob">🚚 오늘 출고 <b>${ob.a.n}건 ${fmt(ob.a.plt)}PLT</b> · 내일 <b>${ob.b.n}건 ${fmt(ob.b.plt)}PLT</b></span>
+      <button class="act fi-mini td-more" data-td-more="1" title="종류별 8칸 — 직접 ‘끝 / 안 함’ 표시">${el.classList.contains("open") ? "접기 ▴" : "자세히 ▾"}</button></div>
     <div class="td-list">${rows.map(r=>{
       const cls = r.done ? "td-done" : r.skip ? "td-skip" : "td-todo";
       const info = r.n ? `오늘 ${r.n}건` : r.live ? "오늘 만듦" : r.mark==="done" ? "완료 표시" : r.skip ? "오늘 안 함" : "아직";
@@ -14108,7 +14254,10 @@ function tdRender(){
 }
 function wireToday(){
   const el = document.getElementById("todayBox"); if(!el || el._wired) return; el._wired = true;
+  try{ if(localStorage.getItem("td_open_v1")==="1") el.classList.add("open"); }catch(_){}
   el.addEventListener("click", e=>{
+    const mo = e.target.closest("[data-td-more]");   // build 231: 자세히 / 접기
+    if(mo){ e.stopPropagation(); el.classList.toggle("open"); try{ localStorage.setItem("td_open_v1", el.classList.contains("open") ? "1" : "0"); }catch(_){} tdRender(); return; }
     const m = e.target.closest("[data-td-mark]");
     if(m){ e.stopPropagation(); const st = tdState(), me = st[tdDay()]; if(m.dataset.v) me[m.dataset.tdMark] = m.dataset.v; else delete me[m.dataset.tdMark]; tdSave(st); tdRender(); return; }
     const g = e.target.closest("[data-td-go]"); if(!g) return;
@@ -18522,7 +18671,9 @@ function genTab(k){
   try{ localStorage.setItem("gen_tab_v1", _genTab); }catch(_){}
   Object.entries(GEN_SHOW).forEach(([id,ks])=>{ const e = document.getElementById(id); if(e) e.style.display = ks.split(" ").includes(_genTab) ? "" : "none"; });
   document.querySelectorAll("[data-gen]").forEach(b=> b.classList.toggle("primary", b.dataset.gen===_genTab));
+  try{ const vf = document.getElementById("view-fixed"); if(vf) vf.dataset.kkgen = _genTab; }catch(_){}   // build 231: 종류 색
   if(_genTab==="fd" || _genTab==="dw") fdSetMode(_genTab, true);
+  try{ tdRender(); }catch(_){}   // build 231: 단계 카드 상태(고른 종류 기준)
 }
 function fdSetMode(k, fromGen){
   _fdMode = k==="dw" ? "dw" : "fd";
@@ -21466,6 +21617,67 @@ function kkNavWire(){
   document.querySelectorAll("#view-fixed .fi-drop-s:not([id]), #view-fixed .agg-card > .p-hd > .meta:not([id])").forEach(e=>{ if(!e.title) e.title = e.textContent.trim(); });
 }
 try{ impWire(); impRender(); kkNavWire(); }catch(e){ console.warn("build 229", e); }
+
+/* ================= build 231: 쉬운 화면 — 자료 올리기 카드 · ⚙ 설정 · 단계 카드 =================
+   기능은 그대로 두고 자리 · 모양만 바꿈. 버튼 id · data-* 는 전부 예전 그대로. */
+const UP_MAP = { "매장별 매출":"importSalesBtn", "카테고리 매출":"importCatSalesBtn", "본사 출고":"importHQBtn", "센터 출고":"importActualBtn" };
+function upFreshRender(info, late){
+  const items = (info && info.items) || [], word = { ok:"최신", warn:"확인", bad:"늦음" };
+  Object.values(UP_MAP).forEach(id=>{ const b = document.getElementById(id); if(b){ b.removeAttribute("data-fresh"); b.classList.remove("fr-ok","fr-warn","fr-bad"); } });
+  const rest = [];
+  items.forEach(i=>{
+    const b = UP_MAP[i.label] && document.getElementById(UP_MAP[i.label]);
+    if(b){ b.setAttribute("data-fresh", `${i.cls==="ok" ? "✓" : "!"} ${i.txt}`); b.classList.add("fr-"+i.cls); b.title = (b.title||"").split(" ‖ ")[0] + " ‖ " + i.tip; }
+    else rest.push(i);
+  });
+  const ic = { "매장 재고":"📦", "신선 공급":"🥬", "승현 PLT":"🔗" };
+  const box = document.getElementById("upInfo");
+  if(box) box.innerHTML = rest.map(i=>`<div class="up-card fr-${i.cls}" title="${escHtml(i.tip)}"><span class="up-ic">${ic[i.label]||"📄"}</span>${escHtml(i.label)}<span class="up-d">${i.cls==="ok"?"✓":"!"} ${escHtml(i.txt)}</span><small>자동으로 받음</small></div>`).join("");
+  const n = { ok:0, warn:0, bad:0 }; items.forEach(i=> n[i.cls] = (n[i.cls]||0)+1);
+  const sum = document.getElementById("upSum");
+  if(sum) sum.innerHTML = `<span class="up-pill ok">✓ 최신 ${n.ok}</span>` + (n.warn ? `<span class="up-pill warn">! 확인 ${n.warn}</span>` : "") + (n.bad ? `<span class="up-pill bad">! 늦음 ${n.bad}</span>` : "");
+  const h = document.getElementById("upHint");
+  if(h) h.innerHTML = late && late.length ? `⚠ ${late.map(i=>escHtml(i.label)).join("·")} 자료가 늦습니다 — 폴더에 파일이 있다면 <b>📁 폴더 통째로 올리기</b>를 눌러야 반영됩니다.` : "";
+}
+(function upWire(){
+  const p = document.getElementById("upPanel"), hd = document.getElementById("upHd"); if(!p || !hd) return;
+  const set = fold=>{ p.classList.toggle("fold", fold); const t = document.getElementById("upTog"); if(t) t.textContent = fold ? "펴기 ▾" : "접기 ▴"; };
+  try{ set(localStorage.getItem("up_fold_v1")==="1"); }catch(_){}
+  const tog = ()=>{ const f = !p.classList.contains("fold"); set(f); try{ localStorage.setItem("up_fold_v1", f ? "1" : "0"); }catch(_){} };
+  hd.addEventListener("click", tog); hd.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); tog(); } });
+})();
+(function setWire(){
+  const d = document.getElementById("setDrawer"), dim = document.getElementById("setDim"), ob = document.getElementById("setOpenBtn"), cb = document.getElementById("setCloseBtn");
+  if(!d || !ob) return;
+  const open = on=>{ d.classList.toggle("open", on); d.setAttribute("aria-hidden", on ? "false" : "true"); if(dim) dim.hidden = !on; };
+  ob.addEventListener("click", ()=> open(true)); if(cb) cb.addEventListener("click", ()=> open(false)); if(dim) dim.addEventListener("click", ()=> open(false));
+  document.addEventListener("keydown", e=>{ if(e.key==="Escape" && d.classList.contains("open")) open(false); });
+  // 창이 뜨는 버튼(엑셀 · 카테고리 지정 · 초기화)을 누르면 설정 칸은 닫음 — 승현 로그인 칸은 그대로
+  d.addEventListener("click", e=>{ const b = e.target.closest && e.target.closest("button"); if(!b || b.id==="setCloseBtn" || b.closest("#pltAuthRow, #pltAuthForm")) return; setTimeout(()=> open(false), 0); });
+})();
+// 단계 카드 상태: 고른 종류(정기 · 임박 · FC파손/데드우드) 기준. ③ 매장 분배는 기록이 없어 '필요할 때'
+function kkStepStatus(rows){
+  const g = typeof _genTab!=="undefined" ? _genTab : "ls", by = {}; (rows||[]).forEach(r=> by[r.s.k] = r);
+  const key = { 1: g==="es" ? "es" : (g==="fd"||g==="dw") ? "fds" : "ls", 2: g==="es" ? "eos" : (g==="fd"||g==="dw") ? "fd" : "liq", 4:"fi", 5:"disp" };
+  document.querySelectorAll("#kkNav [data-st]").forEach(e=>{
+    const n = +e.dataset.st, r = key[n] && by[key[n]], a = e.closest(".kk-st");
+    let cls = "", txt = "필요할 때";
+    if(r){ cls = r.done ? "st-done" : r.skip ? "st-skip" : "st-todo"; txt = r.n ? `✓ 오늘 ${r.n}건` : r.done ? "✓ 끝" : r.skip ? "– 오늘 안 함" : "○ 아직"; }
+    e.textContent = txt; if(a){ a.classList.remove("st-done","st-skip","st-todo"); if(cls) a.classList.add(cls); }
+  });
+}
+// 지금 보고 있는 단계 카드 표시(스크롤 위치)
+(function kkSpy(){
+  let q = 0;
+  const run = ()=>{ q = 0; const v = document.getElementById("view-fixed"), nav = document.getElementById("kkNav"); if(!v || v.hidden || !nav) return;
+    const lim = nav.getBoundingClientRect().bottom + 40; let cur = null;
+    nav.querySelectorAll("a[data-go]").forEach(a=>{ const t = document.getElementById(a.dataset.go); if(t && t.offsetParent && t.getBoundingClientRect().top <= lim) cur = a; });
+    if(!cur) cur = nav.querySelector("a[data-go]");
+    nav.querySelectorAll("a[data-go]").forEach(a=> a.classList.toggle("on", a===cur)); };
+  window.addEventListener("scroll", ()=>{ if(!q){ q = 1; requestAnimationFrame(run); } }, { passive:true });
+  setTimeout(run, 500);
+})();
+try{ const vf = document.getElementById("view-fixed"); if(vf && typeof _genTab!=="undefined") vf.dataset.kkgen = _genTab; }catch(_){}
 
 cloudInit();
 pltLiveInit();
