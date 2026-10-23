@@ -1353,8 +1353,15 @@
   .mix-seg button{background:none;border:none;color:var(--muted);font-size:13px;padding:6px 14px;cursor:pointer;font-family:inherit;}
   .mix-seg button+button{border-left:1px solid var(--line);}
   .mix-seg button.on{background:var(--amber);color:var(--amber-ink);font-weight:700;}
+  .mix-tbl tr.mix-pick{cursor:pointer;} .mix-tbl tr.mix-pick:hover td{background:var(--raise);}
+  .mix-bar select.mix-store{min-width:130px;font-weight:700;}
   .mix-bar select{background:var(--ink);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:13px;}
   .mix-lb{font-size:11.5px;color:var(--muted2);margin-left:4px;}
+  .mix-endw{position:relative;display:inline-flex;align-items:center;gap:6px;outline:none;}
+  .mix-endw .mix-lb{cursor:help;}
+  .mix-tip{display:none;position:absolute;left:0;top:calc(100% + 6px);z-index:60;width:max-content;min-width:360px;max-width:min(520px,90vw);background:var(--panel);border:1px solid var(--amber);border-radius:8px;padding:9px 12px;box-shadow:0 8px 24px rgba(0,0,0,.5);font-size:12.5px;line-height:1.6;color:var(--text);white-space:normal;}
+  .mix-tip b{color:var(--amber);}
+  .mix-endw:hover .mix-tip{display:block;}
   .mix-per{font-size:12px;color:var(--muted);margin:2px 0 10px;}
   .mix-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:12px;}
   .mix-kpi{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;display:flex;flex-direction:column;gap:2px;}
@@ -1390,7 +1397,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 233 · 2026-10-23</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 234 · 2026-10-23</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -11568,8 +11575,11 @@ function wireGoals11(){
    예전 날짜는 "매출 구성 자료(.json)"를 ⚡ 매출 요약본 칸에 올리면 한 번에 채워진다.
    비교는 언제나 "하루 평균"끼리(기간 길이가 달라도 공정하게). */
 let SALES_MIX = {};
-const MIX_IDB_KEY = "sales_mix_v1", MIX_UI_LS = "kk_mix_ui_v1", MIX_CLOUD_PATH = "hist/salesmix/d";
-const MIX_P_MIN = 100000, MIX_P_MAX = 150;
+const MIX_IDB_KEY = "sales_mix_v1", MIX_UI_LS = "kk_mix_ui_v1", MIX_CLOUD_PATH = "hist/salesmix/d", MIX_CLOUD_PATH_ST = "hist/salesmix/ds";
+// build 234: 서버에는 전사 자료(d)와 매장별 세부(ds: ck·sc·sp)를 따로 둔다 — 뷰어는 전사만 받고, 매장을 고를 때 필요한 날짜만 가져온다(데이터 사용량 절약)
+const MIX_ST_KEYS = ["ck","sc","sp"];
+function mixSplit(day){ const a = {}, b = {}; Object.keys(day).forEach(k=>{ (MIX_ST_KEYS.includes(k) ? b : a)[k] = day[k]; }); if(Object.keys(b).length) b.t = day.t; return [a, Object.keys(b).length ? b : null]; }
+const MIX_P_MIN = 100000, MIX_P_MAX = 150, MIX_SP_MIN = 50000, MIX_SP_MAX = 25;   // build 234: 매장별 상품은 그날 5만 원 이상 TOP 25
 function mixCats(cell){
   const t = String(cell==null?"":cell).trim();
   const parts = t.split("》").map(x=>x.trim());
@@ -11577,7 +11587,7 @@ function mixCats(cell){
   const c2 = (parts.length>1 && parts[1]) ? `${c1} > ${parts[1]}` : c1;
   return [c1, c2];
 }
-function mixNewAcc(){ return { c:{}, sku:{}, s:{}, rc:{}, rs:{}, p:{} }; }
+function mixNewAcc(){ return { c:{}, sku:{}, s:{}, rc:{}, rs:{}, p:{}, sc:{}, sp:{} }; }
 function mixAddRow(a, store, catCell, name, bc, ser, qty, amt){
   let cc = a._cc || (a._cc = new Map()); let k = cc.get(catCell); if(!k){ k = mixCats(catCell); cc.set(catCell, k); }
   const c1 = k[0], c2 = k[1];
@@ -11589,6 +11599,9 @@ function mixAddRow(a, store, catCell, name, bc, ser, qty, amt){
   const rcs = a.rc[store] || (a.rc[store] = {}); (rcs[c1] || (rcs[c1] = new Set())).add(sv);
   (a.rs[store] || (a.rs[store] = new Set())).add(sv);
   const key = (nm || b) + "\u0001" + c2; const pp = a.p[key] || (a.p[key] = [0,0,new Set()]); pp[0] += amt; pp[1] += qty; pp[2].add(store);
+  // build 234: 매장별 — 2단계 분류(금액·수량·품목) · 상품
+  const sm = a.sc[store] || (a.sc[store] = {}); const sx = sm[c2] || (sm[c2] = [0,0,new Map()]); sx[0] += amt; sx[1] += qty; sx[2].set(pk, (sx[2].get(pk)||0) + qty);
+  const spm = a.sp[store] || (a.sp[store] = {}); const sy = spm[key] || (spm[key] = [0,0]); sy[0] += amt; sy[1] += qty;
 }
 function mixFinish(a){
   const R = Math.round, out = { c:{}, s:{}, r:{}, p:[] };
@@ -11597,6 +11610,11 @@ function mixFinish(a){
   Object.keys(a.rs).forEach(st=>{ out.r[st] = a.rs[st].size; });
   out.p = Object.keys(a.p).filter(k=>a.p[k][0]>=MIX_P_MIN).sort((x,y)=>a.p[y][0]-a.p[x][0]).slice(0,MIX_P_MAX)
     .map(k=>{ const i=k.indexOf("\u0001"), v=a.p[k]; return [k.slice(0,i).slice(0,40), k.slice(i+1), R(v[0]), R(v[1]), v[2].size]; });
+  // build 234: ck = 분류 이름 목록(sc·sp는 이 순번으로 가리킴 — 용량 절약)
+  out.ck = Object.keys(a.c); const ix = {}; out.ck.forEach((k,i)=>{ ix[k] = i; });
+  out.sc = {}; Object.keys(a.sc).forEach(st=>{ const o = out.sc[st] = {}; Object.keys(a.sc[st]).forEach(k=>{ const v = a.sc[st][k]; let n = 0; v[2].forEach(q=>{ if(q>0) n++; }); o[ix[k]] = [R(v[0]), R(v[1]), n]; }); });
+  out.sp = {}; Object.keys(a.sp).forEach(st=>{ const m = a.sp[st];
+    out.sp[st] = Object.keys(m).filter(k=>m[k][0]>=MIX_SP_MIN).sort((x,y)=>m[y][0]-m[x][0]).slice(0,MIX_SP_MAX).map(k=>{ const i=k.indexOf("\u0001"); return [k.slice(0,i).slice(0,40), ix[k.slice(i+1)], R(m[k][0]), R(m[k][1])]; }); });
   return out;
 }
 // ---- 저장 · 서버 공유 ----
@@ -11615,10 +11633,14 @@ async function mixImportSeed(obj){
     const s = {}, r = {};
     Object.keys(v.s||{}).forEach(raw=>{ const st = resolveSalesStoreName(raw); if(!STORES.includes(st)) return; const m = s[st] || (s[st] = {}); Object.keys(v.s[raw]).forEach(c1=>{ const a=v.s[raw][c1], o=m[c1]||(m[c1]=[0,0,0]); o[0]+=a[0]; o[1]+=a[1]; o[2]+=a[2]; }); });
     Object.keys(v.r||{}).forEach(raw=>{ const st = resolveSalesStoreName(raw); if(!STORES.includes(st)) return; r[st] = (r[st]||0) + v.r[raw]; });
-    days[d] = { c:v.c, s, r, p:v.p, t: (+new Date(obj.made||0)) || 1 };
+    const day = { c:v.c, s, r, p:v.p, t: (+new Date(obj.made||0)) || 1 };
+    if(Array.isArray(v.ck) && v.sc){ day.ck = v.ck; day.sc = {}; day.sp = {};
+      Object.keys(v.sc).forEach(raw=>{ const st = resolveSalesStoreName(raw); if(!STORES.includes(st)) return; const m = day.sc[st] || (day.sc[st] = {}); Object.keys(v.sc[raw]).forEach(i=>{ const a=v.sc[raw][i], o=m[i]||(m[i]=[0,0,0]); o[0]+=a[0]; o[1]+=a[1]; o[2]+=a[2]; }); });
+      Object.keys(v.sp||{}).forEach(raw=>{ const st = resolveSalesStoreName(raw); if(!STORES.includes(st)) return; day.sp[st] = (day.sp[st]||[]).concat(v.sp[raw]); }); }
+    days[d] = day;
   });
   // 이미 이 브라우저에서 올린(더 새로운) 날짜는 덮어쓰지 않는다
-  Object.keys(days).forEach(d=>{ if(SALES_MIX[d] && (SALES_MIX[d].t||0) > days[d].t) delete days[d]; });
+  Object.keys(days).forEach(d=>{ const L = SALES_MIX[d]; if(L && (L.t||0) > days[d].t && !(days[d].sc && !L.sc)) delete days[d]; });   // build 234: 이 브라우저 날짜에 매장 세부가 없고 자료에 있으면 채움
   return mixPutDays(days, "seed");
 }
 async function mixGz(obj){
@@ -11637,8 +11659,10 @@ function mixCloudPush(){
       const ds = Array.from(_mixDirty); _mixDirty.clear();
       for(let i=0;i<ds.length;i+=40){
         const ops = {};
-        for(const d of ds.slice(i,i+40)){ if(SALES_MIX[d]){ const g = await mixGz(SALES_MIX[d]); ops[d] = g; _mixCloudSeen[d] = g; } }
+        const ops2 = {};
+        for(const d of ds.slice(i,i+40)){ if(SALES_MIX[d]){ const [a, b] = mixSplit(SALES_MIX[d]); const g = await mixGz(a); ops[d] = g; _mixCloudSeen[d] = g; if(b) ops2[d] = await mixGz(b); } }
         await db.ref(MIX_CLOUD_PATH).update(ops);
+        if(Object.keys(ops2).length) await db.ref(MIX_CLOUD_PATH_ST).update(ops2);
       }
       _mixCloudErr = "";
     }catch(e){ _mixCloudErr = String(e && e.message || e); console.warn("mix push", e); }
@@ -11653,13 +11677,28 @@ function mixCloudInit(tries){
       for(const d of Object.keys(v)){
         if(typeof v[d]!=="string" || _mixCloudSeen[d]===v[d]) continue;
         _mixCloudSeen[d] = v[d];
-        try{ const o = await mixUngz(v[d]); if(mixValidDay(o) && (!SALES_MIX[d] || (o.t||0) > (SALES_MIX[d].t||0))){ SALES_MIX[d] = o; changed++; } }catch(e){ console.warn("mix ungz", d, e); }
+        try{ const o = await mixUngz(v[d]); if(mixValidDay(o) && (!SALES_MIX[d] || (o.t||0) > (SALES_MIX[d].t||0))){ SALES_MIX[d] = o; changed++; } }catch(e){ console.warn("mix ungz", d, e); }   // 매장별 세부(sc)는 필요할 때 mixFetchStoreDetail
       }
       // 관리자: 이 브라우저에만 있는 날짜는 서버로
       if(typeof IS_ADMIN!=="undefined" && IS_ADMIN){ Object.keys(SALES_MIX).forEach(d=>{ if(!(d in v)) _mixDirty.add(d); }); if(_mixDirty.size) mixCloudPush(); }
       if(changed){ mixSave(); try{ if(typeof renderGoals==="function") renderGoals(); }catch(_){} }
     });
   }catch(e){ console.warn("mix cloud", e); }
+}
+// 매장을 고르면: 그 화면에 필요한 날짜 중 매장별 세부가 없는 날만 서버에서 가져온다
+let _mixStFetching = false;
+async function mixFetchStoreDetail(dates){
+  const need = (dates||[]).filter(d=> SALES_MIX[d] && !SALES_MIX[d].sc);
+  const db = _fbDb(); if(!need.length || !db || _mixStFetching) return 0;
+  _mixStFetching = true; let got = 0;
+  try{
+    for(let i=0;i<need.length;i+=30){
+      const res = await Promise.all(need.slice(i,i+30).map(d=> db.ref(MIX_CLOUD_PATH_ST+"/"+d).get().then(sn=>[d, sn.val()]).catch(()=>[d,null])));
+      for(const [d, g] of res){ if(typeof g!=="string") continue; try{ const o = await mixUngz(g); if(o && o.sc && SALES_MIX[d] && (o.t||0) >= (SALES_MIX[d].t||0)){ Object.assign(SALES_MIX[d], { ck:o.ck, sc:o.sc, sp:o.sp||{} }); got++; } }catch(_){} }
+    }
+  }finally{ _mixStFetching = false; }
+  if(got){ mixSave(); mixRerender(); }
+  return got;
 }
 function mixInit(){
   idbGet(MIX_IDB_KEY).then(v=>{
@@ -11668,7 +11707,7 @@ function mixInit(){
 }
 
 // ---- 기간 ----
-function mixUi(){ let u = {}; try{ u = JSON.parse(localStorage.getItem(MIX_UI_LS)||"{}")||{}; }catch(_){} return { unit: u.unit||"month", base: u.base||"prev", end: u.end||"" }; }
+function mixUi(){ let u = {}; try{ u = JSON.parse(localStorage.getItem(MIX_UI_LS)||"{}")||{}; }catch(_){} return { unit: u.unit||"month", base: u.base||"prev", end: u.end||"", store: u.store||"" }; }
 function mixUiSet(p){ const u = Object.assign(mixUi(), p); try{ localStorage.setItem(MIX_UI_LS, JSON.stringify(u)); }catch(_){} return u; }
 function _mixIso(x){ const y=x.getFullYear(), m=String(x.getMonth()+1).padStart(2,"0"), d=String(x.getDate()).padStart(2,"0"); return `${y}-${m}-${d}`; }
 function _mixShift(d, n){ const x = new Date(d+"T00:00:00"); x.setDate(x.getDate()+n); return _mixIso(x); }
@@ -11693,20 +11732,54 @@ function mixPeriods(unit, base, end){
   if(A.length){ al += ` (${A[0]} ~ ${A[A.length-1]}, ${A.length}일)`; }
   return { A, B, al, bl, end, all };
 }
+// build 234: 기준일 말풍선 — 고른 단위·비교·기준일로 실제 어떤 날짜끼리 비교하는지
+function mixBasisLines(ui, P){
+  const U = { day:"일별", week:"주별", month:"월별" }[ui.unit] || "월별", L = ui.base==="long" ? "직전 6개월" : "직전 기간";
+  const end = P ? P.end : "(기준일)";
+  const rule = ui.unit==="day"
+    ? [`지금 = 기준일 <b>${end}</b> 하루`, ui.base==="long" ? "비교 = 그 전 6개월의 <b>같은 요일</b> 평균" : "비교 = 1·2·3·4주 전 <b>같은 요일</b> 4일 평균"]
+    : ui.unit==="week"
+    ? [`지금 = 기준일을 포함한 <b>최근 7일</b> (달력의 월~일 주가 아님)`, ui.base==="long" ? "비교 = 그 7일 바로 앞 6개월" : "비교 = 그 7일 바로 앞 4주(28일)"]
+    : [`지금 = 기준일이 있는 달의 <b>1일 ~ 기준일</b>`, ui.base==="long" ? "비교 = 그 달 바로 앞 6개월" : "비교 = 그 달 바로 앞 3개월"];
+  const out = [`<b>${U} · ${L}</b> — 기준일 = "지금" 기간의 마지막 날`].concat(rule, [`매장 = <b>${ui.store ? escHtml(ui.store)+"만" : "전체 매장"}</b>`]);
+  if(P && P.B && P.B.length && P.A && P.A.length){
+    out.push(`▶ 지금: <b>${P.B[0]}${P.B.length>1?` ~ ${P.B[P.B.length-1]}`:""}</b> (${P.B.length}일)`);
+    out.push(ui.unit==="day" && P.A.length<=6 ? `▶ 비교: <b>${P.A.join(", ")}</b> (${P.A.length}일 평균)` : `▶ 비교: <b>${P.A[0]} ~ ${P.A[P.A.length-1]}</b> (${P.A.length}일)`);
+    // 기간 안인데 자료가 없는 날(휴무·미업로드)
+    const miss = [];
+    const span = (a,b)=>{ for(let d=a; d<=b; d=_mixShift(d,1)){ if(!SALES_MIX[d]) miss.push(d); if(miss.length>40) break; } };
+    if(ui.unit==="day"){ /* 같은 요일만 보므로 빠진 요일 날짜만 */ const want = ui.base==="long" ? 26 : 4; if(P.A.length < want) out.push(`· 같은 요일 중 자료 없는 날 ${want-P.A.length}일은 평균에서 뺌`); }
+    else { span(P.A[0], P.A[P.A.length-1]); span(P.B[0], P.B[P.B.length-1]); if(miss.length) out.push(`· 자료 없는 날 ${miss.length}일은 평균에서 뺌: ${miss.slice(0,8).join(", ")}${miss.length>8?" …":""}`); }
+  }
+  out.push("두 기간 모두 <b>하루 평균</b>으로 비교 (기간 길이가 달라도 공정)");
+  return out;
+}
 // ---- 집계 ----
-function mixAgg(dates){
+function mixAgg(dates, store){
   const n = dates.length || 1, c1 = {}, c2 = {}, st = {}, stc = {}, prod = {}, rc = {}, cnt = {};
   const ssh = {}; (STORE_SALES_HISTORY||[]).forEach(h=>{ if(h && h.date) ssh[h.date] = h; });
-  let cntDays = 0;
+  let cntDays = 0, noDetail = 0;
+  const add2 = (k, v)=>{ const a=c2[k]||(c2[k]=[0,0,0]); a[0]+=v[0]; a[1]+=v[1]; a[2]+=v[2]; const p=k.split(" > ")[0], b=c1[p]||(c1[p]=[0,0,0]); b[0]+=v[0]; b[1]+=v[1]; b[2]+=v[2]; };
   dates.forEach(d=>{
     const m = SALES_MIX[d]; if(!m) return;
+    if(store){   // build 234: 매장 하나만 — 매장별 2단계 분류·상품(sc·sp)
+      const s1 = (m.s||{})[store]; let t = 0;
+      if(s1){ Object.keys(s1).forEach(k=>{ t += s1[k][0]; const q=(stc[store]||(stc[store]={}))[k]||((stc[store][k])=[0,0]); q[0]+=s1[k][0]; q[1]+=s1[k][2]; }); }
+      const o = st[store] || (st[store] = {amt:0, days:0}); o.amt += t; if(t>0) o.days++;
+      if(m.r && m.r[store]) rc[store] = (rc[store]||0) + m.r[store];
+      const h = ssh[d]; if(h && h.cnt){ cntDays++; cnt[store] = (cnt[store]||0) + (+h.cnt[store]||0); }
+      if(m.sc && m.ck){ const x = m.sc[store] || {}; Object.keys(x).forEach(i=>{ add2(m.ck[i], x[i]); });
+        ((m.sp||{})[store]||[]).forEach(r=>{ const cat = m.ck[r[1]]; const k = r[0]+"\u0001"+cat; const o2 = prod[k] || (prod[k] = {name:r[0], cat, amt:0, qty:0, days:0, stores:0}); o2.amt+=r[2]; o2.qty+=r[3]; o2.days++; o2.stores=1; }); }
+      else if(s1){ noDetail++; Object.keys(s1).forEach(k=>{ add2(k, [s1[k][0], s1[k][1], 0]); }); }
+      return;
+    }
     Object.keys(m.c).forEach(k=>{ const v=m.c[k], a=c2[k]||(c2[k]=[0,0,0]); a[0]+=v[0]; a[1]+=v[1]; a[2]+=v[2]; const p=k.split(" > ")[0], b=c1[p]||(c1[p]=[0,0,0]); b[0]+=v[0]; b[1]+=v[1]; b[2]+=v[2]; });
     Object.keys(m.s).forEach(s=>{ const o = st[s] || (st[s] = {amt:0, days:0}); let t=0; Object.keys(m.s[s]).forEach(k=>{ const v=m.s[s][k]; t+=v[0]; const q=(stc[s]||(stc[s]={}))[k]||((stc[s][k])=[0,0]); q[0]+=v[0]; q[1]+=v[2]; }); o.amt+=t; if(t>0) o.days++; });
     Object.keys(m.r||{}).forEach(s=>{ rc[s] = (rc[s]||0) + m.r[s]; });
     const h = ssh[d]; if(h && h.cnt){ cntDays++; Object.keys(h.cnt).forEach(s=>{ cnt[s] = (cnt[s]||0) + (+h.cnt[s]||0); }); }
     (m.p||[]).forEach(r=>{ const k = r[0]+"\u0001"+r[1]; const o = prod[k] || (prod[k] = {name:r[0], cat:r[1], amt:0, qty:0, days:0, stores:0}); o.amt+=r[2]; o.qty+=r[3]; o.days++; o.stores=Math.max(o.stores, r[4]); });
   });
-  return { n: dates.length, c1, c2, st, stc, prod, rc, cnt, cntDays };
+  return { n: dates.length, c1, c2, st, stc, prod, rc, cnt, cntDays, noDetail };
 }
 const MIX_SEASON_RE = /딸기|감귤|[^가-힣]귤|^귤|귤로|한라봉|천혜향|레드향|참외|수박|복숭아|자두|체리|샤인머스캣|선풍기|서큘|냉방|에어컨|제습기|냉풍|빙수|히터|난방|온풍|전기요|전기매트|온수매트|가습|핫팩|패딩|내복|방한/;
 function mixSeason(name, cat){ return MIX_SEASON_RE.test(String(name||"")) || /계절가전|냉방가전|난방가전/.test(String(cat||"")); }
@@ -11729,7 +11802,9 @@ function mixJudge(a, b, nA, nB){
 }
 function mixAnalyze(){
   const ui = mixUi(), P = mixPeriods(ui.unit, ui.base, ui.end); if(!P || !P.A.length || !P.B.length) return P ? { P, empty:true } : null;
-  const A = mixAgg(P.A), B = mixAgg(P.B), nA = A.n||1, nB = B.n||1;
+  const store = (ui.store && STORES.includes(ui.store)) ? ui.store : "";
+  if(store){ const miss = P.A.concat(P.B).filter(d=> SALES_MIX[d] && !SALES_MIX[d].sc); if(miss.length) setTimeout(()=>{ mixFetchStoreDetail(miss); }, 0); }
+  const A = mixAgg(P.A, store), B = mixAgg(P.B, store), nA = A.n||1, nB = B.n||1;
   // 기존점 = 두 기간 모두 절반 이상 영업한 매장
   const stores = Array.from(new Set([...Object.keys(A.st), ...Object.keys(B.st)]));
   const same = stores.filter(s=> A.st[s] && B.st[s] && A.st[s].days>=nA*0.5 && B.st[s].days>=nB*0.5);
@@ -11752,7 +11827,7 @@ function mixAnalyze(){
   const pk = Array.from(new Set([...Object.keys(A.prod), ...Object.keys(B.prod)]));
   const prods = pk.map(k=>{ const a=A.prod[k], b=B.prod[k], o=a||b;
     const r = { name:o.name, cat:o.cat, aA:(a?a.amt:0)/nA, aB:(b?b.amt:0)/nB, dA:a?a.days:0, dB:b?b.days:0, stA:a?a.stores:0, stB:b?b.stores:0 };
-    r.d = r.aB - r.aA; r.stop = !!(!b && a && a.days>=Math.max(2, nA*0.4)); r.daily = !!(a && a.days>=nA*0.6 && a.stores>=5); r.season = mixSeason(r.name, r.cat); r.isNew = !!(!a && b); r.bulk = mixIsBulk(r.name, r.cat); return r; });
+    r.d = r.aB - r.aA; r.stop = !!(!b && a && a.days>=Math.max(2, nA*0.4)); r.daily = !!(a && a.days>=nA*0.6 && (store || a.stores>=5)); r.season = mixSeason(r.name, r.cat); r.isNew = !!(!a && b); r.bulk = mixIsBulk(r.name, r.cat); return r; });
   const down = prods.filter(r=>r.d<0).sort((x,y)=>x.d-y.d), up = prods.filter(r=>r.d>0).sort((x,y)=>y.d-x.d);
   // 매장
   const stRows = stores.map(s=>{
@@ -11762,13 +11837,13 @@ function mixAnalyze(){
     return { s, aA, aB, d:aB-aA, pct: aA>0?(aB/aA-1)*100:null, pa, pb, same: same.includes(s), down: cs.filter(x=>x.d<0).slice(0,2), up: cs.filter(x=>x.d>0).sort((x,y)=>y.d-x.d)[0] };
   }).filter(r=> r.aA>0 || r.aB>0).sort((x,y)=>x.d-y.d);
   // 시간대 · 요일 (카테고리별 매출의 결제 시각)
-  const hrs = mixHourWeek(P.A, P.B);
-  return { P, A, B, nA, nB, tot, cats, down, up, stRows, hrs, same };
+  const hrs = mixHourWeek(P.A, P.B, store);
+  return { P, A, B, nA, nB, tot, cats, down, up, stRows, hrs, same, store, noDetail: A.noDetail + B.noDetail };
 }
-function mixHourWeek(dA, dB){
+function mixHourWeek(dA, dB, store){
   const by = {}; (SALES_HISTORY||[]).forEach(h=>{ if(h && h.date) by[h.date] = h; });
   const hs = (dates)=>{ const o = {}, w = {}, wn = {}; let n = 0; dates.forEach(d=>{ const h = by[d]; if(!h || !h.byStoreHour) return; n++; let t = 0;
-      Object.values(h.byStoreHour).forEach(sh=> Object.keys(sh).forEach(k=>{ const a = +sh[k].amount||0; o[k] = (o[k]||0) + a; t += a; }));
+      (store ? [h.byStoreHour[store]||{}] : Object.values(h.byStoreHour)).forEach(sh=> Object.keys(sh).forEach(k=>{ const a = +sh[k].amount||0; o[k] = (o[k]||0) + a; t += a; }));
       const wd = new Date(d+"T00:00:00").getDay(); w[wd] = (w[wd]||0) + t; wn[wd] = (wn[wd]||0) + 1; });
     return { o, w, wn, n }; };
   const a = hs(dA), b = hs(dB); if(!a.n || !b.n) return null;
@@ -11806,7 +11881,7 @@ function mixActions(R){
     out.push({ k:"계절", t:`계절이 바뀌어 빠진 상품: ${sea.map(r=>escHtml(r.name.slice(0,22))).join(", ")} (하루 ${lv(-sea.reduce((t,r)=>t+r.d,0))}원 줄어듦).`, a:`다음 계절 상품(${next})을 미리 배정하세요.` }); }
   const grow = R.cats.filter(r=> r.d>0).sort((x,y)=>y.d-x.d).slice(0,2);
   if(grow.length) out.push({ k:"늘어난 곳", t:`늘어난 분류: ${grow.map(r=>`${escHtml(r.cat)} ${man(r.d)}`).join(", ")}원.`, a:`잘 팔리는 상품을 아직 적게 받는 매장으로 넓히세요.` });
-  const ws = R.stRows.filter(r=> r.same && r.d<0).slice(0,3);
+  const ws = R.store ? [] : R.stRows.filter(r=> r.same && r.d<0).slice(0,3);
   if(ws.length) out.push({ k:"매장", t:`많이 빠진 매장: ${ws.map(r=>`${escHtml(r.s)} ${man(r.d)}(${r.down.map(x=>escHtml(x.c)).join("·")})`).join(", ")}.`, a:`이 매장들에 위 분류 물량을 먼저 배정하세요.` });
   return out;
 }
@@ -11817,8 +11892,13 @@ function mixPanelHtml(){
   if(!days.length) return head + `<div class="mix-empty">아직 상품 구성 자료가 없습니다. <b>⚡ 매출 요약본</b> 칸에 <b>매출구성_자료.json</b>을 올리거나, 카테고리별 매출(상품별 매출현황) 파일을 올리면 그날부터 자동으로 쌓입니다.</div>`;
   const ui = mixUi(), R = mixAnalyze();
   const seg = (k, opts)=> `<span class="mix-seg">${opts.map(([v,l])=>`<button type="button" data-mix-${k}="${v}" class="${ui[k]===v?"on":""}">${l}</button>`).join("")}</span>`;
+  const tip = mixBasisLines(ui, R && R.P);   // build 234: 기준일에 마우스 → 어떤 날짜끼리 비교하는지
   const endSel = `<select data-mix-end>${days.slice().reverse().slice(0,120).map(d=>`<option value="${d}" ${R&&R.P&&R.P.end===d?"selected":""}>${d}</option>`).join("")}</select>`;
-  const bar = `<div class="mix-bar">${seg("unit",[["day","일별"],["week","주별"],["month","월별"]])} <span class="mix-lb">기준일</span> ${endSel} <span class="mix-lb">비교</span> ${seg("base",[["prev","직전 기간"],["long","직전 6개월"]])}</div>`;
+  // build 234: 기준일 오른쪽 = 매장 고르기(전체 매장 → 매장 이름), 그 오른쪽 = 비교(직전 기간 · 직전 6개월)
+  const recent = days.slice(-62), have = new Set(); recent.forEach(d=> Object.keys((SALES_MIX[d]||{}).s||{}).forEach(s=>have.add(s)));
+  const stList = STORES.filter(s=> have.has(s) || s===ui.store);
+  const stSel = `<select data-mix-store class="mix-store"><option value="">전체 매장</option>${stList.map(s=>`<option value="${escHtml(s)}" ${ui.store===s?"selected":""}>${escHtml(s)}</option>`).join("")}</select>`;
+  const bar = `<div class="mix-bar">${seg("unit",[["day","일별"],["week","주별"],["month","월별"]])} <span class="mix-endw"><span class="mix-lb">기준일 ⓘ</span> ${endSel}<span class="mix-tip" role="tooltip">${tip.map(x=>`<div>${x}</div>`).join("")}</span></span> <span class="mix-lb">매장</span> ${stSel} <span class="mix-lb">비교</span> ${seg("base",[["prev","직전 기간"],["long","직전 6개월"]])}</div>`;
   if(!R || R.empty) return head + bar + `<div class="mix-empty">비교할 날짜가 부족합니다(기준 ${R&&R.P?escHtml(R.P.bl):""}).</div>`;
   const man = v=> `${v<0?"−":(v>0?"+":"")}${Math.abs(Math.round(v/10000)).toLocaleString()}만`;
   const won = v=> `${Math.round(v/10000).toLocaleString()}만`;
@@ -11829,12 +11909,12 @@ function mixPanelHtml(){
   const kpi = (k, a, b, f, note)=>{ const p = pc(a,b); return `<div class="mix-kpi"><span class="k">${k}</span><span class="v">${f(a)} → <b>${f(b)}</b></span><span class="p" style="${col(p)}">${pcs(p)}</span>${note?`<span class="n">${note}</span>`:""}</div>`; };
   const gap = (t.aB-t.aA) - (t.sB-t.sA);
   const kpis = `<div class="mix-kpis">
-    ${kpi("하루 매출(기존점)", t.sA, t.sB, v=>won(v)+"원", Math.abs(gap)>=100000 ? `폐점·신규 매장 영향 ${man(gap)}원` : "")}
+    ${kpi(R.store ? `하루 매출(${escHtml(R.store)})` : "하루 매출(기존점)", t.sA, t.sB, v=>won(v)+"원", !R.store && Math.abs(gap)>=100000 ? `폐점·신규 매장 영향 ${man(gap)}원` : "")}
     ${kpi("하루 "+t.payLabel.split("(")[0], t.pA, t.pB, v=>Math.round(v).toLocaleString()+"건", t.payLabel)}
     ${kpi("객단가", t.uA, t.uB, v=>Math.round(v).toLocaleString()+"원", "실매출액 ÷ 건수")}
-    ${kpi("하루 팔린 품목 수", t.kA, t.kB, v=>Math.round(v).toLocaleString()+"개", "전 매장 합, 바코드 기준")}
+    ${kpi("하루 팔린 품목 수", t.kA, t.kB, v=>Math.round(v).toLocaleString()+"개", R.store ? "이 매장, 바코드 기준" : "전 매장 합, 바코드 기준")}
   </div>`;
-  const per = `<div class="mix-per">비교: <b>${escHtml(R.P.bl)}</b> vs ${escHtml(R.P.al)} · 모두 <b>하루 평균</b> · 분류·상품은 전 매장 합계</div>`;
+  const per = `<div class="mix-per">비교: <b>${escHtml(R.P.bl)}</b> vs ${escHtml(R.P.al)} · 모두 <b>하루 평균</b> · ${R.store ? `<b>${escHtml(R.store)}</b>만` : "분류·상품은 전 매장 합계"}${R.noDetail ? ` · <span style="color:var(--amber)">${R.noDetail}일은 매장별 세부 자료가 없어 대분류만 반영</span>` : ""}</div>`;
   const acts = mixActions(R);
   const actHtml = acts.length ? `<div class="mix-act"><div class="mix-act-hd">원인과 해결방안</div><ol>${acts.map(a=>`<li><span class="mix-tag">${escHtml(a.k)}</span> ${a.t}<div class="mix-do">→ ${a.a}</div></li>`).join("")}</ol></div>` : "";
   const catRow = (r, sub)=> `<tr class="${sub?"mix-sub":""}"><td>${escHtml(sub ? (r.cat.split(" > ")[1]||"(세부 없음)") : r.cat)}</td><td class="r">${won(r.amtA)}</td><td class="r">${won(r.amtB)}</td><td class="r" style="${col(r.d)}"><b>${man(r.d)}</b></td><td class="r" style="${col(r.pct)}">${pcs(r.pct)}</td><td class="r">${Math.round(r.skuA)}→${Math.round(r.skuB)}</td><td class="r">${Math.round(r.perA/1000)}→${Math.round(r.perB/1000)}천</td><td><span class="mix-j ${r.cls}">${r.tag}</span></td></tr>`;
@@ -11846,30 +11926,33 @@ function mixPanelHtml(){
     ${dn.length>10 ? `<details class="g-store-more"><summary>나머지 분류 ${dn.length-10}개</summary>${catTbl(dn.slice(10))}</details>` : ""}`;
   const flag = r=> [r.stop?'<span class="mix-f stop">판매 끊김</span>':"", r.daily?'<span class="mix-f daily">매일 팔리던 상품</span>':"", r.season?'<span class="mix-f sea">계절</span>':"", r.isNew?'<span class="mix-f new">새 상품</span>':"", r.bulk?'<span class="mix-f" title="상품명이 분류 이름인 묶음 코드 — 코드가 바뀌면 끊기거나 새로 생긴 것처럼 보입니다">묶음 코드</span>':""].join("");
   const pTbl = (list, title)=> `<div class="mix-pcol"><div class="mix-h">${title}</div><div class="tblbox"><table class="g-tbl mix-tbl"><thead><tr><th>상품</th><th>전</th><th>지금</th><th>하루 차이</th><th>판매일·매장</th></tr></thead><tbody>${list.map(r=>
-      `<tr><td><div class="mix-pn" title="${escHtml(r.name)}">${escHtml(r.name)}</div><div class="mix-pc">${escHtml(r.cat)} ${flag(r)}</div></td><td class="r">${won(r.aA)}</td><td class="r">${won(r.aB)}</td><td class="r" style="${col(r.d)}"><b>${man(r.d)}</b></td><td class="r" style="font-size:11px">${r.dA}→${r.dB}일 · ${r.stA}→${r.stB}곳</td></tr>`).join("")}</tbody></table></div></div>`;
-  const prodHtml = `<div class="mix-pgrid">${pTbl(R.down.slice(0,12), "줄어든 상품 TOP 12")}${pTbl(R.up.slice(0,8), "늘어난 상품 TOP 8")}</div><div class="mix-note">상품은 그날 전 매장 실매출 10만 원 이상인 상품만 저장합니다(하루 TOP 150).</div>`;
-  const stHtml = `<details class="g-store-more" open><summary>매장별 변화 (기존점 ${R.same.length}곳 · 하루 평균)</summary><div class="tblbox"><table class="g-tbl mix-tbl"><thead><tr><th>매장</th><th>전</th><th>지금</th><th>하루 차이</th><th>%</th><th>${escHtml(t.payLabel.split("(")[0])}</th><th>많이 빠진 분류</th><th>늘어난 분류</th></tr></thead><tbody>${R.stRows.map(r=>
-      `<tr${r.same?"":' style="opacity:.6"'}><td>${escHtml(r.s)}${r.same?"":' <span class="mix-f">기간 일부만 영업</span>'}</td><td class="r">${won(r.aA)}</td><td class="r">${won(r.aB)}</td><td class="r" style="${col(r.d)}"><b>${man(r.d)}</b></td><td class="r" style="${col(r.pct)}">${pcs(r.pct)}</td><td class="r">${Math.round(r.pa)}→${Math.round(r.pb)}</td><td>${r.down.map(x=>`${escHtml(x.c)} ${man(x.d)}`).join(", ")}</td><td>${r.up?`${escHtml(r.up.c)} ${man(r.up.d)}`:""}</td></tr>`).join("")}</tbody></table></div></details>`;
+      `<tr><td><div class="mix-pn" title="${escHtml(r.name)}">${escHtml(r.name)}</div><div class="mix-pc">${escHtml(r.cat)} ${flag(r)}</div></td><td class="r">${won(r.aA)}</td><td class="r">${won(r.aB)}</td><td class="r" style="${col(r.d)}"><b>${man(r.d)}</b></td><td class="r" style="font-size:11px">${r.dA}→${r.dB}일${R.store?"":` · ${r.stA}→${r.stB}곳`}</td></tr>`).join("")}</tbody></table></div></div>`;
+  const prodHtml = `<div class="mix-pgrid">${pTbl(R.down.slice(0,12), "줄어든 상품 TOP 12")}${pTbl(R.up.slice(0,8), "늘어난 상품 TOP 8")}</div><div class="mix-note">${R.store ? "매장 상품은 그날 그 매장 실매출 5만 원 이상인 상품만 저장합니다(하루 TOP 25)." : "상품은 그날 전 매장 실매출 10만 원 이상인 상품만 저장합니다(하루 TOP 150)."}</div>`;
+  const stHtml = `<details class="g-store-more" open><summary>매장별 변화 (기존점 ${R.same.length}곳 · 하루 평균 · 매장을 누르면 그 매장만 분석)</summary><div class="tblbox"><table class="g-tbl mix-tbl"><thead><tr><th>매장</th><th>전</th><th>지금</th><th>하루 차이</th><th>%</th><th>${escHtml(t.payLabel.split("(")[0])}</th><th>많이 빠진 분류</th><th>늘어난 분류</th></tr></thead><tbody>${R.stRows.map(r=>
+      `<tr class="mix-pick" data-mix-pick="${escHtml(r.s)}" title="눌러서 ${escHtml(r.s)}만 보기"${r.same?"":' style="opacity:.6"'}><td>${escHtml(r.s)}${r.same?"":' <span class="mix-f">기간 일부만 영업</span>'}</td><td class="r">${won(r.aA)}</td><td class="r">${won(r.aB)}</td><td class="r" style="${col(r.d)}"><b>${man(r.d)}</b></td><td class="r" style="${col(r.pct)}">${pcs(r.pct)}</td><td class="r">${Math.round(r.pa)}→${Math.round(r.pb)}</td><td>${r.down.map(x=>`${escHtml(x.c)} ${man(x.d)}`).join(", ")}</td><td>${r.up?`${escHtml(r.up.c)} ${man(r.up.d)}`:""}</td></tr>`).join("")}</tbody></table></div></details>`;
   let hwHtml = "";
   if(R.hrs){
     const H = R.hrs.hours, W = R.hrs.week;
     hwHtml = `<div class="mix-hw"><div><span class="mix-lb">시간대(하루 평균)</span> ${H.map(x=>`<span class="mix-cell" title="${x.h}시 ${won(x.aA)}→${won(x.aB)}원"><i>${x.h}시</i><b style="${col(x.pct)}">${pcs(x.pct)}</b></span>`).join("")}</div>
       ${W.length>1 && R.P.A.length>=7 && R.P.B.length>=7 ? `<div><span class="mix-lb">요일</span> ${W.map(x=>`<span class="mix-cell" title="${x.w}요일 ${won(x.aA)}→${won(x.aB)}원"><i>${x.w}</i><b style="${col(x.pct)}">${pcs(x.pct)}</b></span>`).join("")}</div>` : ""}</div>`;
   }
-  return head + bar + per + kpis + actHtml + hwHtml + catHtml + prodHtml + stHtml +
+  return head + bar + per + kpis + actHtml + hwHtml + catHtml + prodHtml + (R.store ? "" : stHtml) +
     `<div class="mix-note">상품 구성 자료: ${days[0]} ~ ${days[days.length-1]} (${days.length}일)${_mixCloudErr?` · <span style="color:var(--red)">서버 저장 실패(${escHtml(_mixCloudErr)}) — 이 PC에서만 보입니다</span>`:""}</div>`;
 }
 let _mixWired = false;
 function wireMixPanel(){
   if(_mixWired) return; _mixWired = true;
   document.addEventListener("click", e=>{
-    const b = e.target && e.target.closest ? e.target.closest("[data-mix-unit],[data-mix-base],tr[data-mix-c1]") : null; if(!b) return;
+    const b = e.target && e.target.closest ? e.target.closest("[data-mix-unit],[data-mix-base],tr[data-mix-c1],tr[data-mix-pick]") : null; if(!b) return;
+    if(b.dataset.mixPick!=null){ mixUiSet({ store:b.dataset.mixPick }); mixRerender(); const w = document.getElementById("mixWrap"); if(w && w.scrollIntoView) w.scrollIntoView({behavior:"smooth", block:"start"}); return; }
     if(b.dataset.mixC1!=null){ const k = b.dataset.mixC1; const open = !b.classList.contains("open"); b.classList.toggle("open", open);
       document.querySelectorAll(`tr[data-mix-of]`).forEach(tr=>{ if(tr.getAttribute("data-mix-of")===k) tr.hidden = !open; }); return; }
     if(b.dataset.mixUnit) mixUiSet({ unit:b.dataset.mixUnit }); else if(b.dataset.mixBase) mixUiSet({ base:b.dataset.mixBase });
     mixRerender();
   });
-  document.addEventListener("change", e=>{ const s = e.target; if(s && s.matches && s.matches("select[data-mix-end]")){ mixUiSet({ end:s.value }); mixRerender(); } });
+  document.addEventListener("change", e=>{ const s = e.target; if(!s || !s.matches) return;
+    if(s.matches("select[data-mix-end]")){ mixUiSet({ end:s.value }); mixRerender(); }
+    else if(s.matches("select[data-mix-store]")){ mixUiSet({ store:s.value }); mixRerender(); } });
 }
 function mixRerender(){ const w = document.getElementById("mixWrap"); if(w) w.innerHTML = mixPanelHtml(); }
 
