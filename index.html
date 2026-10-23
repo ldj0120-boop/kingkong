@@ -1102,6 +1102,14 @@
   .g-kpi-grid .g-kpi{background:none;border:0;border-bottom:1px dashed var(--line-soft);border-radius:0;padding:3px 0;}
   .g-kpi-grid .g-kpi .k{font-size:13px;}
   .g-kpi-grid .g-kpi .v{font-family:"Gothic A1";font-size:14px;letter-spacing:0;line-height:1.5;}
+  /* build 233: 매장 카드 숫자 줄 — 칸(160px)이 좁으면 값이 다음 줄 가운데로 떨어지고 인센티브 문구가 글자 중간("누적위|험")에서
+     끊겨 들쭉날쭉했다 → 윗줄 5칸은 "라벨 위 · 값 아래" 세로 칸으로 맞추고, 문구는 단어 단위로만 줄바꿈. 누적 2줄(wide)은 좌우 배치 유지 */
+  .g-kpi-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px 16px;}
+  .g-kpi-grid .g-kpi:not(.wide){flex-direction:column;flex-wrap:nowrap;justify-content:flex-start;align-items:flex-start;gap:2px;padding:4px 0 6px;}
+  .g-kpi-grid .g-kpi:not(.wide) .v{text-align:left;white-space:nowrap;}
+  .g-kpi-grid .g-kpi:not(.wide):nth-child(5) .v{white-space:normal;word-break:keep-all;}
+  .g-kpi-grid .g-kpi.wide{align-items:baseline;}
+  .g-kpi-grid .g-kpi.wide .v{word-break:keep-all;}
   .g-store-split{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start;}   /* build 92: 위아래 배치(3개월 실적 → 카테고리 구성 → 월별 이력) */
   .g-sec-title{font-size:13.5px;font-weight:700;color:var(--text);margin-bottom:8px;letter-spacing:0;font-family:inherit;text-transform:none;}
   .g-r3-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
@@ -1584,12 +1592,9 @@
   .p-hd .meta, .fi-mut, .fi-drop-s{color:var(--muted);}
   @media(max-width:640px){ #view-fixed .agg-card.kk-sub > .fi-body{padding-left:4px;padding-right:4px;} .fi-text{min-width:0;max-width:100%;} }
   /* build 239: 표 옆으로 밀기 — 스크롤바가 연한 색이라 안 보였음 → 진하게 · 표 위에도 같은 바 */
-  .agg-scroll,.kk-topbar,.tblbox{scrollbar-color:#8B90A0 #E3E7ED;scrollbar-width:auto;}
+  .agg-scroll,.kk-topbar,.tblbox,.fi-file,.fi-xprev,div[style*="overflow-x:auto"]{scrollbar-color:#8B90A0 #E3E7ED;scrollbar-width:auto;}
   .kk-topbar{overflow-x:auto;overflow-y:hidden;height:18px;margin:0 0 4px;border-radius:9px;}
   .kk-topbar>div{height:1px;}
-  .kk-bleed{max-width:none !important;position:relative;z-index:1;}
-  table.kk-tight th, table.kk-tight td{min-width:0 !important;padding-left:5px !important;padding-right:5px !important;}
-  table.kk-tight td.pq-memo, table.kk-tight th.pq-memo{max-width:180px !important;white-space:normal;}
   .kk-scrollhint{font-size:13px;color:var(--muted);margin:2px 0 4px;}
   #gsub-04 .agg-card{background:var(--bg) !important;padding:6px 0 0;} #gsub-04 .agg-card > .p-hd{padding-left:4px;}
 </style>
@@ -1603,7 +1608,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 239 · 2026-10-23</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 240 · 2026-10-23</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -16909,10 +16914,31 @@ function fiComboRender(){
     <textarea id="fiComboText" class="fi-text" style="min-height:220px" readonly>${escHtml(fiComboTextAll(C))}</textarea></div>`;
   el.innerHTML = h;
 }
+// build 232: 출고요청서 시트 제목(B1) 수식 — "출고요청서 · 2026-10-23(금) 출고 — 오전 11건·99PLT / 오후 4건·7PLT · T/T 106 PLT"
+//   날짜는 첫 행 출고일시(없으면 시트 출고일), 오전/오후는 출고일시에 "오전"/"오후"가 들어간 행(“오전 11시”도 오전), 범위 4~500행
+function fiComboTitleCell(COLS, g){
+  const colL = k=>{ const i = COLS.keys.indexOf(k); let n = 2 + i, s = ""; while(n>0){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=Math.floor((n-1)/26); } return s; };
+  const P = colL("PLT"), D = colL("출고일시");
+  const R = c=> `$${c}$4:$${c}$500`;
+  const part = l=> `"${l} "&COUNTIFS(${R(D)},"*${l}*")&"건·"&SUMIFS(${R(P)},${R(D)},"*${l}*")&"PLT"`;
+  const fallback = String(fiComboDateLabel(g.date)).replace(/"/g,'""');
+  const formula = `"출고요청서 · "&IFERROR(LEFT(${D}4,10)&"("&MID("일월화수목금토",WEEKDAY(DATEVALUE(LEFT(${D}4,10))),1)&")","${fallback}")` +
+                  `&" 출고 — "&${part("오전")}&" / "&${part("오후")}&" · T/T "&SUM(${R(P)})&" PLT"`;
+  // 열자마자 보이도록 미리 계산한 값
+  const rs = fiDispSheetRows(g.rows);
+  const pick = l=> rs.filter(o=> String(o.출고일시||"").includes(l));
+  const plt = a=> a.reduce((s,o)=> s + (+o.PLT||0), 0);
+  const am = pick("오전"), pm = pick("오후");
+  const d0 = String((rs[0]&&rs[0].출고일시)||"").slice(0,10);
+  const label = /^\d{4}-\d{2}-\d{2}$/.test(d0) ? fiComboDateLabel(d0) : fiComboDateLabel(g.date);
+  const result = `출고요청서 · ${label} 출고 — 오전 ${am.length}건·${plt(am)}PLT / 오후 ${pm.length}건·${plt(pm)}PLT · T/T ${plt(rs)} PLT`;
+  return { formula, result };
+}
 // 엑셀: 출고일자마다 시트 1장 — 제목 · 범례 → 거래처(더한/KPP)별 소제목 + 머리글 + 행
 async function fiComboWorkbook(C){
   const ExcelJS = await fiLoadScript("https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js", "ExcelJS");
   const wb = new ExcelJS.Workbook();
+  wb.calcProperties = Object.assign(wb.calcProperties||{}, { fullCalcOnLoad:true });   // build 232: 열 때 제목 수식 다시 계산
   const thin = { style:"thin", color:{ argb:"FF000000" } };
   const border = { top:thin, left:thin, bottom:thin, right:thin };
   const used = new Set();
@@ -16921,7 +16947,8 @@ async function fiComboWorkbook(C){
     const ws = wb.addWorksheet(nm);
     const COLS = fiDispCols(g.rows);
     ws.columns = [{ width:3 }].concat(COLS.width.map(w=>({ width:w })));
-    const t = ws.getCell(1, 2); t.value = `출고요청서 · ${fiComboDateLabel(g.date)} 출고 — ${g.rows.length}건 · ${g.rows.reduce((a,r)=>a+(+r.pallets||0),0)}PLT`; t.font = { name:"맑은 고딕", size:13, bold:true };
+    // build 232: 제목 = 수식 — 엑셀에서 행을 넣거나 빼도 날짜 · 오전/오후 건수·PLT · T/T PLT가 자동 갱신
+    const t = ws.getCell(1, 2); t.value = fiComboTitleCell(COLS, g); t.font = { name:"맑은 고딕", size:13, bold:true };
     [["진행","FF92D050"],["완료","FF9BC2E6"],["미진행",null]].forEach(([tx,c],i)=>{ const cell = ws.getCell(2, 3+i); cell.value=tx; cell.alignment={horizontal:"center"}; cell.border=border; cell.font={name:"맑은 고딕",size:10}; if(c) cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:c}}; });
     let row = 3;
     [g.rows].forEach(rs=>{   // build 143: 거래처 1곳 — 머리글 1번 + 행
@@ -22607,38 +22634,12 @@ function kkStepStatus(rows){
 })();
 try{ const vf = document.getElementById("view-fixed"); if(vf && typeof _genTab!=="undefined") vf.dataset.kkgen = _genTab; }catch(_){}
 
-// build 239: 가로로 긴 표 — ① 화면 폭에 맞게 표를 줄여서(최소 60%) 한 화면에 보이게 ② 그래도 넘치면 표 위에도 옆으로 미는 바
-const KK_FIT_MIN = 0.6;
-function kkFitOne(w){
-  const cs = getComputedStyle(w), cw = w.clientWidth - parseFloat(cs.paddingLeft||0) - parseFloat(cs.paddingRight||0); if(cw <= 0) return;
-  [...w.querySelectorAll("table")].filter(t=> t.closest(".agg-scroll, .tblbox")===w && !t.parentElement.closest("table")).forEach(t=>{
-    if(t.style.zoom) t.style.zoom = "";
-    t.classList.remove("kk-tight");
-    let nw = t.offsetWidth;
-    if(nw <= cw + 2){ delete t.dataset.kkFit; return; }
-    t.classList.add("kk-tight"); nw = t.offsetWidth;   // 먼저 칸 여백·최소 폭을 줄이고
-    if(nw <= cw + 2){ t.dataset.kkFit = 100; return; }
-    const z = Math.max(KK_FIT_MIN, Math.floor((cw - 4) / nw * 1000) / 1000);
-    t.style.zoom = String(z); t.dataset.kkFit = Math.round(z*100);
-  });
-}
-// 60%로 줄여도 넘치는 표는 그 카드를 화면 양끝까지 넓힌다(폭 넓히기)
-function kkBleed(w){
-  const card = w.closest(".agg-card, .panel, .bx-sec"); if(!card) return false;
-  const docW = document.documentElement.clientWidth, gut = 6;
-  card.style.marginLeft = ""; card.style.width = "";
-  const r = card.getBoundingClientRect();
-  if(r.width >= docW - gut*2 - 2) return false;
-  card.classList.add("kk-bleed");
-  card.style.width = (docW - gut*2) + "px";
-  card.style.marginLeft = (gut - r.left) + "px";
-  return true;
-}
+// build 240: build 239의 "표 줄이기(최대 60%) · 카드 화면 끝까지 넓히기"는 레이아웃이 깨져 보여 되돌림 — 원래 폭·글자 크기 그대로,
+//   대신 옆으로 넘치는 표마다 표 위에 이동바(아래 기본 이동바와 같이 움직임)를 붙인다.
+const KK_SCROLL_SEL = ".agg-scroll, .tblbox, .fi-file, .fi-xprev, div[style*='overflow-x:auto']";
 function kkTopBars(){
-  document.querySelectorAll(".kk-bleed").forEach(c=>{ c.classList.remove("kk-bleed"); c.style.width = ""; c.style.marginLeft = ""; });
-  document.querySelectorAll(".agg-scroll, .tblbox").forEach(w=>{
-    if(!w.offsetParent) return;
-    try{ kkFitOne(w); if(w.scrollWidth > w.clientWidth + 2 && kkBleed(w)) kkFitOne(w); }catch(_){}
+  document.querySelectorAll(KK_SCROLL_SEL).forEach(w=>{
+    if(!w.offsetParent || w.classList.contains("kk-topbar")) return;
     let t = w.previousElementSibling;
     const need = w.scrollWidth > w.clientWidth + 2;
     if(!need && !(t && t.classList.contains("kk-topbar"))) return;
