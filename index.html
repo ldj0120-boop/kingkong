@@ -1608,7 +1608,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 240 · 2026-10-23</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 241 · 2026-10-23</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -11149,7 +11149,13 @@ function goalsRender10Body(ctx){
   const exCells = x => PQ_EXTRA.map(e=>{ const v = extraAct(x,e.key); return `<td class="pq3 gE a" title="${escHtml((x.label||'')+' · '+e.key+(e.cats.length>1?' ('+e.cats.join('+')+')':'')+' 실제 PLT (공급계획 없음)')}">${v>0?fmt1(v):''}</td>`; }).join("");
   const memoTd = x => { const mm = pqMemo(x); return `<td class="pq-memo" title="${escHtml(mm)}">${mm?`<div class="pq-memo-in">${escHtml(mm)}</div>`:''}</td>`; };   // 길면 3줄까지만, 마우스 올리면 전체
   const stTot = x => { let a=0,f=0,pp=0; useCats.forEach(pc=>{ const c=x.cats.find(y=>y.cat===pc); if(c){ a+=c.actualPLT; f+=c.planPLTFull; pp+=c.planPLT; } }); a += extraSum(x); return {a,f,pp,pct: pp>0?a/pp*100:null}; };
-  const gRows = D.rows.slice().sort((a,b)=>{ const av=a.cats?stTot(a).pct:null, bv=b.cats?stTot(b).pct:null; return (av==null?1e9:av)-(bv==null?1e9:bv); }).map(x=>{
+  // build 241: 공급계획이 없는 매장(대소점 등)은 D.rows에 없어서 매장재고가 표·전사 합계에서 통째로 빠졌다
+  //   (전체 요약 XLA 284 · XLB 207 vs 이 표 275 · 205 — 대소점 XLA 9 · XLB 2). 매장재고 스냅샷에 재고가 있는 매장은 "계획 없음" 행으로 넣는다.
+  const pqCovered = new Set(D.rows.flatMap(x=> pqMembers(x)));
+  const pqStockOnly = !pqSnap ? [] : Object.keys(pqSnap.stock||{}).filter(st=> !pqCovered.has(st)).map(st=> ({ store:st, label:st, cats:null, actualPLTAll:0, outside:{}, outsideTotal:0 }))
+    .filter(x=> (pqStock(x, PQ_STOCK_TOTAL_IDX)||0) > 0);
+  const pqRowsAll = D.rows.concat(pqStockOnly);
+  const gRows = pqRowsAll.slice().sort((a,b)=>{ const av=a.cats?stTot(a).pct:null, bv=b.cats?stTot(b).pct:null; return (av==null?1e9:av)-(bv==null?1e9:bv); }).map(x=>{
     if(!x.cats){
       return `<tr><td class="pq-st">${escHtml(x.label)}</td><td class="pq3 gT t">–</td>${stkTd(pqStock(x,PQ_STOCK_TOTAL_IDX),"pq3 gT",x.label+' · 합계')}<td class="pq3 gT a">${fmt1(x.actualPLTAll||0)}</td><td class="pq3 gT p mu">계획 없음</td>${useCats.map((pc,i)=>`<td class="pq3 g${i%2} t"></td>${stkTd(pqStock(x,PQ_STOCK_IDX[pc]),"pq3 g"+(i%2),x.label+' · '+pc)}<td class="pq3 g${i%2}"></td><td class="pq3 g${i%2}"></td>`).join("")}${exCells(x)}<td class="pq-out">${fmt1(outRest(x))}</td>${memoTd(x)}</tr>`;
     }
@@ -11161,7 +11167,7 @@ function goalsRender10Body(ctx){
       <td class="pq-out" title="${escHtml(outE.map(([c,v])=>c+' '+fmt1(v)).join(' · '))}">${fmt1(outRest(x))}</td>${memoTd(x)}</tr>`;
   }).join("");
   const withPlan = D.rows.filter(x=>x.cats);
-  const sumStk = idxs => { if(!pqSnap || !idxs) return null; let t=0, any=false; D.rows.forEach(x=>{ const v=pqStock(x,idxs); if(v!=null){ t+=v; any=true; } }); return any?t:null; };
+  const sumStk = idxs => { if(!pqSnap || !idxs) return null; let t=0, any=false; pqRowsAll.forEach(x=>{ const v=pqStock(x,idxs); if(v!=null){ t+=v; any=true; } }); return any?t:null; };
   const gFoot = `<tfoot><tr><td class="pq-st">전사 합계</td>${gCell(withPlan.reduce((a,x)=>a+stTot(x).a,0), withPlan.reduce((a,x)=>a+stTot(x).f,0), withPlan.reduce((a,x)=>a+stTot(x).pp,0), "전사 · 계획 카테고리 합계", "T", sumStk(PQ_STOCK_TOTAL_IDX))}${
       useCats.map((pc,i)=>{ const t = D.catTotals.find(c=>c.cat===pc)||{}; const full = withPlan.reduce((a,x)=>{ const c=x.cats.find(y=>y.cat===pc); return a+(c?c.planPLTFull:0); },0);
         return gCell(t.actualPLT||0, full, t.planPLT||0, `전사 · ${pc}`, i%2, sumStk(PQ_STOCK_IDX[pc])); }).join("")}${PQ_EXTRA.map(e=>`<td class="pq3 gE a">${fmt1(D.rows.reduce((a,x)=>a+extraAct(x,e.key),0))}</td>`).join("")}<td class="pq-out">${fmt1(D.rows.reduce((a,x)=>a+outRest(x),0))}</td><td class="pq-memo"></td></tr></tfoot>`;
