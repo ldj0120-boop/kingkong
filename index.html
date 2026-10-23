@@ -24,7 +24,7 @@
 <title>PLT 출고 관리</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&family=Gothic+A1:wght@500;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
 <style>
@@ -37,6 +37,7 @@
     --red:#EF6F6F; --red-dim:#3a1f1f;
     --pale:#C7D5E1;
     --info:#4C9BE8; --info-dim:#152a3d;
+    --up:#FF6B6B; --up-dim:#3a1f1f; --down:#5B9BFF; --down-dim:#152a3d;   /* build 236: 늘어남 빨강 · 줄어듦 파랑 */
     --r:10px;
   }
   *{box-sizing:border-box;}
@@ -1377,8 +1378,86 @@
   .mix-tbl tr.mix-c1{cursor:pointer;} .mix-tbl tr.mix-c1 td:first-child::before{content:"▸ ";color:var(--muted2);} .mix-tbl tr.mix-c1.open td:first-child::before{content:"▾ ";}
   .mix-tbl tr.mix-sub td{font-size:12px;color:var(--muted);background:var(--ink);} .mix-tbl tr.mix-sub td:first-child{padding-left:26px;}
   .mix-j{display:inline-block;border-radius:4px;padding:1px 7px;font-size:11px;font-weight:700;white-space:nowrap;}
-  .mix-j.sku{background:var(--info-dim);color:var(--info);} .mix-j.per{background:var(--red-dim);color:var(--red);} .mix-j.both{background:var(--red-dim);color:#ffb0b0;}
-  .mix-j.up{background:var(--green-dim);color:var(--green);} .mix-j.small{background:var(--panel2);color:var(--muted);}
+  .mix-j.sku{background:var(--down-dim);color:var(--down);} .mix-j.per{background:var(--down-dim);color:var(--down);} .mix-j.both{background:var(--down);color:#FFFFFF;}
+  .mix-j.up{background:var(--up-dim);color:var(--up);} .mix-j.small{background:var(--panel2);color:var(--muted);}
+  /* ===== build 236: 02 카테고리 분석 — 벤토(시안 4) · 늘어남 빨강 / 줄어듦 파랑 ===== */
+  #gsub-04{
+    --ink:#F4F5F8; --panel:#FFFFFF; --panel2:#F4F5F8; --raise:#E9EBF2; --line:#E1E4EC; --line-soft:#ECEEF3;
+    --text:#15161A; --muted:#55586A; --muted2:#7A7D8E; --pale:#15161A;
+    --amber:#3B3FD8; --amber-ink:#FFFFFF; --amber-dim:#ECECFF;
+    --green:#E5484D; --green-dim:#FFE9EA; --red:#2F6BFF; --red-dim:#E6EEFF; --info:#2F6BFF; --info-dim:#E6EEFF;
+    --up:#E5484D; --down:#2F6BFF; --up-dim:#FFE9EA; --down-dim:#E6EEFF;
+    font-family:"Gothic A1","Inter","Malgun Gothic",sans-serif; color:var(--text);
+  }
+  #gsub-04 .agg-card{background:#EEF0F4;border:0;border-radius:32px;padding:22px clamp(12px,2vw,28px) 28px;color:var(--text);}
+  #gsub-04 .agg-card .p-hd .store-name{font-family:"Gothic A1",sans-serif;font-weight:900;font-size:26px;letter-spacing:-.03em;color:#15161A;}
+  #gsub-04 .agg-card .p-hd .meta{color:var(--muted);}
+  #gsub-04 table{color:var(--text);} #gsub-04 th{background:#F4F5F8;color:var(--muted);} #gsub-04 td{border-color:var(--line-soft);}
+  #gsub-04 .mix-tbl td.r, #gsub-04 .mix-cell b{font-family:"Gothic A1",sans-serif;font-weight:700;}
+  #gsub-04 .mix-bar{gap:10px;margin:8px 0 16px;}
+  #gsub-04 .mix-seg{background:#FFFFFF;border:0;padding:4px;gap:2px;box-shadow:0 1px 0 rgba(0,0,0,.03);}
+  #gsub-04 .mix-seg button{border:0;border-radius:99px;font-size:15px;font-weight:700;padding:9px 18px;color:var(--muted);}
+  #gsub-04 .mix-seg button+button{border-left:0;}
+  #gsub-04 .mix-seg button.on{background:#15161A;color:#FFFFFF;}
+  #gsub-04 .mix-bar select, #gsub-04 .mix-bar input{background:#FFFFFF;color:var(--text);border:0;border-radius:99px;padding:9px 16px;font-size:15px;font-weight:700;font-family:inherit;}
+  #gsub-04 .mix-lb{font-size:13px;color:var(--muted);}
+  #gsub-04 .mix-tip{background:#FFFFFF;border:0;border-radius:16px;box-shadow:0 12px 32px rgba(20,22,40,.18);}
+  #gsub-04 .mix-tip b{color:#3B3FD8;}
+  #gsub-04 .mix-concl{background:transparent;border:0;padding:0;margin:0;font-size:16px;}
+  #gsub-04 .mix-act{background:#FFF1EA;border:0;border-radius:20px;}
+  #gsub-04 .mix-act-hd{color:#C2410C;}
+  #gsub-04 .mix-tag{background:#FFFFFF;border:0;color:#3B3FD8;}
+  #gsub-04 details, #gsub-04 summary{color:var(--text);}
+  .bx-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-flow:dense;gap:14px;margin:4px 0 26px;}
+  .bx-t{background:#FFFFFF;border-radius:32px;padding:24px 26px;display:flex;flex-direction:column;gap:6px;min-width:0;color:#15161A;}
+  .bx-k{font-size:14px;font-weight:700;color:#55586A;}
+  .bx-v{font-size:30px;font-weight:900;letter-spacing:-.03em;line-height:1.15;}
+  .bx-s{font-size:14px;font-weight:600;color:#55586A;display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
+  .bx-n{font-size:12.5px;color:#7A7D8E;line-height:1.5;margin-top:auto;}
+  .bx-pill{display:inline-flex;align-items:center;gap:2px;border-radius:99px;padding:3px 10px;font-size:13px;font-weight:800;}
+  .bx-pill.up{background:#FFE9EA;color:#E5484D;} .bx-pill.down{background:#E6EEFF;color:#2F6BFF;} .bx-pill.flat{background:#F0F1F5;color:#55586A;}
+  .bx-hero{grid-column:span 2;grid-row:span 2;background:#3B3FD8;color:#FFFFFF;padding:30px 32px;gap:8px;}
+  .bx-hero .bx-k{color:#C9CBFF;font-size:15px;}
+  .bx-big{font-size:clamp(34px,4vw,52px);font-weight:900;letter-spacing:-.04em;line-height:1.1;}
+  .bx-hero .bx-s{color:#E2E3FF;font-size:15px;} .bx-hero .bx-s b{color:#FFFFFF;font-size:17px;}
+  .bx-hero .bx-pill.up{background:#FF6B70;color:#FFFFFF;} .bx-hero .bx-pill.down{background:#FFFFFF;color:#2F6BFF;} .bx-hero .bx-pill.flat{background:rgba(255,255,255,.2);color:#FFFFFF;}
+  .bx-hero-say{margin-top:12px;font-size:16px;line-height:1.65;color:#FFFFFF;} .bx-hero-say p{margin:0 0 6px;}
+  .bx-hero-say b, .bx-hero-say span{color:#FFFFFF !important;}
+  .bx-hero .bx-n{color:#B9BCFF;}
+  .bx-todo1{background:#FFE3D6;} .bx-todo{background:#FFF4EE;}
+  .bx-chip{align-self:flex-start;background:#15161A;color:#FFFFFF;border-radius:99px;padding:5px 12px;font-size:12.5px;font-weight:800;}
+  .bx-todo-t{font-size:17px;font-weight:800;line-height:1.45;letter-spacing:-.02em;margin-top:4px;}
+  .bx-todo-a{font-size:14px;line-height:1.55;color:#5A3A2C;font-weight:600;}
+  .bx-cats{grid-column:span 2;grid-row:span 2;}
+  .bx-h{margin:0 0 8px;font-size:18px;font-weight:900;letter-spacing:-.02em;} .bx-h span{font-size:13px;font-weight:600;color:#7A7D8E;margin-left:6px;}
+  .bx-bar{display:grid;grid-template-columns:110px minmax(0,1fr) 78px;align-items:center;gap:10px;border:0;background:none;padding:6px 6px;border-radius:12px;cursor:pointer;font-family:inherit;color:inherit;text-align:left;}
+  .bx-bar:hover{background:#F4F5F8;}
+  .bx-bn{font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .bx-bt{height:14px;background:#F0F1F5;border-radius:99px;overflow:hidden;} .bx-bt span{display:block;height:100%;border-radius:99px;}
+  .bx-bv{font-size:14px;font-weight:800;text-align:right;white-space:nowrap;}
+  .bx-upT{background:#FFF1F1;} .bx-dnT{background:#EEF3FF;}
+  .bx-p{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid rgba(0,0,0,.05);}
+  .bx-p:last-of-type{border-bottom:0;}
+  .bx-pn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:700;}
+  .bx-pn i{display:block;font-style:normal;font-size:12px;font-weight:500;color:#7A7D8E;overflow:hidden;text-overflow:ellipsis;}
+  .bx-p b{font-size:15px;white-space:nowrap;}
+  .bx-upT, .bx-dnT{grid-column:span 2;}
+  .bx-wide{grid-column:1 / -1;}
+  .bx-chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .bx-sc{border:0;border-radius:99px;padding:9px 16px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;background:#F0F1F5;color:#15161A;}
+  .bx-sc b{margin-left:4px;}
+  .bx-sc.down{background:#E6EEFF;} .bx-sc.down b{color:#2F6BFF;}
+  .bx-sc.up{background:#FFE9EA;} .bx-sc.up b{color:#E5484D;}
+  .bx-sc.flat b{color:#55586A;}
+  .bx-sc:hover{filter:brightness(.96);}
+  .bx-sub{font-size:22px;font-weight:900;letter-spacing:-.03em;margin:8px 4px 14px;color:#15161A;}
+  .bx-sec{margin:0 0 14px;padding:24px 28px;gap:4px;font-size:14px;}
+  .bx-sec .mix-sec-h{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:900;letter-spacing:-.02em;margin:0 0 10px;color:#15161A;border:0;padding:0;}
+  .bx-sec .mix-sec-h>span{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:30px;padding:0 10px;border-radius:99px;background:#15161A;color:#FFFFFF;font-size:13px;}
+  .bx-sec .mix-say{font-size:15px;line-height:1.7;}
+  tr.bx-flash td{background:#FFF4C2 !important;transition:background .3s;}
+  @media(max-width:1100px){ .bx-grid{grid-template-columns:repeat(2,minmax(0,1fr));} .bx-hero,.bx-cats{grid-row:auto;} }
+  @media(max-width:640px){ .bx-grid{grid-template-columns:1fr;} .bx-hero,.bx-cats,.bx-upT,.bx-dnT{grid-column:auto;} .bx-t{border-radius:24px;padding:20px;} .bx-bar{grid-template-columns:84px minmax(0,1fr) 66px;} #gsub-04 .agg-card{border-radius:24px;} }
   .mix-pgrid{display:grid;grid-template-columns:1.25fr 1fr;gap:12px;} @media(max-width:1100px){.mix-pgrid{grid-template-columns:1fr;}}
   .mix-pcol{min-width:0;} .mix-pn{max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;} .mix-pc{font-size:10.5px;color:var(--muted2);}
   .mix-f{display:inline-block;font-size:10px;border-radius:3px;padding:0 5px;margin-left:3px;background:var(--panel2);color:var(--muted);}
@@ -1404,7 +1483,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 235 · 2026-10-23</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 236 · 2026-10-23</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -1847,12 +1926,12 @@
         <span class="kk-q"><i>1</i>어떤 비딩?</span>
         <button class="act kk-ty" data-gen="ls"><span class="kk-dot"></span>정기비딩</button><button class="act kk-ty" data-gen="es"><span class="kk-dot"></span>임박식품</button><button class="act kk-ty" data-gen="fd"><span class="kk-dot"></span>FC파손</button><button class="act kk-ty" data-gen="dw"><span class="kk-dot"></span>데드우드</button>
         <span class="kk-sep"></span>
-        <button class="act primary kk-alldl" data-all-dl="1" style="font-weight:700" title="전체 출고요청서 다운로드 — ⑤ 배차요청 & 직출 분배표에 넣은 배차 요청 전부(고정인수 · 일반 리퀴 · 임박식품)를 출고일자별 시트로 한 파일에">⬇ 전체 출고요청서</button>
+        <button class="act primary kk-alldl" data-all-dl="1" style="font-weight:700" title="전체 출고요청서 다운로드 — ④ 배차요청 & 직출 분배표에 넣은 배차 요청 전부(고정인수 · 일반 리퀴 · 임박식품)를 출고일자별 시트로 한 파일에">⬇ 전체 출고요청서</button>
         <button class="act fi-mini fi-del kk-reset" data-reset="all" title="이 탭 전체 초기화 — ①~④에 올린 원본 · 입력칸 · 화면 결과를 모두 지웁니다 (각 기록은 그대로)">↺ 전체 초기화</button>
       </div>
       <div class="kk-row kk-row2">
         <span class="kk-q"><i>2</i>순서대로</span>
-        <a data-go="genSumBox" class="kk-st" title="원본 파일을 넣으면 요약 엑셀"><span class="kk-n">1</span><span class="kk-tt"><b>요약본</b><span class="kk-s" data-st="1"></span></span></a><a data-go="genBidBox" class="kk-st" title="낙찰받은 LOT를 고르면 낙찰파일"><span class="kk-n">2</span><span class="kk-tt"><b>낙찰파일</b><span class="kk-s" data-st="2"></span></span></a><a data-go="kdBox" class="kk-st" title="PLT를 매장별로 나누기"><span class="kk-n">3</span><span class="kk-tt"><b>매장 분배</b><span class="kk-s" data-st="3"></span></span></a><a data-go="fiBox" class="kk-st" title="고정 매장 낙찰파일"><span class="kk-n">4</span><span class="kk-tt"><b>고정인수</b><span class="kk-s" data-st="4"></span></span></a><a data-go="fiDispBox" class="kk-st" title="출고요청 메일 → 출고요청서 · 직출 분배"><span class="kk-n">5</span><span class="kk-tt"><b>배차 요청</b><span class="kk-s" data-st="5"></span></span></a>
+        <a data-go="genSumBox" class="kk-st" title="원본 파일을 넣으면 요약 엑셀"><span class="kk-n">1</span><span class="kk-tt"><b>요약본</b><span class="kk-s" data-st="1"></span></span></a><a data-go="genBidBox" class="kk-st" title="낙찰받은 LOT를 고르면 낙찰파일"><span class="kk-n">2</span><span class="kk-tt"><b>낙찰파일</b><span class="kk-s" data-st="2"></span></span></a><a data-go="kdBox" class="kk-st" title="PLT를 매장별로 나누기"><span class="kk-n">3</span><span class="kk-tt"><b>매장 분배</b><span class="kk-s" data-st="3"></span></span></a><a data-go="fiDispBox" class="kk-st" title="출고요청 메일 → 출고요청서 · 직출 분배"><span class="kk-n">4</span><span class="kk-tt"><b>배차 요청</b><span class="kk-s" data-st="5"></span></span></a>
       </div>
     </div>
     <!-- build 189: ①~⑥을 두 카드로 통합 — ① 요약본 생성기 · ② 낙찰파일 생성기 (위 버튼으로 정기비딩 · 임박식품 · FC파손 · 데드우드 선택, 두 카드가 같이 바뀜) -->
@@ -2044,6 +2123,23 @@
         <div id="fdHistory"></div>
       </div>
     </div>
+    <!-- build 236: ④ 고정인수를 ② 낙찰파일 생성기 안으로 옮김(유형과 상관없이 항상 보임) · build 111: 고정인수 — 쿠팡 리퀴데이션 고정 리스트(XLG/XLS/기저귀) → 낙찰파일(원본/종합/RAW) + 직출 분배표 + 카톡 문구 + 히스토리 -->
+    <div class="agg-card kk-sub" id="fiBox">
+      <div class="p-hd">
+        <span class="store-name">고정인수 낙찰파일 (XLG · XLS · XLD)</span>
+        <span class="meta" id="fiMeta"></span>
+        <button class="act fi-mini fi-del" data-reset="fi" style="margin-left:auto" title="화면의 이번 결과를 지웁니다 (분배 히스토리는 그대로)">↺ 초기화</button>
+      </div>
+      <div class="fi-body">
+        <div id="fiDrop" class="fi-drop" role="button" tabindex="0">
+          <div class="fi-drop-t">쿠팡 리퀴데이션 고정 리스트 파일을 여기에 끌어다 놓거나 클릭해서 선택</div>
+          <div class="fi-drop-s">XLG(XLGH) · XLS · 기저귀 등(XLD) 3개를 한 번에 올려도 됩니다 — 유형은 LOT 코드·파일명으로 자동 판별</div>
+        </div>
+        <input type="file" id="fiInput" accept=".xlsx,.xlsm,.xls" multiple hidden>
+        <div id="fiStatus" class="fi-status"></div>
+        <div id="fiResult"></div>
+      </div>
+    </div>
       </div>
     </div>
     <!-- build 214: ③ 매장 분배표 — 임박식품 · FC파손 낙찰파일 → 매장별 분배(통짜 우선 · 해체) -->
@@ -2069,26 +2165,9 @@
         <div id="kdResult"></div>
       </div>
     </div>
-    <!-- build 111: 고정인수 — 쿠팡 리퀴데이션 고정 리스트(XLG/XLS/기저귀) → 낙찰파일(원본/종합/RAW) + 직출 분배표 + 카톡 문구 + 히스토리 -->
-    <div class="agg-card" id="fiBox">
-      <div class="p-hd">
-        <span class="store-name">④ 고정인수 · 낙찰파일 생성</span>
-        <span class="meta" id="fiMeta"></span>
-        <button class="act fi-mini fi-del" data-reset="fi" style="margin-left:auto" title="화면의 이번 결과를 지웁니다 (분배 히스토리는 그대로)">↺ 초기화</button>
-      </div>
-      <div class="fi-body">
-        <div id="fiDrop" class="fi-drop" role="button" tabindex="0">
-          <div class="fi-drop-t">쿠팡 리퀴데이션 고정 리스트 파일을 여기에 끌어다 놓거나 클릭해서 선택</div>
-          <div class="fi-drop-s">XLG(XLGH) · XLS · 기저귀 등(XLD) 3개를 한 번에 올려도 됩니다 — 유형은 LOT 코드·파일명으로 자동 판별</div>
-        </div>
-        <input type="file" id="fiInput" accept=".xlsx,.xlsm,.xls" multiple hidden>
-        <div id="fiStatus" class="fi-status"></div>
-        <div id="fiResult"></div>
-      </div>
-    </div>
     <div class="agg-card" id="fiDispBox">
       <div class="p-hd">
-        <span class="store-name">⑤ 배차요청 & 직출 분배표</span>
+        <span class="store-name">④ 배차요청 & 직출 분배표</span>
         <span class="meta">쿠팡 출고일정 메일 · 임박식품(FC EOS) 입찰 결과 메일 → 입차코드·상차일시·도착지 표 + 물류업체 문구 + 엑셀</span>
         <button class="act fi-mini fi-del" data-reset="disp" style="margin-left:auto" title="직출 분배표 · 붙여넣은 글 · 인식 결과 · 합본 화면을 모두 지웁니다 (분배 히스토리 · 배차 요청 기록은 그대로)">↺ 초기화</button>
       </div>
@@ -2097,7 +2176,7 @@
         <div class="fi-sec-t" style="font-size:18px">직출 분배표 (고정인수)</div>
         <div id="fiPlanDrop" class="fi-drop" role="button" tabindex="0" style="padding:12px;margin-bottom:8px">
           <div class="fi-drop-t" style="font-size:15px">고정인수 낙찰파일(XLG · XLS · XLD 인수리스트 .xlsx)을 끌어다 놓거나 클릭 → 직출 분배표</div>
-          <div class="fi-drop-s">④에서 받은 낙찰파일 그대로 · 여러 개 한 번에 · 원본 고정 리스트도 됩니다 · <b>쿠팡 출고 요청 메일(.mhtml)을 놓으면 아래에 출고요청서</b> — ⑤ 카드 어디에 놓아도 파일 종류로 자동 처리</div>
+          <div class="fi-drop-s">② 고정인수에서 받은 낙찰파일 그대로 · 여러 개 한 번에 · 원본 고정 리스트도 됩니다 · <b>쿠팡 출고 요청 메일(.mhtml)을 놓으면 아래에 출고요청서</b> — ④ 카드 어디에 놓아도 파일 종류로 자동 처리</div>
         </div>
         <input type="file" id="fiPlanInput" accept=".xlsx,.xlsm,.xls,.mhtml,.mht,.html,.htm,.eml,image/*" multiple hidden>
         <div id="fiPlanStatus" class="fi-status"></div>
@@ -11985,7 +12064,7 @@ function mixSupplyEval(R){
 function mixSupplyEvalHtml(R){
   const rows = mixSupplyEval(R); if(!rows.length) return "";
   const won = v=> v==null ? "-" : `${Math.round(v/10000).toLocaleString()}만`, n1 = v=> v==null ? "-" : (Math.round(v*10)/10).toLocaleString();
-  const pc = v=> v==null ? "" : ` <span style="color:${v<0?"var(--red)":"var(--green)"}">${v>=0?"+":""}${Math.round(v*100)}%</span>`;
+  const pc = v=> v==null ? "" : ` <span style="color:${v<0?"var(--down)":"var(--up)"}">${v>=0?"+":""}${Math.round(v*100)}%</span>`;
   const cs = CENTER_STOCK && CENTER_STOCK.date ? `센터 재고 ${CENTER_STOCK.date} (${escHtml(CENTER_STOCK.file||"")})` : "센터 재고 없음 — 업로드용자료 › 이천센터재고현황 폴더(LOT재고현황)를 폴더 통째로 올리면 채워집니다";
   const ls = Array.isArray(STOCK_HISTORY) && STOCK_HISTORY.length ? `매장 재고 ${escHtml(STOCK_HISTORY[STOCK_HISTORY.length-1].label||STOCK_HISTORY[STOCK_HISTORY.length-1].date)}` : "매장 재고 없음";
   return `<p class="mix-say">매출을 <b>공급 PLT(센터·본사 출고)</b>, <b>매장 재고</b>, <b>센터 재고</b>와 함께 봅니다. 공급은 월 합계를 날짜 비율로 나눈 하루 평균입니다(공급 자료는 ${(shipMonths()||[]).slice().sort()[0]||"-"}부터). · ${ls} · ${cs}</p>
@@ -12051,7 +12130,7 @@ function mixReport(R){
   const bulkD = R.down.filter(r=>r.bulk && r.d<=-200000).slice(0,3), bulkU = R.up.filter(r=>r.bulk && r.d>=200000).slice(0,3);
   if(bulkD.length && bulkU.length) g.push({ h:"코드가 바뀐 것일 수 있는 매출", items: [`줄어든 묶음 코드 ${bulkD.map(r=>`${E(r.name)}(${man(r.d)})`).join(", ")} · 늘어난 묶음 코드 ${bulkU.map(r=>`${E(r.name)}(${man(r.d)})`).join(", ")} — 상품 코드만 바뀐 것이면 실제 하락이 아닙니다.`] });
   const s2 = g.map(x=>`<div class="mix-grp"><div class="mix-grp-h">${x.h}${x.w?` <span class="mix-f stop">${x.w}</span>`:""}</div><ul>${x.items.map(i=>`<li>${i}</li>`).join("")}</ul></div>`).join("");
-  return { concl, s1, s2 };
+  return { concl, s1, s2, lines };
 }
 function mixActions(R){
   const out = [], man = v=> `${v<0?"−":(v>0?"+":"")}${Math.abs(Math.round(v/10000)).toLocaleString()}만`, lv = v=> `${Math.round(v/10000).toLocaleString()}만`;
@@ -12108,7 +12187,7 @@ function mixPanelHtml(){
   const won = v=> `${Math.round(v/10000).toLocaleString()}만`;
   const pc = (a,b)=> a>0 ? (b/a-1)*100 : null;
   const pcs = v=> v==null ? "-" : `${v>=0?"+":""}${v.toFixed(0)}%`;
-  const col = v=> v==null ? "" : (v<0 ? "color:var(--red)" : "color:var(--green)");
+  const col = v=> v==null ? "" : (v<0 ? "color:var(--down)" : v>0 ? "color:var(--up)" : "");   // build 236: 감소 파랑 · 증가 빨강
   const t = R.tot;
   const kpi = (k, a, b, f, note)=>{ const p = pc(a,b); return `<div class="mix-kpi"><span class="k">${k}</span><span class="v">${f(a)} → <b>${f(b)}</b></span><span class="p" style="${col(p)}">${pcs(p)}</span>${note?`<span class="n">${note}</span>`:""}</div>`; };
   const gap = (t.aB-t.aA) - (t.sB-t.sA);
@@ -12118,7 +12197,7 @@ function mixPanelHtml(){
     ${kpi("객단가", t.uA, t.uB, v=>Math.round(v).toLocaleString()+"원", "실매출액 ÷ 건수")}
     ${t.kA>0 && t.kB>0 ? kpi("하루 팔린 품목 수", t.kA, t.kB, v=>Math.round(v).toLocaleString()+"개", R.store ? "이 매장, 바코드 기준" : "전 매장 합, 바코드 기준") : `<div class="mix-kpi"><span class="k">하루 팔린 품목 수</span><span class="v">-</span><span class="n">매장별 세부 자료(매출구성_자료_v2.json)를 올리면 보입니다</span></div>`}
   </div>`;
-  const per = `<div class="mix-per">비교: <b>${escHtml(R.P.bl)}</b> vs ${escHtml(R.P.al)} · 모두 <b>하루 평균</b> · ${R.store ? `<b>${escHtml(R.store)}</b>만` : "분류·상품은 전 매장 합계"}${R.noDetail ? ` · <span style="color:var(--amber)">${R.noDetail}일은 매장별 세부 자료가 없어 대분류만 반영</span>` : ""}</div>`;
+  const per = `<div class="mix-per">비교: <b>${escHtml(R.P.bl)}</b> vs ${escHtml(R.P.al)} · 모두 <b>하루 평균</b> · ${R.store ? `<b>${escHtml(R.store)}</b>만` : "분류·상품은 전 매장 합계"}${R.noDetail ? ` · <span style="color:var(--down)">${R.noDetail}일은 매장별 세부 자료가 없어 대분류만 반영</span>` : ""}</div>`;
   const acts = mixActions(R);
   const actHtml = acts.length ? `<div class="mix-act"><div class="mix-act-hd">원인과 해결방안</div><ol>${acts.map(a=>`<li><span class="mix-tag">${escHtml(a.k)}</span> ${a.t}<div class="mix-do">→ ${a.a}</div></li>`).join("")}</ol></div>` : "";
   const catRow = (r, sub)=> `<tr class="${sub?"mix-sub":""}"><td>${escHtml(sub ? (r.cat.split(" > ")[1]||"(세부 없음)") : r.cat)}</td><td class="r">${won(r.amtA)}</td><td class="r">${won(r.amtB)}</td><td class="r" style="${col(r.d)}"><b>${man(r.d)}</b></td><td class="r" style="${col(r.pct)}">${pcs(r.pct)}</td><td class="r">${Math.round(r.skuA)}→${Math.round(r.skuB)}</td><td class="r">${Math.round(r.perA/1000)}→${Math.round(r.perB/1000)}천</td><td><span class="mix-j ${r.cls}">${r.tag}</span></td></tr>`;
@@ -12142,20 +12221,53 @@ function mixPanelHtml(){
   }
   const RP = mixReport(R);   // build 235: 채팅 분석처럼 자세히
   const sec = (n, title, body)=> `<section class="mix-sec"><h3 class="mix-sec-h"><span>${n}</span>${title}</h3>${body}</section>`;
-  return head + bar + per + kpis + RP.concl
-    + sec(1, "카테고리별 변화 (하루 평균)", RP.s1 + catHtml)
-    + (()=>{ try{ const h = mixSupplyEvalHtml(R); return h ? sec("1-2", "공급 · 매장 재고 · 센터 재고로 본 평가", h) : ""; }catch(e){ console.warn("mix eval", e); return ""; } })()
-    + sec(2, "상품별 원인", (RP.s2 || '<p class="mix-say">눈에 띄는 상품 변화가 없습니다.</p>') + prodHtml)
-    + (R.store ? "" : sec(3, "매장별", stHtml))
-    + sec(R.store ? 3 : 4, "해결방안", actHtml || '<p class="mix-say">따로 할 일이 없습니다.</p>')
-    + hwHtml +
+  // build 236: 시안 4 벤토 — 위에 한눈에 보는 타일, 아래에 자세한 분석 타일
+  const DOWN = "var(--down)", UP = "var(--up)";
+  const dPill = (a,b)=>{ const p = pc(a,b); if(p==null) return ""; const c = p<0 ? "down" : p>0 ? "up" : "flat"; return `<span class="bx-pill ${c}">${p<0?"▼":p>0?"▲":"–"} ${Math.abs(p).toFixed(p!==0&&Math.abs(p)<1?1:0)}%</span>`; };
+  const tileKpi = (label, a, b, f, note)=> `<div class="bx-t bx-kpi"><span class="bx-k">${label}</span><span class="bx-v">${f(b)}</span><span class="bx-s">전 ${f(a)} ${dPill(a,b)}</span>${note?`<span class="bx-n">${note}</span>`:""}</div>`;
+  const hero = `<div class="bx-t bx-hero"><span class="bx-k">${R.store ? `${escHtml(R.store)} 하루 매출` : `하루 매출 · 기존점 ${R.same.length}곳`}</span>
+      <span class="bx-big">${won(t.sB)}원</span><span class="bx-s">전 ${won(t.sA)}원 ${dPill(t.sA,t.sB)} <b>${man(t.sB-t.sA)}원</b></span>
+      <div class="bx-hero-say">${(RP.lines||[]).slice(1,3).map(l=>`<p>${l}</p>`).join("")}</div>
+      <span class="bx-n">${escHtml(R.P.bl)} vs ${escHtml(R.P.al)} · 하루 평균${!R.store && Math.abs(gap)>=100000 ? ` · 폐점·신규 영향 ${man(gap)}원 제외` : ""}</span></div>`;
+  const todoT = (a, i)=> !a ? "" : `<div class="bx-t ${i===0?"bx-todo1":"bx-todo"}"><span class="bx-chip">할 일 ${i+1} · ${escHtml(a.k)}</span><div class="bx-todo-t">${a.t}</div><div class="bx-todo-a">→ ${a.a}</div></div>`;
+  const catTop = R.cats.filter(c=>Math.abs(c.d)>=10000).sort((x,y)=>Math.abs(y.d)-Math.abs(x.d)).slice(0,10).sort((x,y)=>x.d-y.d);
+  const cmax = Math.max(1, ...catTop.map(c=>Math.abs(c.d)));
+  const catBars = `<div class="bx-t bx-cats"><h3 class="bx-h">분류별 하루 변화</h3>${catTop.map(c=>`<button type="button" class="bx-bar" data-mix-jump="${escHtml(c.cat)}" title="${escHtml(c.cat)} · ${escHtml(c.tag)}"><span class="bx-bn">${escHtml(c.cat)}</span><span class="bx-bt"><span style="width:${(Math.abs(c.d)/cmax*100).toFixed(1)}%;background:${c.d<0?DOWN:UP}"></span></span><span class="bx-bv" style="color:${c.d<0?DOWN:UP}">${man(c.d)}</span></button>`).join("")}<span class="bx-n"><span style="color:${UP}">■</span> 늘어남 · <span style="color:${DOWN}">■</span> 줄어듦</span></div>`;
+  const pList = (list, cls, title)=> `<div class="bx-t ${cls}"><h3 class="bx-h">${title}</h3>${list.length ? list.map(r=>`<div class="bx-p"><span class="bx-pn" title="${escHtml(r.name)}">${escHtml(r.name)}<i>${escHtml(r.cat)}${r.stop?" · 판매 끊김":""}${r.isNew?" · 새 상품":""}${r.daily?" · 매일 팔리던 상품":""}</i></span><b style="color:${r.d<0?DOWN:UP}">${man(r.d)}</b></div>`).join("") : '<p class="bx-n">없음</p>'}</div>`;
+  const upP = R.up.filter(r=>!r.bulk).slice(0,5), dnP = R.down.filter(r=>!r.bulk).slice(0,5);
+  const stChips = R.store ? "" : `<div class="bx-t bx-wide"><h3 class="bx-h">매장 <span>누르면 그 매장만 분석</span></h3><div class="bx-chips">${R.stRows.filter(r=>r.same).map(r=>{ const p = r.pct||0, k = p<=-10 ? "down" : p>=10 ? "up" : "flat"; return `<button type="button" class="bx-sc ${k}" data-mix-pick="${escHtml(r.s)}">${escHtml(r.s)} <b>${p>0?"+":p<0?"−":""}${Math.abs(Math.round(p))}%</b></button>`; }).join("")}</div></div>`;
+  const kTile = t.kA>0 && t.kB>0 ? tileKpi("하루 팔린 품목 수", t.kA, t.kB, v=>Math.round(v).toLocaleString()+"개", R.store ? "이 매장 · 바코드 기준" : "전 매장 · 바코드 기준") : `<div class="bx-t bx-kpi"><span class="bx-k">하루 팔린 품목 수</span><span class="bx-v">-</span><span class="bx-n">매장별 세부 자료(v2)를 올리면 보입니다</span></div>`;
+  const basisT = `<div class="bx-t bx-kpi"><span class="bx-k">비교 기간</span>${mixBasisLines(ui, R.P).slice(3,6).map(x=>`<span class="bx-n" style="font-size:13px">${x}</span>`).join("")}</div>`;
+  const bento = `<div class="bx-grid">
+      ${hero}
+      ${tileKpi(t.payLabel.split("(")[0], t.pA, t.pB, v=>Math.round(v).toLocaleString()+"건", t.payLabel.includes("(") ? t.payLabel.slice(t.payLabel.indexOf("(")+1, -1) : "")}
+      ${tileKpi("객단가", t.uA, t.uB, v=>Math.round(v).toLocaleString()+"원", "실매출액 ÷ 건수")}
+      ${todoT(acts[0],0) || '<div class="bx-t bx-todo1"><span class="bx-chip">할 일</span><div class="bx-todo-t">따로 할 일이 없습니다.</div></div>'}
+      ${catBars}
+      ${todoT(acts[1],1)}${todoT(acts[2],2)}
+      ${kTile}${basisT}
+      ${pList(upP, "bx-upT", "늘어난 상품")}${pList(dnP, "bx-dnT", "줄어든 상품")}
+      ${stChips}
+    </div>`;
+  const tile = (n, title, body)=> `<section class="bx-t bx-sec"><h3 class="mix-sec-h"><span>${n}</span>${title}</h3>${body}</section>`;
+  return head + bar + per + bento
+    + `<h2 class="bx-sub">자세한 분석</h2>`
+    + tile("결론", "한눈에", RP.concl.replace('<div class="mix-concl"><div class="mix-concl-hd">결론</div>','<div class="mix-concl">'))
+    + tile(1, "카테고리별 변화 (하루 평균)", RP.s1 + catHtml)
+    + (()=>{ try{ const h = mixSupplyEvalHtml(R); return h ? tile("1-2", "공급 · 매장 재고 · 센터 재고로 본 평가", h) : ""; }catch(e){ console.warn("mix eval", e); return ""; } })()
+    + tile(2, "상품별 원인", (RP.s2 || '<p class="mix-say">눈에 띄는 상품 변화가 없습니다.</p>') + prodHtml)
+    + (R.store ? "" : tile(3, "매장별", stHtml))
+    + tile(R.store ? 3 : 4, "해결방안 전체", actHtml || '<p class="mix-say">따로 할 일이 없습니다.</p>')
+    + (hwHtml ? tile("+", "시간대 · 요일", hwHtml) : "") +
     `<div class="mix-note">상품 구성 자료: ${days[0]} ~ ${days[days.length-1]} (${days.length}일)${_mixCloudErr?` · <span style="color:var(--red)">서버 저장 실패(${escHtml(_mixCloudErr)}) — 이 PC에서만 보입니다</span>`:""}</div>`;
 }
 let _mixWired = false;
 function wireMixPanel(){
   if(_mixWired) return; _mixWired = true;
   document.addEventListener("click", e=>{
-    const b = e.target && e.target.closest ? e.target.closest("[data-mix-unit],[data-mix-base],[data-mix-preset],tr[data-mix-c1],tr[data-mix-pick]") : null; if(!b) return;
+    const b = e.target && e.target.closest ? e.target.closest("[data-mix-unit],[data-mix-base],[data-mix-preset],[data-mix-jump],tr[data-mix-c1],[data-mix-pick]") : null; if(!b) return;
+    if(b.dataset.mixJump!=null){ const k = b.dataset.mixJump; const tr = [...document.querySelectorAll("tr[data-mix-c1]")].find(x=>x.getAttribute("data-mix-c1")===k);
+      if(tr){ if(!tr.classList.contains("open")) tr.click(); const dt = tr.closest("details"); if(dt) dt.open = true; tr.scrollIntoView({behavior:"smooth", block:"center"}); tr.classList.add("bx-flash"); setTimeout(()=>tr.classList.remove("bx-flash"), 1600); } return; }
     if(b.dataset.mixPick!=null){ mixUiSet({ store:b.dataset.mixPick }); mixRerender(); const w = document.getElementById("mixWrap"); if(w && w.scrollIntoView) w.scrollIntoView({behavior:"smooth", block:"start"}); return; }
     if(b.dataset.mixC1!=null){ const k = b.dataset.mixC1; const open = !b.classList.contains("open"); b.classList.toggle("open", open);
       document.querySelectorAll(`tr[data-mix-of]`).forEach(tr=>{ if(tr.getAttribute("data-mix-of")===k) tr.hidden = !open; }); return; }
@@ -14523,7 +14635,7 @@ async function fiHandleFiles(fileList, opt){
     }catch(e){ errs.push(`${b.outName}: 엑셀 생성 실패 ${e && e.message || e}`); }
   });
   fiSaveCurrentToHistory(true);
-  if(opt.statusId && opt.statusId!=="fiStatus"){ const s0 = document.getElementById("fiStatus"); if(s0) s0.textContent = `⑤에서 올린 고정인수 낙찰파일 ${builds.length}개로 분배표를 만들었습니다`; }   // build 221
+  if(opt.statusId && opt.statusId!=="fiStatus"){ const s0 = document.getElementById("fiStatus"); if(s0) s0.textContent = `④에서 올린 고정인수 낙찰파일 ${builds.length}개로 분배표를 만들었습니다`; }   // build 221
   st.innerHTML = `✓ ${opt.fromDisp?"고정인수 낙찰파일 "+builds.length+"개 읽음 → 직출 분배표 작성":builds.length+"개 낙찰파일 생성"} · ${reused?"같은 날 기존 분배표(수정 포함)를 그대로 불러옴 — 새로 나누려면 아래 설정의 \"다시 분배\"":"분배표 작성 완료"} (히스토리 저장됨)` + (errs.length ? `<br><span style="color:var(--red)">${errs.map(escHtml).join("<br>")}</span>` : "");
   if(opt.fromDisp && opt.statusId!=="fiPlanStatus"){ const ps = document.getElementById("fiPlanStatus"); if(ps) ps.innerHTML = st.innerHTML; }   // build 223: 직출 분배표 칸 바로 아래에도 같은 안내
   fiRender();
@@ -14637,8 +14749,8 @@ function fiRender(){
   const snap = fiLatestSnap();
   if(meta) meta.textContent = snap ? `매장 재고 기준 ${snap.date} (최신 스냅샷)` : "매장 재고 데이터 없음 — 재고 없이 거리만으로 분배";
   const planEl = document.getElementById("fiPlanResult");   // build 189: 직출 분배표 · 카톡 문구는 ④ 배차요청 & 직출 분배표 카드로
-  if(!_fiCur){ wrap.innerHTML = `<div class="fi-empty">아직 이번 화면에서 만든 결과가 없습니다. 위에 파일을 놓으면 낙찰파일이 여기에, 직출 분배표는 ⑤ 배차요청 & 직출 분배표에 나옵니다. 지난 분배표는 아래 분배 히스토리에서 볼 수 있습니다.</div>`;
-    if(planEl) planEl.innerHTML = `<div class="fi-empty">④ 고정인수에 리스트 파일을 올리거나, 위 칸에 ④에서 받은 고정인수 낙찰파일을 놓으면 여기에 직출 분배표와 카톡 문구가 나옵니다.</div>`; fiRenderHistory(); return; }
+  if(!_fiCur){ wrap.innerHTML = `<div class="fi-empty">아직 이번 화면에서 만든 결과가 없습니다. 위에 파일을 놓으면 낙찰파일이 여기에, 직출 분배표는 ④ 배차요청 & 직출 분배표에 나옵니다. 지난 분배표는 아래 분배 히스토리에서 볼 수 있습니다.</div>`;
+    if(planEl) planEl.innerHTML = `<div class="fi-empty">② 낙찰파일 생성기 · 고정인수에 리스트 파일을 올리거나, 위 칸에 거기서 받은 고정인수 낙찰파일을 놓으면 여기에 직출 분배표와 카톡 문구가 나옵니다.</div>`; fiRenderHistory(); return; }
   _fiCur.stockMap = fiEffStock(fiLatestSnap(), _fiCur.id, fiCurDate());   // build 113/114: 최신 스냅샷 + 미반영 출고
   const c = _fiCur, live = !!c.builds[0] && !!c.builds[0].raw;
   let h = `<div class="fi-sec-t">낙찰파일 (인수리스트) <button class="act fi-mini fi-del" id="fiCurDel" title="화면에서 이번 결과 닫기 (히스토리 기록은 아래 분배 히스토리에서 ✕로 삭제)">✕ 결과 닫기</button></div><div class="fi-files">`;
@@ -14656,7 +14768,7 @@ function fiRender(){
   });
   h += `</div>`;
   if(live && c.builds.length>1) h += `<button class="act fi-mini" id="fiDlAll" style="margin-top:8px">⬇ 낙찰파일 모두 다운로드</button>`;
-  if(planEl){ h += `<div class="fi-mut" style="margin-top:8px">직출 분배표 · 카톡 문구 → 아래 <b>⑤ 배차요청 &amp; 직출 분배표</b></div>`; wrap.innerHTML = h; h = ""; }
+  if(planEl){ h += `<div class="fi-mut" style="margin-top:8px">직출 분배표 · 카톡 문구 → 아래 <b>④ 배차요청 &amp; 직출 분배표</b></div>`; wrap.innerHTML = h; h = ""; }
   h += `<div class="fi-sec-t">직출 분배표 <span class="fi-mut">하차 매장·PLT를 바꾸면 카톡 문구와 히스토리가 바로 갱신됩니다</span></div>`;
   const pu = ((c.stockMap||{}).__pending||[]).filter(u=>u.XLS||u.XLG);
   const sd = (fiLatestSnap()||{}).date || "";
@@ -14910,8 +15022,8 @@ const TD_STEPS = [   // build 190: 화면 순서대로 ① 요약본(정기·임
   { k:"liq", n:"②", t:"낙찰파일 · 정기비딩", card:"liqBox", hist:()=> typeof LIQ_HISTORY!=="undefined" ? LIQ_HISTORY : [] },
   { k:"eos", n:"②", t:"낙찰파일 · 임박", card:"eosBox", hist:()=> typeof EOS_HISTORY!=="undefined" ? EOS_HISTORY : [] },
   { k:"fd",  n:"②", t:"낙찰파일 · FC파손·데드우드", card:"fdBox", hist:()=> typeof FD_HISTORY!=="undefined" ? FD_HISTORY : [] },
-  { k:"fi",  n:"④", t:"고정인수 낙찰파일", card:"fiBox", hist:()=> typeof FIXED_INTAKE_HISTORY!=="undefined" ? FIXED_INTAKE_HISTORY : [] },
-  { k:"disp",n:"⑤", t:"배차요청 · 직출 분배", card:"fiDispBox", hist:()=> typeof FI_DISPATCH_HISTORY!=="undefined" ? FI_DISPATCH_HISTORY : [] },
+  { k:"fi",  n:"②", t:"고정인수 낙찰파일", card:"fiBox", hist:()=> typeof FIXED_INTAKE_HISTORY!=="undefined" ? FIXED_INTAKE_HISTORY : [] },
+  { k:"disp",n:"④", t:"배차요청 · 직출 분배", card:"fiDispBox", hist:()=> typeof FI_DISPATCH_HISTORY!=="undefined" ? FI_DISPATCH_HISTORY : [] },
 ];
 function tdCard(s){ if(s.card && s.card[0]!=="⑦"){ const e = document.getElementById(s.card); if(e){ const g = GEN_SHOW[e.id]; if(g && !g.split(" ").includes(_genTab)) genTab(g.split(" ")[0]); return e; } }
   const h = Array.from(document.querySelectorAll("#view-fixed .store-name")).find(x=> x.textContent.trim().startsWith(s.n)); return h ? h.closest(".agg-card") : null; }
@@ -20840,7 +20952,7 @@ async function fiHbAuto(gesture){
   try{ await Promise.race([ fiHbRefresh(!!gesture), new Promise(r=> setTimeout(r, 4000)) ]); }catch(_){}
 }
 async function fiHbConnect(){
-  if(typeof window.showOpenFilePicker!=="function"){ _fiHbMsg = "이 브라우저는 파일 연결을 지원하지 않습니다 — 2026_쿠팡 낙찰금액.xlsx를 ⑤에 끌어다 놓아 주세요(크롬 · 엣지 PC에서는 연결 가능)"; fiHbRenderBar(); return; }
+  if(typeof window.showOpenFilePicker!=="function"){ _fiHbMsg = "이 브라우저는 파일 연결을 지원하지 않습니다 — 2026_쿠팡 낙찰금액.xlsx를 ④에 끌어다 놓아 주세요(크롬 · 엣지 PC에서는 연결 가능)"; fiHbRenderBar(); return; }
   let hs; try{ hs = await window.showOpenFilePicker({ multiple:false, types:[{ description:"쿠팡 낙찰금액 엑셀", accept:{ "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":[".xlsx"], "application/vnd.ms-excel.sheet.macroEnabled.12":[".xlsm"] } }] }); }catch(_){ return; }
   const h = hs && hs[0]; if(!h) return;
   try{ await _idbSetRaw(FI_HB_HANDLE, h); }catch(_){}
@@ -20931,7 +21043,7 @@ function fiHbRenderBar(){
   if(H && H.rows){
     const last = H.rows.map(x=> x.bd).filter(Boolean).sort().pop() || "";
     h += `<span>${escHtml(H.name)} · ${escHtml((H.sheets||[]).join(","))} 시트 ${H.rows.length}행${last?` (마지막 낙찰일 ${escHtml(last)})`:""} · 파일 ${H.mtime ? escHtml(new Date(H.mtime).toLocaleString("ko-KR")) : "-"} · 읽은 시각 ${escHtml(new Date(H.checkedAt||H.at).toLocaleString("ko-KR"))}</span> `;
-  } else h += `<span class="fi-mut">아직 없음 — 연결하거나 2026_쿠팡 낙찰금액.xlsx를 ⑤에 끌어다 놓으면, 메일의 입차코드(BIDCODE)와 출고센터(GroupNumber 뒤 영문 센터)로 종합 시트를 찾아 출고지를 도착지로 채웁니다</span> `;
+  } else h += `<span class="fi-mut">아직 없음 — 연결하거나 2026_쿠팡 낙찰금액.xlsx를 ④에 끌어다 놓으면, 메일의 입차코드(BIDCODE)와 출고센터(GroupNumber 뒤 영문 센터)로 종합 시트를 찾아 출고지를 도착지로 채웁니다</span> `;
   if(can) h += `<button class="act fi-mini" id="fiHbConnect" title="필요자료 폴더의 2026_쿠팡 낙찰금액.xlsx를 한 번 고르면, 메일을 넣을 때마다 최신 내용을 다시 읽습니다">📂 ${H?"다른 파일 연결":"낙찰금액 파일 연결"}</button> `;
   if(can && H) h += `<button class="act fi-mini" id="fiHbReload" title="연결한 낙찰금액 파일을 지금 다시 읽기">↻ 다시 읽기</button> `;
   if(_fiHbPerm==="prompt") h += `<div style="margin-top:4px;color:var(--amber)">🔓 크롬이 낙찰금액 파일 읽기 허용을 기다립니다 — <button class="act fi-mini" id="fiHbAllow">허용하고 다시 읽기</button> (권한 창에서 <b>"방문할 때마다 허용"</b>을 고르면 다음부터 메일만 넣어도 자동으로 최신 낙찰금액 파일을 읽습니다 · 지금은 마지막으로 읽은 내용으로 찾음)</div>`;
@@ -21656,7 +21768,7 @@ document.addEventListener("click", e=>{
   const b = e.target.closest && e.target.closest("button[data-all-dl]"); if(!b) return;
   e.preventDefault(); e.stopPropagation();
   const C = fiComboBuild();
-  if(!C.rows.length){ showNotice("받을 출고요청이 없습니다 — ⑤ 배차요청 & 직출 분배표에 메일(.mhtml)·글·캡처를 넣거나, 배차 요청 기록에서 '열기'로 올려 주세요."); return; }
+  if(!C.rows.length){ showNotice("받을 출고요청이 없습니다 — ④ 배차요청 & 직출 분배표에 메일(.mhtml)·글·캡처를 넣거나, 배차 요청 기록에서 '열기'로 올려 주세요."); return; }
   const lk = C.ents.filter(h=> !_fiCombo.off[h.id]).map(h=>({ h, s:fiComboState(h) })).filter(x=> x.s.pending || x.s.destMiss);
   if(lk.length){ showNotice("아직 끝나지 않은 배차 요청이 있습니다 — " + lk.map(x=> `${fiComboLabel(x.h)}: ${[x.s.pending?`확인 질문 ${x.s.pending}개`:"", x.s.destMiss?`도착지 미선택 ${x.s.destMiss}곳`:""].filter(Boolean).join(" · ")}`).join(" / ")); const el=document.getElementById("fiDispCombo"); if(el) el.scrollIntoView({behavior:"smooth"}); return; }
   const ds = C.dates.filter(Boolean), tag = ds.length ? (ds.length>1 ? `${ds[0].replace(/-/g,"")}-${ds[ds.length-1].slice(5).replace(/-/g,"")}` : ds[0].replace(/-/g,"")) : "날짜미정";
@@ -21666,17 +21778,17 @@ document.addEventListener("click", e=>{
   const b = e.target.closest && e.target.closest("button[data-reset]"); if(!b) return;
   e.preventDefault(); e.stopPropagation();
   const k = b.dataset.reset;
-  const name = { ls:"① 요약본 생성기 · 정기비딩", liq:"② 낙찰파일 생성기 · 정기비딩", es:"① 요약본 생성기 · 임박식품", eos:"② 낙찰파일 생성기 · 임박식품", fds:"① 요약본 생성기 · FC파손/데드우드", fd:"② 낙찰파일 생성기 · FC파손/데드우드", kd:"③ 매장 분배표", fi:"④ 고정인수 · 낙찰파일 생성", disp:"⑤ 배차요청 & 직출 분배표" }[k];
+  const name = { ls:"① 요약본 생성기 · 정기비딩", liq:"② 낙찰파일 생성기 · 정기비딩", es:"① 요약본 생성기 · 임박식품", eos:"② 낙찰파일 생성기 · 임박식품", fds:"① 요약본 생성기 · FC파손/데드우드", fd:"② 낙찰파일 생성기 · FC파손/데드우드", kd:"③ 매장 분배표", fi:"② 낙찰파일 생성기 · 고정인수", disp:"④ 배차요청 & 직출 분배표" }[k];
   if(k==="all"){
-    if(!confirm("①~⑤에 올린 원본 파일 · 입력한 LOT · 화면 결과를 모두 지울까요?\n(낙찰파일 기록 · 분배 히스토리 · 배차 요청 기록은 그대로 남습니다)")) return;
+    if(!confirm("①~④에 올린 원본 파일 · 입력한 LOT · 화면 결과를 모두 지울까요?\n(낙찰파일 기록 · 분배 히스토리 · 배차 요청 기록은 그대로 남습니다)")) return;
     ["ls","liq","es","eos","fds","fd","kd","fi","disp"].forEach(fiResetCard); if(typeof flash==="function") flash("초기화 완료 ✓", "업로드 자료"); return;
   }
   if(k==="dispAll"){
     const n = (FI_DISPATCH_HISTORY||[]).length;
-    if(!confirm(`⑤ 배차요청 & 직출 분배표의 배차 요청서를 전체 초기화할까요?\n인식 결과 · 붙여넣은 글과 함께 배차 요청 기록 ${n}개(합본 대상)를 모두 삭제합니다.`)) return;
+    if(!confirm(`④ 배차요청 & 직출 분배표의 배차 요청서를 전체 초기화할까요?\n인식 결과 · 붙여넣은 글과 함께 배차 요청 기록 ${n}개(합본 대상)를 모두 삭제합니다.`)) return;
     fiResetCard("dispAll"); return;
   }
-  if(!confirm(k==="disp" ? `⑤ 배차요청 & 직출 분배표를 전체 초기화할까요?\n직출 분배표 · 올린 낙찰파일 · 붙여넣은 글 · 인식 결과 · 합본 화면을 모두 지웁니다.\n(분배 히스토리 · 배차 요청 기록은 그대로 — ④ 화면의 이번 낙찰파일 결과도 같이 닫힙니다)`
+  if(!confirm(k==="disp" ? `④ 배차요청 & 직출 분배표를 전체 초기화할까요?\n직출 분배표 · 올린 낙찰파일 · 붙여넣은 글 · 인식 결과 · 합본 화면을 모두 지웁니다.\n(분배 히스토리 · 배차 요청 기록은 그대로 — ④ 화면의 이번 낙찰파일 결과도 같이 닫힙니다)`
     : `${name}의 올린 원본 · 입력칸 · 화면 결과를 지울까요? (기록은 그대로)`)) return;
   fiResetCard(k);
 }, true);
