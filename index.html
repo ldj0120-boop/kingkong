@@ -1357,7 +1357,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 231 · 2026-10-22</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 232 · 2026-10-23</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -12669,10 +12669,11 @@ renderDataQuality(); // 새로고침 직후에도 이전에 저장된 미매칭/
 selectTab("agg");
 if(restoredState) showNotice("마지막으로 저장된 재고·출고 데이터를 불러왔습니다.");
 // IndexedDB(대용량·최신)에 저장된 전체 데이터가 있으면 그걸로 덮어쓰고 다시 그린다(localStorage 초과분까지 복원).
+var _idbStateDone = false;   // build 232: 이 브라우저 저장본을 다 읽었는지(자동 맞추기 비교 기준)
 idbGet("state").then(async st=>{
-  if(!st) return;
+  if(!st){ _idbStateDone = true; try{ maybeAutoAdoptCloud("idb"); }catch(_){} return; }
   const r = applyStateObject(st);
-  if(!r) return;
+  if(!r){ _idbStateDone = true; try{ maybeAutoAdoptCloud("idb"); }catch(_){} return; }
   // ★ 집계 로직이 올라갔고 원본 파일이 보관돼 있으면, 사용자가 아무것도 안 해도 여기서 다시 계산한다.
   // (예전에는 이때 "파일을 다시 올려주세요" 배너만 띄웠고, 파서를 고칠 때마다 4종을 재업로드해야 했다)
   let reparsed = [];
@@ -12693,7 +12694,8 @@ idbGet("state").then(async st=>{
     ? `저장된 전체 데이터를 불러왔습니다. 집계 로직이 업데이트되어 보관된 원본으로 ${reparsed.map(s=>PARSE_SRC_LABEL[s]||s).join(" · ")}를 자동으로 다시 계산했습니다 — 재업로드하실 필요 없습니다.`
     : "저장된 전체 데이터를 불러왔습니다 (대용량 포함).")
     + (skippedTxt ? ` ⚠ 자동 재계산을 건너뛴 항목 — ${skippedTxt}. 새 로직을 반영하려면 해당 원본 파일을 다시 올려주세요.` : ""));
-}).catch(()=>{});
+  _idbStateDone = true; try{ maybeAutoAdoptCloud("idb"); }catch(_){}
+}).catch(()=>{ _idbStateDone = true; try{ maybeAutoAdoptCloud("idb"); }catch(_){} });
 
 /* ================= 실시간 공유 (Firebase Realtime Database) ================= */
 const FIREBASE_CONFIG = {   // build 175: ldj0120@kinggo.ai 계정의 새 프로젝트(kingkong-kinggo)로 이전 — 쓰기는 규칙으로 관리자 계정만
@@ -12814,6 +12816,46 @@ function showPushGuard(why){
   if(a) a.onclick = ()=>{ a.disabled = true; a.textContent = "맞추는 중…"; adoptCloudState(); };
   if(f) f.onclick = ()=>{ if(!confirm("클라우드 데이터를 이 브라우저 데이터로 덮어씁니다. 계속할까요?")) return; _pushOverride = true; hidePushGuard(); cloudPush(); };
 }
+/* build 232: 휴대폰·다른 PC처럼 이 브라우저 저장본이 클라우드보다 "뒤처지기만" 한 경우(어느 항목도 클라우드보다 많지 않고,
+   하나라도 적음)는 묻지 않고 클라우드 최신 데이터로 바로 맞춘다. 이 브라우저에만 있는 자료가 하나라도 있으면(앞선 항목) 지금처럼 묻는다.
+   새로고침 반복을 막기 위해 같은 탭에서는 2분에 한 번만. */
+/* 이 브라우저에만 있는 자료(클라우드에 없는 날짜·월)가 하나라도 있으면 true — 개수만 비교하면 "날짜 수는 적지만 클라우드에 없는 날"을 놓친다 */
+function localHasExtra(lst, cst){
+  lst = lst || {}; cst = cst || {};
+  const dates = a => new Set((Array.isArray(a)?a:[]).map(h=>h && h.date).filter(Boolean));
+  for(const k of ["SALES_HISTORY","STORE_SALES_HISTORY","STOCK_HISTORY"]){ const c = dates(cst[k]); for(const d of dates(lst[k])) if(!c.has(d)) return true; }
+  for(const k of ["CENTER_M","HQ_M","FRESH_M"]){ const c = (cst[k] && typeof cst[k]==="object") ? cst[k] : {}; for(const m of Object.keys(lst[k]||{})) if(!(m in c)) return true; }
+  return false;
+}
+function localBehindOnly(local, cloud){
+  if(!cloud || !local) return false;
+  let behind = false;
+  for(const k of ["sales","storeSales","stock","centerM","hqM","freshM"]){
+    const l = local[k]||0, c = cloud[k]||0;
+    if(l > c) return false; if(l < c) behind = true;
+  }
+  for(const k of ["lastSales","lastStock"]){
+    const l = local[k]||"", c = cloud[k]||"";
+    if(l > c) return false; if(l < c) behind = true;
+  }
+  return behind;
+}
+let _autoAdopting = false;
+function maybeAutoAdoptCloud(from){
+  if(_autoAdopting || !_cloudLastVal || !_cloudMetrics || !_idbStateDone) return false;
+  if(typeof _REPARSE_ACTIVE!=="undefined" && _REPARSE_ACTIVE && Object.keys(_REPARSE_ACTIVE).length) return false;
+  let hint = false; try{ hint = localStorage.getItem(ADMIN_HINT_LS)==="1"; }catch(_){}
+  if(!IS_ADMIN && !hint) return false;   // 뷰어는 원래 클라우드 값을 그대로 보여준다
+  const lst = buildStateObject();
+  if(!localBehindOnly(stateMetrics(lst), _cloudMetrics)) return false;
+  try{ if(localHasExtra(lst, (typeof _cloudLastVal==="string") ? JSON.parse(_cloudLastVal) : _cloudLastVal)) return false; }catch(_){ return false; }
+  try{ const t = +sessionStorage.getItem("kk_auto_adopt_at")||0; if(Date.now()-t < 120000) return false; sessionStorage.setItem("kk_auto_adopt_at", String(Date.now())); }catch(_){}
+  _autoAdopting = true;
+  clearTimeout(_cloudPushTimer);
+  try{ if(typeof noticeBar!=="undefined" && noticeBar){ noticeBar.innerHTML = "☁ 이 브라우저 자료가 클라우드보다 오래돼서 최신 데이터로 자동으로 맞추는 중…"; noticeBar.hidden = false; } }catch(_){}
+  adoptCloudState();
+  return true;
+}
 function hidePushGuard(){ if(!_pushGuardShown) return; _pushGuardShown = false; noticeBar.classList.remove("push-guard"); noticeBar.hidden = true; }
 async function adoptCloudState(){
   try{
@@ -12836,7 +12878,7 @@ function cloudPush(){
       const st = buildStateObject();
       if(!_pushOverride){
         const why = pushShrinkReasons(stateMetrics(st), _cloudMetrics);
-        if(why.length){ showPushGuard(why); return; }
+        if(why.length){ if(maybeAutoAdoptCloud("push")) return; showPushGuard(why); return; }
       }
       _pushOverride = false; hidePushGuard();
       _cloudRef.set(JSON.stringify(st)).catch(()=>{});
@@ -12858,6 +12900,7 @@ function cloudInit(){
       if(!u && !was) adminAutoLogin();   // build 176: 저장된 비밀번호로 자동 로그인 시도
       try{ if(u) localStorage.setItem(ADMIN_HINT_LS, "1"); else localStorage.removeItem(ADMIN_HINT_LS); }catch(_){}
       updateCloudBadge();
+      if(IS_ADMIN && !was && maybeAutoAdoptCloud("login")) return;   // build 232
       if(IS_ADMIN && !was){ showNotice("관리자 모드로 전환됐습니다. 이제 업로드하면 모든 사람에게 실시간 공유됩니다."); cloudPush(); try{ Object.keys(HIST_SYNC).forEach(cloudHistPush); }catch(_){} }
       if(!IS_ADMIN && _cloudLastVal && _cloudApply) _cloudApply(_cloudLastVal);   // 로그인 안 됨 → 클라우드 최신 데이터로 보기
     }); }catch(e){ _authReady = true; }
@@ -12868,6 +12911,7 @@ function cloudInit(){
       if(!val) return;
       // build 150: 관리자도 클라우드 규모(일수·월 수·마지막 날짜)는 기억해 둔다 → cloudPush가 줄어드는 덮어쓰기를 막는다
       try{ _cloudLastVal = val; _cloudMetrics = stateMetrics((typeof val==="string") ? JSON.parse(val) : val); }catch(_){}
+      try{ if(maybeAutoAdoptCloud("value")) return; }catch(_){}   // build 232
       _cloudApply(val);
     });
   }catch(e){ CLOUD_ON=false; updateCloudBadge(); }
