@@ -375,7 +375,7 @@
   .dh-total .won{font-size:16px;color:var(--muted);margin-left:4px;font-weight:500;}
   .dh-sub{font-size:13.5px;color:var(--muted2);margin-top:7px;}
   /* 월별 매장 매출 표: 3열뿐이라 전체 폭으로 늘리면 너무 넓다 → 적정 폭으로 제한 */
-  #salesMonthlyTable{width:auto;min-width:520px;max-width:1100px;}
+  #salesMonthlyTable{width:auto;min-width:520px;}   /* build 239: 달이 10개 넘게 늘어 1100px 제한 해제 */
   .mm-delta{font-size:11.5px;font-family:"Gothic A1";color:var(--muted2);margin-top:1px;line-height:1.25;}
   /* 2026-10-21: 일별 매출 막대그래프 */
   .sd-sum{display:flex;gap:22px;flex-wrap:wrap;font-size:13.5px;color:var(--muted);margin-bottom:10px;}
@@ -1583,6 +1583,14 @@
   td .num, td.r, .n, table.fi-tbl .n{font-weight:600;color:var(--text);}
   .p-hd .meta, .fi-mut, .fi-drop-s{color:var(--muted);}
   @media(max-width:640px){ #view-fixed .agg-card.kk-sub > .fi-body{padding-left:4px;padding-right:4px;} .fi-text{min-width:0;max-width:100%;} }
+  /* build 239: 표 옆으로 밀기 — 스크롤바가 연한 색이라 안 보였음 → 진하게 · 표 위에도 같은 바 */
+  .agg-scroll,.kk-topbar,.tblbox{scrollbar-color:#8B90A0 #E3E7ED;scrollbar-width:auto;}
+  .kk-topbar{overflow-x:auto;overflow-y:hidden;height:18px;margin:0 0 4px;border-radius:9px;}
+  .kk-topbar>div{height:1px;}
+  .kk-bleed{max-width:none !important;position:relative;z-index:1;}
+  table.kk-tight th, table.kk-tight td{min-width:0 !important;padding-left:5px !important;padding-right:5px !important;}
+  table.kk-tight td.pq-memo, table.kk-tight th.pq-memo{max-width:180px !important;white-space:normal;}
+  .kk-scrollhint{font-size:13px;color:var(--muted);margin:2px 0 4px;}
   #gsub-04 .agg-card{background:var(--bg) !important;padding:6px 0 0;} #gsub-04 .agg-card > .p-hd{padding-left:4px;}
 </style>
 
@@ -1595,7 +1603,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 238 · 2026-10-23</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 239 · 2026-10-23</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -22598,6 +22606,59 @@ function kkStepStatus(rows){
   setTimeout(run, 500);
 })();
 try{ const vf = document.getElementById("view-fixed"); if(vf && typeof _genTab!=="undefined") vf.dataset.kkgen = _genTab; }catch(_){}
+
+// build 239: 가로로 긴 표 — ① 화면 폭에 맞게 표를 줄여서(최소 60%) 한 화면에 보이게 ② 그래도 넘치면 표 위에도 옆으로 미는 바
+const KK_FIT_MIN = 0.6;
+function kkFitOne(w){
+  const cs = getComputedStyle(w), cw = w.clientWidth - parseFloat(cs.paddingLeft||0) - parseFloat(cs.paddingRight||0); if(cw <= 0) return;
+  [...w.querySelectorAll("table")].filter(t=> t.closest(".agg-scroll, .tblbox")===w && !t.parentElement.closest("table")).forEach(t=>{
+    if(t.style.zoom) t.style.zoom = "";
+    t.classList.remove("kk-tight");
+    let nw = t.offsetWidth;
+    if(nw <= cw + 2){ delete t.dataset.kkFit; return; }
+    t.classList.add("kk-tight"); nw = t.offsetWidth;   // 먼저 칸 여백·최소 폭을 줄이고
+    if(nw <= cw + 2){ t.dataset.kkFit = 100; return; }
+    const z = Math.max(KK_FIT_MIN, Math.floor((cw - 4) / nw * 1000) / 1000);
+    t.style.zoom = String(z); t.dataset.kkFit = Math.round(z*100);
+  });
+}
+// 60%로 줄여도 넘치는 표는 그 카드를 화면 양끝까지 넓힌다(폭 넓히기)
+function kkBleed(w){
+  const card = w.closest(".agg-card, .panel, .bx-sec"); if(!card) return false;
+  const docW = document.documentElement.clientWidth, gut = 6;
+  card.style.marginLeft = ""; card.style.width = "";
+  const r = card.getBoundingClientRect();
+  if(r.width >= docW - gut*2 - 2) return false;
+  card.classList.add("kk-bleed");
+  card.style.width = (docW - gut*2) + "px";
+  card.style.marginLeft = (gut - r.left) + "px";
+  return true;
+}
+function kkTopBars(){
+  document.querySelectorAll(".kk-bleed").forEach(c=>{ c.classList.remove("kk-bleed"); c.style.width = ""; c.style.marginLeft = ""; });
+  document.querySelectorAll(".agg-scroll, .tblbox").forEach(w=>{
+    if(!w.offsetParent) return;
+    try{ kkFitOne(w); if(w.scrollWidth > w.clientWidth + 2 && kkBleed(w)) kkFitOne(w); }catch(_){}
+    let t = w.previousElementSibling;
+    const need = w.scrollWidth > w.clientWidth + 2;
+    if(!need && !(t && t.classList.contains("kk-topbar"))) return;
+    if(!t || !t.classList.contains("kk-topbar")){
+      t = document.createElement("div"); t.className = "kk-topbar"; t.innerHTML = "<div></div>"; t.title = "옆으로 밀어서 오른쪽 칸 보기";
+      w.parentNode.insertBefore(t, w);
+      t.addEventListener("scroll", ()=>{ if(Math.abs(w.scrollLeft - t.scrollLeft) > 1) w.scrollLeft = t.scrollLeft; }, { passive:true });
+      w.addEventListener("scroll", ()=>{ if(Math.abs(t.scrollLeft - w.scrollLeft) > 1) t.scrollLeft = w.scrollLeft; }, { passive:true });
+    }
+    t.style.display = need ? "" : "none";
+    t.firstChild.style.width = w.scrollWidth + "px";
+    if(need) t.scrollLeft = w.scrollLeft;
+  });
+}
+(function kkTopBarsWire(){
+  let q = 0; const run = ()=>{ q = 0; try{ kkTopBars(); }catch(e){ console.warn("topbar", e); } };
+  const later = ()=>{ if(!q){ q = setTimeout(run, 250); } };
+  try{ new MutationObserver(muts=>{ if(muts.some(m=> !(m.target.classList && m.target.classList.contains("kk-topbar")) && ![...m.addedNodes].every(n=> n.classList && n.classList.contains("kk-topbar")))) later(); }).observe(document.body, { childList:true, subtree:true }); }catch(_){}
+  window.addEventListener("resize", later); document.addEventListener("click", ()=> setTimeout(later, 50)); setTimeout(run, 800);
+})();
 
 cloudInit();
 pltLiveInit();
