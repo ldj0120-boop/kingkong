@@ -1608,7 +1608,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 240 · 2026-10-23</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 241 · 2026-10-26</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -16904,12 +16904,14 @@ function fiComboRender(){
             : `<div class="fi-match ok" style="margin-top:8px">✓ 최종 출고요청서 — 출고일 ${C.byDate.length}일 · ${C.rows.length}건 · ${tot}PLT${C.dup?` (겹친 ${C.dup}행은 한 번만)`:""}</div>`;
   h += `<div class="fi-mut" style="margin:6px 0">${escHtml(sum)}</div>`;
   h += `<div style="margin:8px 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="act primary" id="fiComboXlsx"${dis} style="font-size:15px;padding:10px 22px;font-weight:700${lock?";opacity:.5;cursor:not-allowed":""}">⬇ 최종 출고요청서 엑셀 다운로드 (출고일자별 시트 ${C.byDate.length}장)</button>
+    <button class="act primary" id="fiComboImg"${dis} style="font-size:15px;padding:10px 18px;font-weight:700;background:#FEE500;color:#191919;border-color:#E6CF00${lock?";opacity:.5;cursor:not-allowed":""}" title="엑셀 모양 그대로 그림(PNG)으로 — 휴대폰은 공유창에서 카카오톡, PC는 이미지 복사 후 카톡에 붙여넣기">🖼 카톡으로 보내기 (이미지 ${C.byDate.length}장)</button> <span id="fiComboImgMsg" class="fi-mut"></span>
     <button class="act primary fi-mini admin-only" id="fiComboLedger"${dis} title="처음 누르면 추가, 이미 추가한 행은 고친 값으로 갱신">＋ 합본을 누적 출고요청서에 추가/갱신</button> <span id="fiComboMsg" class="fi-mut"></span>
     <span style="margin-left:auto">${hid ? `<button class="act fi-mini" id="fiComboUnhide">뺀 행 ${hid}개 다시 보이기</button> ` : ""}<button class="act fi-mini fi-del" id="fiComboClear" title="합본 화면 비우기 (배차 요청 기록은 그대로)">↺ 합본 화면 초기화</button></span></div>`;
   C.byDate.forEach(g=>{
     h += `<div style="margin:16px 0 6px;padding:6px 10px;border-left:4px solid var(--accent,#8F5E00);background:rgba(245,178,17,.08);font-weight:700">■ ${escHtml(fiComboDateLabel(g.date))} 출고 — ${g.rows.length}건 · ${g.rows.reduce((a,r)=>a+(+r.pallets||0),0)}PLT <span class="fi-mut" style="font-weight:400">(엑셀 시트 "${escHtml(fiComboSheetName(g.date))}")</span></div>`;
     h += fiComboTableHtml(C, g.rows);   // build 143: 거래처 1곳 — 표 1개
   });
+  h += `<div id="fiComboImgs"></div>`;   // build 241: 카톡용 이미지 미리보기
   h += `<div class="fi-sec-t">합본 물류업체 전달 문구 (출고일자별) <button class="act primary fi-mini" id="fiComboCopy">복사</button> <span id="fiComboCopyMsg" class="fi-mut"></span></div>
     <textarea id="fiComboText" class="fi-text" style="min-height:220px" readonly>${escHtml(fiComboTextAll(C))}</textarea></div>`;
   el.innerHTML = h;
@@ -16969,6 +16971,115 @@ async function fiComboWorkbook(C){
   if(!wb.worksheets.length) throw new Error("엑셀에 넣을 행이 없습니다.");
   return wb;
 }
+/* build 241: 출고요청서 → 카톡용 이미지(PNG). 휴대폰에서 엑셀을 열어 복사하면 카톡에 글자만 붙는 문제 → 엑셀 시트와 같은 모양(제목 · 진행/완료/미진행 · 머리글 · 테두리)을 그림으로 그린다.
+   휴대폰: 공유창(카카오톡 고르기) · PC: 이미지 복사(카톡 대화창에 Ctrl+V) · 둘 다: 아래 미리보기 그림을 길게 눌러/우클릭해 저장·복사 가능 */
+const FI_IMG_FONT = '"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",sans-serif';
+function fiReqImageCanvas(g){
+  const COLS = fiDispCols(g.rows), rs = fiDispSheetRows(g.rows);
+  const title = fiComboTitleCell(COLS, g).result;
+  const S = 2, PAD = 9, WRAP = /^(주소|비고)$/, WRAPMAX = 330;
+  const cv = document.createElement("canvas"), cx = cv.getContext("2d");
+  const txt = v=> v==null ? "" : String(v);
+  const fBody = `14px ${FI_IMG_FONT}`, fHead = `bold 13px ${FI_IMG_FONT}`, fTitle = `bold 18px ${FI_IMG_FONT}`, fLeg = `13px ${FI_IMG_FONT}`;
+  const meas = (f, s)=>{ cx.font = f; return cx.measureText(s).width; };
+  const widths = COLS.keys.map((k,i)=>{
+    let w = Math.max(Math.round(COLS.width[i]*7+8), meas(fHead, COLS.hdr[i]) + PAD*2);
+    rs.forEach(o=>{ w = Math.max(w, meas(fBody, txt(o[k])) + PAD*2); });
+    if(WRAP.test(k)) w = Math.min(w, Math.max(WRAPMAX, Math.round(COLS.width[i]*7+8)));
+    return Math.ceil(w);
+  });
+  const wrapLines = (s, maxW)=>{   // 글자 단위 줄바꿈(한글)
+    s = txt(s); if(!s) return [""]; cx.font = fBody;
+    const out = []; let cur = "";
+    for(const ch of s){ if(cx.measureText(cur+ch).width > maxW && cur){ out.push(cur); cur = ch.trim() ? ch : ""; } else cur += ch; }
+    if(cur || !out.length) out.push(cur); return out;
+  };
+  const LH = 19, HR = 32, TR = 44, GR = 28, M = 14, A = 14;   // 줄 높이 · 머리글 · 제목 · 범례 · 바깥 여백 · 왼쪽 빈 열(A열)
+  const cells = rs.map(o=> COLS.keys.map((k,i)=> WRAP.test(k) ? wrapLines(o[k], widths[i]-PAD*2) : [txt(o[k])]));
+  const rowH = cells.map(r=> Math.max(30, Math.max(...r.map(l=> l.length))*LH + 11));
+  const tblW = widths.reduce((a,b)=>a+b, 0);
+  const W = Math.ceil(Math.max(M*2 + A + tblW, M*2 + A + meas(fTitle, title) + 8));
+  const H = M + TR + GR + 6 + HR + rowH.reduce((a,b)=>a+b, 0) + M;
+  cv.width = W*S; cv.height = H*S; cx.scale(S, S);
+  cx.fillStyle = "#fff"; cx.fillRect(0, 0, W, H);
+  cx.textBaseline = "middle"; cx.lineWidth = 1; cx.strokeStyle = "#000";
+  const x0 = M + A; let y = M;
+  cx.fillStyle = "#000"; cx.font = fTitle; cx.textAlign = "left"; cx.fillText(title, x0 + 2, y + TR/2); y += TR;
+  // 범례: 엑셀처럼 2행 · 낙찰일/입차CODE/낙찰NO 칸 위치
+  const colX = i=> x0 + widths.slice(0, i).reduce((a,b)=>a+b, 0);
+  [["진행","#92D050"],["완료","#9BC2E6"],["미진행","#FFFFFF"]].forEach(([t,c],j)=>{
+    const ci = Math.min(1 + j, widths.length-1), x = colX(ci), w = widths[ci];
+    cx.fillStyle = c; cx.fillRect(x, y, w, GR); cx.strokeRect(x+.5, y+.5, w, GR);
+    cx.fillStyle = "#000"; cx.font = fLeg; cx.textAlign = "center"; cx.fillText(t, x + w/2, y + GR/2 + 1);
+  });
+  y += GR + 6;
+  // 머리글
+  cx.fillStyle = "#F2F2F2"; cx.fillRect(x0, y, tblW, HR);
+  cx.font = fHead; cx.fillStyle = "#000"; cx.textAlign = "center";
+  COLS.hdr.forEach((h,i)=>{ cx.fillText(h, colX(i) + widths[i]/2, y + HR/2 + 1); cx.strokeRect(colX(i)+.5, y+.5, widths[i], HR); });
+  y += HR;
+  // 행
+  cx.font = fBody;
+  cells.forEach((r,ri)=>{
+    const h = rowH[ri];
+    r.forEach((lines,i)=>{
+      const x = colX(i), left = WRAP.test(COLS.keys[i]);
+      cx.textAlign = left ? "left" : "center"; cx.fillStyle = "#000";
+      const top = y + h/2 - (lines.length-1)*LH/2;
+      lines.forEach((ln,li)=> cx.fillText(ln, left ? x + PAD : x + widths[i]/2, top + li*LH + 1));
+      cx.strokeRect(x+.5, y+.5, widths[i], h);
+    });
+    y += h;
+  });
+  return cv;
+}
+function fiStackCanvases(list){   // 출고일이 여러 날이면 PC 복사용으로 위아래로 이어 붙임
+  if(list.length === 1) return list[0];
+  const W = Math.max(...list.map(c=> c.width)), H = list.reduce((a,c)=> a + c.height, 0);
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const cx = cv.getContext("2d"); cx.fillStyle = "#fff"; cx.fillRect(0, 0, W, H);
+  let y = 0; list.forEach(c=>{ cx.drawImage(c, 0, y); y += c.height; }); return cv;
+}
+function fiCanvasBlob(cv){   // 동기 변환 — 공유창은 버튼을 누른 그 순간에 열어야 해서(아이폰 사파리) toBlob(비동기)을 쓰지 않음
+  const u = cv.toDataURL("image/png"), b = atob(u.split(",")[1]), a = new Uint8Array(b.length);
+  for(let i=0; i<b.length; i++) a[i] = b.charCodeAt(i);
+  return new Blob([a], { type:"image/png" });
+}
+function fiReqImageName(g, pre){ return `${pre||"출고요청서"}_${g.date ? g.date.replace(/-/g,"").slice(2) : "날짜미정"}.png`; }
+function fiReqImages(byDate, pre){
+  return byDate.filter(g=> g.rows && g.rows.length).map(g=>{ const cv = fiReqImageCanvas(g); return { g, cv, name: fiReqImageName(g, pre), blob: fiCanvasBlob(cv) }; });
+}
+function fiReqImagePreview(box, imgs){
+  if(!box) return;
+  box.innerHTML = `<div class="fi-mut" style="margin:8px 0 4px">📷 카톡용 이미지 ${imgs.length}장 — 휴대폰은 그림을 <b>길게 눌러</b> 저장/공유, PC는 <b>우클릭 → 이미지 복사</b> 후 카톡 대화창에 붙여넣기</div>` +
+    imgs.map((x,i)=> `<div style="margin:6px 0 12px"><img src="${x.cv.toDataURL("image/png")}" alt="${escHtml(x.name)}" style="max-width:100%;border:1px solid #ccc;background:#fff;display:block">
+      <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap"><button class="act fi-mini" data-reqimg-save="${i}">⬇ ${escHtml(x.name)} 저장</button> <button class="act fi-mini" data-reqimg-copy="${i}">이미지 복사</button></div></div>`).join("");
+  box._imgs = imgs;
+}
+function fiReqImageSave(x){ const a = document.createElement("a"); a.href = URL.createObjectURL(x.blob); a.download = x.name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
+function fiReqImageCopy(blob, msgEl){
+  const say = t=>{ if(msgEl){ msgEl.textContent = t; setTimeout(()=>{ if(msgEl.textContent===t) msgEl.textContent=""; }, 6000); } };
+  if(!(navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem!=="undefined")){ say("이 브라우저는 이미지 복사가 안 됩니다 — 아래 그림을 길게 누르거나 저장해서 보내세요"); return Promise.resolve(false); }
+  return navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(()=>{ say("이미지 복사됨 ✓ — 카톡 대화창에 붙여넣기(Ctrl+V)"); return true; })
+    .catch(()=>{ say("이미지 복사 실패 — 아래 그림을 우클릭해 복사하거나 저장해서 보내세요"); return false; });
+}
+// 버튼: 휴대폰 → 공유창(카카오톡) · 공유가 안 되는 곳(PC 등) → 이미지 복사 · 항상 아래에 미리보기
+function fiReqImageSend(byDate, pre, msgEl, box){
+  let imgs;
+  try{ imgs = fiReqImages(byDate, pre); }catch(e){ showNotice("이미지 만들기 실패: " + (e && e.message || e)); return; }
+  if(!imgs.length){ if(msgEl) msgEl.textContent = "이미지로 만들 행이 없습니다"; return; }
+  const files = imgs.map(x=> new File([x.blob], x.name, { type:"image/png" }));
+  const touch = (navigator.maxTouchPoints||0) > 0 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent||"");
+  let shared = false;
+  if(touch && navigator.share && navigator.canShare && navigator.canShare({ files })){
+    shared = true;
+    navigator.share({ files, title: imgs.map(x=> x.name.replace(/\.png$/,"")).join(", ") })
+      .then(()=>{ if(msgEl) msgEl.textContent = "공유창으로 보냈습니다 ✓"; })
+      .catch(e=>{ if(msgEl) msgEl.textContent = e && e.name==="AbortError" ? "공유를 닫았습니다 — 아래 그림을 길게 눌러 보내도 됩니다" : "공유창을 열지 못했습니다 — 아래 그림을 길게 눌러 저장/공유하세요"; });
+  }
+  if(!shared) fiReqImageCopy(fiCanvasBlob(fiStackCanvases(imgs.map(x=> x.cv))), msgEl);
+  fiReqImagePreview(box, imgs);
+}
 function fiDatedGroups(rows){
   const ds = Array.from(new Set(rows.map(r=> r.outboundDate || ""))).sort((a,b)=> (a||"9999").localeCompare(b||"9999"));
   return ds.map(d=> ({ date:d, rows: fiOrderRows(rows.filter(r=> (r.outboundDate||"")===d)) }));
@@ -16981,7 +17092,7 @@ function fiDispOutHtml(d){
   let lock = "";
   if(d.matchInfo && d.matchInfo.eos){ const Q = eosDispQuestions(d); if(Q.pending.length || Q.destMiss) lock = `확인 질문 ${Q.pending.length}개${Q.destMiss?` · 도착지 미선택 ${Q.destMiss}곳`:""} 남음`; }
   const dis = lock ? ` disabled title="${escHtml(lock)} — 위 교차 검증 칸에서 답하면 열립니다" style="opacity:.5;cursor:not-allowed"` : "";
-  h += `<div class="fi-sec-t">${d.matchInfo && d.matchInfo.eos ? (lock ? `출고요청서 초안 <span style="color:var(--amber,#8F5E00);font-size:13.5px">(${escHtml(lock)})</span>` : `✓ 최종 배차요청서`) : "출고요청서 미리보기"} <button class="act primary fi-mini" id="fiDispXlsx"${dis}>⬇ 이 요청만 엑셀</button>
+  h += `<div class="fi-sec-t">${d.matchInfo && d.matchInfo.eos ? (lock ? `출고요청서 초안 <span style="color:var(--amber,#8F5E00);font-size:13.5px">(${escHtml(lock)})</span>` : `✓ 최종 배차요청서`) : "출고요청서 미리보기"} <button class="act primary fi-mini" id="fiDispXlsx"${dis}>⬇ 이 요청만 엑셀</button> <button class="act primary fi-mini" id="fiDispImg"${dis} style="background:#FEE500;color:#191919;border-color:#E6CF00">🖼 이 요청만 카톡 이미지</button> <span id="fiDispImgMsg" class="fi-mut"></span>
     <button class="act primary fi-mini admin-only" id="fiDispToLedger" title="처음 누르면 추가, 이미 추가한 행은 고친 값으로 갱신"${dis}>＋ 누적 출고요청서에 추가/갱신</button> <span id="fiDispLedgerMsg" class="fi-mut"></span></div>`;
   fiDatedGroups(inc).forEach(g=>{   // build 143: 출고일자별 표 1개(거래처 구분 없음)
     const rs = g.rows;
@@ -16989,6 +17100,7 @@ function fiDispOutHtml(d){
     <div class="fi-xprev"><table><thead><tr>${fiDispCols(rs).hdr.map(x=>`<th>${escHtml(x)}</th>`).join("")}</tr></thead><tbody>
     ${fiDispSheetRows(rs).map(o=>`<tr>${fiDispCols(rs).keys.map(k=>`<td${/^(주소|비고)$/.test(k)?' style="text-align:left;white-space:normal;min-width:180px"':""}>${escHtml(o[k]==null?"":o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   });
+  h += `<div id="fiDispImgs"></div>`;   // build 241
   h += `<div class="fi-sec-t">물류업체 전달 문구 <button class="act primary fi-mini" id="fiDispCopy">복사</button> <span id="fiDispCopyMsg" class="fi-mut"></span></div>
   <textarea id="fiDispText" class="fi-text" style="min-height:220px" readonly>${escHtml(fiDispTextAll(d))}</textarea>`;
   return h;
@@ -22075,6 +22187,10 @@ function wireFixedDispatch(){
       if(tgt){ const list = tgt.rows.filter(r=> !r.skip && odd(r)); if(confirm(`파렛트 값을 그대로 확정할까요?\n${list.map(r=>`${r.bidcode} ${r.group} → ${r.pallets}PLT`).join("\n")}`)){ list.forEach(r=> r.palOk = true); if(tgt===_fiDisp) fiDispSave(); else { tgt.updatedAt = Date.now(); fiDispPersist(); } fiDispRender(); } } }
     else if(b.id==="fiComboUnhide"){ _fiCombo.hide = {}; fiComboSave(); fiComboRender(); }
     else if(b.id==="fiComboClear"){ fiComboReset(); fiComboRender(); }   // build 141: 합본 화면만 비움(기록 유지)
+    else if(b.id==="fiComboImg"){ const C = fiComboBuild(); if(C.rows.length) fiReqImageSend(C.byDate, "출고요청서", document.getElementById("fiComboImgMsg"), document.getElementById("fiComboImgs")); }   // build 241
+    else if(b.id==="fiDispImg" && _fiDisp){ const inc=_fiDisp.rows.filter(r=>!r.skip); if(inc.length) fiReqImageSend(fiDatedGroups(inc), "출고요청서", document.getElementById("fiDispImgMsg"), document.getElementById("fiDispImgs")); }
+    else if(b.dataset.reqimgSave!=null || b.dataset.reqimgCopy!=null){ const bx = b.closest("#fiComboImgs,#fiDispImgs"); const x = bx && bx._imgs && bx._imgs[+(b.dataset.reqimgSave!=null ? b.dataset.reqimgSave : b.dataset.reqimgCopy)];
+      if(x){ if(b.dataset.reqimgSave!=null) fiReqImageSave(x); else fiReqImageCopy(x.blob, document.getElementById(bx.id==="fiComboImgs" ? "fiComboImgMsg" : "fiDispImgMsg")); } }
     else if(b.id==="fiComboCopy") fiCopyText(document.getElementById("fiComboText").value, document.getElementById("fiComboCopyMsg"));
     else if(b.dataset.qId && _fiDisp){   // build 136: 확인 질문 답
       let v = b.dataset.qV;
