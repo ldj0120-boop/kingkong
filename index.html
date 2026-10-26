@@ -1608,7 +1608,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 242 · 2026-10-26</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 243 · 2026-10-26</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -16219,7 +16219,7 @@ function fiDispPost(rows, head){
     if(!r.bidDate){ r.bidDate = date0 || out0; r.warn.push("낙찰일 인식 보정(확인)"); }
     if(!r.outboundDate){ r.outboundDate = out0 || r.bidDate; r.warn.push("출고일 인식 보정(확인)"); }
     if(!r.type) r.type = type0 || "";
-    if(r.type==="XLG" && !r.typeSub && sub0) r.typeSub = sub0;   // build 202: 메일에 "XLGD"처럼 세부 유형이 있으면 카테에 그대로
+    if(r.type==="XLG" && !r.typeSub){ const gp = String(r.groupPrefix||"").toUpperCase(); r.typeSub = /^G[DHE]$/.test(gp) ? "XL"+gp : sub0; }   // build 202 · 243: 행의 그룹 글자(GE · GH · GD)가 우선, 없으면 메일 제목의 "XLGD"
   });
   { const sufBy = {}; rows.forEach(r=>{ const nf = fiNumFull(r.numFull); if(nf) (sufBy[r.groupPrefix||""] = sufBy[r.groupPrefix||""] || []).push(nf.suf); });   // build 169
     rows.forEach(r=>{ if(r.numFull || !/^\d{5,7}$/.test(String(r.number||""))) return; const c = sufBy[r.groupPrefix||""]; const sf = c && _fiVote(c); if(sf) r.numFull = `${r.number}-${sf}`; }); }
@@ -21372,6 +21372,7 @@ let _fiDispSrc = "";   // 마지막으로 읽은 메일 글(1차 검증의 "빠�
 // 답장 · 전달 메일의 인용 부분(이전 메일)은 빼고 — 보충 · 빠진 코드 확인은 이번 메일 본문만
 function fiUniMain(text){ const t = String(text||""); const m = t.search(/-{3,}\s*(?:Original Message|원본 메시지|Forwarded)|^\s*(?:From|보낸\s*사람|발신)\s*[:：]|^\s*>/im); return m>40 ? t.slice(0, m) : t; }
 const FI_UNI_ROLE = [
+  ["amount", /합계|총계|소계|인수가|금액|단가|가격|PRICE|AMOUNT|TOTAL|SUM|부가세|VAT/],   // build 243: 요약표(BIDCODE | 합계 : QUANTITY | 합계 : 인수가) 칸은 출고 칸 아님
   ["bidDate", /낙찰일|낙찰날짜|입찰일|BIDDATE|AWARD/],
   ["bidcode", /BIDCODE|BID_?CODE|입차|입금|CODE|코드/],
   ["fc", /^FC|FC$|센터|CENTER|WAREHOUSE|창고|상차지/],
@@ -21482,8 +21483,10 @@ function fiUniTable(lines, ctx){
   const dcols = roles.map((r,j)=> r==="date" ? j : -1).filter(j=> j>=0);
   dcols.forEach((j,i)=>{ roles[j] = dcols.length>1 ? (i===0 ? "bidDate" : "outbound") : (ctx.bidDates.length && !ctx.out ? "outbound" : (roles.includes("outbound") ? "bidDate" : "outbound")); });
   if(!roles.some(r=> r==="bidcode" || r==="group" || r==="fc")) return [];
+  if(hi>=0 && roles.includes("amount") && !roles.some(r=> ["group","number","fc","pallets","outbound"].includes(r))) return [];   // build 243: 입차코드별 금액 요약표
   const out = []; let prev = {};
   data.forEach(c=>{
+    if(c.some(x=> /^(총\s*합계|합\s*계|소\s*계|총\s*계|TOTAL|GRAND\s*TOTAL|SUM)$/i.test(String(x||"").trim()))) return;   // build 243: 합계 줄
     const g = k=>{ const j = roles.indexOf(k); return j>=0 ? (c[j]||"") : ""; };
     const all = k=> roles.map((r,j)=> r===k ? (c[j]||"") : "").filter(Boolean);
     const o = { bidcode:g("bidcode").replace(/\s/g,"").toUpperCase(), group:g("group"), number:g("number"), pallets:g("pallets"), fc:all("fc")[0]||"",
@@ -21521,7 +21524,10 @@ function fiUniParse(text){
   const ctx = fiUniContext(text);
   const lines = String(text||"").split(/\r?\n/);
   const raw = []; let blk = [];
-  const flush = ()=>{ if(blk.length){ if(blk.length>=1) fiUniTable(blk, ctx).forEach(o=> raw.push(o)); blk = []; } };
+  const isHead = l=>{ const c = l.split("\t").map(x=> String(x).replace(/[\s ]+/g," ").trim()); const n = c.map(fiUniRole).filter(Boolean).length; return n>=2 && n > c.filter(x=> fiUniKind(x) && fiUniKind(x)!=="fc").length; };
+  const flush = ()=>{ if(blk.length){   // build 243: 붙어 있는 두 표(요약표 + 출고표) — 머리글 줄에서 나눠 따로 읽음
+      const parts = []; blk.forEach((l,i)=>{ if(i===0 || isHead(l) || !parts.length) parts.push([l]); else parts[parts.length-1].push(l); });
+      parts.forEach(b=> fiUniTable(b, ctx).forEach(o=> raw.push(o))); blk = []; } };
   lines.forEach(l=>{ if(/\t/.test(l) && l.split("\t").filter(x=> x.trim()).length>=2) blk.push(l); else { flush(); const o = fiUniLine(l, ctx); if(o) raw.push(o); } });
   flush();
   // 입차코드가 메일 전체에 하나뿐이면(문자 · 짧은 메일) 코드 없는 행에 채움
