@@ -1616,7 +1616,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 246 · 2026-10-27</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 247 · 2026-10-27</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -1982,6 +1982,12 @@
       <div id="trendBody"></div>
     </div>
 
+
+    <!-- build 247: 센터 재고 (LOT재고현황 "요약" 시트 — 센터 × 카테고리 PLT) -->
+    <div class="agg-card" id="csBox">
+      <div class="p-hd"><span class="store-name">센터 재고 (PLT)</span><span class="meta" id="csMeta">센터 × 카테고리 · LOT재고현황 요약 시트 기준</span></div>
+      <div class="fi-body" id="csBody"></div>
+    </div>
 
     <!-- build 182: 매장 소진율 (승현 사이트 PLT 해체 기준) -->
     <div class="agg-card" id="sxBox">
@@ -6323,7 +6329,7 @@ function wireWidthMode(){
   });
   applyWidthMode();
 }
-function aggRenderAll(){ try{ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }catch(e){ console.error(e); } }
+function aggRenderAll(){ try{ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }catch(e){ console.error(e); } try{ renderCenterStock(); }catch(e){ console.error(e); } }
 function selectTab(which){
   if(which==="agg"){ which = "goals"; try{ goalsSubTab = "10"; }catch(_){} }   // build 185: 재고/공급 탭 → 목표매출 05
   [["sales",tabSales,viewSales],["goals",tabGoals,viewGoals],["fixed",tabFixed,viewFixed]].forEach(([name,tab,view])=>{
@@ -6442,7 +6448,7 @@ function handleStockFile(file){
         const cs = parseCenterStockSummary(wb, file.name);
         if(cs){
           const keep = CENTER_STOCK && CENTER_STOCK.date && CENTER_STOCK.date > cs.date;
-          if(!keep){ CENTER_STOCK = cs; saveState(); try{ if(typeof renderGoals==="function") renderGoals(); }catch(_){} }
+          if(!keep){ CENTER_STOCK = cs; saveState(); try{ if(typeof renderGoals==="function") renderGoals(); }catch(_){} try{ renderCenterStock(); }catch(_){} }
           const tot = Object.values(cs.centers).reduce((a,o)=> a + Object.values(o).reduce((x,v)=>x+v,0), 0);
           showNotice(`"${file.name}" — 센터 재고 ${cs.date} 기준 ${Object.keys(cs.centers).length}개 센터 · 합계 ${Math.round(tot).toLocaleString()} PLT를 ${keep ? "확인했습니다(이미 더 최신 센터 재고가 있어 그대로 둠)" : "반영했습니다. 목표매출 › 02 카테고리 분석의 공급·재고 평가에 쓰입니다"}.`);
         } else showNotice(`"${file.name}"은(는) 센터 LOT 재고현황인데 "요약" 시트(CATE · 센터별 재고)를 찾지 못했습니다.`);
@@ -12116,7 +12122,7 @@ const MIX_EVAL_STOCK = { XLA:[0], "가전":[1,9], XLC:[2], XLE:[3], XLG:[4], "�
 const MIX_EVAL_COMPS = { XLA:["XLA"], "가전":["XLB","대형가전"], XLC:["XLC"], XLE:["XLE"], XLG:["XLG"], "대형가구":["대형가구"] };
 function mixCenterCat(cate){
   const c = String(cate).replace(/\s+/g,"");
-  if(/^(시흥)?XLA$/.test(c)) return "XLA"; if(/^XLB$|777가전|XLW대형가전/.test(c)) return "가전"; if(/XLW대형가구|하우저/.test(c)) return "대형가구";
+  if(/^(시흥)?XLA$/.test(c)) return "XLA"; if(/^XL[BK]$|777가전|XLW대형가전/.test(c)) return "가전"; if(/XLW대형가구|하우저/.test(c)) return "대형가구";   // build 247: XLK(대형가전)도 가전
   if(/^XL[CEG]$/.test(c)) return c; if(/^FC/.test(c)) return "FC파손"; if(/데드우드|^XLD$/.test(c)) return "데드우드"; if(/생산재고/.test(c)) return "생산재고";
   return c;
 }
@@ -12155,6 +12161,55 @@ function mixCenterNow(cat){
   let v = 0; const by = {};
   Object.keys(CENTER_STOCK.centers).forEach(cn=>{ Object.entries(CENTER_STOCK.centers[cn]).forEach(([cate,q])=>{ if(mixCenterCat(cate)===cat){ v += q; by[cn] = (by[cn]||0) + q; } }); });
   return { v, by, date: CENTER_STOCK.date };
+}
+/* ================= build 247: 센터 재고 카드 (목표매출 › 04 재고·공급) =================
+   CENTER_STOCK(LOT재고현황 "요약" 시트)을 센터 × 카테고리 PLT 표로 보여 준다.
+   [카테고리별] = 사이트 카테고리로 묶음(mixCenterCat: XLB·777가전·XLW 대형가전 → 가전, XLW 대형가구·하우저 → 대형가구, FC… → FC파손 …)
+   [원본 CATE] = 엑셀 요약 시트의 CATE 이름 그대로. 합계는 모든 센터를 더한다(엑셀 '합계' 열은 진천센터를 빼고 더함). */
+const CS_UI_LS = "kk_cs_ui_v1";
+function csUi(){ try{ return JSON.parse(localStorage.getItem(CS_UI_LS)||"{}")||{}; }catch(_){ return {}; } }
+function csSetUi(o){ try{ localStorage.setItem(CS_UI_LS, JSON.stringify(Object.assign(csUi(), o))); }catch(_){} }
+function centerStockTable(mode){
+  if(!CENTER_STOCK || !CENTER_STOCK.centers) return null;
+  const centers = Object.keys(CENTER_STOCK.centers);
+  const rows = {};   // 이름 → { 센터: PLT }
+  centers.forEach(cn=> Object.entries(CENTER_STOCK.centers[cn]||{}).forEach(([cate,q])=>{
+    const v = +q||0; if(!v) return;
+    const k = mode==="raw" ? cate : mixCenterCat(cate);
+    const o = rows[k] || (rows[k] = { name:k, by:{}, tot:0, raw:new Set() });
+    o.by[cn] = (o.by[cn]||0) + v; o.tot += v; o.raw.add(cate);
+  }));
+  const list = Object.values(rows).filter(o=> Math.abs(o.tot)>1e-9).sort((a,b)=> b.tot-a.tot);
+  const colTot = {}; centers.forEach(cn=>{ colTot[cn] = list.reduce((a,o)=> a + (o.by[cn]||0), 0); });
+  const usedCenters = centers.filter(cn=> Math.abs(colTot[cn])>1e-9);
+  return { centers: usedCenters, list, colTot, tot: list.reduce((a,o)=> a+o.tot, 0) };
+}
+function renderCenterStock(){
+  const body = document.getElementById("csBody"); if(!body) return;
+  const meta = document.getElementById("csMeta");
+  if(!CENTER_STOCK || !CENTER_STOCK.centers || !Object.keys(CENTER_STOCK.centers).length){
+    if(meta) meta.textContent = "센터 재고 없음";
+    body.innerHTML = `<div class="g-tbl-sub" style="padding:10px 0">센터 재고 자료가 없습니다. 관리자 PC에서 <b>📁 폴더 통째로 불러오기</b>로 <b>업로드용자료 › 이천센터재고현황</b> 폴더(LOT재고현황_YYMMDD.xlsx)를 올리면, 가장 최신 파일의 "요약" 시트가 여기 표시됩니다.</div>`;
+    return;
+  }
+  const mode = csUi().mode==="raw" ? "raw" : "cat";
+  const T = centerStockTable(mode);
+  const n1 = v=> (Math.round(v*10)/10).toLocaleString();
+  const today = fmtDate(new Date());
+  const age = CENTER_STOCK.date ? Math.round((new Date(today) - new Date(CENTER_STOCK.date))/864e5) : null;
+  if(meta) meta.textContent = `기준 ${CENTER_STOCK.date||"-"}${age!=null&&age>0?` (${age}일 전)`:""} · ${CENTER_STOCK.file||""}`;
+  const btn = (m,l)=> `<button class="gsub-tab${mode===m?" active":""}" data-cs-mode="${m}" style="padding:4px 12px;font-size:13.5px;">${l}</button>`;
+  const head = `<tr><th>${mode==="raw"?"CATE (엑셀 요약 그대로)":"카테고리"}</th>${T.centers.map(cn=>`<th class="r">${escHtml(cn)}</th>`).join("")}<th class="r">합계</th><th class="r">비중</th></tr>`;
+  const rowsHtml = T.list.map(o=>{
+    const sub = mode==="cat" && (o.raw.size>1 || [...o.raw][0]!==o.name) ? `<div class="mix-pc">${escHtml([...o.raw].join(" · "))}</div>` : "";
+    return `<tr><td><b>${escHtml(o.name)}</b>${sub}</td>${T.centers.map(cn=>{ const v = o.by[cn]||0; return `<td class="r">${v?n1(v):`<span style="color:var(--muted2)">-</span>`}</td>`; }).join("")}<td class="r"><b>${n1(o.tot)}</b></td><td class="r">${T.tot?(o.tot/T.tot*100).toFixed(1)+"%":"-"}</td></tr>`;
+  }).join("");
+  const foot = `<tr class="fi-tot"><td>합계</td>${T.centers.map(cn=>`<td class="r">${n1(T.colTot[cn])}</td>`).join("")}<td class="r"><b>${n1(T.tot)}</b></td><td class="r">100%</td></tr>`;
+  const old = age!=null && age>=7 ? `<div class="g-tbl-sub" style="color:var(--amber)">⚠ ${age}일 전 자료입니다 — 최신 LOT재고현황 파일을 폴더 통째로 불러오기로 올려 주세요.</div>` : "";
+  body.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:2px 0 8px">${btn("cat","카테고리별")}${btn("raw","원본 CATE")}
+      <span class="g-tbl-sub" style="margin-left:6px">센터 ${T.centers.length}곳 · 합계 <b>${n1(T.tot)} PLT</b> — 모든 센터를 더한 값(엑셀 요약의 '합계' 열은 진천센터를 빼고 더함)</span></div>${old}
+    <div class="tblbox"><table class="g-tbl cs-tbl"><thead>${head}</thead><tbody>${rowsHtml}</tbody><tfoot>${foot}</tfoot></table></div>`;
+  if(!body._csWired){ body._csWired = true; body.addEventListener("click", e=>{ const b = e.target.closest("[data-cs-mode]"); if(!b) return; csSetUi({ mode:b.dataset.csMode }); renderCenterStock(); }); }
 }
 function mixSupplyEval(R){
   const stores = R.store ? [R.store] : R.same, A = R.P.A, B = R.P.B, nA = R.nA, nB = R.nB;
