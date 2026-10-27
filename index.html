@@ -1616,7 +1616,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 244 · 2026-10-27</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 245 · 2026-10-27</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -1648,16 +1648,11 @@
                 <div class="tool-group-body">
           <input type="file" id="importFolderFile" webkitdirectory multiple hidden>
           <button class="act primary" id="importFolderBtn" title="'업로드용자료' 폴더를 통째로 선택하면, 하위 폴더 이름(센터출고내역서·본사출고내역서·가전센터출고내역서·매장재고현황·매장별매출현황·카테고리별매출현황)을 자동 인식해 각 슬롯에 한 번에 불러옵니다."><span class="up-ic">📁</span>폴더 통째로 올리기<small>한 번에 전부</small></button>
-          <input type="file" id="importFile" accept=".xlsx,.xls" hidden>
-          <button class="act dropzone" id="importBtn" style="display:none" data-retired="build 205: 매장 재고는 승현 사이트 실시간으로 받음" title="클릭하거나 엑셀 파일을 끌어다 놓으세요">매장 재고 업로드</button>
           <input type="file" id="importActualFile" accept=".xlsx,.xlsm,.xls" hidden>
           <button class="act dropzone" id="importActualBtn" title="클릭하거나 엑셀 파일을 끌어다 놓으세요 (예: 출고내역서_26년_7월.xlsx)"><span class="up-ic">🏭</span>센터 출고내역서</button>
           <input type="file" id="importHQFile" accept=".xlsx,.xlsm,.xls" hidden>
           <button class="act dropzone" id="importHQBtn" title="클릭하거나 엑셀 파일을 끌어다 놓으세요 (예: 07월 출고계획서_0728.xlsx) — 센터와 겹치는 매장·카테고리는 본사 수치가 우선 적용됩니다"><span class="up-ic">🧾</span>본사 출고내역서</button>
-          <input type="file" id="importApplianceFile" accept=".xlsx,.xlsm,.xls" hidden>
-          <button class="act dropzone" id="importApplianceBtn" style="display:none" data-retired="build 205: 가전센터 출고 종료" title="클릭하거나 엑셀 파일을 끌어다 놓으세요 (예: 방도리 출고내역서_26년_07월.xlsx)">가전센터 출고내역서 업로드</button>
-          <input type="file" id="importFreshFile" accept=".xlsx,.xls" multiple hidden>
-          <button class="act dropzone" id="importFreshBtn" style="display:none" data-retired="build 205: 신선 공급은 승현 사이트 실시간으로 받음" title="신선 취합본(신선식품·수박) 파일을 클릭 또는 끌어다 놓으세요. 파일명에 '수박'이 있으면 수박, 아니면 신선식품으로 집계합니다. 매장명 열(낱개 수량)을 매장별로 합산합니다.">신선 출고내역서 업로드</button>
+          <!-- build 245(P229-07): 숨겨 두던 매장 재고 · 가전센터 · 신선 업로드 버튼 삭제(build 205부터 승현 실시간/종료). 폴더 통째로 올리기의 해당 하위 폴더 처리는 그대로 -->
           <input type="file" id="importSalesFile" accept=".xlsx,.xls" multiple hidden>
           <button class="act dropzone" id="importSalesBtn" title="일자별 매출현황 파일(매출현황-YYYYMMDD.xlsx)을 클릭 또는 끌어다 놓으세요. 여러 날짜를 한 번에 올려도 됩니다. 금액은 G열 청구금액 기준으로 누적 집계됩니다."><span class="up-ic">🏬</span>매장별 매출 (일자별)</button>
           <input type="file" id="importCatSalesFile" accept=".xlsx,.xls" multiple hidden>
@@ -1726,15 +1721,12 @@
        출고완료" 합산에 여전히 참조하며, 앞으로 실적 0으로만 남아 있어도 무해함) — UI만 제거. 기본
        활성 탭은 '매장별 재고/공급 현황'으로 변경(JS 초기화 블록의 selectTab("agg") 참고). -->
   <div class="tabs" role="tablist">
-    <button class="tab" role="tab" id="tab-agg" aria-selected="false" aria-controls="view-agg" hidden style="display:none">매장별 재고/공급 현황</button>
     <button class="tab" role="tab" id="tab-sales" aria-selected="false" aria-controls="view-sales"><span class="tab-ic">📊</span><span class="tab-tx"><b>매장별 매출</b><small>매장마다 얼마 팔았나</small></span></button>
     <button class="tab" role="tab" id="tab-goals" aria-selected="false" aria-controls="view-goals"><span class="tab-ic">🎯</span><span class="tab-tx"><b>목표매출 달성 방안</b><small>목표까지 얼마 남았나 · 재고 · 공급</small></span></button>
     <button class="tab" role="tab" id="tab-fixed" aria-selected="false" aria-controls="view-fixed"><span class="tab-ic">🚚</span><span class="tab-tx"><b>비딩 · 낙찰 · 출고</b><small>요약본 → 낙찰파일 → 분배 → 배차</small></span></button>
   </div>
 
-  <section id="view-agg" role="tabpanel" aria-labelledby="tab-agg" hidden>
-    <!-- build 185: 이 탭은 삭제 — 내용은 목표매출 달성 방안 › 04 재고·공급(PLT)으로 옮김 -->
-  </section>
+  <!-- build 185: '매장별 재고/공급 현황' 탭 내용은 목표매출 달성 방안 › 05 재고·공급(PLT)으로 옮김. build 245(P229-07): 빈 탭 · 숨긴 버튼 삭제(selectTab("agg")는 05로 연결) -->
 
   <section id="view-sales" role="tabpanel" aria-labelledby="tab-sales" hidden>
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;flex-wrap:wrap;">
@@ -4140,11 +4132,8 @@ function refreshSlotStates(){
   const set = (id,on)=>{ const el=document.getElementById(id); if(el) el.classList.toggle("loaded", !!on); };
   const anyStock = STORES.some(s => (STOCK[s]||[]).some(v => v!==null && v!==undefined && v!==""));
   const anyVal = obj => !!obj && STORES.some(s => obj[s] && Object.values(obj[s]).some(v => num(v)>0));
-  set("importBtn",          anyStock);                                            // 매장 재고
   set("importActualBtn",    SUPPLY_HISTORY.length>0 || anyVal(ACTUAL));            // 센터 출고내역서
   set("importHQBtn",        HQ_SUPPLY_HISTORY.length>0 || anyVal(HQ_ACTUAL));      // 본사 출고내역서
-  set("importApplianceBtn", APPLIANCE_SUPPLY_HISTORY.length>0 || anyVal(APPLIANCE_ACTUAL)); // 가전센터(방도리)
-  set("importFreshBtn",     STORES.some(s=> FRESH_ACTUAL[s] && Object.values(FRESH_ACTUAL[s]).some(v=>num(v)>0))); // 신선(신선식품·수박)
   set("importSalesBtn",     STORE_SALES_HISTORY.length>0);                        // 매장별 매출(일자별·청구금액)
   set("importCatSalesBtn",  SALES_HISTORY.length>0);                              // 카테고리별 매출(상품별 파일)
 }
@@ -4160,7 +4149,6 @@ function afterChange(){
   refreshSlotStates();
   renderStoreList();
   renderPanel();
-  if(!document.getElementById("view-agg").hidden){ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }
   if(!document.getElementById("view-sales").hidden){ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); try{ renderSalesDaily(); }catch(_){} }
   if(!document.getElementById("view-goals").hidden){ renderGoals(); }
   renderDataQuality();
@@ -6305,8 +6293,8 @@ function renderTrend(){
 }
 
 /* ================= 탭 ================= */
-const tabAgg=document.getElementById("tab-agg"), tabSales=document.getElementById("tab-sales"), tabGoals=document.getElementById("tab-goals");
-const viewAgg=document.getElementById("view-agg"), viewSales=document.getElementById("view-sales"), viewGoals=document.getElementById("view-goals");
+const tabSales=document.getElementById("tab-sales"), tabGoals=document.getElementById("tab-goals");
+const viewSales=document.getElementById("view-sales"), viewGoals=document.getElementById("view-goals");
 /* ================= 화면 폭 (17차) =================
    16차에서는 탭마다 폭을 자동으로 바꿨는데(넓은 표는 넓게, 읽는 화면은 보통), 탭을 옮길 때마다
    화면이 들썩여서 오히려 산만하다는 지적을 받았다. → **전 화면 동일한 폭 하나**만 쓴다.
@@ -6338,17 +6326,15 @@ function wireWidthMode(){
 function aggRenderAll(){ try{ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }catch(e){ console.error(e); } }
 function selectTab(which){
   if(which==="agg"){ which = "goals"; try{ goalsSubTab = "10"; }catch(_){} }   // build 185: 재고/공급 탭 → 목표매출 05
-  [["agg",tabAgg,viewAgg],["sales",tabSales,viewSales],["goals",tabGoals,viewGoals],["fixed",tabFixed,viewFixed]].forEach(([name,tab,view])=>{
+  [["sales",tabSales,viewSales],["goals",tabGoals,viewGoals],["fixed",tabFixed,viewFixed]].forEach(([name,tab,view])=>{
     const on = name===which;
     tab.setAttribute("aria-selected", on);
     view.hidden = !on;
   });
-  if(which==="agg"){ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }
   if(which==="sales"){ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); try{ renderSalesDaily(); }catch(_){} }
   if(which==="goals"){ renderGoals(); try{ selectGoalsSub(goalsSubTab); }catch(_){} }
   if(which==="fixed"){ try{ wireFixedIntake(); fiRender(); wireLiqSum(); wireLiquidation(); wireEsSum(); wireEosLiq(); wireKdDist(); wireFdSum(); wireFdBid(); wireDw(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } try{ wireToday(); tdRender(); }catch(e){ console.error(e); } }
 }
-tabAgg.onclick=()=>selectTab("agg");
 tabSales.onclick=()=>selectTab("sales");
 tabGoals.onclick=()=>selectTab("goals");
 const tabFixed=document.getElementById("tab-fixed"), viewFixed=document.getElementById("view-fixed");
@@ -6430,11 +6416,6 @@ function computeStockGrandTotal(stock, stores){
   return sum;
 }
 
-const importInput = document.getElementById("importFile");
-const importBtn = document.getElementById("importBtn");
-importBtn.onclick = ()=> importInput.click();
-importInput.onchange = (e)=>{ handleStockFile(e.target.files[0]); importInput.value=""; };
-setupDropZone(importBtn, handleStockFile);
 function handleStockFile(file){
   if(!file) return Promise.resolve();
   if(typeof XLSX==="undefined"){ alert("엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요."); return Promise.resolve(); }
@@ -7257,11 +7238,6 @@ async function ensureApplianceCategoriesResolved(wb){
   saveState();
   return true;
 }
-const importApplianceInput = document.getElementById("importApplianceFile");
-const importApplianceBtn = document.getElementById("importApplianceBtn");
-importApplianceBtn.onclick = ()=> importApplianceInput.click();
-importApplianceInput.onchange = (e)=>{ handleApplianceFile(e.target.files[0]); importApplianceInput.value=""; };
-setupDropZone(importApplianceBtn, handleApplianceFile);
 function handleApplianceFile(file){
   if(!file) return Promise.resolve();
   if(typeof XLSX==="undefined"){ alert("엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요."); return Promise.resolve(); }
@@ -13143,12 +13119,6 @@ const importCatSalesBtn = document.getElementById("importCatSalesBtn");
 importCatSalesBtn.onclick = ()=> importCatSalesInput.click();
 importCatSalesInput.onchange = (e)=>{ handleCatSalesFiles(e.target.files); importCatSalesInput.value=""; };
 setupDropZoneMulti(importCatSalesBtn, handleCatSalesFiles);
-// 신선 출고내역서 슬롯 (신선식품·수박)
-const importFreshInput = document.getElementById("importFreshFile");
-const importFreshBtn = document.getElementById("importFreshBtn");
-importFreshBtn.onclick = ()=> importFreshInput.click();
-importFreshInput.onchange = (e)=>{ handleFreshFiles(e.target.files); importFreshInput.value=""; };
-setupDropZoneMulti(importFreshBtn, handleFreshFiles);
 
 /* ================= 폴더 통째로 불러오기 =================
    '업로드용자료' 폴더를 선택하면 하위 폴더 이름을 보고 각 파일을 알맞은 슬롯으로 자동 분류해 한 번에 불러온다.
@@ -13845,7 +13815,7 @@ var _cloudApply = function(val){
 };
 // 업로드/초기화 버튼을 뷰어에게서 숨기기 위해 admin-only 표시
 (function markAdminOnly(){
-  ["importFolderBtn","importStockBtn","importActualBtn","importApplianceBtn","importHQBtn","importSalesBtn","importCatSalesBtn","importSalesSummaryBtn","importFreshBtn","importLotteBtn","resetAllBtn","resetBtn","resetSalesBtn","resetStockBtn","exportMapBtn","importMapBtn","editMapBtn"].forEach(id=>{
+  ["importFolderBtn","importStockBtn","importActualBtn","importHQBtn","importSalesBtn","importCatSalesBtn","importSalesSummaryBtn","importLotteBtn","resetAllBtn","resetBtn","resetSalesBtn","resetStockBtn","exportMapBtn","importMapBtn","editMapBtn"].forEach(id=>{
     const el=document.getElementById(id); if(el){ const g=el.closest(".tool-group"); (g||el).classList.add("admin-only"); }
   });
 })();
@@ -14150,7 +14120,6 @@ function pltLiveRefreshUI(){
   try{ refreshSlotStates(); }catch(_){}
   try{ renderStoreList(); }catch(_){}
   try{ renderPanel(); }catch(_){}
-  try{ if(!document.getElementById("view-agg").hidden){ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipSourceDiff(); } }catch(_){}   // build 152: 신선 공급도 바뀌므로 공급 표까지
   try{ if(!document.getElementById("view-goals").hidden) renderGoals(); }catch(_){}
   try{ renderDataQuality(); }catch(_){}
   try{ saveState(); }catch(_){}
@@ -15337,7 +15306,7 @@ function rlDateLabel(k){
   return k;
 }
 /* opts = { key, el, items:[{ id, group, text }], head:[...], cells:item=>[td html…], groupLabel?, groupInfo?(items)=>html,
-            unit:"기록", empty, onDelete(ids) (확인창은 여기서), adminDel, firstOpen(펼칠 최근 묶음 수, 기본 1), pageGroups(기본 7) } */
+            unit:"기록", empty, onDelete(ids) (확인창은 여기서), adminDel, firstOpen(펼칠 최근 묶음 수, 기본 1), pageGroups(기본 3 — build 245 P229-06: 처음엔 최근 3일만) } */
 function recListRender(opts){
   const el = opts.el; if(!el) return;
   el._rl = opts; rlWire(el);
@@ -15348,7 +15317,7 @@ function recListRender(opts){
   const items = q ? all.filter(x=> String(x.text||"").toLowerCase().includes(q)) : all;
   const by = new Map(); items.forEach(x=>{ const g = x.group || ""; if(!by.has(g)) by.set(g, []); by.get(g).push(x); });
   const groups = [...by.keys()].sort((a,b)=> (b||"0").localeCompare(a||"0"));
-  const page = opts.pageGroups || 7, shown = ui.more || q ? groups : groups.slice(0, page);
+  const page = opts.pageGroups || 3, shown = ui.more || q ? groups : groups.slice(0, page);
   const delCls = opts.adminDel ? " admin-only" : "";
   let h = `<div class="rl-bar">
     <button class="act fi-mini" data-rl="hide" title="목록을 접어 숨깁니다(기록은 그대로)">${ui.hide ? "▸ 기록 보기" : "▾ 숨기기"}</button>
@@ -22564,15 +22533,15 @@ const IMPROVE_PROPOSALS = [
   { id:"P229-06", date:"2026-10-22", area:"기록 목록", title:"기록 목록은 처음에 최근 3일만",
     why:"배차 요청 기록 · 분배 히스토리 · 낙찰파일 기록이 처음부터 7일씩 펼쳐져 화면이 길어짐",
     what:"처음엔 최근 3일만, '이전 날짜 더 보기'로 나머지",
-    risk:"낮음" },
+    risk:"낮음", done:"build 245" },
   { id:"P229-07", date:"2026-10-22", area:"코드", title:"숨겨 둔 옛 화면 정리",
     why:"숨김 처리만 된 '매장별 재고/공급 현황' 탭(내용 없음)과 숨긴 업로드 버튼 3개(매장 재고 · 가전 · 신선)가 남아 있음",
     what:"숨긴 탭 · 버튼과 그것만 쓰는 코드 제거(승현 실시간 연동 · 05 탭은 그대로)",
-    risk:"낮음" },
+    risk:"낮음", done:"build 245" },
   { id:"P229-08", date:"2026-10-22", area:"문서", title:"작업 문서 177개 → 기능별 설명서 1개 + 변경 이력 1개",
     why:"build마다 문서가 따로 있어 '지금 이 기능이 어떻게 동작하는지' 찾기 어려움",
     what:"프로젝트 문서를 기능별(요약본 · 낙찰파일 · 분배 · 배차 · 매출 · 목표) 설명서와 변경 이력으로 묶음(원본 문서는 남김)",
-    risk:"없음(사이트 변경 없음)" },
+    risk:"없음(사이트 변경 없음)", done:"build 245 (프로젝트 문서 claude/기능설명서.md · claude/변경이력.md)" },
 ];
 var IMPROVE_DECISIONS; if(!IMPROVE_DECISIONS || typeof IMPROVE_DECISIONS!=="object") IMPROVE_DECISIONS = {};
 var IMPROVE_REQUESTS; if(!Array.isArray(IMPROVE_REQUESTS)) IMPROVE_REQUESTS = [];
