@@ -1596,6 +1596,14 @@
   .kk-topbar{overflow-x:auto;overflow-y:hidden;height:18px;margin:0 0 4px;border-radius:9px;}
   .kk-topbar>div{height:1px;}
   .kk-scrollhint{font-size:13px;color:var(--muted);margin:2px 0 4px;}
+  /* build 244: 실적 칸 안 달성률 막대 · 화면 아래에 떠 있는 옆으로 밀기 바 */
+  td.g-act{min-width:130px;}
+  .g-actbar{position:relative;height:6px;width:100px;margin:4px auto 0;background:var(--line-soft);border-radius:3px;}
+  .g-actbar>i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;min-width:2px;}
+  .g-actbar>b{position:absolute;left:83.3%;top:-3px;bottom:-3px;border-left:1.5px solid var(--text);opacity:.45;}
+  #kkFloatBar{position:fixed;bottom:0;z-index:900;overflow-x:auto;overflow-y:hidden;height:20px;background:rgba(227,231,237,.95);
+    border-top:1px solid #C9CED8;border-radius:8px 8px 0 0;box-shadow:0 -2px 8px rgba(0,0,0,.08);display:none;scrollbar-color:#8B90A0 #E3E7ED;scrollbar-width:auto;}
+  #kkFloatBar>div{height:1px;}
   #gsub-04 .agg-card{background:var(--bg) !important;padding:6px 0 0;} #gsub-04 .agg-card > .p-hd{padding-left:4px;}
 </style>
 
@@ -1608,7 +1616,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 243 · 2026-10-26</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 244 · 2026-10-27</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -4573,11 +4581,13 @@ function renderSalesMonthly(){
         // 다시 보여주고, 일할 환산값은 달성률 계산 근거로서 옆에 참고용으로만 남긴다.
         const body2 = rows2.map(r=>{
           const band = goalsIncentiveBand(r.dev);
+          const tier = goalsTier(r.pct);
+          const bc = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--info)":tier.cls==="g-tier-warn"?"var(--amber)":"var(--red)";
           return `<tr>
             <td title="${escHtml(r.label)}">${escHtml(r.label)}</td>
             <td class="tgt-col"><span class="num" style="color:var(--amber)">${Math.round(r.target).toLocaleString()}</span></td>
             <td class="tgt-col" style="font-size:12.5px;color:var(--muted2);"><span class="num">${Math.round(r.proratedTarget).toLocaleString()}</span></td>
-            <td><span class="num">${Math.round(r.actual).toLocaleString()}</span></td>
+            <td class="g-act"><span class="num">${Math.round(r.actual).toLocaleString()}</span><div class="g-actbar" title="목표(일할) 대비 ${r.pct.toFixed(1)}% · 세로선=100%"><i style="width:${(Math.min(120,r.pct)/1.2).toFixed(1)}%;background:${bc}"></i><b></b></div></td>
             <td class="total-col" style="${goalsHeatBg((r.pct/100)/1.2)}"><span class="num">${r.pct.toFixed(1)}%</span></td>
             <td class="g-band"><span class="g-store-badge ${band.cls}" style="font-size:12px;padding:2px 7px;">${escHtml(band.label)}</span></td>
           </tr>`;
@@ -4585,7 +4595,8 @@ function renderSalesMonthly(){
         const totTargetFull2 = rows2.reduce((a,r)=>a+r.target,0);
         const totTarget2 = rows2.reduce((a,r)=>a+r.proratedTarget,0);
         const totActual2 = rows2.reduce((a,r)=>a+r.actual,0);
-        const rankList2 = selectedMonthlyStore==="__all__" ? `<div class="g-rank-list">${ctx.rows.map(r=>{
+        // build 244: 표 아래 따로 있던 달성률 막대 목록은 실적 칸 안의 막대로 합침(같은 내용 두 번 → 한 곳)
+        const rankList2 = false ? `<div class="g-rank-list">${ctx.rows.map(r=>{
             const tier = goalsTier(r.pct);
             const c = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--info)":tier.cls==="g-tier-warn"?"var(--amber)":"var(--red)";
             return `<div class="g-rank-row" title="${escHtml(r.label)} · 달성률 ${r.pct.toFixed(1)}%"><span class="g-rank-num">${r.rank}</span>
@@ -4595,7 +4606,7 @@ function renderSalesMonthly(){
           }).join("")}</div>` : "";
         C = `<div style="padding:16px 4px 4px;font-family:'Gothic A1';font-size:13.5px;letter-spacing:.06em;color:var(--muted2);">${escHtml(cm)} 목표매출 대비 달성률 · 인센티브 구간 (달성률은 ${ctx.daysInMonth}일 중 ${ctx.elapsedDays}일 경과 일할 환산 기준 · 달성률 낮은 순)</div>
           ${goalsSalesGapNoteHtml(ctx)}
-          <div class="tblbox"><table class="g-tbl"><thead><tr><th>매장</th><th class="tgt-col">월 목표매출<br><span style="font-weight:400;color:var(--muted2);font-size:11.5px;">(그 달 전체)</span></th><th class="tgt-col">목표(일할)<br><span style="font-weight:400;color:var(--muted2);font-size:11.5px;">(${ctx.elapsedDays}/${ctx.daysInMonth}일 환산)</span></th><th>실적</th><th class="total-col">달성률</th><th>인센티브 구간</th></tr></thead>
+          <div class="tblbox"><table class="g-tbl"><thead><tr><th>매장</th><th class="tgt-col">월 목표매출<br><span style="font-weight:400;color:var(--muted2);font-size:11.5px;">(그 달 전체)</span></th><th class="tgt-col">목표(일할)<br><span style="font-weight:400;color:var(--muted2);font-size:11.5px;">(${ctx.elapsedDays}/${ctx.daysInMonth}일 환산)</span></th><th>실적<br><span style="font-weight:400;color:var(--muted2);font-size:11.5px;">(막대 = 달성률 · 세로선 100%)</span></th><th class="total-col">달성률</th><th>인센티브 구간</th></tr></thead>
           <tbody>${body2}</tbody>
           <tfoot><tr><td>합계</td><td class="tgt-col"><span class="num" style="color:var(--amber)">${Math.round(totTargetFull2).toLocaleString()}</span></td><td class="tgt-col" style="font-size:12.5px;color:var(--muted2);"><span class="num">${Math.round(totTarget2).toLocaleString()}</span></td><td><span class="num">${Math.round(totActual2).toLocaleString()}</span></td><td class="total-col"><span class="num">${totTarget2>0?(totActual2/totTarget2*100).toFixed(1):'0.0'}%</span></td><td></td></tr></tfoot>
           </table></div>
@@ -4658,7 +4669,7 @@ function renderSalesMonthly(){
 /* ================= 일별 매출 (월별) 막대그래프 — 2026-10-21 =================
    선택한 달의 1일~말일 매출을 막대로 그린다(전 매장 합계 또는 매장 하나).
    금액은 storeDayBill()(청구금액 우선, 없으면 실매출액)을 그대로 쓴다.
-   툴팁 비교 기준: 전일=하루 전, 전주=7일 전(같은 요일), 전월=전월 같은 날짜(없는 날짜면 생략). */
+   툴팁 비교 기준: 전일=하루 전, 전주=7일 전(같은 요일), 전월=전월에서 같은 요일 중 날짜가 가장 가까운 날(build 244). */
 let selectedDailyMonth = null;
 let selectedDailyStore = "__all__";
 function renderSalesDaily(){
@@ -4694,10 +4705,15 @@ function renderSalesDaily(){
     const dt = new Date(y, mo-1, d), dstr = ymd(dt), dow = dt.getDay();
     const hol = holidayName(dstr);
     const pd = new Date(y, mo-1, d-1), pw = new Date(y, mo-1, d-7);
+    // build 244: 전월 = 전월에서 같은 요일이면서 날짜가 가장 가까운 날(예: 10/26(월) → 9/28(월))
     const pmDim = new Date(y, mo-1, 0).getDate();
-    const pm = d<=pmDim ? ymd(new Date(y, mo-2, d)) : null;
+    const pmBase = Math.min(d, pmDim);
+    let pmBest = null;
+    for(let k=1; k<=pmDim; k++){ const c = new Date(y, mo-2, k); if(c.getDay()!==dow) continue;
+      const g = Math.abs(k - pmBase); if(!pmBest || g < pmBest.g || (g===pmBest.g && k<=d)) pmBest = { k, g }; }
+    const pm = pmBest ? ymd(new Date(y, mo-2, pmBest.k)) : null;
     days.push({ d, dstr, dow, hol, val: valOf(dstr),
-      cmp: [ ["전일", ymd(pd), valOf(ymd(pd))], ["전주 (같은 요일)", ymd(pw), valOf(ymd(pw))], ["전월 (같은 날짜)", pm, pm ? valOf(pm) : null] ] });
+      cmp: [ ["전일 대비", ymd(pd), valOf(ymd(pd))], ["전주 (같은 요일) 대비", ymd(pw), valOf(ymd(pw))], ["전월 비슷한 날짜 같은 요일 대비", pm, pm ? valOf(pm) : null] ] });
   }
   const vals = days.map(x=>x.val).filter(v=>v!=null);
   const maxV = Math.max(1, ...vals);
@@ -4705,7 +4721,7 @@ function renderSalesDaily(){
   const won = v => Math.round(v).toLocaleString('ko-KR') + "원";
   const man = v => v>=1e8 ? (v/1e8).toFixed(v>=1e9?0:1)+"억" : Math.round(v/10000).toLocaleString('ko-KR');
   const best = days.filter(x=>x.val!=null).sort((a,b)=>b.val-a.val)[0];
-  if(meta) meta.textContent = `${y}년 ${mo}월 · ${selectedDailyStore==="__all__"?"전 매장 합계":selectedDailyStore} · 막대에 마우스를 올리면 전일·전주·전월 대비`;
+  if(meta) meta.textContent = `${y}년 ${mo}월 · ${selectedDailyStore==="__all__"?"전 매장 합계":selectedDailyStore} · 막대에 마우스를 올리면 전일·전주(같은 요일)·전월(비슷한 날짜 같은 요일) 대비`;
 
   const cls = x => [x.hol||x.dow===0 ? "hol" : (x.dow===6 ? "sat" : ""), x.val==null ? "nodata" : "", best && x===best ? "max" : ""].filter(Boolean).join(" ");
   const cols = days.map((x,i)=>{
@@ -22787,6 +22803,36 @@ function kkTopBars(){
   const later = ()=>{ if(!q){ q = setTimeout(run, 250); } };
   try{ new MutationObserver(muts=>{ if(muts.some(m=> !(m.target.classList && m.target.classList.contains("kk-topbar")) && ![...m.addedNodes].every(n=> n.classList && n.classList.contains("kk-topbar")))) later(); }).observe(document.body, { childList:true, subtree:true }); }catch(_){}
   window.addEventListener("resize", later); document.addEventListener("click", ()=> setTimeout(later, 50)); setTimeout(run, 800);
+})();
+
+// build 244: "오른쪽으로 이동하는 스크롤을 곳곳에" — 표 위 바(build 240) + 표 아래 기본 바에 더해,
+//   넓은 표 중간을 보고 있을 때도 화면 맨 아래에 같은 이동바가 떠 있게 한다(표 아래 끝이 보이면 사라짐).
+(function kkFloatBar(){
+  let bar = null, cur = null, q = 0;
+  const mk = ()=>{ bar = document.createElement("div"); bar.id = "kkFloatBar"; bar.innerHTML = "<div></div>"; bar.title = "옆으로 밀어서 오른쪽 칸 보기";
+    document.body.appendChild(bar);
+    bar.addEventListener("scroll", ()=>{ if(cur && Math.abs(cur.scrollLeft - bar.scrollLeft) > 1) cur.scrollLeft = bar.scrollLeft; }, { passive:true }); };
+  const run = ()=>{ q = 0; try{
+    if(!bar) mk();
+    const vh = window.innerHeight; let pick = null;
+    document.querySelectorAll(KK_SCROLL_SEL).forEach(w=>{
+      if(pick || !w.offsetParent || w.classList.contains("kk-topbar") || w.id==="kkFloatBar") return;
+      if(w.scrollWidth <= w.clientWidth + 2) return;
+      const r = w.getBoundingClientRect();
+      if(r.top < vh - 60 && r.bottom > vh + 2 && r.bottom > 80) pick = w;
+    });
+    if(pick !== cur){ cur = pick; }
+    if(!cur){ bar.style.display = "none"; return; }
+    const r = cur.getBoundingClientRect();
+    bar.style.display = "block"; bar.style.left = Math.max(0, r.left) + "px"; bar.style.width = Math.min(window.innerWidth, r.right) - Math.max(0, r.left) + "px";
+    bar.firstChild.style.width = cur.scrollWidth + "px";
+    if(Math.abs(bar.scrollLeft - cur.scrollLeft) > 1) bar.scrollLeft = cur.scrollLeft;
+  }catch(e){ console.warn("floatbar", e); } };
+  const later = ()=>{ if(!q){ q = requestAnimationFrame(run); } };
+  window.addEventListener("scroll", later, { passive:true });
+  document.addEventListener("scroll", e=>{ if(cur && e.target===cur) later(); }, { capture:true, passive:true });
+  window.addEventListener("resize", later); document.addEventListener("click", ()=> setTimeout(later, 80));
+  setInterval(later, 1500); setTimeout(run, 900);
 })();
 
 cloudInit();
