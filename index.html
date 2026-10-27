@@ -1637,7 +1637,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 252 · 2026-10-27</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 253 · 2026-10-28</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -3837,7 +3837,11 @@ function cloudHistInit(){
 const noticeBar = document.getElementById("noticeBar");
 function showNotice(msg){
   try{ noticeBar.classList.remove("push-guard"); _pushGuardShown = false; }catch(_){}
-  noticeBar.innerHTML = `<span style="flex:1;">${escHtml(msg).replace(/\n/g,'<br>')}</span><button class="x" aria-label="안내 닫기">✕</button>`;
+  // build 253: 여러 줄 안내는 첫 줄만 보이고 나머지는 접어 둠
+  const _ls = String(msg==null?"":msg).split("\n"), _h = escHtml(_ls[0]);
+  noticeBar.innerHTML = _ls.length > 1
+    ? `<details style="flex:1;" data-cz-skip><summary style="cursor:pointer">${_h} <span class="cz-i">(${_ls.length-1}줄 더)</span></summary>${_ls.slice(1).map(x=>`<div>${escHtml(x)}</div>`).join("")}</details><button class="x" aria-label="안내 닫기">✕</button>`
+    : `<span style="flex:1;">${_h}</span><button class="x" aria-label="안내 닫기">✕</button>`;
   noticeBar.hidden = false;
   noticeBar.querySelector(".x").onclick = ()=>{ noticeBar.hidden = true; };
 }
@@ -3906,7 +3910,8 @@ function renderDataQuality(){
   if(QUALITY_DISMISSED_SIG === sig){ bar.hidden = true; return; } // 동일한 경고를 이미 닫았으면 다시 띄우지 않음
   const onlyAuto = !warnings.length;
   bar.style.borderColor = onlyAuto ? "var(--line)" : "var(--red)";
-  bar.innerHTML = `<span style="flex:1;">${onlyAuto ? `<b style="color:var(--muted)">ⓘ 참고</b>` : `<b style="color:var(--red);">⚠ 집계 확인 필요</b><br>${warnings.map(escHtml).join("<br>")}`}${autoNote}</span><button class="x" aria-label="경고 닫기">✕</button>`;
+  // build 253: 접어서 한 줄로 — 누르면 내용
+  bar.innerHTML = `<details style="flex:1;" data-cz-skip><summary style="cursor:pointer">${onlyAuto ? `<b style="color:var(--muted)">ⓘ 참고</b>` : `<b style="color:var(--red);">⚠ 집계 확인 필요 ${warnings.length}건</b>`}</summary>${warnings.map(w=>`<div>· ${escHtml(w)}</div>`).join("")}${autoNote}</details><button class="x" aria-label="경고 닫기">✕</button>`;
   bar.hidden = false;
   bar.querySelector(".x").onclick = ()=>{ bar.hidden = true; QUALITY_DISMISSED_SIG = sig; try{ localStorage.setItem("kk_quality_dismissed_v1", sig); }catch(_){} };
 }
@@ -4001,7 +4006,15 @@ function auditShip(out){
 function auditStock(out){
   const H = STOCK_HISTORY||[]; if(!H.length) return; const L = H[H.length-1]; if(!L || !L.stock) return;
   const neg = []; Object.keys(L.stock).forEach(st=>{ const a = L.stock[st]; if(Array.isArray(a)) a.slice(0,STOCK_COLS).forEach((v,i)=>{ if(+v<0) neg.push(`${st} ${AGG_HDR[i]} ${v}`); }); });
-  if(neg.length) out.push({ id:"k-neg-"+L.date+"-"+neg.length, lv:"err", area:"매장 재고", msg:`매장 재고에 음수 ${neg.length}칸`, tip: neg.slice(0,12).join("\n") });
+  // build 253: 매장은 실재고와 안 맞으면 재고를 −로 조정할 수 있다(사용자 지정) → 오류가 아니라 변동으로 알림
+  if(neg.length) out.push({ id:"k-neg-"+L.date+"-"+neg.length, lv:"chg", area:"매장 재고", msg:`매장 재고 − 조정 ${neg.length}칸`, tip: "매장이 실재고에 맞춰 재고를 −로 조정한 칸(오류 아님)\n" + neg.slice(0,12).join("\n") });
+  // 매장 입고 대조: 보낸 PLT(거래처 센터 직출 + 진천센터 출고) vs 매장이 적은 입고(승현)
+  try{ if(typeof PLT_DAILY!=="undefined" && PLT_DAILY && PLT_DAILY.d){ const per = pxPeriod(fmtDate(new Date()).slice(0,7)), comps = ["XLA","XLB","XLC","XLE","XLG","XLS","대형가구","대형가전"];
+    const stores = [...new Set([].concat(...Object.values(PLT_DAILY.d).map(o=> Object.keys(o))))].filter(s=> STORES.includes(s));
+    let sent = 0, inb = 0; const big = [];
+    stores.forEach(st=>{ const S1 = pxSentToStore([st], comps, per), i = sxStore(PLT_DAILY, st, comps, per).inb; sent += S1.sent; inb += i; const g = S1.sent - i; if(Math.abs(g)>=10) big.push(`${st}: 보낸 ${_ap(S1.sent)} (직출 ${_ap(S1.direct)} + 진천 ${_ap(S1.center)}) · 입고 ${_ap(i)} → ${g>0?"+":""}${_ap(g)}`); });
+    if(sent || inb) out.push({ id:"k-inb-"+per.e+"-"+Math.round(sent)+"-"+Math.round(inb), lv: big.length ? "warn" : "ok", area:"매장 입고", msg:`${+per.s.slice(5,7)}월 보낸 ${_ap(sent)} · 매장 입고 ${_ap(inb)} PLT${big.length ? ` — 10 PLT 넘게 차이 ${big.length}곳` : " ✓"}`,
+      tip:`보낸 PLT = 거래처 센터 직출(직출 출고내역서) + 진천센터 출고(승현 사이트 출고내역서)\n입고 = 매장이 승현 사이트에 적은 입고(신선·기타·데드우드 제외)\n${big.slice(0,12).join("\n") || "매장별 차이 10 PLT 안"}` }); } }catch(e){ console.warn("입고 대조", e); }
   const sNow = stockSnapSum(L); if(sNow) out.push({ id:"k-now-"+L.date+"-"+Math.round(sNow.tot), lv:"chg", area:"매장 재고", msg:`매장 재고 합계 ${_ap(sNow.tot)} PLT (${L.label})`, tip:`매장 ${sNow.stores}곳 · 센터 재고 아님\n${Object.entries(sNow.by).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k} ${_ap(v)}`).join(" · ")}` });
 }
 function siteAudit(){
@@ -4019,15 +4032,16 @@ function renderAuditBar(){
   const order = { err:0, warn:1, chg:2, ok:3 };
   show.sort((a,b)=> order[a.lv]-order[b.lv]);
   const LV = { err:["ab-err","오류"], warn:["ab-warn","확인"], chg:["ab-chg","변동"], ok:["ab-ok","정상"] };
-  const wasOpen = bar.querySelector("details") && bar.querySelector("details").open;
+  let wasOpen = false; try{ wasOpen = localStorage.getItem("kk_audit_open")==="1"; }catch(_){}   // build 253: 처음엔 접힘 · 펼친 상태 기억
   bar.className = "audit-bar" + (n("err") ? " err" : (!n("warn") ? " ok" : ""));
   const pills = [["err","오류"],["warn","확인 필요"],["chg","새 변동"],["ok","정상"]].filter(([k])=> n(k)).map(([k,l])=>`<span class="ab-pill ${LV[k][0]}">${l} ${n(k)}</span>`).join("");
-  bar.innerHTML = `<details${wasOpen || n("err") ? " open" : ""}><summary><b>🔔 숫자 검수 · 변동 알림</b>${pills || `<span class="ab-pill ab-ok">새 알림 없음</span>`}<span class="fi-mut" style="margin-left:auto" title="카테고리별 매출 · 센터 재고 · 출고 · 매장 재고를 매번 대조합니다. 항목에 마우스를 올리면 근거가 나옵니다.">매출 · 재고 · 출고 자동 대조</span></summary>
+  bar.innerHTML = `<details${wasOpen ? " open" : ""}><summary><b>🔔 숫자 검수 · 변동 알림</b>${pills || `<span class="ab-pill ab-ok">새 알림 없음</span>`}<span class="fi-mut" style="margin-left:auto" title="카테고리별 매출 · 센터 재고 · 출고 · 매장 재고를 매번 대조합니다. 항목에 마우스를 올리면 근거가 나옵니다.">매출 · 재고 · 출고 자동 대조</span></summary>
     <ul class="audit-list">${show.map(x=>`<li data-tip="${escHtml(x.tip||x.msg)}"><span class="ab-pill ${LV[x.lv][0]}">${LV[x.lv][1]}</span><span class="ab-area">${escHtml(x.area)}</span><span>${escHtml(x.msg)}</span>${x.lv==="chg" ? `<button class="act fi-mini" data-audit-seen="${escHtml(x.id)}">확인</button>` : "<span></span>"}</li>`).join("")}</ul></details>`;
   bar.hidden = false;
   bar.onclick = e=>{ const b = e.target.closest("[data-audit-seen]"); if(!b) return; e.preventDefault(); const s = auditSeen(); s[b.dataset.auditSeen] = Date.now();
     const ks = Object.keys(s); if(ks.length>300) ks.sort((a,b)=> s[a]-s[b]).slice(0, ks.length-300).forEach(k=> delete s[k]);
     try{ localStorage.setItem(AUDIT_SEEN_LS, JSON.stringify(s)); }catch(_){} renderAuditBar(); };
+  const dt = bar.querySelector("details"); if(dt) dt.addEventListener("toggle", ()=>{ try{ localStorage.setItem("kk_audit_open", dt.open ? "1" : "0"); }catch(_){} });
 }
 
 /* ================= build 150: 자료 기준일 줄 =================
@@ -15394,6 +15408,21 @@ function sxPeriod(){
   return { s: m+"-01", e: today, label:`${+m.slice(5)}월 (1일~오늘)` };
 }
 // 매장 한 곳 · 구성 목록(comps)의 지표
+/* build 253: 매장 입고 = ① 거래처 센터 → 매장 직출(직출 출고내역서 · 출고내역서 '직 출' 블록) + ② 진천센터 → 매장(승현 사이트 출고내역서 · 센터 출고내역서).
+   본사 출고계획서는 계획이라 빼고, 가전센터(방도리)도 이 두 경로가 아니라 따로 본다(사용자 지정 2026-10-28). 날짜별 자료로 기간만 더한다. */
+const PX_COMP_SHIP = { XLA:["XLA"], XLB:["XLB"], XLC:["XLC"], XLE:["XLE"], XLG:["XLG"], XLS:["생수/탄산수","XLS"], "대형가구":["대형가구"], "대형가전":["대형가전"], "데드우드":["데드우드"] };
+function pxShipCats(comps){
+  const main = new Set([].concat(...Object.values(PX_COMP_SHIP)));
+  return { has: c=> comps.some(k=> k==="기타" ? (!main.has(c) && !/신선|수박/.test(c)) : (PX_COMP_SHIP[k]||[k]).includes(c)) };
+}
+function pxSentToStore(members, comps, per){
+  const F = pxShipCats(comps), mem = new Set(members); let center = 0, direct = 0;
+  for(let t = per.s; t <= per.e; t = sxDay(t,1)){
+    const c = (CENTER_D||{})[t] || {}, dsrc = (DIRECT_FILE_D && DIRECT_FILE_D[t]) ? DIRECT_FILE_D[t] : ((DIRECT_MAIN_D||{})[t] || {});
+    mem.forEach(st=>{ Object.entries(c[st]||{}).forEach(([k,v])=>{ if(F.has(k)) center += num(v); }); Object.entries(dsrc[st]||{}).forEach(([k,v])=>{ if(F.has(k)) direct += num(v); }); });
+  }
+  return { center, direct, sent: center + direct };
+}
 function sxStore(P, store, comps, per){
   const D = P.d || {}, C = P.carry || {};
   const flow = (a, b)=>{ let i = 0, o = 0; for(let t=a; t<=b; t=sxDay(t,1)){ const x = (D[t]||{})[store]; if(x) comps.forEach(c=>{ const v = x[c]; if(v){ i += v[0]; o += v[1]; } }); } return [i, o]; };
@@ -15520,14 +15549,16 @@ function sxRender(){
       if(!C.k){ o.sales = any("sales") ? sum("sales") : null; o.sOut = sum("sOut"); o.perPlt = o.sales!=null && o.sOut>0 ? o.sales/o.sOut : null; }
       // 출고−입고는 서로 대응되는 카테고리끼리만(전체일 때 기타·데드우드 제외 — 기타는 "기타" 칸에서 계획 밖 출고와 비교)
       const gi = C.gapComps ? R.members.reduce((a,s)=> a + sxStore(P, s, C.gapComps, per).inb, 0) : o.inb;
-      o.gap = o.ship!=null ? o.ship - gi : null; o.gapInb = gi;
+      const SN = pxSentToStore(R.members, C.gapComps || C.comps, per);   // build 253: 보낸 PLT = 직출 + 진천센터
+      o.sent = SN.sent; o.sentC = SN.center; o.sentD = SN.direct;
+      o.gap = (o.sent || gi) ? o.sent - gi : null; o.gapInb = gi;
     }
     return o;
   }).filter(o=> o.plan || o.ship || o.inb || o.out || o.now);
   const k = PX_UI.sort, dir = PX_UI.dir, val = r=> k==="label" ? r.label : r[k]==null ? (dir>0 ? Infinity : -Infinity) : r[k];
   rows.sort((a,b)=>{ const x = val(a), y = val(b); return (typeof x==="string" ? x.localeCompare(y) : x - y) * dir; });
   const S = key=> rows.reduce((a,r)=> a + (+r[key]||0), 0);
-  const T = { plan:S("plan"), ship:S("ship"), gapInb:S("gapInb"), inb:S("inb"), out:S("out"), base:S("base"), now:S("now"), avg:S("avg"), sales:S("sales"), sOut:S("sOut") };
+  const T = { plan:S("plan"), ship:S("ship"), sent:S("sent"), sentC:S("sentC"), sentD:S("sentD"), gapInb:S("gapInb"), inb:S("inb"), out:S("out"), base:S("base"), now:S("now"), avg:S("avg"), sales:S("sales"), sOut:S("sOut") };
   const n1 = v=> v==null ? "-" : (Math.round(v*10)/10).toLocaleString(), won = v=> v==null ? "-" : Math.round(v).toLocaleString();
   const pct = v=> v==null ? "-" : Math.round(v*100)+"%";
   const paceCls = p=> p==null ? "" : p>=1 ? "px-g" : p>=0.8 ? "px-b" : p>=0.5 ? "px-y" : "px-r";
@@ -15543,25 +15574,25 @@ function sxRender(){
     ${noP ? `<div class="fi-empty" style="margin-bottom:6px">승현 사이트 해체 자료가 아직 없습니다 — 승현 PLT 로그인된 관리자 브라우저가 열리면 자동으로 받습니다.</div>` : ""}
     <div class="lp-kpis">
       <div class="lp-kpi" data-tip="${escHtml(`월 목표 = 공급계획 PLT(그 달 전체)\n센터 출고 = 매장으로 실제 보낸 PLT(본사·센터 출고 병합, 04 공급계획 진단과 같은 값)\n${noSD ? "공급계획 자료 없음" : `${n1(T.ship)} / ${n1(T.plan)} PLT`}${per.ongoing ? "\n진행 중인 달: '경과일 기준'은 목표를 오늘까지 비례로 자른 값과 비교" : ""}`)}"><div class="fi-mut">월 목표 → 센터 출고</div><b>${noSD ? "-" : `${n1(T.ship)} / ${n1(T.plan)} PLT`}</b><div class="fi-mut">${noSD ? "공급계획 없음" : `월 목표 대비 ${pct(T.plan ? T.ship/T.plan : null)}${per.ongoing ? ` · 경과일 기준 ${pct(T.plan ? T.ship/(T.plan*prorate) : null)}` : ""}`}</div></div>
-      <div class="lp-kpi" data-tip="${escHtml(`매장이 승현 PLT 사이트에 '입고'로 적은 PLT 합계(${escHtml(per.s)} ~ ${escHtml(per.e)})\n센터 출고 − 입고: +면 보냈는데 매장이 아직 입고 처리를 안 했거나 입력 누락`)}"><div class="fi-mut">매장 입고 (승현)</div><b>${C.comps.length ? n1(T.inb)+" PLT" : "-"}</b><div class="fi-mut">${!noSD && C.comps.length ? `센터 출고 − 입고 ${(T.ship-T.gapInb>0?"+":"")+n1(T.ship - T.gapInb)} PLT${C.gapComps?" (기타·데드우드 제외)":""}` : "기초재고 "+n1(T.base)+" PLT"}</div></div>
+      <div class="lp-kpi" data-tip="${escHtml(`매장이 승현 PLT 사이트에 '입고'로 적은 PLT 합계(${escHtml(per.s)} ~ ${escHtml(per.e)})\n보낸 PLT = 거래처 센터 직출 ${n1(T.sentD)} + 진천센터 출고(승현) ${n1(T.sentC)}\n보낸 − 입고: +면 매장이 아직 입고 처리를 안 했거나 입력 누락, −면 다른 경로(가전센터 등)로 받은 것\n매장은 실재고와 안 맞으면 재고를 −로 조정할 수 있습니다.`)}"><div class="fi-mut">매장 입고 (승현)</div><b>${C.comps.length ? n1(T.inb)+" PLT" : "-"}</b><div class="fi-mut">${!noSD && C.comps.length ? `보낸 ${n1(T.sent)} − 입고 = ${(T.sent-T.gapInb>0?"+":"")+n1(T.sent - T.gapInb)} PLT${C.gapComps?" (기타·데드우드 제외)":""}` : "기초재고 "+n1(T.base)+" PLT"}</div></div>
       <div class="lp-kpi" data-tip="${escHtml(`해체 = 매장이 PLT를 풀어 진열한 수(승현 사이트 입력)\n소진율 = 해체 ÷ (기간 시작 재고 ${n1(T.base)} + 입고 ${n1(T.inb)})\n하루 평균 해체 = 해체 ÷ 기간 일수`)}"><div class="fi-mut">해체 · 소진율</div><b>${C.comps.length ? n1(T.out)+" PLT" : "-"}</b><div class="fi-mut">${C.comps.length ? `소진율 ${pct(T.base+T.inb ? T.out/(T.base+T.inb) : null)} · 하루 ${n1(T.avg)} PLT` : ""}</div></div>
       <div class="lp-kpi" data-tip="${escHtml(`매장들에 지금 남아 있는 PLT(승현 사이트 마지막 입력, 센터 재고 아님)\n소진 예상 = 지금 재고 ÷ 하루 평균 해체 → 이 속도면 며칠 안에 다 푸는지`)}"><div class="fi-mut">지금 재고 · 소진 예상</div><b>${C.comps.length ? n1(T.now)+" PLT" : "-"}</b><div class="fi-mut">${T.avg ? "지금 속도로 약 "+Math.round(T.now/T.avg)+"일" : "-"}</div></div>
       <div class="lp-kpi" data-tip="${escHtml(`★ 매출 = 상품명이 ★로 시작하는 리퀴 상품의 실매출액(카테고리별 매출 파일)\n÷ 같은 기간 해체 PLT(★ 매출 자료가 있는 날만)\n${C.k ? "카테고리를 고르면 ★ 매출을 나눌 수 없어 '-'" : `${won(T.sales)}원 ÷ ${n1(T.sOut)} PLT`}`)}"><div class="fi-mut">해체 1PLT당 ★ 매출</div><b>${C.k ? "-" : T.sOut ? won(T.sales/T.sOut)+"원" : "-"}</b><div class="fi-mut">${C.k ? "카테고리별로는 나눌 수 없음" : sxStarCov(per)}</div></div>
     </div>
     <div style="overflow-x:auto"><table class="fi-tbl sx-tbl px-tbl"><thead>
-      <tr class="px-grp"><th></th><th colspan="3" class="px-g1">공급계획 · 센터 출고</th><th colspan="2" class="px-g2">매장 입고</th><th colspan="5" class="px-g3">해체 · 재고 (승현 사이트)</th><th colspan="2" class="px-g4">매출</th><th></th></tr>
+      <tr class="px-grp"><th></th><th colspan="3" class="px-g1">공급계획 · 센터 출고</th><th colspan="3" class="px-g2">매장 입고</th><th colspan="5" class="px-g3">해체 · 재고 (승현 사이트)</th><th colspan="2" class="px-g4">매출</th><th></th></tr>
       <tr>${th("label","매장")}${th("plan","월 목표","n","공급계획 PLT(그 달 전체) — 매장별_운영_종합계획 '통합입력 (2)'")}${th("ship","센터 출고","n","매장으로 실제 보낸 PLT(본사·센터 출고 병합 + 직출 + 가전센터)")}${th("pace","달성","n", per.ongoing ? "센터 출고 ÷ 월 목표 (색 = 경과일 기준 속도)" : "센터 출고 ÷ 월 목표")}
-        ${th("inb","입고","n","매장이 승현 사이트에 입고로 적은 PLT")}${th("gap","출고−입고","n","센터에서 보낸 PLT − 매장이 입고로 적은 PLT (+면 아직 입고 처리 안 됨 또는 입력 누락)")}
+        ${th("sent","보낸 PLT","n","매장으로 실제 보낸 PLT = 거래처 센터 직출(직출 출고내역서) + 진천센터 출고(승현 사이트 출고내역서) · 본사 출고계획서 · 가전센터 제외")}${th("inb","입고","n","매장이 승현 사이트에 입고로 적은 PLT")}${th("gap","보낸−입고","n","보낸 PLT − 매장 입고 (+면 아직 입고 처리 안 됨 · 입력 누락)")}
         ${th("out","해체","n","매장이 PLT를 풀어 진열한 수(승현 사이트 입력)")}${th("rate","소진율","n","해체 ÷ (기초재고 + 입고)")}${th("avg","일평균","n","해체 ÷ 기간 일수")}${th("now","지금 재고","n","매장에 지금 남은 PLT(승현 마지막 입력) — 센터 재고 아님")}${th("left","소진 예상","n","지금 재고 ÷ 일평균 해체")}
         ${th("sales","★ 매출","n","상품명이 ★로 시작하는 리퀴 상품 실매출액(카테고리별 매출 파일)")}${th("perPlt","해체 1PLT당","n","★ 매출 ÷ 해체 PLT")}<th title="매장이 승현 사이트에 마지막으로 입력한 날 — 3일 넘으면 갈색">마지막 입력</th></tr></thead><tbody>
       ${rows.map(r=>`<tr><td><b>${escHtml(r.label)}</b></td>
         <td class="n">${n1(r.plan)}</td><td class="n">${n1(r.ship)}</td><td class="n ${paceCls(r.pace)}">${pct(r.pct)}</td>
-        <td class="n">${r.inb==null?"-":n1(r.inb)}</td><td class="n${r.gap!=null && Math.abs(r.gap)>=5 ? " px-gap" : ""}">${r.gap==null?"-":(r.gap>0?"+":"")+n1(r.gap)}</td>
+        <td class="n" title="직출 ${n1(r.sentD||0)} + 진천센터 ${n1(r.sentC||0)} PLT">${r.sent==null?"-":n1(r.sent)}</td><td class="n">${r.inb==null?"-":n1(r.inb)}</td><td class="n${r.gap!=null && Math.abs(r.gap)>=5 ? " px-gap" : ""}">${r.gap==null?"-":(r.gap>0?"+":"")+n1(r.gap)}</td>
         <td class="n"><b>${r.out==null?"-":n1(r.out)}</b></td><td class="n">${pct(r.rate)}</td><td class="n">${n1(r.avg)}</td><td class="n">${n1(r.now)}</td><td class="n ${leftCls(r.left)}">${dd(r.left)}</td>
         <td class="n">${won(r.sales)}</td><td class="n">${won(r.perPlt)}</td>
         <td${stale(r)?' style="color:#8F5E00" title="3일 넘게 입력 없음"':""}>${r.last ? r.last.slice(5) : "-"}</td></tr>`).join("")}
       <tr style="font-weight:700"><td>합계 ${rows.length}곳</td><td class="n">${noSD?"-":n1(T.plan)}</td><td class="n">${noSD?"-":n1(T.ship)}</td><td class="n ${paceCls(T.plan ? T.ship/(T.plan*prorate) : null)}">${pct(T.plan ? T.ship/T.plan : null)}</td>
-        <td class="n">${n1(T.inb)}</td><td class="n">${T.ship==null||(!T.ship&&noSD)?"-":(T.ship-T.gapInb>0?"+":"")+n1(T.ship-T.gapInb)}</td><td class="n">${n1(T.out)}</td><td class="n">${pct(T.base+T.inb ? T.out/(T.base+T.inb) : null)}</td>
+        <td class="n" title="직출 ${n1(T.sentD)} + 진천센터 ${n1(T.sentC)} PLT">${n1(T.sent)}</td><td class="n">${n1(T.inb)}</td><td class="n">${(T.sent||T.gapInb) ? (T.sent-T.gapInb>0?"+":"")+n1(T.sent-T.gapInb) : "-"}</td><td class="n">${n1(T.out)}</td><td class="n">${pct(T.base+T.inb ? T.out/(T.base+T.inb) : null)}</td>
         <td class="n">${n1(T.avg)}</td><td class="n">${n1(T.now)}</td><td class="n">${T.avg ? Math.round(T.now/T.avg)+"일" : "-"}</td><td class="n">${C.k?"-":won(T.sales)}</td><td class="n">${!C.k && T.sOut ? won(T.sales/T.sOut) : "-"}</td><td></td></tr>
     </tbody></table></div>
     <div class="fi-mut" style="margin-top:6px;line-height:1.6">달성 색(진행 중인 달은 경과일 기준 속도): <span class="px-g">100%↑</span> · <span class="px-b">80~100%</span> · <span class="px-y">50~80%</span> · <span class="px-r">50% 미만</span>
