@@ -1616,7 +1616,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 245 · 2026-10-27</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 246 · 2026-10-27</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -12564,6 +12564,126 @@ function classifySalesCategory(rawTop, productName){
   for(const [re,cat] of RETAIL_CAT_RULES){ if(re.test(probe)) return cat; }
   return null;
 }
+/* ================= build 246: 매출 카테고리 구분 — 리퀴(AR Bidding) RAW 근거 =================
+   쿠팡 리퀴 요약본 RAW의 LOT_FULL_NAME(예: 199-XLA269-…, 176-XLW2608-…)에 상품이 실린 XL 그룹이 있다.
+   그 근거(sales_cat_basis.js + ② 일반 리퀴 낙찰파일을 만들 때 읽은 RAW에서 이 브라우저가 배운 것)로 매출 행을 나눈다.
+   순서: ① 고정인수 리스트 바코드(XLG · XLS=생수/탄산수) ② 정해진 대분류(신선관 · 사입 · 새상품=XTL0 · 대형가구 · 더스트레 …)
+         ③ 식품 › 생수/탄산수 ④ 같은 바코드가 실린 그룹 ⑤ 같은 분류(3단계 → 2단계 → 대분류)의 그룹 금액 비중 ⑥ 근거 없음 → 예전 방식(classifySalesCategory)
+   사용자 지정(2026-10-27): 생활용품은 XLB로 보내지 않는다 · XLK(대형가전)는 매출 화면에서 XLB와 합쳐 '가전'(SALES_CAT_GROUP) · 큰 가구 = XLW(대형가구). */
+const SALES_CLS_VER = 2;   // SALES_HISTORY 항목의 cv — 이보다 낮은 날짜는 폴더 불러오기 때 원본을 다시 읽는다
+const SCB_GROUP_CAT = { A:"XLA", B:"XLB", C:"XLC", E:"XLE", W:"대형가구", K:"대형가전" };
+const SCB_RULE_TOP = { "신선관":"신선식품", "냉장식품":"신선식품", "로켓프레시":"신선식품", "새상품":"새상품", "대형가구":"대형가구",
+  "더스트레":"더스트레이", "재사용봉투":"재사용봉투", "임박식품":"임박", "미분류":"미분류", "패션의류 > 균일가":"XLC", "패션행사":"XLC" };
+const SCB_OV_KEY = "salescat_ov_v1";   // 이 브라우저가 리퀴 RAW에서 배운 근거(IndexedDB)
+let SCB = null, _scbP = null, _scbLearnAcc = null;
+const _scbMemo = new Map();
+function scbParseShare(s){ const o = {}; String(s||"").replace(/([A-Z])(\d+)/g, (m,g,n)=>{ o[g] = (o[g]||0) + (+n); return m; }); return o; }
+function scbAdd(map, key, obj){ let t = map.get(key); if(!t){ t = {}; map.set(key, t); } for(const g in obj) t[g] = (t[g]||0) + (+obj[g]||0); }
+function scbNormBc(v){ let s = v==null ? "" : String(v).trim(); if(/^\d+\.0+$/.test(s)) s = s.replace(/\.0+$/,""); return s; }
+function scbReset(){ SCB = null; _scbP = null; _scbMemo.clear(); }
+// 근거 불러오기(처음 한 번). 실패하면 SCB.ok=false → 예전 방식으로 분류
+function salesBasisReady(){
+  if(SCB) return Promise.resolve(SCB);
+  if(_scbP) return _scbP;
+  return _scbP = (async()=>{
+    let B = null, ov = null;
+    try{ B = await fiLoadScript("sales_cat_basis.js?v=246", "SALES_CAT_BASIS"); }catch(e){ console.warn("매출 카테고리 근거 불러오기 실패", e); }
+    try{ ov = await idbGet(SCB_OV_KEY); }catch(_){ ov = null; }
+    const S = { share3:new Map(), share2:new Map(), share1:new Map(), bc:new Map(), fi:new Map(), ok:!!B, v:B ? B.v : null,
+                dates:new Set((B && B.dates) || []), ovDates:Object.keys((ov && ov.files) || {}) };
+    const addShare = (key, o)=>{ const p = String(key).split("|"); scbAdd(S.share3, key, o); scbAdd(S.share2, p[0]+"|"+(p[1]||""), o); scbAdd(S.share1, p[0], o); };
+    if(B){
+      Object.keys(B.share||{}).forEach(k=> addShare(k, scbParseShare(B.share[k])));
+      Object.keys(B.bs||{}).forEach(g=> String(B.bs[g]).split(",").forEach(b=>{ if(b) S.bc.set(b, { [g]:1 }); }));
+      Object.keys(B.bm||{}).forEach(b=> S.bc.set(b, scbParseShare(B.bm[b])));
+      Object.keys(B.fi||{}).forEach(g=> String(B.fi[g]).split(",").forEach(b=>{ if(b) S.fi.set(b, g==="G" ? "XLG" : "생수/탄산수"); }));
+    }
+    if(ov){
+      Object.keys(ov.share||{}).forEach(k=> addShare(k, ov.share[k]));
+      Object.keys(ov.bc||{}).forEach(b=> S.bc.set(b, ov.bc[b]));   // 새로 배운 것이 우선
+    }
+    S.ok = S.ok || S.share1.size > 0;
+    SCB = S; _scbP = null; _scbMemo.clear();
+    return S;
+  })();
+}
+// 그룹 금액 → [[카테고리, 비율], …]. 생활용품은 XLB 제외.
+function scbFrac(o, top){
+  let sum = 0; const ent = [];
+  for(const g in o){ if(!SCB_GROUP_CAT[g]) continue; if(top==="생활용품" && g==="B") continue; const v = +o[g]||0; if(v>0){ ent.push([g,v]); sum += v; } }
+  if(!(sum>0)) return null;
+  // 2% 미만 그룹은 잘못 실린 몇 개 상품(잡음)이라 버리고 나머지로 다시 나눈다
+  const keep = ent.filter(([g,v])=> v/sum >= 0.02), ks = keep.reduce((a,x)=> a + x[1], 0);
+  return (keep.length ? keep : ent).map(([g,v])=> [SCB_GROUP_CAT[g], v/(keep.length ? ks : sum)]);
+}
+// 대분류가 근거·규칙으로 정해지는지(카테고리 확인창에 물어볼 필요가 없는지)
+function scbTopKnown(top){
+  if(!SCB || !SCB.ok || !top) return false;
+  return !!SCB_RULE_TOP[top] || /사입$/.test(top) || SCB.share1.has(top);
+}
+// 매출 한 행 → [[카테고리, 비율], …] (비율 합 1). 근거가 없으면 null(→ 예전 방식)
+function salesClassifyRow(cell, barcode, stat){
+  if(!SCB || !SCB.ok) return null;
+  const t = String(cell||"").trim(); if(!t) return null;
+  const b = scbNormBc(barcode);
+  if(b && SCB.fi.has(b)){ if(stat) stat.fi++; return [[SCB.fi.get(b), 1]]; }
+  const parts = t==="[미분류]" ? ["미분류"] : t.split("》").map(x=> x.trim());
+  const top = parts[0], c3 = parts[1]||"", c4 = parts[2]||"";
+  if(SCB_RULE_TOP[top]){ if(stat) stat.rule++; return [[SCB_RULE_TOP[top], 1]]; }
+  if(/사입$/.test(top)){ if(stat) stat.rule++; return [["사입", 1]]; }
+  if(top==="식품" && (/생수\/탄산수/.test(c4) || c4==="탄산수")){ if(stat) stat.rule++; return [["생수/탄산수", 1]]; }
+  if(b && SCB.bc.has(b)){ const f = scbFrac(SCB.bc.get(b), top); if(f){ if(stat) stat.bc++; return f; } }
+  if(_scbMemo.has(t)){ const m = _scbMemo.get(t); if(stat && m) stat.share++; return m; }
+  let f = null;
+  for(const [map, key] of [[SCB.share3, top+"|"+c3+"|"+c4], [SCB.share2, top+"|"+c3], [SCB.share1, top]]){
+    if(map.has(key)){ f = scbFrac(map.get(key), top); if(f) break; }
+  }
+  _scbMemo.set(t, f);
+  if(stat && f) stat.share++;
+  return f;
+}
+// ── ② 일반 리퀴 낙찰파일을 만들 때 읽는 RAW에서 근거를 배운다(이 브라우저 IndexedDB) ──
+function scbLearnNew(){ return { share:{}, bc:{}, bk:{}, seen:new Set(), rows:0 }; }
+function scbLearnRow(acc, v, idx){
+  const lot = idx.LOT_FULL_NAME_Original!=null ? v[idx.LOT_FULL_NAME_Original] : null;
+  const m = String(lot||"").toUpperCase().match(/XL([A-Z])/); if(!m || !SCB_GROUP_CAT[m[1]]) return;
+  const g = m[1];
+  const at = h=> idx[h]!=null && v[idx[h]]!=null ? String(v[idx[h]]).trim() : "";
+  const bc = scbNormBc(at("BARCODE"));
+  const dk = at("INVENTORY_ID") || [at("NO."), lot, bc, at("QUANTITY")].join("|");
+  if(acc.seen.has(dk)) return; acc.seen.add(dk);
+  const key = at("CATE2")+"|"+at("CATE3")+"|"+at("CATE4");
+  const amt = Math.max(+v[idx["Sales_Price (VAT X)"]]||0, 1);
+  const sh = acc.share[key] || (acc.share[key] = {}); sh[g] = (sh[g]||0) + amt;
+  if(bc){ const o = acc.bc[bc] || (acc.bc[bc] = {}); o[g] = (o[g]||0) + amt; acc.bk[bc] = key; }
+  acc.rows++;
+}
+// 배운 것을 저장. 같은 날짜 RAW는 한 번만(근거 파일에 이미 든 날짜도 건너뜀). 반환: 추가한 상품 수(-1 = 이미 반영된 날짜)
+async function scbLearnCommit(acc, date, name){
+  if(!acc || !acc.rows) return 0;
+  const S = await salesBasisReady();
+  const d = String(date||"").replace(/\D/g,"");
+  let ov = null; try{ ov = await idbGet(SCB_OV_KEY); }catch(_){}
+  ov = ov && typeof ov==="object" ? ov : { share:{}, bc:{}, files:{} };
+  ov.share = ov.share || {}; ov.bc = ov.bc || {}; ov.files = ov.files || {};
+  if(d && (S.dates.has(d) || ov.files[d])) return -1;
+  Object.keys(acc.share).forEach(k=>{ const o = ov.share[k] || (ov.share[k] = {}); for(const g in acc.share[k]) o[g] = Math.round(((o[g]||0) + acc.share[k][g]/1000)*10)/10; });
+  // 분류만으로 거의 확실히 정해지는(같은 분류의 97% 이상이 한 그룹) 상품은 바코드를 따로 적지 않는다(용량)
+  const merged = new Map(S.share3); Object.keys(acc.share).forEach(k=>{ const t = Object.assign({}, merged.get(k)||{}); for(const g in acc.share[k]) t[g] = (t[g]||0) + acc.share[k][g]/1000; merged.set(k, t); });
+  let n = 0;
+  Object.keys(acc.bc).forEach(b=>{
+    const o = acc.bc[b], sc = merged.get(acc.bk[b]) || {};
+    let tot = 0, dg = null, dv = 0; for(const g in sc){ tot += sc[g]; if(sc[g]>dv){ dv = sc[g]; dg = g; } }
+    let bg = null, bv = 0; for(const g in o){ if(o[g]>bv){ bv = o[g]; bg = g; } }
+    if(tot>0 && dv/tot>=0.97 && bg===dg && !S.bc.has(b)) return;
+    const r = {}; for(const g in o) r[g] = Math.round(o[g]/1000*10)/10 || 0.1;
+    ov.bc[b] = r; n++;
+  });
+  ov.files[d || ("x"+Date.now())] = { name:String(name||""), at:new Date().toISOString(), rows:acc.rows, bc:n };
+  await idbSet(SCB_OV_KEY, ov);
+  scbReset();
+  return n;
+}
 // 파일 전체를 훑어 분류 규칙으로 못 정한 고유 rawTop 목록(+예시 상품명 1개)을 모은다. 행 단위가 아니라 "고유 상품분류당 1번만" 물어보기 위함.
 function collectUnknownSalesCategories(aoa, colCat, colProduct){
   const unknown = new Map(); // rawTop -> sample product name
@@ -12578,6 +12698,7 @@ function collectUnknownSalesCategories(aoa, colCat, colProduct){
     if(!rawTop || topSeen.has(rawTop)) continue;
     topSeen.add(rawTop);
     const sample = colProduct>=0 ? row[colProduct] : "";
+    if(scbTopKnown(rawTop)) continue;   // build 246: 리퀴 RAW 근거·규칙으로 정해지는 대분류는 묻지 않는다
     if(classifySalesCategory(rawTop, sample) === null) unknown.set(rawTop, sample);
   }
   return unknown;
@@ -12730,6 +12851,7 @@ async function parseSalesTransactionRows(aoa, header, onProgress){
   const byDateHour = {}; // date -> store -> hour(0~23) -> {count, amount}
   // build 233: 매출 구성(상품분류 2단계 · 매장×대분류 · 영수증 수 · 상품 TOP) — 02 카테고리 분석의 "매출 변화 원인"에 쓴다
   const colBc = header.findIndex(h=>normHdr(h)==="바코드");
+  const basisStat = { fi:0, rule:0, bc:0, share:0, old:0 };   // build 246: 어떤 근거로 나눴는지(행 수)
   const colSer = header.findIndex(h=>normHdr(h)==="일련번호");
   const mixAcc = (useCat && typeof mixNewAcc==="function") ? {} : null;   // date -> 누적기
   const extractHour = (v)=>{
@@ -12751,14 +12873,20 @@ async function parseSalesTransactionRows(aoa, header, onProgress){
     let date = dateCache.get(rawDate);
     if(date===undefined){ date = normalizeDateCell(rawDate); dateCache.set(rawDate, date); }
     if(!date){ skippedNoDate++; continue; }
-    let cat = catCache.get(catSourceCell);
-    if(cat===undefined){
-      cat = useCat ? (classifySalesCategory(rawTopCategory(catSourceCell), null) || "미분류")
-                   : extractCategoryFromProductName(catSourceCell);
-      catCache.set(catSourceCell, cat);
+    // build 246: 리퀴 RAW 근거로 나눔(바코드 → 분류 비중). 근거가 없으면 예전 방식(대분류 하나 → 카테고리 하나)
+    let cls = useCat ? salesClassifyRow(catSourceCell, colBc>=0 ? row[colBc] : null, basisStat) : null;
+    if(!cls){
+      let cat = catCache.get(catSourceCell);
+      if(cat===undefined){
+        cat = useCat ? (classifySalesCategory(rawTopCategory(catSourceCell), null) || "미분류")
+                     : extractCategoryFromProductName(catSourceCell);
+        catCache.set(catSourceCell, cat);
+      }
+      if(!cat) continue;
+      if(!useCat) fallbackCats.add(cat);
+      else if(SCB && SCB.ok) basisStat.old++;
+      cls = [[cat, 1]];
     }
-    if(!cat) continue;
-    if(!useCat) fallbackCats.add(cat);
     const rawStore = row[colStore];
     let store = storeCache.get(rawStore);
     if(store===undefined){ store = resolveSalesStoreName(rawStore); storeCache.set(rawStore, store); }
@@ -12767,8 +12895,11 @@ async function parseSalesTransactionRows(aoa, header, onProgress){
     const amount = colAmt>=0 ? toNumSales(row[colAmt]) : qty * toNumSales(row[colSale]);
     let d = byDate[date]; if(!d){ d = byDate[date] = {}; }
     let st = d[store]; if(!st){ st = d[store] = {}; }
-    let cc = st[cat]; if(!cc){ cc = st[cat] = {qty:0, amount:0}; }
-    cc.qty += qty; cc.amount += amount;
+    for(let k=0; k<cls.length; k++){
+      const cat = cls[k][0], fr = cls[k][1];
+      let cc = st[cat]; if(!cc){ cc = st[cat] = {qty:0, amount:0}; }
+      cc.qty += qty*fr; cc.amount += amount*fr;
+    }
     if(mixAcc){ const ma = mixAcc[date] || (mixAcc[date] = mixNewAcc()); mixAddRow(ma, store, catSourceCell, colProduct>=0?row[colProduct]:null, colBc>=0?row[colBc]:null, colSer>=0?row[colSer]:null, qty, amount); }
     if(colProduct>=0){ const pn = row[colProduct]; if(pn!=null && /^\s*★/.test(String(pn))){ const ds = byDateStar[date] || (byDateStar[date] = {}); ds[store] = (ds[store]||0) + amount; } }
     if(colTime>=0){
@@ -12788,7 +12919,10 @@ async function parseSalesTransactionRows(aoa, header, onProgress){
   if(colProduct>=0) Object.keys(byDate).forEach(d=>{ const ds = byDateStar[d] || (byDateStar[d] = {}); Object.keys(byDate[d]).forEach(st=>{ if(ds[st]==null) ds[st] = 0; }); });
   let byDateMix = null;
   if(mixAcc){ byDateMix = {}; Object.keys(mixAcc).forEach(d=>{ byDateMix[d] = mixFinish(mixAcc[d]); }); }
-  return { byDate, byDateHour, byDateMix, byDateStar: colProduct>=0 ? byDateStar : null, unmatched: Array.from(unmatched), rowCount, skippedNoCat, skippedNoDate, fallbackCats: Array.from(fallbackCats), amountBasis };
+  // build 246: 나눈 금액은 원 단위 소수가 생길 수 있어 칸마다 소수 둘째 자리까지만 남긴다(합계는 그대로)
+  Object.keys(byDate).forEach(d=> Object.keys(byDate[d]).forEach(s=> Object.keys(byDate[d][s]).forEach(c=>{ const v = byDate[d][s][c]; v.qty = Math.round(v.qty*100)/100; v.amount = Math.round(v.amount*100)/100; })));
+  const cv = (useCat && SCB && SCB.ok) ? SALES_CLS_VER : 1;
+  return { byDate, byDateHour, byDateMix, byDateStar: colProduct>=0 ? byDateStar : null, unmatched: Array.from(unmatched), rowCount, skippedNoCat, skippedNoDate, fallbackCats: Array.from(fallbackCats), amountBasis, cv, basisStat };
 }
 function handleSalesFile(file){
   if(!file) return Promise.resolve();
@@ -12815,6 +12949,7 @@ function handleSalesFile(file){
         const colCatT = header.indexOf("상품분류");
         const colProductT = header.indexOf("상품명");
         // 상품분류가 있는 파일이면, 자동 규칙으로 못 정한 대분류가 있는지 먼저 확인하고 사용자에게 물어본 뒤 계속 진행한다.
+        try{ await salesBasisReady(); }catch(_){}   // build 246: 리퀴 RAW 근거
         const proceed = await ensureSalesCategoriesResolved(aoa, colCatT, colProductT);
         if(!proceed){ showNotice("업로드를 취소했습니다. 카테고리 분류를 확정하지 않아 매출 데이터를 반영하지 않았습니다."); return; }
         const result = await parseSalesTransactionRows(aoa, header, (pct)=> showProgress(pct, `"${file.name}" 매출 분석 중`));
@@ -12850,10 +12985,10 @@ function handleSalesFile(file){
             const same = dateFingerprint(SALES_HISTORY[idx].byStoreCat) === dateFingerprint(result.byDate[date]);
             if(same) diff.unchanged.push({date, total:newTotal});
             else diff.changed.push({date, oldTotal, newTotal});
-            SALES_HISTORY[idx] = Object.assign({ date, byStoreCat: result.byDate[date], byStoreHour: (result.byDateHour||{})[date] || {} }, result.byDateStar ? { star: result.byDateStar[date] || {} } : (SALES_HISTORY[idx].star ? { star: SALES_HISTORY[idx].star } : {}));
+            SALES_HISTORY[idx] = Object.assign({ date, cv: result.cv, byStoreCat: result.byDate[date], byStoreHour: (result.byDateHour||{})[date] || {} }, result.byDateStar ? { star: result.byDateStar[date] || {} } : (SALES_HISTORY[idx].star ? { star: SALES_HISTORY[idx].star } : {}));
           } else {
             diff.added.push({date, total:newTotal});
-            SALES_HISTORY.push(Object.assign({ date, byStoreCat: result.byDate[date], byStoreHour: (result.byDateHour||{})[date] || {} }, result.byDateStar ? { star: result.byDateStar[date] || {} } : {}));
+            SALES_HISTORY.push(Object.assign({ date, cv: result.cv, byStoreCat: result.byDate[date], byStoreHour: (result.byDateHour||{})[date] || {} }, result.byDateStar ? { star: result.byDateStar[date] || {} } : {}));
           }
         });
         SALES_HISTORY.sort((a,b)=> a.date<b.date?-1:(a.date>b.date?1:0));
@@ -12871,6 +13006,10 @@ function handleSalesFile(file){
         let msg = `"${sheetName}" 시트에서 거래 ${result.rowCount.toLocaleString()}건을 날짜별(${dates[0]} ~ ${lastDate}, ${dates.length}일)로 집계했습니다.`;
         msg += `\n금액 기준: ${result.amountBasis}${/실매출액/.test(result.amountBasis)?" (할인·반품이 반영된 순매출)":" (실매출액 열이 없어 총액으로 추정 — 실제보다 다소 크게 나올 수 있음)"}.`;
         msg += `\n갱신 내역 — 신규 ${diff.added.length}일 · 값 변경 ${diff.changed.length}일 · 동일(재업로드) ${diff.unchanged.length}일`;
+        { const b = result.basisStat || {}; const tot = (b.fi||0)+(b.rule||0)+(b.bc||0)+(b.share||0)+(b.old||0);
+          msg += result.cv>=SALES_CLS_VER
+            ? `\n카테고리 구분(리퀴 RAW 근거 ${SCB && SCB.v ? SCB.v : ""}${SCB && SCB.ovDates.length ? ` + 배운 RAW ${SCB.ovDates.length}일` : ""}): 같은 바코드 ${(b.bc||0).toLocaleString()}행 · 분류 비중 ${(b.share||0).toLocaleString()}행 · 고정인수 리스트 ${(b.fi||0).toLocaleString()}행 · 정해진 대분류 ${(b.rule||0).toLocaleString()}행${b.old?` · 근거 없어 예전 지정 ${b.old.toLocaleString()}행`:""} (전체 ${tot.toLocaleString()}행)`
+            : `\n⚠ 카테고리 구분 근거(sales_cat_basis.js)를 불러오지 못해 예전 방식(대분류 → 카테고리 하나)으로 나눴습니다. 인터넷 연결 후 같은 파일을 다시 올려 주세요.`; }
         if(diff.changed.length){
           msg += `\n변경된 날짜: ` + diff.changed.slice(0,10).map(d=>{
             const pct = d.oldTotal ? Math.round((d.newTotal-d.oldTotal)/d.oldTotal*100) : null;
@@ -13184,7 +13323,8 @@ async function handleFolderBatch(fileList){
   {
     const _dateOfName = f=>{ const m = String(f.name).match(/(20\d{2})-?(\d{2})-?(\d{2})/); return m ? `${m[1]}-${m[2]}-${m[3]}` : null; };
     // build 88: 매출건수(cnt)가 없는 예전 매장별 매출 스냅샷도 "없는 날짜"로 보고 한 번 다시 읽는다(건수 채우기).
-    const _have = { cat: new Set(SALES_HISTORY.map(h=>h.date)), store: new Set(STORE_SALES_HISTORY.filter(h=>h && h.cnt).map(h=>h.date)) };
+    // build 246: 카테고리 구분 방식이 바뀐 날짜(cv < SALES_CLS_VER)도 '없는 날짜'로 보고 한 번 다시 읽는다
+    const _have = { cat: new Set(SALES_HISTORY.filter(h=> (h.cv||1) >= SALES_CLS_VER).map(h=>h.date)), store: new Set(STORE_SALES_HISTORY.filter(h=>h && h.cnt).map(h=>h.date)) };
     ["cat","store"].forEach(k=>{
       orig[k].forEach(f=>{
         const d = _dateOfName(f);
@@ -17813,6 +17953,7 @@ function liqScanRows(each, lots){
       return;
     }
     const no = v[noI]; if(no==null) return;
+    if(_scbLearnAcc){ try{ scbLearnRow(_scbLearnAcc, v, idx); }catch(_){} }   // build 246: 매출 카테고리 근거 배우기(모든 LOT 행)
     const key = String(no).trim().toUpperCase();
     if(!want.has(key)) return;
     const o = {}; LIQ_SRC_COLS.forEach(h=>{ const i=idx[h]; o[h] = i==null || v[i]===undefined ? null : v[i]; });
@@ -17918,10 +18059,12 @@ async function liqGenerate(){
     say(`원본 읽는 중… (${(_liqFile.size/1048576).toFixed(0)}MB)`); await liqTick();
     const buf = await _liqFile.arrayBuffer();
     let res = null, isXlsb = /\.xlsb$/i.test(_liqFile.name);
+    _scbLearnAcc = scbLearnNew();
     if(isXlsb){
       try{ res = await liqReadXlsb(buf, lots, m=> say(m)); }
-      catch(e){ console.warn("xlsb 직접 읽기 실패 → SheetJS", e); say("다른 방식으로 다시 읽는 중… (시간이 조금 더 걸립니다)"); await liqTick(); res = await liqReadSheetJs(buf, lots); }
+      catch(e){ console.warn("xlsb 직접 읽기 실패 → SheetJS", e); say("다른 방식으로 다시 읽는 중… (시간이 조금 더 걸립니다)"); await liqTick(); _scbLearnAcc = scbLearnNew(); res = await liqReadSheetJs(buf, lots); }
     } else res = await liqReadSheetJs(buf, lots);
+    const _learnAcc = _scbLearnAcc; _scbLearnAcc = null;
     if(!res.rows.length){ say(`원본(${escHtml(res.sheet)} 시트)에서 입력한 LOT No(${lots.map(escHtml).join(", ")})를 하나도 찾지 못했습니다. 번호를 확인해 주세요.`, true); return; }
     let date = (dEl.value||"").replace(/\D/g,"");
     if(!/^20\d{6}$/.test(date) || dEl.dataset.auto==="1"){
@@ -17938,10 +18081,12 @@ async function liqGenerate(){
       notFound:b.notFound, missingRate:b.missingRate }].concat(LIQ_HISTORY);
     LIQ_HISTORY.slice(40).forEach(h=>{ try{ idbSet("liq_file_"+h.id, null).catch(()=>{}); }catch(_){} });
     liqPersist();
-    say(`✓ 낙찰파일 생성 — LOT ${b.perLot.length}개 · ${b.totals.p}PLT · ${b.raw.length.toLocaleString()}행 (${_liqCur.sec}초)`);
+    let learnMsg = "";
+    try{ const n = await scbLearnCommit(_learnAcc, date, _liqFile.name); if(n>0) learnMsg = ` · 매출 카테고리 근거에 RAW ${_learnAcc.rows.toLocaleString()}행(바코드 ${n.toLocaleString()}개) 추가`; else if(n===0 && _learnAcc && _learnAcc.rows) learnMsg = ` · 매출 카테고리 근거 갱신(RAW ${_learnAcc.rows.toLocaleString()}행)`; }catch(e){ console.warn("근거 저장 실패", e); }
+    say(`✓ 낙찰파일 생성 — LOT ${b.perLot.length}개 · ${b.totals.p}PLT · ${b.raw.length.toLocaleString()}행 (${_liqCur.sec}초)${learnMsg}`);
     liqRender();
   }catch(e){ console.error(e); say("생성 실패: "+escHtml(e && e.message || e), true); }
-  finally{ if(btn) btn.disabled = false; }
+  finally{ _scbLearnAcc = null; if(btn) btn.disabled = false; }
 }
 function liqLotTable(perLot, tot){
   return `<table class="fi-tbl"><thead><tr><th>LOT No</th><th>센터</th><th>FC</th><th class="n">PLT</th><th class="n">수량</th><th class="n">매장판매가 총액</th><th class="n">도매판매가 총액</th></tr></thead><tbody>
