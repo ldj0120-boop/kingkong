@@ -301,6 +301,9 @@
   /* build 249: 숫자 근거 말풍선 — data-tip(또는 title)이 있는 곳에 마우스를 올리면 바로 뜬다 */
   #kkTip{position:fixed;z-index:99999;max-width:440px;padding:10px 13px;border-radius:10px;background:#1E2330;color:#F4F6FA;font:500 12.5px/1.6 "Pretendard","Gothic A1",sans-serif;white-space:pre-line;box-shadow:0 10px 28px rgba(0,0,0,.28);pointer-events:none;opacity:0;transition:opacity .08s;}
   #kkTip.on{opacity:1;}
+  /* build 251: 긴 설명은 핵심 한 줄 + ⓘ(마우스를 올리면 전체) */
+  [data-cz]{cursor:help;}
+  .cz-i{display:inline-block;margin-left:4px;font-size:.85em;color:var(--muted2,#8A93A6);font-style:normal;}
   .audit-bar{margin:8px 0;border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:12px;background:var(--panel,#fff);padding:8px 14px;font-size:13.5px;}
   .audit-bar.ok{border-left-color:var(--green,#1a7f37);}
   .audit-bar.err{border-left-color:var(--red,#c62828);}
@@ -1634,7 +1637,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 250 · 2026-10-27</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 251 · 2026-10-27</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -2100,7 +2103,7 @@
       </div>
       <div class="fi-body">
         <div id="lsDrop" class="fi-drop" role="button" tabindex="0">
-          <div class="fi-drop-t">아리바 비딩 원본 파일(AR_Bidding_Liquidation_… - 원본 / 바이나우원본 .xlsb)을 끌어다 놓거나 클릭</div>
+          <div class="fi-drop-t" title="아리바 비딩 원본 파일(AR_Bidding_Liquidation_… - 원본 / 바이나우원본 .xlsb)을 끌어다 놓거나 클릭" data-cz-skip>정기비딩 원본 놓기 (.xlsb)</div>
           <div class="fi-drop-s">RAW 시트 머리글에 "BUY NOW"가 있으면 바이나우 요약본, 없으면 일반 리퀴 요약본 양식으로 만듭니다 · 30MB 원본 기준 20~40초</div>
         </div>
         <input type="file" id="lsInput" accept=".xlsb,.xlsx,.xlsm,.xls" hidden>
@@ -2116,7 +2119,7 @@
       </div>
       <div class="fi-body">
         <div id="esDrop" class="fi-drop" role="button" tabindex="0">
-          <div class="fi-drop-t">임박식품 원본 파일(FC_EOS_Liquidation_YYYYMMDD - 원본.xlsx)을 끌어다 놓거나 클릭</div>
+          <div class="fi-drop-t" title="임박식품 원본 파일(FC_EOS_Liquidation_YYYYMMDD - 원본.xlsx)을 끌어다 놓거나 클릭" data-cz-skip>임박식품 원본 놓기 (.xlsx)</div>
           <div class="fi-drop-s">RAW(머리글 No. · 수량 · 판매가 …)와 LOT 표(NO · 센터 · PLT · MIN BID)를 머리글로 찾아 읽습니다 — 예전 양식 · 열 순서가 다른 원본도 됩니다 · 표준 원본은 아래 ② 낙찰파일 생성기 · 임박식품에도 자동으로 들어갑니다</div>
           <div id="esFileInfo" style="margin-top:8px;font-size:14px"></div>
         </div>
@@ -2134,7 +2137,7 @@
       <div class="fi-body">
         <div id="fdsPane">
         <div id="fdsDrop" class="fi-drop" role="button" tabindex="0">
-          <div class="fi-drop-t">FC파손 원본 파일(FC_Liquidation_YYYYMMDD_V원본 · .xlsx 또는 .xlsb)을 끌어다 놓거나 클릭</div>
+          <div class="fi-drop-t" title="FC파손 원본 파일(FC_Liquidation_YYYYMMDD_V원본 · .xlsx 또는 .xlsb)을 끌어다 놓거나 클릭" data-cz-skip>FC파손 원본 놓기</div>
           <div class="fi-drop-s">RAW 시트(FC · NO. · Cate2 · Quantity · 판매가 …)와 오른쪽 LOT 표(NO. · FC · qty · BID AMT / NO · Qty · MIN BID AMT)를 머리글로 찾아 읽습니다 · 같은 원본이 아래 ② 낙찰파일 생성기 · FC파손에도 자동으로 들어갑니다</div>
           <div id="fdsFileInfo" style="margin-top:8px;font-size:14px"></div>
         </div>
@@ -2144,7 +2147,7 @@
         </div>
         <div id="dwsPane" hidden>
         <div id="dwsDrop" class="fi-drop" role="button" tabindex="0">
-          <div class="fi-drop-t">데드우드 원본 파일((external)Deadwood_Liquidation…_for vendors.xlsx · FC 리퀴데이션 데드우드 리스트_YYYYMMDD.xlsx)을 끌어다 놓거나 클릭</div>
+          <div class="fi-drop-t" title="데드우드 원본 파일((external)Deadwood_Liquidation…_for vendors.xlsx · FC 리퀴데이션 데드우드 리스트_YYYYMMDD.xlsx)을 끌어다 놓거나 클릭" data-cz-skip>데드우드 원본 놓기</div>
           <div class="fi-drop-s">요약본(★Deadwood요약 · 종합 · 종합 (2) · Sheet2 · Sheet3 · Sheet5 · raw data)을 만듭니다 · 같은 원본이 아래 ② 낙찰파일 생성기 · 데드우드에도 자동으로 들어갑니다</div>
           <div id="dwsFileInfo" style="margin-top:8px;font-size:14px"></div>
         </div>
@@ -2171,7 +2174,7 @@
       <div class="fi-body">
         <div class="fi-disp-in">
           <div id="liqDrop" class="fi-drop" role="button" tabindex="0">
-            <div class="fi-drop-t">낙찰 원본 파일(AR_Bidding_Liquidation_….xlsb)을 끌어다 놓거나 클릭</div>
+            <div class="fi-drop-t" title="낙찰 원본 파일(AR_Bidding_Liquidation_….xlsb)을 끌어다 놓거나 클릭" data-cz-skip>낙찰 원본 놓기 (.xlsb)</div>
             <div class="fi-drop-s">60MB 넘는 xlsb도 됩니다 — 필요한 RAW 시트만 읽어서 해당 LOT 행만 꺼냅니다</div>
             <div id="liqFileInfo" style="margin-top:8px;font-size:14px"></div>
           </div>
@@ -2201,7 +2204,7 @@
       <div class="fi-body">
         <div class="fi-disp-in">
           <div id="eosDrop" class="fi-drop" role="button" tabindex="0">
-            <div class="fi-drop-t">임박식품 원본 파일(FC_EOS_Liquidation_YYYYMMDD-V….xlsx)을 끌어다 놓거나 클릭</div>
+            <div class="fi-drop-t" title="임박식품 원본 파일(FC_EOS_Liquidation_YYYYMMDD-V….xlsx)을 끌어다 놓거나 클릭" data-cz-skip>임박식품 원본 놓기 (.xlsx)</div>
             <div class="fi-drop-s">RAW 시트(No. = LOT 알파벳)와 EOS 시트(NO./FC/센터/Pallet)를 읽습니다</div>
             <div id="eosFileInfo" style="margin-top:8px;font-size:14px"></div>
           </div>
@@ -2232,7 +2235,7 @@
         <div id="fdPane">
         <div class="fi-disp-in">
           <div id="fdDrop" class="fi-drop" role="button" tabindex="0">
-            <div class="fi-drop-t">FC파손 원본 파일(FC_Liquidation_YYYYMMDD_V원본 · .xlsx 또는 .xlsb)을 끌어다 놓거나 클릭</div>
+            <div class="fi-drop-t" title="FC파손 원본 파일(FC_Liquidation_YYYYMMDD_V원본 · .xlsx 또는 .xlsb)을 끌어다 놓거나 클릭" data-cz-skip>FC파손 원본 놓기</div>
             <div class="fi-drop-s">RAW 시트(NO. = LOT 알파벳)와 LOT·FC 표(NO. · FC · qty)를 읽습니다</div>
             <div id="fdFileInfo" style="margin-top:8px;font-size:14px"></div>
           </div>
@@ -2253,7 +2256,7 @@
         <div id="dwPane" hidden>
         <div class="fi-disp-in">
           <div id="dwDrop" class="fi-drop" role="button" tabindex="0">
-            <div class="fi-drop-t">데드우드 원본 파일((external)Deadwood_Liquidation…_for vendors.xlsx · FC 리퀴데이션 데드우드 리스트_YYYYMMDD.xlsx)을 끌어다 놓거나 클릭</div>
+            <div class="fi-drop-t" title="데드우드 원본 파일((external)Deadwood_Liquidation…_for vendors.xlsx · FC 리퀴데이션 데드우드 리스트_YYYYMMDD.xlsx)을 끌어다 놓거나 클릭" data-cz-skip>데드우드 원본 놓기</div>
             <div class="fi-drop-s">① 요약본 생성기 · 데드우드에서 원본을 올렸으면 여기에 자동으로 들어옵니다 · 낙찰파일은 오른쪽에 낙찰 LOT을 넣어야 만들어집니다</div>
             <div id="dwFileInfo" style="margin-top:8px;font-size:14px"></div>
           </div>
@@ -2283,7 +2286,7 @@
       </div>
       <div class="fi-body">
         <div id="fiDrop" class="fi-drop" role="button" tabindex="0">
-          <div class="fi-drop-t">쿠팡 리퀴데이션 고정 리스트 파일을 여기에 끌어다 놓거나 클릭해서 선택</div>
+          <div class="fi-drop-t" title="쿠팡 리퀴데이션 고정 리스트 파일을 여기에 끌어다 놓거나 클릭해서 선택" data-cz-skip>고정 리스트 놓기</div>
           <div class="fi-drop-s">XLG(XLGH) · XLS · 기저귀 등(XLD) 3개를 한 번에 올려도 됩니다 — 유형은 LOT 코드·파일명으로 자동 판별</div>
         </div>
         <input type="file" id="fiInput" accept=".xlsx,.xlsm,.xls" multiple hidden>
@@ -2302,7 +2305,7 @@
       </div>
       <div class="fi-body">
         <div id="kdDrop" class="fi-drop" role="button" tabindex="0">
-          <div class="fi-drop-t">임박식품 · FC파손 낙찰파일(.xlsx)을 끌어다 놓거나 클릭</div>
+          <div class="fi-drop-t" title="임박식품 · FC파손 낙찰파일(.xlsx)을 끌어다 놓거나 클릭" data-cz-skip>임박 · FC파손 낙찰파일 놓기</div>
           <div class="fi-drop-s">② 낙찰파일 생성기에서 받은 파일 그대로 · XLA·XLB·XLC 등 일반 리퀴데이션 그룹은 분배하지 않음</div>
           <div class="fi-drop-s" id="kdFileInfo"></div>
         </div>
@@ -2326,7 +2329,7 @@
         <!-- build 189: 고정인수 직출 분배표 · 카톡 문구 (④에서 낙찰파일을 만들면 여기에) -->
         <div class="fi-sec-t" style="font-size:18px">직출 분배표 (고정인수)</div>
         <div id="fiPlanDrop" class="fi-drop" role="button" tabindex="0" style="padding:12px;margin-bottom:8px">
-          <div class="fi-drop-t" style="font-size:15px">고정인수 낙찰파일(XLG · XLS · XLD 인수리스트 .xlsx)을 끌어다 놓거나 클릭 → 직출 분배표</div>
+          <div class="fi-drop-t" style="font-size:15px" title="고정인수 낙찰파일(XLG · XLS · XLD 인수리스트 .xlsx)을 끌어다 놓거나 클릭 → 직출 분배표" data-cz-skip>고정인수 낙찰파일 놓기 → 직출 분배표</div>
           <div class="fi-drop-s">② 고정인수에서 받은 낙찰파일 그대로 · 여러 개 한 번에 · 원본 고정 리스트도 됩니다 · <b>쿠팡 출고 요청 메일(.mhtml)을 놓으면 아래에 출고요청서</b> — ④ 카드 어디에 놓아도 파일 종류로 자동 처리</div>
         </div>
         <input type="file" id="fiPlanInput" accept=".xlsx,.xlsm,.xls,.mhtml,.mht,.html,.htm,.eml,image/*" multiple hidden>
@@ -2336,7 +2339,7 @@
         <div id="fiHbBar" class="fi-status" style="color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:4px 0 8px;font-size:14.5px;line-height:1.6"></div>
         <div class="fi-disp-in">
           <div id="fiDispDrop" class="fi-drop" role="button" tabindex="0">
-            <div class="fi-drop-t">출고일정 메일 캡처 이미지 또는 저장한 메일 파일(.mhtml)을 끌어다 놓거나 클릭</div>
+            <div class="fi-drop-t" title="출고일정 메일 캡처 이미지 또는 저장한 메일 파일(.mhtml)을 끌어다 놓거나 클릭" data-cz-skip>출고일정 메일(캡처 · .mhtml) 놓기</div>
             <button type="button" class="kk-photo-btn" id="fiDispPhotoBtn">📷 휴대폰 캡처 사진 선택 (눌러서 앨범·파일에서 고르기)</button>
             <div id="fiDispPhotoMsg" class="kk-photo-msg" hidden></div>
             <div id="fiDispPhotoPrev" hidden style="margin:6px 0"></div>
@@ -2363,7 +2366,7 @@
       </div>
       <div class="fi-body">
         <div id="fiLedgerDrop" class="fi-drop admin-only" role="button" tabindex="0" style="padding:16px">
-          <div class="fi-drop-t">누적 출고요청서 원본(더한.2026.xlsx / kpp.2026.xlsx)을 올리면 서버에 저장</div>
+          <div class="fi-drop-t" title="누적 출고요청서 원본(더한.2026.xlsx / kpp.2026.xlsx)을 올리면 서버에 저장" data-cz-skip>누적 출고요청서 원본 올리기</div>
           <div class="fi-drop-s">더한 누적 엑셀(시트 "더한. 2026 N월") · 다시 올리면 원본 교체(원본에 이미 들어간 추가분은 자동 정리)</div>
         </div>
         <input type="file" id="fiLedgerInput" accept=".xlsx" multiple hidden>
@@ -4019,7 +4022,7 @@ function renderAuditBar(){
   const wasOpen = bar.querySelector("details") && bar.querySelector("details").open;
   bar.className = "audit-bar" + (n("err") ? " err" : (!n("warn") ? " ok" : ""));
   const pills = [["err","오류"],["warn","확인 필요"],["chg","새 변동"],["ok","정상"]].filter(([k])=> n(k)).map(([k,l])=>`<span class="ab-pill ${LV[k][0]}">${l} ${n(k)}</span>`).join("");
-  bar.innerHTML = `<details${wasOpen || n("err") ? " open" : ""}><summary><b>🔔 숫자 검수 · 변동 알림</b>${pills || `<span class="ab-pill ab-ok">새 알림 없음</span>`}<span class="fi-mut" style="margin-left:auto">카테고리별 매출 · 센터 재고 · 출고 · 매장 재고를 매번 대조 · 항목에 마우스를 올리면 근거</span></summary>
+  bar.innerHTML = `<details${wasOpen || n("err") ? " open" : ""}><summary><b>🔔 숫자 검수 · 변동 알림</b>${pills || `<span class="ab-pill ab-ok">새 알림 없음</span>`}<span class="fi-mut" style="margin-left:auto" title="카테고리별 매출 · 센터 재고 · 출고 · 매장 재고를 매번 대조합니다. 항목에 마우스를 올리면 근거가 나옵니다.">매출 · 재고 · 출고 자동 대조</span></summary>
     <ul class="audit-list">${show.map(x=>`<li data-tip="${escHtml(x.tip||x.msg)}"><span class="ab-pill ${LV[x.lv][0]}">${LV[x.lv][1]}</span><span class="ab-area">${escHtml(x.area)}</span><span>${escHtml(x.msg)}</span>${x.lv==="chg" ? `<button class="act fi-mini" data-audit-seen="${escHtml(x.id)}">확인</button>` : "<span></span>"}</li>`).join("")}</ul></details>`;
   bar.hidden = false;
   bar.onclick = e=>{ const b = e.target.closest("[data-audit-seen]"); if(!b) return; e.preventDefault(); const s = auditSeen(); s[b.dataset.auditSeen] = Date.now();
@@ -6316,6 +6319,47 @@ function statCard(title, value, lines, tip){   // build 249: tip = 마우스를 
   document.addEventListener("mouseout", e=>{ if(cur && !(e.relatedTarget && cur.contains(e.relatedTarget))) hide(); });
   document.addEventListener("pointerdown", e=>{ if(e.pointerType!=="touch"){ return; } const el = pick(e.target); if(!el || el===cur){ hide(); return; } const r = el.getBoundingClientRect(); show(el, r.left, r.bottom); });
   addEventListener("scroll", hide, true);
+})();
+/* ================= build 251: 간단명료 — 긴 설명 줄이기 =================
+   사용자 지시(2026-10-27): "텍스트 많고 설명 너무 많다 — 간단명료 · 일목요연 · 핵심 포인트만".
+   설명용 칸(.g-tbl-sub · .meta · .fi-mut · .fi-drop-s 등)의 글이 길면 화면에는 핵심 한 줄(첫 문장 · '—' 앞 · 숫자 포함 앞부분)만 보이고,
+   전체 설명은 ⓘ 말풍선(마우스를 올리면/휴대폰은 누르면)으로 옮긴다. 화면을 다시 그려도 MutationObserver가 자동으로 다시 줄인다.
+   버튼·입력칸·링크·표가 들어 있는 칸은 건드리지 않는다. 경고(⚠)는 줄이되 맨 앞 경고 문구는 남긴다. */
+const CZ_SEL = ".g-tbl-sub,.meta,.g-month-meta,.g-drill-hint,.fi-drop-s,.fi-mut,p.foot,.note,.sd-legend,.mix-say,.trend-empty,.g-note-p,.fi-empty,.g11-empty,.t-warn,.g-tbl-title,.g-fc-card .v,.wy,details > summary,.lp-bar > span";
+const CZ_MAX = 46;
+function czHead(t){
+  t = String(t||"").replace(/\s+/g," ").trim();
+  if(t.length <= CZ_MAX) return null;
+  const cut = (x)=>{ x = x.trim().replace(/[\s·,:(—-]+$/,""); return x.length > CZ_MAX ? x.slice(0, CZ_MAX-2).replace(/\s+\S*$/,"") + "…" : x; };
+  let m = t.split(/\s+—\s+|\s+–\s+/)[0];
+  if(m.length >= 6 && m.length <= CZ_MAX) return cut(m);
+  m = t.split(/(?<=[.。!?])\s+|(?<=다\.)\s*/)[0];
+  if(m.length >= 6 && m.length <= CZ_MAX) return cut(m);
+  const segs = t.split(/\s+·\s+/); let h = "";
+  for(const g of segs){ if((h ? h.length + 3 : 0) + g.length > CZ_MAX) break; h = h ? h + " · " + g : g; }
+  if(h.length >= 6) return cut(h);
+  return t.slice(0, CZ_MAX-1).replace(/\s+\S*$/,"").replace(/[\s·,:(—-]+$/,"") + "…";
+}
+function czApplyEl(el){
+  if(el.closest("#kkTip,.audit-list,[data-cz-skip],.modal-overlay .catmap-row,#impPanel,#fiComboImgs,.audit-bar")) return;   // 제안함 · 카톡 그림 안내는 그대로
+  if(el.hasAttribute("title") || (el.hasAttribute("data-tip") && !el.dataset.cz)) return;   // 이미 한 줄 + 말풍선으로 만든 칸
+  if(el.querySelector("input,select,button,textarea,a,table,canvas,svg,img,[data-cz]")) return;
+  const full = (el.innerText || el.textContent || "").replace(/[ \t]+/g," ").trim() || el.textContent.replace(/\s+/g," ").trim();
+  if(el.dataset.cz && el.dataset.czFull === full) return;   // 이미 줄인 글
+  const head = czHead(full); if(!head) return;
+  el.dataset.czFull = (head + " ⓘ"); el.dataset.cz = "1";
+  el.setAttribute("data-tip", full);
+  if(el.tagName==="SUMMARY"){ el.textContent = head; el.insertAdjacentHTML("beforeend", ` <span class="cz-i">ⓘ</span>`); }
+  else el.innerHTML = `${escHtml(head)}<span class="cz-i">ⓘ</span>`;
+  el.dataset.czFull = (el.innerText || el.textContent || "").replace(/[ \t]+/g," ").trim() || el.textContent.replace(/\s+/g," ").trim();
+}
+function czApply(root){ try{ Array.from((root||document).querySelectorAll(CZ_SEL)).reverse().forEach(czApplyEl); }catch(e){ console.warn("cz", e); } }
+(function czInit(){
+  let q = false;
+  const run = ()=>{ q = false; czApply(document.body); };
+  const kick = ()=>{ if(q) return; q = true; requestAnimationFrame(()=> setTimeout(run, 30)); };
+  const start = ()=>{ kick(); new MutationObserver(kick).observe(document.body, { childList:true, subtree:true, characterData:true }); };
+  if(document.body) start(); else document.addEventListener("DOMContentLoaded", start);
 })();
 // build 249: 매장 재고 스냅샷 합계를 한 규칙으로(창고 보관가능 · 야적 PLT 칸은 재고가 아니라 빼고) — 옛 엑셀 스냅샷과 승현 실시간을 같은 기준으로 비교
 function stockSnapSum(h){
@@ -9397,7 +9441,7 @@ function goalsDiagMemo(r){
   // 냉장·냉동 설비가 없는 매장에는 신선식품 확대를 권하지 않는다(goalsActionText와 같은 원칙)
   if(r.diag.noFresh && op && FRESH_CATS.includes(op.cat)) op = (r.diag.diffs||[]).filter(d=>!FRESH_CATS.includes(d.cat)).slice(-1)[0] || null;
   if(op && op.cat && op.cat!=="-" && op.diff <= -5)
-    return `${op.cat} 비중이 전사보다 ${Math.abs(op.diff).toFixed(1)}%p 낮음 — ${op.cat} 공급·진열 우선 점검${st && st.cat && st.diff>=5 ? ` (강점 ${st.cat} +${st.diff.toFixed(1)}%p 유지)` : ""}`;
+    return `${op.cat} 비중 −${Math.abs(op.diff).toFixed(1)}%p(전사 대비) → 공급·진열 점검${st && st.cat && st.diff>=5 ? ` · 강점 ${st.cat} +${st.diff.toFixed(1)}%p` : ""}`;   // build 251: 짧게
   return                               "카테고리 구성 전사와 비슷함(격차 5%p 미만) — 카테고리보다 공급량·객수 점검";
 }
 // 히트맵: 엑셀의 3색 ColorScaleRule을 대신하는 셀 배경색. t=0 나쁨(빨강) ~ t=1 좋음(초록).
