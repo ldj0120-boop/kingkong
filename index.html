@@ -1616,7 +1616,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 247 · 2026-10-27</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 248 · 2026-10-27</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -12122,8 +12122,8 @@ const MIX_EVAL_STOCK = { XLA:[0], "가전":[1,9], XLC:[2], XLE:[3], XLG:[4], "�
 const MIX_EVAL_COMPS = { XLA:["XLA"], "가전":["XLB","대형가전"], XLC:["XLC"], XLE:["XLE"], XLG:["XLG"], "대형가구":["대형가구"] };
 function mixCenterCat(cate){
   const c = String(cate).replace(/\s+/g,"");
-  if(/^(시흥)?XLA$/.test(c)) return "XLA"; if(/^XL[BK]$|777가전|XLW대형가전/.test(c)) return "가전"; if(/XLW대형가구|하우저/.test(c)) return "대형가구";   // build 247: XLK(대형가전)도 가전
-  if(/^XL[CEG]$/.test(c)) return c; if(/^FC/.test(c)) return "FC파손"; if(/데드우드|^XLD$/.test(c)) return "데드우드"; if(/생산재고/.test(c)) return "생산재고";
+  if(/^(시흥)?XLA$/.test(c)) return "XLA"; if(/^XL[BK]$|777가전|XLW대형가전/.test(c)) return "가전"; if(/XLW대형가구|하우저/.test(c)) return "대형가구";   // 매출 '가전'(XLB 일반가전 + 대형가전)과 비교하려고 합침 — 화면에는 XLB · XLK를 따로 적는다
+  if(/^XL[CEG]$/.test(c)) return c; if(/^FC/.test(c)) return "FC파손"; if(/^XLD$|기저귀|분유/.test(c)) return "기저귀_분유"; if(/데드우드/.test(c)) return "데드우드"; if(/생산재고/.test(c)) return "생산재고";   // build 248: XLD = 기저귀/분유(데드우드 아님)
   return c;
 }
 // 기간의 공급 PLT(본사·센터 출고 병합 + 가전·직출·신선·롯데) — 월 합계를 날짜 비율로 나눔. 자료 있는 달만 셈.
@@ -12158,14 +12158,13 @@ function mixDismantlePerDay(stores, cat, from, to){
 const MIX_CENTER_CATS = new Set(["XLA","가전","XLC","XLE","XLG","대형가구","FC파손","데드우드","생산재고"]);   // 센터 LOT 재고로 관리하는 카테고리
 function mixCenterNow(cat){
   if(!CENTER_STOCK || !CENTER_STOCK.centers || !MIX_CENTER_CATS.has(cat)) return null;
-  let v = 0; const by = {};
-  Object.keys(CENTER_STOCK.centers).forEach(cn=>{ Object.entries(CENTER_STOCK.centers[cn]).forEach(([cate,q])=>{ if(mixCenterCat(cate)===cat){ v += q; by[cn] = (by[cn]||0) + q; } }); });
-  return { v, by, date: CENTER_STOCK.date };
+  let v = 0; const by = {}, byCate = {};
+  Object.keys(CENTER_STOCK.centers).forEach(cn=>{ Object.entries(CENTER_STOCK.centers[cn]).forEach(([cate,q])=>{ if(mixCenterCat(cate)===cat){ v += q; by[cn] = (by[cn]||0) + q; byCate[cate] = (byCate[cate]||0) + q; } }); });
+  return { v, by, byCate, date: CENTER_STOCK.date };
 }
 /* ================= build 247: 센터 재고 카드 (목표매출 › 04 재고·공급) =================
    CENTER_STOCK(LOT재고현황 "요약" 시트)을 센터 × 카테고리 PLT 표로 보여 준다.
-   [카테고리별] = 사이트 카테고리로 묶음(mixCenterCat: XLB·777가전·XLW 대형가전 → 가전, XLW 대형가구·하우저 → 대형가구, FC… → FC파손 …)
-   [원본 CATE] = 엑셀 요약 시트의 CATE 이름 그대로. 합계는 모든 센터를 더한다(엑셀 '합계' 열은 진천센터를 빼고 더함). */
+   build 248: 카테고리는 묶지 않고 엑셀 요약 시트의 CATE 이름 그대로 한 줄씩(사용자 지정 — XLD와 데드우드, XLB와 XLK는 다른 카테고리). 합계는 모든 센터를 더한다(엑셀 '합계' 열은 진천센터를 빼고 더함). */
 const CS_UI_LS = "kk_cs_ui_v1";
 function csUi(){ try{ return JSON.parse(localStorage.getItem(CS_UI_LS)||"{}")||{}; }catch(_){ return {}; } }
 function csSetUi(o){ try{ localStorage.setItem(CS_UI_LS, JSON.stringify(Object.assign(csUi(), o))); }catch(_){} }
@@ -12192,24 +12191,22 @@ function renderCenterStock(){
     body.innerHTML = `<div class="g-tbl-sub" style="padding:10px 0">센터 재고 자료가 없습니다. 관리자 PC에서 <b>📁 폴더 통째로 불러오기</b>로 <b>업로드용자료 › 이천센터재고현황</b> 폴더(LOT재고현황_YYMMDD.xlsx)를 올리면, 가장 최신 파일의 "요약" 시트가 여기 표시됩니다.</div>`;
     return;
   }
-  const mode = csUi().mode==="raw" ? "raw" : "cat";
+  const mode = "raw";   // build 248: 사용자 지정 — 카테고리를 묶지 않고 엑셀 CATE 그대로(XLD ≠ 데드우드, XLB ≠ XLK)
   const T = centerStockTable(mode);
   const n1 = v=> (Math.round(v*10)/10).toLocaleString();
   const today = fmtDate(new Date());
   const age = CENTER_STOCK.date ? Math.round((new Date(today) - new Date(CENTER_STOCK.date))/864e5) : null;
   if(meta) meta.textContent = `기준 ${CENTER_STOCK.date||"-"}${age!=null&&age>0?` (${age}일 전)`:""} · ${CENTER_STOCK.file||""}`;
-  const btn = (m,l)=> `<button class="gsub-tab${mode===m?" active":""}" data-cs-mode="${m}" style="padding:4px 12px;font-size:13.5px;">${l}</button>`;
-  const head = `<tr><th>${mode==="raw"?"CATE (엑셀 요약 그대로)":"카테고리"}</th>${T.centers.map(cn=>`<th class="r">${escHtml(cn)}</th>`).join("")}<th class="r">합계</th><th class="r">비중</th></tr>`;
+  const head = `<tr><th>카테고리 (CATE)</th>${T.centers.map(cn=>`<th class="r">${escHtml(cn)}</th>`).join("")}<th class="r">합계</th><th class="r">비중</th></tr>`;
   const rowsHtml = T.list.map(o=>{
     const sub = mode==="cat" && (o.raw.size>1 || [...o.raw][0]!==o.name) ? `<div class="mix-pc">${escHtml([...o.raw].join(" · "))}</div>` : "";
     return `<tr><td><b>${escHtml(o.name)}</b>${sub}</td>${T.centers.map(cn=>{ const v = o.by[cn]||0; return `<td class="r">${v?n1(v):`<span style="color:var(--muted2)">-</span>`}</td>`; }).join("")}<td class="r"><b>${n1(o.tot)}</b></td><td class="r">${T.tot?(o.tot/T.tot*100).toFixed(1)+"%":"-"}</td></tr>`;
   }).join("");
   const foot = `<tr class="fi-tot"><td>합계</td>${T.centers.map(cn=>`<td class="r">${n1(T.colTot[cn])}</td>`).join("")}<td class="r"><b>${n1(T.tot)}</b></td><td class="r">100%</td></tr>`;
   const old = age!=null && age>=7 ? `<div class="g-tbl-sub" style="color:var(--amber)">⚠ ${age}일 전 자료입니다 — 최신 LOT재고현황 파일을 폴더 통째로 불러오기로 올려 주세요.</div>` : "";
-  body.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:2px 0 8px">${btn("cat","카테고리별")}${btn("raw","원본 CATE")}
-      <span class="g-tbl-sub" style="margin-left:6px">센터 ${T.centers.length}곳 · 합계 <b>${n1(T.tot)} PLT</b> — 모든 센터를 더한 값(엑셀 요약의 '합계' 열은 진천센터를 빼고 더함)</span></div>${old}
+  body.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:2px 0 8px">
+      <span class="g-tbl-sub">센터 ${T.centers.length}곳 · 합계 <b>${n1(T.tot)} PLT</b> — 모든 센터를 더한 값(엑셀 요약의 '합계' 열은 진천센터를 빼고 더함)</span></div>${old}
     <div class="tblbox"><table class="g-tbl cs-tbl"><thead>${head}</thead><tbody>${rowsHtml}</tbody><tfoot>${foot}</tfoot></table></div>`;
-  if(!body._csWired){ body._csWired = true; body.addEventListener("click", e=>{ const b = e.target.closest("[data-cs-mode]"); if(!b) return; csSetUi({ mode:b.dataset.csMode }); renderCenterStock(); }); }
 }
 function mixSupplyEval(R){
   const stores = R.store ? [R.store] : R.same, A = R.P.A, B = R.P.B, nA = R.nA, nB = R.nB;
@@ -12252,7 +12249,7 @@ function mixSupplyEvalHtml(R){
     <td class="r">${o.pA==null?"-":n1(o.pA)} → ${o.pB==null?"-":n1(o.pB)}${pc(o.pc)}${o.pA!=null && o.pAdays < R.P.A.length*0.8 ? `<div class="mix-pc">앞 기간 중 ${o.pAdays}일 공급 자료</div>` : ""}</td>
     <td class="r">${o.perA?won(o.perA):"-"} → ${o.perB?won(o.perB):"-"}</td>
     <td class="r">${o.stock?n1(o.stock.v)+" PLT":"-"}${o.stock && o.stock.v<=0 ? `<div class="mix-pc">재고 없음</div>` : o.cover!=null?`<div class="mix-pc">약 ${Math.round(o.cover)}일치${o.dis?" (해체 속도)":" (공급 속도)"}</div>`:""}</td>
-    <td class="r">${o.center?n1(o.center.v)+" PLT":"-"}${o.center&&o.center.v?`<div class="mix-pc">${escHtml(Object.entries(o.center.by).filter(x=>x[1]).map(([k,v])=>`${k} ${Math.round(v)}`).join(" · "))}</div>`:""}</td>
+    <td class="r">${o.center?n1(o.center.v)+" PLT":"-"}${o.center&&o.center.v?`<div class="mix-pc">${escHtml(Object.entries(o.center.byCate||{}).filter(x=>x[1]).length>1 ? Object.entries(o.center.byCate).filter(x=>x[1]).map(([k,v])=>`${k} ${Math.round(v)}`).join(" · ") : Object.entries(o.center.by).filter(x=>x[1]).map(([k,v])=>`${k} ${Math.round(v)}`).join(" · "))}</div>`:""}</td>
     <td><span class="mix-j ${o.cls}">${o.tag}</span><div style="font-size:14px;line-height:1.5;margin-top:3px">${o.say}</div></td></tr>`).join("")}
   </tbody></table></div>`;
 }
