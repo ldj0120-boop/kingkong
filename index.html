@@ -1637,7 +1637,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 251 · 2026-10-27</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 252 · 2026-10-27</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -18896,10 +18896,13 @@ function esAnalyze(D){
   const rows = []; for(let i=hi+1;i<A.length;i++){ const v = A[i]||[]; if(esT(v[1])) rows.push(v); }
   // LOT 목록 표(오른쪽): V~Y = NO. | FC | PLT | Min Bid,  AA~AC = NO | PLT | MIN BID AMT  (build 166: 머리글까지 맞을 때만)
   let iV = H.indexOf("NO.", 19), iA = H.findIndex((h,i)=> i>19 && i!==iV && h==="NO");
-  if(iV>=0 && !(/^fc$/i.test(H[iV+1]) && /plt|pallet/i.test(H[iV+2]))) iV = -1;
+  // build 252: FC 표가 NO.|FC|센터|Pallet|MID BID(센터 열 추가)여도 인식 — Pallet 열 위치를 머리글로 찾음
+  let iVp = -1;
+  if(iV>=0 && /^fc$/i.test(esT(H[iV+1]))) for(let k=iV+2;k<=iV+3;k++){ if(/plt|pallet/i.test(esT(H[k]))){ iVp = k; break; } }
+  if(iVp<0) iV = -1;
   if(iA>=0 && !(/plt|pallet/i.test(H[iA+1]) && /bid/i.test(H[iA+2]))) iA = -1;
   const vList = [], aList = [];
-  if(iV>=0) for(let i=hi+1;i<A.length;i++){ const v=A[i]||[]; const no=esT(v[iV]).toUpperCase(); if(!no) continue; vList.push({ no, fc:esT(v[iV+1]), plt:+v[iV+2]||0, bid: v[iV+3]==null||v[iV+3]===""?null:+v[iV+3] }); }
+  if(iV>=0) for(let i=hi+1;i<A.length;i++){ const v=A[i]||[]; const no=esT(v[iV]).toUpperCase(); if(!no) continue; vList.push({ no, fc:esT(v[iV+1]), plt:+v[iVp]||0, bid: v[iVp+1]==null||v[iVp+1]===""?null:+v[iVp+1] }); }
   if(iA>=0) for(let i=hi+1;i<A.length;i++){ const v=A[i]||[]; const no=esT(v[iA]).toUpperCase(); if(!no) continue; aList.push({ no, plt:+v[iA+1]||0, bid: v[iA+2]==null||v[iA+2]===""?null:+v[iA+2] }); }
   // EOS 시트 (NO. | FC | 센터 | Unit | Pallet …)
   let eosHdr = ["NO.","FC","센터","Unit"," Pallet "], eosRows = [];
@@ -18963,7 +18966,7 @@ function esAnalyze(D){
     return { no, centers, centerText: centers.join(" "), plt, extras, pltText, pltGuess, bid, F, N, H: F-N, Q, rows: src.length, cats,
              top: cats.slice(0,4).map(x=> `${x.c} (${Math.round(x.q)}EA ₩${Math.round(x.s).toLocaleString("en-US")})`) };
   });
-  return { H, hi, rows, lots, eosHdr, eosRows, vList, aList, iV, iA, lotFrom, centerGuess };
+  return { H, hi, rows, lots, eosHdr, eosRows, vList, aList, iV, iVp, iA, lotFrom, centerGuess };
 }
 async function esBuild(ff, D, srcName, prog){
   prog = prog || function(){};
@@ -19036,14 +19039,15 @@ async function esBuild(ff, D, srcName, prog){
       let x = "";
       if(i<hi){ if(r===1) [15,16,17,18].forEach((j,k)=>{ x += C(L(j)+"1", { f:`SUBTOTAL(9,${L(j)}3:${L(j)}1048576)`, v:rawTot[k] }, 7, sst); }); s.w('<row r="'+r+'">'+x+'</row>'); continue; }
       if(i===hi){
-        for(let c=0;c<v.length;c++){ if(v[c]==null) continue; const st = c<19 ? S2[c] : (c>=Z.iV && c<Z.iV+4 ? 30 : (c===Z.iA ? 31 : 18)); x += C(L(c)+r, v[c], st, sst); }
+        for(let c=0;c<v.length;c++){ if(v[c]==null) continue; const st = c<19 ? S2[c] : (Z.iV>=0 && c>=Z.iV && c<=Z.iVp+1 ? 30 : (c===Z.iA ? 31 : 18)); x += C(L(c)+r, v[c], st, sst); }
         s.w('<row r="'+r+'" s="11" customFormat="1">'+x+'</row>'); continue;
       }
       for(let c=0;c<v.length;c++){
         let val = v[c]; if(val==null || val==="") continue;
         let st = c<19 ? SD[c] : (typeof val==="number" ? 17 : 16);   // build 167: 본 표 밖 열(예전 LOT 표 등)은 RAW 크기 글꼴 — 81(요약 시트용 큰 글꼴) 쓰면 행이 깨짐
-        if(Z.iV>=0 && c>=Z.iV && c<Z.iV+4) st = c===Z.iV+3 ? 32 : 16;
-        if(Z.iA>=0 && c>=Z.iA && c<Z.iA+3){ st = [19,20,21][c-Z.iA]; if(c===Z.iA+1) val = { f:`SUMIFS(${L(Z.iV+2)}:${L(Z.iV+2)},${L(Z.iV)}:${L(Z.iV)},${L(Z.iA)}${r})`, v:val }; }
+        if(Z.iV>=0 && c>=Z.iV && c<=Z.iVp+1) st = c===Z.iVp+1 ? 32 : 16;
+        // build 252: FC 표를 못 찾았으면(iV<0) 수식 대신 원본 숫자 그대로 — 예전엔 SUMIFS(B:B,:,AA3) 깨진 수식이 들어가 엑셀 복구 오류
+        if(Z.iA>=0 && c>=Z.iA && c<Z.iA+3){ st = [19,20,21][c-Z.iA]; if(c===Z.iA+1 && Z.iV>=0 && Z.iVp>=0) val = { f:`SUMIFS(${L(Z.iVp)}:${L(Z.iVp)},${L(Z.iV)}:${L(Z.iV)},${L(Z.iA)}${r})`, v:val }; }
         x += C(L(c)+r, val, st, sst);
       }
       s.w('<row r="'+r+'">'+x+'</row>');
