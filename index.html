@@ -1661,7 +1661,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 255 · 2026-10-28</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 256 · 2026-10-28</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -1800,17 +1800,21 @@
       </div>
       <div id="salesTrendBody"></div>
     </div>
-    <!-- build 255: 사용자 요청 — 월 총합 매출을 달마다 한눈에(막대 · 전월 대비 · 일평균). 줄을 누르면 그 달로 이동 -->
+    <!-- build 255: 사용자 요청 — 월 총합 매출을 달마다 한눈에(막대 · 전월 대비 · 일평균). 줄을 누르면 그 달로 이동
+         build 256: 중복 정리 — 옛 '월별 매장 매출' 카드(매장 × 월 표 · 월별 카테고리 점유율)를 이 카드 안으로 합침.
+         매장 고르기 하나로 위 막대와 아래 표가 같이 바뀐다. 카테고리 점유율은 사이트에서 이 표 한 곳에만 둔다. -->
     <div class="agg-card" id="salesMonTotCard">
       <div class="p-hd">
-        <span class="store-name">월별 총매출</span>
+        <span class="store-name">월별 매출</span>
         <span class="meta" id="salesMonTotMeta">달마다 그 달 전체 매출 합계</span>
       </div>
       <div style="padding:10px 18px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <label for="salesMonTotStore" style="font-family:'Gothic A1';font-size:13px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;">매장</label>
         <select id="salesMonTotStore" style="max-width:220px;"></select>
       </div>
-      <div id="salesMonTotWrap" style="padding:12px 18px 18px;"></div>
+      <div id="salesMonTotWrap" style="padding:12px 18px 6px;"></div>
+      <div style="padding:0 18px;"><span class="meta" id="salesMonthlyMeta" style="font-size:12px;"></span></div>
+      <div class="agg-scroll" id="salesMonthlyWrap"></div>
     </div>
     <!-- 2026-10-21: 사용자 요청 — 전매장/매장별 "월별 일별 매출"을 막대그래프로. 막대 아래 날짜·요일,
          막대에 마우스를 올리면 전일·전주(같은 요일)·전월(같은 날짜) 대비를 툴팁으로 보여준다. -->
@@ -1829,16 +1833,7 @@
     </div>
 
 
-    <div class="agg-card">
-      <div class="p-hd">
-        <span class="store-name">월별 매장 매출</span>
-        <span class="meta" id="salesMonthlyMeta">달을 선택하면 그 달에 업로드된 날짜들의 매장별 매출 합계를 언제든 다시 볼 수 있습니다</span>
-      </div>
-      <div style="padding:12px 18px 0;">
-        <span class="meta" style="font-size:13px;">전체 업로드된 월을 나란히 비교합니다. (매장별 월 매출 + 월별 카테고리 점유율)</span>
-      </div>
-      <div class="agg-scroll" id="salesMonthlyWrap"></div>
-    </div>
+    <!-- build 256: '월별 매장 매출' 카드는 위 '월별 매출' 카드 안으로 합침(#salesMonthlyWrap 이동) -->
 
 <!-- 2026-09-23: "매장별 공급 대비 매출"·"카테고리별 공급 대비 매출" 카드 삭제(사용자 요청 — "근거가 안맞는다").
          이번달 출고량(출고예정+출고완료)과 이번달 매출을 그대로 나눠 "PLT당 매출"을 냈는데, 출고와 판매 사이엔
@@ -4739,12 +4734,9 @@ function renderSalesMonthly(){
     if(months.includes(py)) out+=miniDelta(curVal, valFn(py), '작년');
     return out;
   };
-  const storeSel = `<div style="padding:8px 4px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-      <label style="font-family:'Gothic A1';font-size:13px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;">매장</label>
-      <select id="salesMonthlyStore" style="max-width:220px;">
-        <option value="__all__"${selectedMonthlyStore==="__all__"?' selected':''}>전체 매장 (합계 포함)</option>
-        ${allStores.map(s=>`<option value="${escHtml(s)}"${s===selectedMonthlyStore?' selected':''}>${escHtml(s)}</option>`).join("")}
-      </select>
+  // build 256: 매장 고르기는 카드 위 '매장'(#salesMonTotStore) 하나로 — 막대와 표가 같이 바뀜
+  const storeSel = `<div style="padding:14px 4px 6px;font-family:'Gothic A1';font-size:13.5px;letter-spacing:.06em;color:var(--muted2);">매장 × 월 매출 · ${selectedMonthlyStore==="__all__"?"전체 매장":escHtml(selectedMonthlyStore)}</div>
+    <div style="padding:0 4px 10px;">
       <span style="font-size:12.5px;color:var(--muted2);">각 칸 아래 전월 대비(있으면 작년 동기 대비)${Object.keys(partialDay).map(m=>` · 진행 중인 ${+m.slice(5)}월(${partialDay[m]}일까지)은 전월·작년 <b>같은 기간(1~${partialDay[m]}일)</b>과 비교`).join("")}</span>
     </div>`;
   // 표 A: 매장 × 월 (+ 전월/작년 대비)
@@ -4753,11 +4745,10 @@ function renderSalesMonthly(){
     A += `<tr><td>${s}</td>${months.map(m=>{const v=storeMonth[m][s]||0;return `<td><span class="num">${v?Math.round(v).toLocaleString():''}</span>${v?cellDeltas(m,v,(mm)=>storeMonth[mm][s]||0,s):''}</td>`;}).join("")}<td class="total-col"><span class="num">${Math.round(storeGrand(s)).toLocaleString()}</span></td></tr>`;
   });
   A += `</tbody><tfoot><tr><td>합계</td>${months.map(m=>{const v=monthGrand(m);return `<td><span class="num">${Math.round(v).toLocaleString()}</span>${cellDeltas(m,v,(mm)=>monthGrand(mm))}</td>`;}).join("")}<td class="total-col"><span class="num">${Math.round(months.reduce((a,m)=>a+monthGrand(m),0)).toLocaleString()}</span></td></tr></tfoot></table>`;
-  // C: 이번달 목표매출 대비 달성률 · 인센티브 구간 — 2026-09-23 사용자 요청으로 "목표매출 달성 방안 ›
-  // 02 매장별 목표달성 현황" 탭에서 이 화면으로 이전(두 페이지에 매장별 월별 매출이 중복돼 있었음).
-  // goalsBuildContext()가 이미 검증해 쓰는 목표·달성률·인센티브 구간 계산을 그대로 재사용한다.
-  let C = "";
-  try{
+  // C: build 256 — 목표 대비 달성률 · 인센티브 구간 표는 목표매출 › 01 요약 한 곳으로 옮김(goalsIncentiveTableHtml).
+  //   여기는 바로 가기 한 줄만.
+  let C = `<div class="kk-moved" style="padding:12px 4px 2px;font-size:13px;color:var(--muted2);">목표 대비 달성률 · 인센티브 구간 → <a href="#" class="kk-jump" data-jump="goals:01">목표매출 › 01 요약에서 보기</a></div>`;
+  if(false) try{
     const ctx = goalsBuildContext();
     if(ctx && ctx.rows && ctx.rows.length){
       const cm = ctx.mLbl(ctx.curMonth);
@@ -4896,10 +4887,12 @@ function renderSalesMonthTotals(){
   const sumBy = {};
   months.forEach(m=>{ const mp = monthStoreTotals(m).map||{}; Object.keys(mp).forEach(s=>sumBy[s]=(sumBy[s]||0)+(mp[s]||0)); });
   const stores = Object.keys(sumBy).filter(s=>sumBy[s]>0).sort((a,b)=>sumBy[b]-sumBy[a]);
+  // build 256: 아래 매장 × 월 표와 같은 매장(selectedMonthlyStore, 저장됨)을 씀
+  if(typeof selectedMonthlyStore!=="undefined" && selectedMonthlyStore) selectedMonTotStore = selectedMonthlyStore;
   if(selectedMonTotStore!=="__all__" && !stores.includes(selectedMonTotStore)) selectedMonTotStore = "__all__";
   ssel.innerHTML = `<option value="__all__"${selectedMonTotStore==="__all__"?' selected':''}>전 매장 합계</option>` +
     stores.map(s=>`<option value="${escHtml(s)}"${s===selectedMonTotStore?' selected':''}>${escHtml(s)}</option>`).join("");
-  ssel.onchange = ()=>{ selectedMonTotStore = ssel.value; renderSalesMonthTotals(); };
+  ssel.onchange = ()=>{ selectedMonTotStore = ssel.value; selectedMonthlyStore = ssel.value; renderSalesMonthTotals(); try{ renderSalesMonthly(); }catch(_){} try{ saveState(); }catch(_){} };
   const st = selectedMonTotStore;
   const won = v => Math.round(v).toLocaleString('ko-KR') + "원";
   const eok = v => (v/1e8).toFixed(1) + "억";
@@ -10072,6 +10065,43 @@ function wireGoalsForecast(){
 }
 function goalsBuildContextMonth(){ const ms = goalsAllMonths(); return ms.length ? ms[ms.length-1] : ""; }
 
+// build 256: 매장별 목표 달성률 · 인센티브 구간 표 — 예전엔 매장별 매출 탭(표)과 01 요약(순위 막대) 두 곳에 같은 숫자.
+//   01 요약 한 곳으로 합침. 65% 위험군 경계에 구분 줄.
+function goalsIncentiveTableHtml(ctx, rows2){
+  if(!rows2 || !rows2.length) return `<p class="g-note-p">목표가 등록된 대상 매장이 없습니다.</p>`;
+  const danger = rows2.filter(r=>r.pct<65).length, safe = rows2.length - danger;
+  let sepDone = false;
+  const body2 = rows2.map(r=>{
+    const band = goalsIncentiveBand(r.dev);
+    const tier = goalsTier(r.pct);
+    const bc = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--info)":tier.cls==="g-tier-warn"?"var(--amber)":"var(--red)";
+    let sep = "";
+    if(!sepDone && r.pct>=65 && danger && safe){ sepDone = true; sep = `<tr class="g-inc-sep"><td colspan="6" style="text-align:center;font-size:12.5px;color:var(--red);font-weight:700;">▲ 위 ${danger}곳 위험군(달성률 65% 미만) · 아래 ${safe}곳</td></tr>`; }
+    const tip = `${r.label} · 달성률 ${r.pct.toFixed(1)}% (${tier.label})\n실적 ${Math.round(r.actual).toLocaleString()}원 ÷ 목표(일할) ${Math.round(r.proratedTarget).toLocaleString()}원\n월 목표 전체 ${Math.round(r.target).toLocaleString()}원 · 인센티브 구간 ${band.label}`;
+    return sep + `<tr data-tip="${escHtml(tip)}">
+      <td>${escHtml(r.label)}</td>
+      <td class="tgt-col"><span class="num" style="color:var(--amber)">${Math.round(r.target).toLocaleString()}</span></td>
+      <td class="tgt-col" style="font-size:12.5px;color:var(--muted2);"><span class="num">${Math.round(r.proratedTarget).toLocaleString()}</span></td>
+      <td class="g-act"><span class="num">${Math.round(r.actual).toLocaleString()}</span><div class="g-actbar"><i style="width:${(Math.min(120,r.pct)/1.2).toFixed(1)}%;background:${bc}"></i><b></b></div></td>
+      <td class="total-col" style="${goalsHeatBg((r.pct/100)/1.2)}"><span class="num">${r.pct.toFixed(1)}%</span></td>
+      <td class="g-band"><span class="g-store-badge ${band.cls}" style="font-size:12px;padding:2px 7px;">${escHtml(band.label)}</span></td>
+    </tr>`;
+  }).join("");
+  const tF = rows2.reduce((a,r)=>a+r.target,0), tP = rows2.reduce((a,r)=>a+r.proratedTarget,0), tA = rows2.reduce((a,r)=>a+r.actual,0);
+  return `<div class="tblbox" id="goalsIncTbl"><table class="g-tbl"><thead><tr><th>매장</th><th class="tgt-col">월 목표매출<br><span style="font-weight:400;color:var(--muted2);font-size:11.5px;">(그 달 전체)</span></th><th class="tgt-col">목표(일할)<br><span style="font-weight:400;color:var(--muted2);font-size:11.5px;">(${ctx.elapsedDays}/${ctx.daysInMonth}일 환산)</span></th><th>실적<br><span style="font-weight:400;color:var(--muted2);font-size:11.5px;">(막대 = 달성률 · 세로선 100%)</span></th><th class="total-col">달성률</th><th>인센티브 구간</th></tr></thead>
+    <tbody>${body2}</tbody>
+    <tfoot><tr><td>합계</td><td class="tgt-col"><span class="num" style="color:var(--amber)">${Math.round(tF).toLocaleString()}</span></td><td class="tgt-col" style="font-size:12.5px;color:var(--muted2);"><span class="num">${Math.round(tP).toLocaleString()}</span></td><td><span class="num">${Math.round(tA).toLocaleString()}</span></td><td class="total-col"><span class="num">${tP>0?(tA/tP*100).toFixed(1):'0.0'}%</span></td><td></td></tr></tfoot>
+    </table></div>`;
+}
+// build 256: 다른 메뉴로 옮긴 자료의 '바로 가기' 링크(data-jump="sales:카드id" 또는 "goals:서브탭키")
+function kkJump(spec){
+  const [tab, where] = String(spec||"").split(":");
+  if(tab==="goals"){ try{ goalsSubTab = where || "01"; }catch(_){} selectTab("goals"); try{ selectGoalsSub(where||"01"); }catch(_){} window.scrollTo({top:0}); return; }
+  selectTab(tab||"sales");
+  const el = where && document.getElementById(where);
+  if(el) el.scrollIntoView({block:"start"});
+}
+document.addEventListener("click", e=>{ const a = e.target && e.target.closest && e.target.closest("a.kk-jump"); if(!a) return; e.preventDefault(); kkJump(a.getAttribute("data-jump")); });
 function goalsRender01(ctx){
   const totalTarget = ctx.rows.reduce((a,r)=>a+r.proratedTarget,0);
   const totalActual = ctx.rows.reduce((a,r)=>a+r.actual,0);
@@ -10087,8 +10117,10 @@ function goalsRender01(ctx){
   const dangerCnt = ctx.rows.filter(r=>r.pct<65).length;
   const cm = ctx.mLbl(ctx.curMonth);
 
-  const companyCatData = ctx.cats.map(c=>({label:c, value:ctx.companyCat[c].amount, qty:ctx.companyCat[c].qty}));
-  const donutHtml = companyCatData.length
+  // build 256: 전사 카테고리 구성(도넛)은 매장별 매출 › 월별 매출의 '월별 카테고리 점유율'과 같은 숫자라 빼고 바로 가기만 둠
+  const companyCatData = [];
+  const donutHtml = `<div class="kk-moved" style="margin:14px 0 4px;font-size:13px;color:var(--muted2);">카테고리별 매출 점유율 → <a href="#" class="kk-jump" data-jump="sales:salesMonTotCard">매장별 매출 › 월별 매출에서 보기</a> · 카테고리 변화 원인 → <a href="#" class="kk-jump" data-jump="goals:04">02 카테고리 분석</a></div>`;
+  const _oldDonut = companyCatData.length
     ? `<div class="g-summary-cat">
         <div class="donut-hero-wrap">${buildDonutSVG(companyCatData, 158)}
           <div class="donut-hero-caption"><div class="dh-total">${Math.round(ctx.companyTotal).toLocaleString()}<span class="won">원</span></div>
@@ -10129,17 +10161,13 @@ function goalsRender01(ctx){
   return `<div class="stat-row">
       ${statCard(`전사 달성률 · ${ctx.curMonth} (${ctx.daysInMonth}일 중 ${ctx.elapsedDays}일 경과)`, totalPct.toFixed(1)+"%", [
         goalsLine("목표(일할 환산) "+Math.round(totalTarget).toLocaleString()+"원"),
-        goalsLine("실적 "+Math.round(totalActual).toLocaleString()+"원")],
+        goalsLine("실적 "+Math.round(totalActual).toLocaleString()+"원"),
+        ...(excludedActual ? [goalsLine("목표 없는 "+excludedNote+" "+Math.round(excludedActual).toLocaleString()+"원 제외")] : [])],
         `달성률 = 실적 ÷ 지금까지의 목표(일할)
 실적: 목표가 있는 ${ctx.rows.length}개 매장의 ${ctx.scopeLabel||ctx.curMonth} 매출 합계 ${Math.round(totalActual).toLocaleString()}원(매장별 매출 청구금액)
 일할 목표: 매장 월 목표를 그 달 영업일 비례로 ${ctx.elapsedDays}일차까지 자른 값 ${Math.round(totalTarget).toLocaleString()}원
 목표가 없는 매장(대소점 등)은 빠집니다.`)}
-      ${statCard(`금일까지 실적 매출 · ${cm} ${ctx.elapsedDays}일차`, (allStoreActual/100000000).toFixed(2)+"억", [
-        goalsLine(Math.round(allStoreActual).toLocaleString()+"원 · 전 매장 합계(매장별 매출 탭과 동일)"),
-        goalsLine("달성률 대상 "+ctx.rows.length+"곳 "+Math.round(totalActual).toLocaleString()+"원 · 일할 목표 대비 "+totalPct.toFixed(1)+"%"),
-        ...(excludedActual ? [goalsLine("목표 미설정 제외 "+excludedNote+" "+Math.round(excludedActual).toLocaleString()+"원")] : [])],
-        `${cm} 1일부터 ${ctx.elapsedDays}일차까지 전 매장 매출 합계(매장별 매출 탭과 같은 값, 청구금액).
-= 달성률 대상 ${ctx.rows.length}곳 ${Math.round(totalActual).toLocaleString()}원${excludedActual ? ` + 목표 없는 매장 ${Math.round(excludedActual).toLocaleString()}원` : ""}`)}
+      ${""/* build 256: '금일까지 실적 매출' 카드 삭제 — 매장별 매출 › 매출 종합과 같은 숫자. 목표 없는 매장 금액은 전사 달성률 카드에 한 줄 */}
       ${statCard("전사 월 목표매출", (ctx.rows.reduce((a,r)=>a+r.target,0)/100000000).toFixed(2)+"억", [
         goalsLine(ctx.rows.reduce((a,r)=>a+r.target,0).toLocaleString()+"원 · 대상 "+ctx.rows.length+"개 매장 합계"),
         goalsLine("경과일 기준 일할 환산 "+Math.round(totalTarget).toLocaleString()+"원")],
@@ -10154,9 +10182,9 @@ function goalsRender01(ctx){
     ${goalsSalesGapNoteHtml(ctx)}
     ${salesAuditHtml(ctx)}
     ${goalsForecastCardHtml(ctx)}
-    ${donutHtml}
-    <div class="g-tbl-title">${cm} 매장별 목표 달성률 (대상 ${ctx.rows.length}곳 전체 · 낮은 순 · 점선 65% 위험군 기준 · 실선 100%)</div>
-    ${dangerListHtml}`;
+    <div class="g-tbl-title">${cm} 매장별 목표 달성률 · 인센티브 구간 (대상 ${ctx.rows.length}곳 전체 · ${ctx.daysInMonth}일 중 ${ctx.elapsedDays}일 경과 일할 환산 · 낮은 순)</div>
+    ${goalsIncentiveTableHtml(ctx, ctx.rows)}
+    ${donutHtml}`;
 }
 
 /* ---------------- 02_매장별목표달성현황 (goalsRender02는 호출되지 않는 죽은 코드 — build 50 주석 참고) ---------------- */
