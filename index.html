@@ -1661,7 +1661,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 260 · 2026-10-28</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 261 · 2026-10-28</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -18536,10 +18536,16 @@ function liqFullName(date, perLot){ return date + "_" + (perLot||[]).map(x=>`${x
 function liqShortFile(date, perLot){
   const full = liqFullName(date, perLot);
   if(full.length <= 200) return full + ".xlsx";
-  let s = date, n = 0;
-  for(const x of perLot){ const part = `_${x.name}_리퀴_${x.lot}(${x.plt}PLT)`; if((s+part).length > 180) break; s += part; n++; }
-  const plt = perLot.reduce((a,x)=>a+(+x.plt||0),0);
-  return s + `_외 ${perLot.length-n}건(총 ${perLot.length}건 ${plt}PLT).xlsx`;
+  // build 261: "외 n건" 대신 모든 센터 이름이 나오게 — 센터별로 묶음(LOT 순서대로 처음 나온 센터 순)
+  //   ① 센터_리퀴_LOT·LOT(nPLT) 가 200자 안이면 그대로, ② 아니면 센터_리퀴_n건(nPLT) + 총 n건 nPLT
+  const g = new Map();
+  (perLot||[]).forEach(x=>{ const k = x.name || x.fc || "?"; const o = g.get(k) || { name:k, lots:[], plt:0 }; o.lots.push(x.lot); o.plt += (+x.plt||0); g.set(k, o); });
+  const grp = [...g.values()], plt = grp.reduce((a,o)=> a+o.plt, 0), n = (perLot||[]).length;
+  const withLots = date + "_" + grp.map(o=> `${o.name}_리퀴_${o.lots.join("·")}(${o.plt}PLT)`).join("_");
+  if(withLots.length <= 200) return withLots + ".xlsx";
+  const counts = date + "_" + grp.map(o=> `${o.name}_리퀴_${o.lots.length}건(${o.plt}PLT)`).join("_") + `_총 ${n}건 ${plt}PLT`;
+  if(counts.length <= 200) return counts + ".xlsx";
+  return (date + "_" + grp.map(o=> o.name).join("_") + `_리퀴_총 ${n}건 ${plt}PLT`).slice(0, 220) + ".xlsx";
 }
 function liqMakeWorkbook(b){
   const wb = XLSX.utils.book_new(), L = n => XLSX.utils.encode_col(n);
