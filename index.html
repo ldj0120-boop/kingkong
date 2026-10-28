@@ -1661,7 +1661,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 258 · 2026-10-28</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 260 · 2026-10-28</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -18126,13 +18126,16 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
       if(opt.maxRows && ri>opt.maxRows) return false;
       if(ri===0){ for(var t0=0;t0<4;t0++){ var cc=lsCol(15+t0); x+=lsCell(cc+"1",{f:"SUBTOTAL(9,"+cc+"3:"+cc+"1048576)",v:A.rawTot[t0]},s0[15+t0],sst2); } s.w('<row r="1">'+x+'</row>'); return; }
       if(ri===1){ for(var c=0;c<v.length;c++) if(v[c]!=null) x+=lsCell(lsCol(c)+r,v[c],s1[c],sst2); s.w('<row r="'+r+'">'+x+'</row>'); return; }
-      for(var c2=0;c2<v.length;c2++){
-        var val=v[c2];
+      // build 260: 센터명 칸(nameCol)은 열 순서 안에서 한 번만 씀 — 원본 그 칸에 값(예: "`")이 있으면 같은 칸이 두 번 들어가 엑셀 "내용에 문제" 오류
+      var hasNo = v[A.L.no]!=null && String(v[A.L.no]).trim()!=="";
+      var nameVal = hasNo ? lsFcName(fcCol>=0?v[fcCol]:lotFc.get(String(v[A.L.no]).trim())) : null;
+      var cEnd = Math.max(v.length, hasNo ? nameCol+1 : 0);
+      for(var c2=0;c2<cEnd;c2++){
+        var val = (hasNo && c2===nameCol) ? nameVal : v[c2];
         if(val==null){ continue; }
-        if(fcCol>=0 && c2===fcCol && v[A.L.no]!=null) val=lsFcName(val);
+        if(fcCol>=0 && c2===fcCol && v[A.L.no]!=null && !(hasNo && c2===nameCol)) val=lsFcName(val);
         x+=lsCell(lsCol(c2)+r,val,s2[c2],sst2);
       }
-      if(v[A.L.no]!=null && String(v[A.L.no]).trim()!=="") x+=lsCell(lsCol(nameCol)+r,lsFcName(fcCol>=0?v[fcCol]:lotFc.get(String(v[A.L.no]).trim())),s2[nameCol],sst2);
       s.w('<row r="'+r+'">'+x+'</row>');
     });
     s.w(lsSheetTail({})); s.end();
@@ -19159,7 +19162,7 @@ function esAnalyze(D){
         const g = mm ? mm[1] : m2 ? m2[2] : null, code = mm ? mm[2] : m2 ? m2[1] : null;
         return { label: g ? esXlLabel(src, g, code) : x.fc, plt:x.plt }; });
     } else if(er.some(r=> +r[4]>0)){   // 표가 없으면 ④ 낙찰파일과 같은 계산(EOS Pallet 합 + EOS 외 그룹 로케이션 수)
-      const grp = new Map(); src.forEach(r=>{ const g = esT(r[0]).toUpperCase()||"EOS"; if(g==="EOS") return; const k=g+"|"+esT(r[2]); if(!grp.has(k)) grp.set(k,{ g, fc:esT(r[2]), locs:new Set() }); const l=esT(r[10]); if(l) grp.get(k).locs.add(l); });
+      const grp = new Map(); src.forEach(r=>{ const g = esT(r[0]).toUpperCase()||"EOS"; if(!/^XL[A-Z]{1,2}$/.test(g)) return; const k=g+"|"+esT(r[2]); if(!grp.has(k)) grp.set(k,{ g, fc:esT(r[2]), locs:new Set() }); const l=esT(r[10]); if(l) grp.get(k).locs.add(l); });
       extras = [...grp.values()].map(x=>({ label: x.g==="XLW" ? "XLW" : esXlLabel(src, x.g, x.fc), plt:x.locs.size }));
       plt = er.reduce((s,r)=> s+(+r[4]||0), 0) + extras.reduce((s,x)=> s+x.plt, 0);
     } else {   // build 166: PLT 정보가 전혀 없으면 로케이션 수로 추정
@@ -20618,6 +20621,12 @@ function eosReadAoa(sheets){
       for(let j=i+1;j<aoa.length;j++){ const v=aoa[j]||[]; if(!eosT(v[0]) || !eosT(v[1])) continue; eos.push([v[0], v[1], v[ci], v[pi]]); }
       break; } }
   }
+  // build 259: EOS 시트가 있어도 Pallet 칸이 전부 비어 있으면(임박요약 파일을 원본으로 올린 경우 등) RAW 오른쪽 표(NO. | FC | 센터 | Pallet) 우선
+  let sheetEos = null;
+  //   + RAW 오른쪽에 NO. | FC | 센터 | Pallet 표가 있으면 그 표가 원본(요약본의 EOS 시트는 센터 이름순으로 다시 정렬된 사본) → 그 표 우선
+  const rawCtrTbl = (()=>{ const h = Array.from(raw.aoa[raw.hi]||[], eosT), u = h.indexOf("NO.", tStart); if(u<0 || !/^fc/i.test(h[u+1]||"")) return false;
+    const near = k=> k>u+1 && k<=u+6; return h.some((x,k)=> near(k) && /센터|center/i.test(x)) && h.some((x,k)=> near(k) && /^(pallet|plt|팔레트|파렛트)$/i.test(x)); })();
+  if(eosHdr && eos.length && (rawCtrTbl || eos.every(r=> r[3]==null || r[3]==="" || isNaN(+r[3])))){ sheetEos = { eosHdr, eos }; eosHdr = null; eos = []; }
   if(!eosHdr){
     const s = Array.from(raw.aoa[raw.hi]||[], eosT); const u = s.indexOf("NO.", tStart);
     if(u>=0 && /^fc/i.test(s[u+1]||"")){ eosHdr = ["NO.","FC"," 센터 "," Pallet "];
@@ -20628,6 +20637,7 @@ function eosReadAoa(sheets){
       for(let i=raw.hi+1;i<raw.aoa.length;i++){ const v=raw.aoa[i]||[]; if(!eosT(v[u]) || !eosT(v[u+1])) continue;
         const fc = eosT(v[u+1]); const nm = (cC>=0 && eosT(v[cC])) || (typeof fiCenterName==="function" ? fiCenterName(fc) : fc) || fc;
         eos.push([" "+eosT(v[u])+" ", fc, " "+nm+" ", v[pi]==null||v[pi]===""?null:+v[pi]]); } }
+    if(!eos.length && sheetEos){ eosHdr = sheetEos.eosHdr; eos = sheetEos.eos; }
   }
   // build 211: RAW 오른쪽 LOT 합계표(NO | PLT | MIN BID AMT) — 있으면 LOT PLT는 이 표 기준
   const lotPlt = {}, lotFc = {};   // build 212: lotFc = RAW 오른쪽 FC별 표(NO. | FC | Pallet) — "XLC(CHA3) 9" 같은 추가 그룹 PLT
@@ -20643,6 +20653,7 @@ function eosReadAoa(sheets){
       break; } }
   return { hdr, rows, eosHdr: eosHdr || ["NO.","FC"," 센터 "," Pallet "], eos, sheet: rawName, eosFromSheet: !!es, lotPlt, lotFc, colMapped: !!raw.map };
 }
+function eosIsXlGroup(g){ return /^XL[A-Z]{1,2}$/i.test(eosT(g)); }   // build 259: 일반 리퀴데이션 추가 그룹(XLA·XLB·XLC·XLW…)
 function eosRateOf(cate2, cate3, cate4){
   const o = { CATE2:cate2, CATE3:cate3, CATE4:cate4 };
   let r = liqRate(o); if(r!=null) return { r };
@@ -20669,7 +20680,7 @@ function eosBuildLot(D, lot, date6){
   });
   // PLT: EOS = EOS 표 Pallet 합(없으면 로케이션 개수), 그 외 그룹 = (Grouping, FC)별 로케이션 개수
   const grp = new Map();
-  src.forEach(r=>{ const g = eosT(r[0]).toUpperCase() || "EOS", fc = eosT(r[2]); const key = g==="EOS" ? "EOS" : g+"|"+fc;
+  src.forEach(r=>{ let g = eosT(r[0]).toUpperCase() || "EOS"; if(!eosIsXlGroup(g)) g = "EOS"; const fc = eosT(r[2]); const key = g==="EOS" ? "EOS" : g+"|"+fc;   // build 259: XLA·XLB·XLC 등만 추가 그룹, "임박" · 빈칸 등은 EOS
     if(!grp.has(key)) grp.set(key, { g, fc, locs:new Set() }); const l = eosT(r[10]); if(l) grp.get(key).locs.add(l); });
   const eosPltTbl = eos.reduce((s,r)=> s + (+r[3]||0), 0);
   const eosPlt = eos.length ? eosPltTbl : (grp.get("EOS") ? grp.get("EOS").locs.size : 0);
