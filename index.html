@@ -1071,6 +1071,12 @@
   table.pq-tbl .gT{background:rgba(232,185,63,.06);}
   table.pq-tbl .gE{background:rgba(127,184,255,.06);border-left:2px solid var(--line);}   /* build 97: FC파손·사입 */
   table.pq-tbl th.gE{text-align:center;}
+  table.pq-tbl td.pq-rev, table.pq-tbl th.pq-rev{font-family:"Gothic A1";font-size:14px;text-align:right;padding:7px 10px;border-left:2px solid var(--line);white-space:nowrap;}   /* build 254: 기대매출 열 */
+  table.pq-tbl th.pq-rev{text-align:center;}
+  #fiLedgerBox.fl-fold .fi-body{display:none;}   /* build 254 (P229-04): 빈 누적 출고요청서 카드 접기 */
+  #fiLedgerBox .fl-fold-hint{display:none;font-size:13px;color:var(--muted2);margin-left:8px;}
+  #fiLedgerBox.fl-fold .fl-fold-hint, #fiLedgerBox.fl-empty .fl-fold-hint{display:inline;}
+  #fiLedgerBox.fl-empty .p-hd{cursor:pointer;}
   table.pq-tbl td.p.s-g{color:#0B7A3B;} table.pq-tbl td.p.s-b{color:#1F5AE6;} table.pq-tbl td.p.s-y{color:#8F5E00;} table.pq-tbl td.p.s-r{color:#C8232F;}
   table.pq-tbl td.pq-out, table.pq-tbl th.pq-out{font-family:"Gothic A1";font-size:14px;color:var(--muted2);text-align:right;padding:7px 12px;border-left:2px solid var(--line);}
   table.pq-tbl tbody tr{border-bottom:1px solid var(--line-soft);}
@@ -1637,7 +1643,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 253 · 2026-10-28</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 254 · 2026-10-28</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -2361,7 +2367,7 @@
     </div>
     <div class="agg-card" id="fiLedgerBox">
       <div class="p-hd">
-        <span class="store-name">거래처 출고요청서 (누적)</span>
+        <span class="store-name">거래처 출고요청서 (누적)</span><span class="fl-fold-hint" id="fiLedgerFoldHint"></span>
         <span class="meta">거래처 = 더한(모든 출고) — 원본 보관 + 사이트 추가분 누적 → 전체 다운로드 <button class="act fi-mini" id="fiLedgerReload">↻ 서버에서 다시 읽기</button></span>
       </div>
       <div class="fi-body">
@@ -11423,20 +11429,23 @@ function goalsRender10Body(ctx){
   const pqStockOnly = !pqSnap ? [] : Object.keys(pqSnap.stock||{}).filter(st=> !pqCovered.has(st)).map(st=> ({ store:st, label:st, cats:null, actualPLTAll:0, outside:{}, outsideTotal:0 }))
     .filter(x=> (pqStock(x, PQ_STOCK_TOTAL_IDX)||0) > 0);
   const pqRowsAll = D.rows.concat(pqStockOnly);
+  // build 254 (P229-05): 아래 "매장별 계획 상세"를 없애고 매장별 기대매출 · 기대매출 도달율을 이 표에 열로 합침
+  const revCells = x => { const tt = escHtml(`${x.label} ${cm}: 실제 매출 ÷ 기대매출(공급계획 PLT × 1PLT당 기대매출${D.isOngoing?', 경과일 비례':''})\n${won(x.actualRevenue||0)} ÷ ${won(x.planRevTotal||0)}원\n기대매출(월 전체) ${won(x.planRevFull||0)}원`);
+    return `<td class="pq-rev" data-rev="1" title="${tt}">${x.plan?won(x.planRevFull):'–'}</td><td class="pq-rev" title="${tt}" style="font-weight:700;color:${pctColor(x.revPct)}">${pctTxt(x.revPct)}</td>`; };
   const gRows = pqRowsAll.slice().sort((a,b)=>{ const av=a.cats?stTot(a).pct:null, bv=b.cats?stTot(b).pct:null; return (av==null?1e9:av)-(bv==null?1e9:bv); }).map(x=>{
     if(!x.cats){
-      return `<tr><td class="pq-st">${escHtml(x.label)}</td><td class="pq3 gT t">–</td>${stkTd(pqStock(x,PQ_STOCK_TOTAL_IDX),"pq3 gT",x.label+' · 합계')}<td class="pq3 gT a">${fmt1(x.actualPLTAll||0)}</td><td class="pq3 gT p mu">계획 없음</td>${useCats.map((pc,i)=>`<td class="pq3 g${i%2} t"></td>${stkTd(pqStock(x,PQ_STOCK_IDX[pc]),"pq3 g"+(i%2),x.label+' · '+pc)}<td class="pq3 g${i%2}"></td><td class="pq3 g${i%2}"></td>`).join("")}${exCells(x)}<td class="pq-out">${fmt1(outRest(x))}</td>${memoTd(x)}</tr>`;
+      return `<tr><td class="pq-st">${escHtml(x.label)}</td><td class="pq3 gT t">–</td>${stkTd(pqStock(x,PQ_STOCK_TOTAL_IDX),"pq3 gT",x.label+' · 합계')}<td class="pq3 gT a">${fmt1(x.actualPLTAll||0)}</td><td class="pq3 gT p mu">계획 없음</td><td class="pq-rev mu">–</td><td class="pq-rev mu">–</td>${useCats.map((pc,i)=>`<td class="pq3 g${i%2} t"></td>${stkTd(pqStock(x,PQ_STOCK_IDX[pc]),"pq3 g"+(i%2),x.label+' · '+pc)}<td class="pq3 g${i%2}"></td><td class="pq3 g${i%2}"></td>`).join("")}${exCells(x)}<td class="pq-out">${fmt1(outRest(x))}</td>${memoTd(x)}</tr>`;
     }
     const cells = useCats.map((pc,i)=>{ const c = x.cats.find(y=>y.cat===pc);
       return gCell(c?c.actualPLT:0, c?c.planPLTFull:0, c?c.planPLT:0, `${x.label} · ${pc}${catSub(pc)?' ('+catSub(pc)+')':''}`, i%2, pqStock(x, PQ_STOCK_IDX[pc])); }).join("");
     const _exSet = new Set(PQ_EXTRA.flatMap(e=>e.cats));
     const outE = Object.entries(x.outside||{}).filter(([c])=>!_exSet.has(c)).sort((a,b)=>b[1]-a[1]);
-    return `<tr><td class="pq-st">${escHtml(x.label)}</td>${(t=>gCell(t.a, t.f, t.pp, `${x.label} · 계획 카테고리 합계 + FC파손·사입${freshMissing?' (신선 제외)':''}`, "T", pqStock(x, PQ_STOCK_TOTAL_IDX)))(stTot(x))}${cells}${exCells(x)}
+    return `<tr><td class="pq-st">${escHtml(x.label)}</td>${(t=>gCell(t.a, t.f, t.pp, `${x.label} · 계획 카테고리 합계 + FC파손·사입${freshMissing?' (신선 제외)':''}`, "T", pqStock(x, PQ_STOCK_TOTAL_IDX)))(stTot(x))}${revCells(x)}${cells}${exCells(x)}
       <td class="pq-out" title="${escHtml(outE.map(([c,v])=>c+' '+fmt1(v)).join(' · '))}">${fmt1(outRest(x))}</td>${memoTd(x)}</tr>`;
   }).join("");
   const withPlan = D.rows.filter(x=>x.cats);
   const sumStk = idxs => { if(!pqSnap || !idxs) return null; let t=0, any=false; pqRowsAll.forEach(x=>{ const v=pqStock(x,idxs); if(v!=null){ t+=v; any=true; } }); return any?t:null; };
-  const gFoot = `<tfoot><tr><td class="pq-st">전사 합계</td>${gCell(withPlan.reduce((a,x)=>a+stTot(x).a,0), withPlan.reduce((a,x)=>a+stTot(x).f,0), withPlan.reduce((a,x)=>a+stTot(x).pp,0), "전사 · 계획 카테고리 합계", "T", sumStk(PQ_STOCK_TOTAL_IDX))}${
+  const gFoot = `<tfoot><tr><td class="pq-st">전사 합계</td>${gCell(withPlan.reduce((a,x)=>a+stTot(x).a,0), withPlan.reduce((a,x)=>a+stTot(x).f,0), withPlan.reduce((a,x)=>a+stTot(x).pp,0), "전사 · 계획 카테고리 합계", "T", sumStk(PQ_STOCK_TOTAL_IDX))}<td class="pq-rev" data-rev="1" title="${escHtml(`전사 ${cm}: 실제 매출 ${won(sumActualRev)} ÷ 기대매출 ${won(sumPlanRev)}원`)}">${won(sumOpTotal)}</td><td class="pq-rev" style="font-weight:700;color:${pctColor(sumRevPct)}">${pctTxt(sumRevPct)}</td>${
       useCats.map((pc,i)=>{ const t = D.catTotals.find(c=>c.cat===pc)||{}; const full = withPlan.reduce((a,x)=>{ const c=x.cats.find(y=>y.cat===pc); return a+(c?c.planPLTFull:0); },0);
         return gCell(t.actualPLT||0, full, t.planPLT||0, `전사 · ${pc}`, i%2, sumStk(PQ_STOCK_IDX[pc])); }).join("")}${PQ_EXTRA.map(e=>`<td class="pq3 gE a">${fmt1(D.rows.reduce((a,x)=>a+extraAct(x,e.key),0))}</td>`).join("")}<td class="pq-out">${fmt1(D.rows.reduce((a,x)=>a+outRest(x),0))}</td><td class="pq-memo"></td></tr></tfoot>`;
   // ── build 79: 출고 배정용 요약 — "카테고리별로 목표 대비 부족한 매장" (사용자: 매일 매입분을 전 매장에 분배할 때 쓰려고)
@@ -11483,7 +11492,7 @@ function goalsRender10Body(ctx){
       ${freshMissing?`<span style="color:var(--amber)">${ctx.mLbl(pm)} 신선 출고내역서 미업로드 → 신선 열 숨김</span>`:""}
     </div>
     <div class="tblbox agg-scroll"><table class="g-tbl pq-tbl">
-      <thead><tr><th class="pq-st" rowspan="2">매장</th><th colspan="4" class="gh gT">합계</th>${useCats.map((pc,i)=>`<th colspan="4" class="gh g${i%2}">${escHtml(pc)}${catSub(pc)?` <span class="pq-sub">${escHtml(catSub(pc))}</span>`:""}</th>`).join("")}${PQ_EXTRA.map(e=>`<th rowspan="2" class="gh gE">${escHtml(e.key)}<br><span class="pq-sub">실제${e.cats.length>1?' ('+e.cats.join('+')+')':''}</span></th>`).join("")}<th rowspan="2" class="pq-out">계획 외</th><th rowspan="2" class="pq-memo">기타<br><span class="pq-sub">매장 코멘트(재고 비고)</span></th></tr>
+      <thead><tr><th class="pq-st" rowspan="2">매장</th><th colspan="4" class="gh gT">합계</th><th rowspan="2" class="gh pq-rev" title="공급계획 기반 기대매출(월 전체) — 매장별 운영 종합계획 엑셀 값">기대매출<br><span class="pq-sub">공급계획 기반 · 월</span></th><th rowspan="2" class="gh pq-rev" title="실제 매출 ÷ 기대매출 (진행 중인 달은 경과일 비례로 잘라 비교)">기대매출<br>도달율</th>${useCats.map((pc,i)=>`<th colspan="4" class="gh g${i%2}">${escHtml(pc)}${catSub(pc)?` <span class="pq-sub">${escHtml(catSub(pc))}</span>`:""}</th>`).join("")}${PQ_EXTRA.map(e=>`<th rowspan="2" class="gh gE">${escHtml(e.key)}<br><span class="pq-sub">실제${e.cats.length>1?' ('+e.cats.join('+')+')':''}</span></th>`).join("")}<th rowspan="2" class="pq-out">계획 외</th><th rowspan="2" class="pq-memo">기타<br><span class="pq-sub">매장 코멘트(재고 비고)</span></th></tr>
         <tr>${["T",...useCats.map((_,i)=>i%2)].map(g=>`<th class="sh g${g}">목표</th><th class="sh g${g}">매장재고</th><th class="sh g${g}">이번달 공급</th><th class="sh g${g}">달성</th>`).join("")}</tr></thead>
       <tbody>${gRows}</tbody>${gFoot}</table></div></details>` : "";
   const pTrendRows = pStores.map(st=>{
@@ -11557,30 +11566,9 @@ function goalsRender10Body(ctx){
     return `<tr><td>${escHtml(c)}</td><td><span class="num">${won(p.price)}</span></td><td><span class="num">${(p.conv*100).toFixed(0)}%</span></td><td>${escHtml(p.note||"")}</td></tr>`;
   }).join("");
 
-  // 매장별 상세 — "PLT 공급 도달율"과 "기대매출 도달율"을 같은 블록 상단에 나란히 붙이고,
-  // 그 아래 카테고리별 계획 PLT vs 이번 달 실제 PLT 표를 이어 붙였다(요청: "한 번에 알아보기 쉽게 합쳐줘").
-  const detailRows = sorted.map(x=>{
-    const cells = x.cats.map(c=>`<tr>
-        <td>${escHtml(c.cat)}${c.cat==="상온"?' <span style="color:var(--muted2)">(XLE)</span>':""}</td>
-        <td><span class="num">${c.planPLTFull.toLocaleString(undefined,{maximumFractionDigits:1})}</span></td>
-        <td><span class="num">${c.actualPLT.toLocaleString(undefined,{maximumFractionDigits:1})}</span></td>
-        <td style="color:${pctColor(c.pltPct)}"><span class="num">${pctTxt(c.pltPct)}</span></td>
-      </tr>`).join("");
-    return `<details class="g-store-more">
-      <summary>${escHtml(x.label)} — ${cm} 공급PLT 도달율 ${x.pltPct!=null?x.pltPct.toFixed(1)+'%':'-'} · 기대매출 도달율 ${x.revPct!=null?x.revPct.toFixed(1)+'%':'-'}</summary>
-      <div class="g-kpis" style="margin:10px 0">
-        <div class="g-kpi" data-tip="${escHtml(`${x.label} ${cm}: 실제로 보낸 PLT ÷ 공급계획 PLT(월 전체)\n${Math.round(x.actualPLT).toLocaleString()} ÷ ${Math.round(x.planPLTFullTotal).toLocaleString()} PLT (계획 카테고리만)`)}"><div class="v" style="color:${pctColor(x.pltPct)}">${pctTxt(x.pltPct)}</div><div class="l">PLT 공급 도달율(월 기준) · ${Math.round(x.actualPLT).toLocaleString()} / ${Math.round(x.planPLTFullTotal).toLocaleString()} PLT</div></div>
-        <div class="g-kpi" data-tip="${escHtml(`${x.label} ${cm}: 실제 매출 ÷ 기대매출(공급계획 PLT × 1PLT당 기대매출, 진행 중인 달은 경과일 비례)\n${won(x.actualRevenue)} ÷ ${won(x.planRevTotal)}원`)}"><div class="v" style="color:${pctColor(x.revPct)}">${pctTxt(x.revPct)}</div><div class="l">기대매출 도달율 · ${won(x.actualRevenue)} / ${won(x.planRevTotal)}원</div></div>
-      </div>
-      <div class="tblbox"><table class="g-tbl"><thead><tr><th>카테고리</th><th>계획 PLT(월)</th><th>실제 PLT(${cm})</th><th>PLT 도달율</th></tr></thead><tbody>${cells}</tbody></table></div>
-    </details>`;
-  }).join("");
-
   const ref = `
     <div class="g-tbl-title" style="margin-top:18px">참고 — 카테고리별 단가 · 전환율 (계획표 산출 기준)</div>
-    <div class="tblbox"><table class="g-tbl"><thead><tr><th>카테고리</th><th>PLT당 단가</th><th>전환율</th><th>비고</th></tr></thead><tbody>${paramRows}</tbody></table></div>
-    <details class="g-store-more" style="margin-top:18px"><summary>매장별 계획 상세 — 카테고리별 계획 PLT 대비 ${cm} 실제 · 기대매출 (위 "전체 상세표"와 같은 PLT 값 · 매장별 기대매출만 추가로 보려면 펼치기)</summary>
-    <div class="g-store-list" style="margin-top:8px">${detailRows}</div></details>`;
+    <div class="tblbox"><table class="g-tbl"><thead><tr><th>카테고리</th><th>PLT당 단가</th><th>전환율</th><th>비고</th></tr></thead><tbody>${paramRows}</tbody></table></div>`;
 
   return kpi + missNote + monthBar + pltQtyTable + allocTable + pltTrendBlock + catTable + table + ref;   // build 186: 매장 × 카테고리 전체 상세표 복원(카테고리별 매장 공급을 한눈에 — 사용자 요청)   // build 74: %만 있던 도달율 매트릭스는 위 목표 대비 표로 대체   // build 73: PLT 수량표·월별 추이 추가
 }
@@ -22954,6 +22942,12 @@ function fiLedgerRender(){
     </div>`;
   };
   el.innerHTML = `<div class="fi-files">${card("dehan")}</div>`;   // build 148: KPP 칸 없음
+  // build 254 (P229-04): 원본 · 추가 행이 모두 없으면 한 줄로 접고, 제목 줄을 누르면 펼치기/접기
+  const box = document.getElementById("fiLedgerBox");
+  if(box){ const empty = ["dehan"].every(co=>{ const L = FI_LEDGER[co]; return !L || (!L.meta && !(L.added||[]).length); });
+    if(!empty) box._flOpen = false;
+    box.classList.toggle("fl-empty", empty); box.classList.toggle("fl-fold", empty && !box._flOpen);
+    const h = document.getElementById("fiLedgerFoldHint"); if(h) h.textContent = !empty ? "" : box._flOpen ? "— 원본 · 추가 행 없음 · ▾ 접기" : "— 원본 · 추가 행 없음 · ▸ 눌러서 펼치기"; }
 }
 function wireFixedLedger(){
   const box = document.getElementById("fiLedgerBox"); if(!box || box._wired) return; box._wired = true;
@@ -22964,7 +22958,8 @@ function wireFixedLedger(){
   ["dragleave","drop"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove("dragover"); }));
   dz.addEventListener("drop", async e=>{ for(const f of Array.from((e.dataTransfer&&e.dataTransfer.files)||[])) if(/\.xlsx?$/i.test(f.name)) await fiLedgerUpload(f); });
   box.addEventListener("click", async e=>{
-    const b = e.target.closest("button"); if(!b) return;
+    const b = e.target.closest("button");
+    if(!b){ if(box.classList.contains("fl-empty") && e.target.closest(".p-hd")){ box._flOpen = !box._flOpen; fiLedgerRender(); } return; }   // build 254
     if(b.dataset.flDl) fiLedgerDownload(b.dataset.flDl);
     else if(b.dataset.flRm){ const [co,key]=b.dataset.flRm.split(/\|(.*)/s); const L=FI_LEDGER[co]; L.added = L.added.filter(r=> fiLedgerKey(r.bidcode,r.number,r.fc)!==key); const w=await fiLedgerSave(co,false); document.getElementById("fiLedgerStatus").innerHTML = `추가분 1행 뺌 · ${fiLedgerWhere(w)}`; fiLedgerRender(); }
     else if(b.id==="fiLedgerReload"){ await fiLedgerLoad(true); fiLedgerRender(); }
@@ -23021,11 +23016,11 @@ const IMPROVE_PROPOSALS = [
   { id:"P229-04", date:"2026-10-22", area:"⑤ 배차요청", title:"빈 '거래처 출고요청서(누적)' 카드 접기",
     why:"원본 없음 · 추가 행 0인 상태로 큰 카드가 늘 보임",
     what:"원본 · 추가 행이 없으면 한 줄로 접고, 눌러서 펼치기",
-    risk:"낮음" },
+    risk:"낮음", done:"build 254" },
   { id:"P229-05", date:"2026-10-22", area:"05 재고·공급", title:"'매장별 계획 상세' 표를 '전체 상세표'에 합치기",
     why:"아래 '매장별 계획 상세'가 위 '전체 상세표'와 같은 PLT 값을 한 번 더 보여 줌(화면에도 그렇게 적혀 있음)",
     what:"전체 상세표에 '기대매출 · 기대매출 도달율' 열만 더하고 아래 표 삭제",
-    risk:"낮음" },
+    risk:"낮음", done:"build 254" },
   { id:"P229-06", date:"2026-10-22", area:"기록 목록", title:"기록 목록은 처음에 최근 3일만",
     why:"배차 요청 기록 · 분배 히스토리 · 낙찰파일 기록이 처음부터 7일씩 펼쳐져 화면이 길어짐",
     what:"처음엔 최근 3일만, '이전 날짜 더 보기'로 나머지",
