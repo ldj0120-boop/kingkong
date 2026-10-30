@@ -1683,7 +1683,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 275 · 2026-10-30</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 276 · 2026-10-30</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -17438,8 +17438,8 @@ function fiBidNoOf(r){
 }
 // 엑셀 예시(더한 배차표) 열 구성: NO | 낙찰일 | 입차CODE | 낙찰NO | Group Number | PLT수량 | 출고일시 | FC | 도착지 | 카테. | 비고
 function fiDispSheetRows(rows){
-  return fiOrderRows(rows).map(r=>({
-    NO:"", 낙찰일:r.bidDate, 입차CODE:r.bidcode,
+  return fiOrderRows(rows).map((r,i)=>({
+    NO:i+1, 낙찰일:r.bidDate, 입차CODE:r.bidcode,   // build 276: NO = 1,2,3… (엑셀은 =ROW()-3 수식)
     낙찰NO: fiBidNoOf(r),   // build 270
     GroupNumber: r.numFull ? r.numFull : /^\d+$/.test(String(r.number||"")) ? +r.number : (r.number||""),   // build 169: 메일 NUMBER 전체
     PLT: r.pallets==null||r.pallets==="" ? "" : +r.pallets,
@@ -17665,6 +17665,7 @@ async function fiComboWorkbook(C){
       fiDispSheetRows(rs).forEach(o=>{
         COLS.keys.forEach((k,ci)=>{
           const cell = ws.getCell(row, 2+ci); let v = o[k];
+          if(k==="NO") v = { formula:"ROW()-3", result: row-3 };   // build 276: 자동 넘버링 — 행을 넣거나 빼도 1,2,3…
           if(k==="낙찰일" && /^\d{4}-\d{2}-\d{2}$/.test(v||"")){ const [y,m,d]=v.split("-").map(Number); v = new Date(Date.UTC(y,m-1,d)); cell.numFmt="yyyy-mm-dd"; }
           cell.value = v===""||v==null ? null : v;
           cell.font = { name:"맑은 고딕", size:11 }; cell.alignment = /^(주소|비고)$/.test(k) ? { horizontal:"left", vertical:"middle", wrapText:true } : { horizontal:"center", vertical:"middle" }; cell.border = border;
@@ -17883,6 +17884,7 @@ async function fiDispWorkbook(groups){
       COLS.keys.forEach((k,ci)=>{
         const cell = ws.getCell(4+ri, 2+ci);
         let v = o[k];
+        if(k==="NO") v = { formula:"ROW()-3", result: ri+1 };   // build 276: 자동 넘버링
         if(k==="낙찰일" && /^\d{4}-\d{2}-\d{2}$/.test(v||"")){ const [y,m,d]=v.split("-").map(Number); v = new Date(Date.UTC(y,m-1,d)); cell.numFmt="yyyy-mm-dd"; }
         cell.value = v===""||v==null ? null : v;
         cell.font = { name:"맑은 고딕", size:11 }; cell.alignment = /^(주소|비고)$/.test(k) ? { horizontal:"left", vertical:"middle", wrapText:true } : { horizontal:"center", vertical:"middle" }; cell.border = border;
