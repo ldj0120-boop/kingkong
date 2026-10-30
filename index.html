@@ -19023,30 +19023,37 @@ function lsOpenXlsb(ff, u8){
 // ── 1단계: 원본 분석
 /* build 285: 일반 리퀴 요약 — LOT마다 가장 큰 카테고리(LIQSUM_CAT 9묶음)의 쿠팡판매총액 대비 비중 + 그 안에서 가장 큰 CATE4 비중 */
 function lsColIdx(name){ var n=0; for(var i=0;i<name.length;i++) n=n*26+name.charCodeAt(i)-64; return n-1; }
-function lsTopCatLabels(A){
+function lsSlimColMap(SP, last){   // 지울 열: 낙찰여부 · 낙찰가 · 상한가 · 상한가요율 · XLA~XLC · 입찰여부 (3행 머리글 이름으로 찾음)
+  var drop={}; SP.header.forEach(function(c){ if(c[0]===2 && c[1]<=last && c[4]!=null && /^(낙찰여부|낙찰가|상한가|상한가요율|XL[A-Z]|입찰여부)/.test(String(c[4]).trim())) drop[c[1]]=1; });
+  var m=new Map(), n=0; for(var c=0;c<=last;c++){ if(drop[c]) continue; m.set(c,n++); } return m;
+}
+function lsRemapCols(f, CM){   // 같은 시트 칸 참조의 열만 새 위치로 ("…" 글 · 다른 시트!참조는 그대로)
+  return String(f).replace(/"[^"]*"|[^\s(),=+\-*\/&<>:"]+![$A-Z0-9:]+|(\$?)([A-Z]{1,3})(\$?)(\d+)/g, function(m0,d1,cl,d2,rw){
+    if(cl==null) return m0; var oc=lsColIdx(cl); if(!CM.has(oc)) return m0; return d1+lsCol(CM.get(oc))+d2+rw; });
+}
+function lsCatLabels(A, colW){   // LOT마다 9칸: 금액 있으면 {amt, lab, sz} — 비중 = 카테고리 금액 / 쿠팡판매총액, CATE4 % = 그 카테고리 안 1위
+  var units=function(t){ var n=0; for(var i=0;i<t.length;i++){ var ch=t[i]; n+= /[ᄀ-ᇿ㄰-㆏가-힣]/.test(ch)?1.0 : ch==="%"?0.85 : /[()\s,.]/.test(ch)?0.36 : ch==="…"?1.0 : /[A-Z]/.test(ch)?0.65 : 0.56; } return n; };
   return A.rows.map(function(R){
-    var best=-1, bv=0; (R.cats||[]).forEach(function(v,j){ if(v>bv){ bv=v; best=j; } });
-    if(best<0 || !(R.total>0)) return null;
-    var o=A.byNo.get(R.no), m=new Map();
-    if(o) LIQSUM_CAT[best][1].forEach(function(c2){ var t2=o.tree.get(c2); if(t2) t2.k.forEach(function(t4,c4){ var k=c4||"(비어 있음)"; m.set(k,(m.get(k)||0)+t4.s); }); });
-    var tn="", tv=0; m.forEach(function(v,k){ if(v>tv){ tv=v; tn=k; } });
-    var nm=tn.length>7 ? tn.slice(0,6)+"…" : tn;
-    var p1=Math.round(bv/R.total*100), p2=bv>0?Math.round(tv/bv*100):0;
-    var amt=Math.round(bv).toLocaleString("en-US"), lab="(비중"+p1+"%)"+(tn?" ("+nm+p2+"%)":"");
-    // 열 너비(문자 단위, 기본 11pt 기준): 금액 줄 27pt 굵게 · 비중 줄 16pt
-    var wl=function(t,sz){ var n=0; for(var i=0;i<t.length;i++) n+= /[\u1100-\u11ff\u3130-\u318f\uac00-\ud7a3…]/.test(t[i]) ? 1.75 : 1; return n*sz/11*1.1+2; };
-    return { j:best, amt:amt, lab:lab, value:bv, p1:p1, top:tn, p2:p2, w:Math.max(wl(amt,29), wl(lab,16)) };
+    var o=A.byNo.get(R.no);
+    return (R.cats||[]).map(function(bv,j){
+      if(!(bv>0) || !(R.total>0)) return null;
+      var m=new Map(); if(o) LIQSUM_CAT[j][1].forEach(function(c2){ var t2=o.tree.get(c2); if(t2) t2.k.forEach(function(t4,c4){ var k=c4||"(비어 있음)"; m.set(k,(m.get(k)||0)+t4.s); }); });
+      var tn="", tv=0; m.forEach(function(v,k){ if(v>tv){ tv=v; tn=k; } });
+      var p1=Math.round(bv/R.total*100), p2=Math.round(tv/bv*100), amt=Math.round(bv).toLocaleString("en-US");
+      var px=colW(j)*7.5*0.9*0.72, nm=tn, lab, sz;   // 칸 너비의 90% 안에 들어가게(엑셀 맑은 고딕 실제 폭 보정 0.72 — 사용자 화면 16pt 잘림에서 역산) — 칸 크기는 그대로, 글씨를 줄임 · 이름도 줄임
+      for(var cut=nm.length; ; cut--){ nm = cut<tn.length ? tn.slice(0,Math.max(cut,2))+"…" : tn; lab="(비중"+(p1<1?"<1":p1)+"%)"+(tn?" ("+nm+(p2<1?"<1":p2)+"%)":""); sz=Math.floor(px/(1.333*units(lab))*2)/2; if(sz>=10 || cut<=2) break; }
+      sz=Math.max(8, Math.min(14, sz));
+      var asz=Math.max(12, Math.min(22, Math.floor(px/(1.333*units(amt)*1.08)*2)/2));
+      return { amt:amt, lab:lab, sz:sz, asz:asz, value:bv, p1:p1, top:tn, p2:p2 };
+    });
   });
 }
-function lsSlimLayout(SP){   // 요약 템플릿에서 카테고리 9칸 · XL 4칸 · 요율 찾기 (일반: S~AA · L~O, 바이나우: U~AC · M~P)
-  var D=SP&&SP.data; if(!D) return null; var cat0=-1, xl=-1;
-  Object.keys(D).forEach(function(k){ var d=D[k], c=+k; if(d.k==="field" && d.f==="c0") cat0=c; if(d.k==="fmla" && /^=SUM\([A-Z]+\{r\}:[A-Z]+\{r\}\)$/.test(d.f) && c<cat0+99 && xl<0) xl=c+2; });
-  if(cat0<0 || xl<0) return null;
-  var lab=["주방","가전","생활","가구","식품","의류","패션잡화","뷰티","기타-J"], def=[0.019,0.069,0.019,0.019,0.25,0.059,0.059,0.059,0.059], rate=def.slice(), h2={}, h3={};
-  SP.header.forEach(function(c){ if(c[0]===2) h2[c[1]]=c[4]; if(c[0]===3) h3[c[1]]=c[4]; });
-  Object.keys(h3).forEach(function(k){ var c=+k, j=lab.indexOf(String(h3[c]).trim()); if(j>=0 && /요율\s*$/.test(String(h3[c+1]||"")) && typeof h2[c]==="number") rate[j]=h2[c]; });
+function lsSlimLayout(SP){   // 요약 템플릿에서 카테고리 9칸 · 요율 찾기 (일반: S~AA, 바이나우: U~AC)
+  var D=SP&&SP.data; if(!D) return null; var cat0=-1;
+  Object.keys(D).forEach(function(k){ var d=D[k]; if(d.k==="field" && d.f==="c0") cat0=+k; });
+  if(cat0<0) return null;
   var st=[]; for(var j=0;j<9;j++){ var d=D[cat0+j]; if(d && st.indexOf(d.s)<0) st.push(d.s); }
-  return { cat0:cat0, last:cat0+8, xl:xl, rate:rate, styles:st };
+  return { cat0:cat0, last:cat0+8, styles:st };
 }
 var _lsWrapCache={};
 function lsWrapStyles(xml, list){   // 카테고리 칸 서식(126·127·104·128 등)을 줄바꿈 켠 복사본으로 추가 — {xml, map: 원래 번호 → 새 번호}
@@ -19063,8 +19070,8 @@ function lsWrapStyles(xml, list){   // 카테고리 칸 서식(126·127·104·12
   _lsWrapCache[ck]={src:xml, xml:out, map:map}; return _lsWrapCache[ck];
 }
 function lsRichCell(ref, t, s){   // 금액(27pt 굵게) ⏎ 비중(16pt) — 엑셀 셀 하나, 수식은 첫 줄 금액만 읽음(lsN)
-  return '<c r="'+ref+'" s="'+s+'" t="inlineStr"><is><r><rPr><b/><sz val="27"/><color theme="1"/><rFont val="맑은 고딕"/><family val="3"/><charset val="129"/></rPr><t>'+lsX(t.amt)+'</t></r>'
-    +'<r><rPr><sz val="16"/><color rgb="FF404040"/><rFont val="맑은 고딕"/><family val="3"/><charset val="129"/></rPr><t xml:space="preserve">&#10;'+lsX(t.lab)+'</t></r></is></c>';
+  return '<c r="'+ref+'" s="'+s+'" t="inlineStr"><is><r><rPr><b/><sz val="'+(t.asz||22)+'"/><color theme="1"/><rFont val="맑은 고딕"/><family val="3"/><charset val="129"/></rPr><t>'+lsX(t.amt)+'</t></r>'
+    +'<r><rPr><sz val="'+(t.sz||12)+'"/><color rgb="FF404040"/><rFont val="맑은 고딕"/><family val="3"/><charset val="129"/></rPr><t xml:space="preserve">&#10;'+lsX(t.lab)+'</t></r></is></c>';
 }
 function lsAnalyze(iter, maxRows){   // build 219: iter(fn) = 행 읽기(xlsb 또는 xlsx 변환 표)
   var Q=lsRowCheckInit(), fcOfNo=new Map(), rawTot=[0,0,0,0], hdr=null, kind=null, L=null, lots=[], lotNo=new Map(), lotOrder=[], byNo=new Map(), aCol=[], bCol=[], rowIdx=[], maxRow=0, maxColSeen=0;
@@ -19311,21 +19318,22 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
     var tplLast1=SP.lastTpl+1, tplTot1=SP.totTpl+1, newLast1=4+N, newTot1=5+N, newTot0=newTot1-1;
     // build 285: 일반 리퀴 요약 = 비딩 표(B~AA)만 — 열 숨김 그룹(H~O · Q · CU~EA) 없앰, 오른쪽 점유율 · 요율표 · 낙찰가 기록용 · 아래 입찰목록 · 카테고리 종류 표 삭제
     //            카테고리별 금액: LOT에서 가장 큰 카테고리 칸에 "금액 / (비중 n%) (CATE4 m%)" — 비중 = 쿠팡판매총액 대비, CATE4 = 그 카테고리 안 1위(종합 피벗 CATE4)
-    var LY = lsSlimLayout(SP), SLIM = !!LY, CAT0 = SLIM?LY.cat0:0, LASTC = SLIM?LY.last:0, keepC=function(c){ return !SLIM || c<=LASTC; };   // build 285: 일반 · 바이나우 둘 다
-    var lsN=function(ref){ return '(--(0&SUBSTITUTE(LEFT('+ref+',FIND(CHAR(10),'+ref+'&CHAR(10))-1),",","")))'; };   // 숫자 또는 "금액⏎(비중…)" 글 → 금액
-    var lsN2=function(rng){ return 'SUMPRODUCT(--(0&SUBSTITUTE(LEFT('+rng+',FIND(CHAR(10),'+rng+'&CHAR(10))-1),",","")))'; };
-    var catRef=function(j,r){ return lsN(lsCol(CAT0+j)+r); }, rt=function(j){ return SLIM ? LY.rate[j] : 0; };
-    // XLA = 가구 · XLE = 식품 · XLB = 가전 · XLC = 의류+패션잡화+뷰티+기타-J (템플릿 요율표 그대로, 요율은 수식 안에)
-    var slimF={};
-    if(SLIM){ slimF[LY.xl]=function(r){ return catRef(3,r)+"*"+rt(3); }; slimF[LY.xl+1]=function(r){ return catRef(4,r)+"*"+rt(4); }; slimF[LY.xl+2]=function(r){ return catRef(1,r)+"*"+rt(1); };
-      slimF[LY.xl+3]=function(r){ return [5,6,7,8].map(function(j){ return catRef(j,r)+"*"+rt(j); }).join("+"); }; }
-    var topLab = SLIM ? lsTopCatLabels(A) : [];
+    // build 285: 요약 = 비딩 표만(일반 B~AA · 바이나우 B~AC) — 숨김 그룹 · 오른쪽 표 · 아래 입찰목록/카테고리 종류 삭제
+    //   + (2차) 낙찰여부 · 낙찰가 · 상한가 · 상한가요율 · XLA~XLC · 입찰여부 열 삭제(열을 왼쪽으로 당김)
+    //   + 카테고리별 금액: 금액이 있는 모든 칸 = 금액 ⏎ (비중 n%) (CATE4 m%) — 칸 크기는 그대로, 글씨를 칸에 맞춤
+    var LY = lsSlimLayout(SP), SLIM = !!LY, CAT0 = SLIM?LY.cat0:0, LASTC = SLIM?LY.last:0;
+    var CM = SLIM ? lsSlimColMap(SP, LASTC) : null;   // 옛 열 → 새 열 (지운 열은 없음)
+    var keepC=function(c){ return !SLIM || (c<=LASTC && CM.has(c)); }, NC=function(c){ return SLIM ? CM.get(c) : c; };
+    var RF=function(f){ return SLIM ? lsRemapCols(f, CM) : f; };
+    var lsN2=function(rng){ return 'SUMPRODUCT(--(0&SUBSTITUTE(LEFT('+rng+',FIND(CHAR(10),'+rng+'&CHAR(10))-1),",","")))'; };   // 금액 또는 "금액⏎(비중…)" 글 → 금액 합
+    var colW={}; if(SLIM) SP.cols.forEach(function(c){ for(var k=c[0];k<=Math.min(c[1],LASTC);k++) colW[k]=c[2]/256; });
+    var catLab = SLIM ? lsCatLabels(A, function(j){ return colW[CAT0+j]||38; }) : [];
     var labStyle = SLIM ? lsWrapStyles(T.styles, LY.styles) : null;
     var shiftF=function(f){ return lsShiftRows(f,function(R){ return R===tplLast1?newLast1:(R>tplLast1?R-tplTot1+newTot1:R); }); };
     var rows=new Map();
     function put(r,c,xml){ var m=rows.get(r); if(!m){ m=new Map(); rows.set(r,m); } m.set(c,xml); }
     function val(kind,v,shift){ if(kind==="F"){ var f=String(v).replace(/^=/,""); return {f:shift?shiftF(f):f}; } return v; }
-    SP.header.forEach(function(c){ if(keepC(c[1])) put(c[0],c[1],lsCell(lsCol(c[1])+(c[0]+1),val(c[3],c[4],false),c[2],sst2)); });
+    SP.header.forEach(function(c){ if(keepC(c[1])){ var v=val(c[3],c[4],false); if(v&&v.f) v={f:RF(v.f)}; put(c[0],NC(c[1]),lsCell(lsCol(NC(c[1]))+(c[0]+1),v,c[2],sst2)); } });
     var dcols=Object.keys(SP.data).map(Number).sort(function(a,b){ return a-b; });
     // build 126: 원본 LOT 목록이 FC → NO. 순서면 C=FC·D=NO, NO. → FC 순서면 C=NO·D=FC (사람이 붙여넣던 순서 그대로)
     var swapNF = SP.data[2] && SP.data[3] && ((A.L.fcFirst && SP.data[2].f==="no") || (!A.L.fcFirst && A.L.fc>=0 && SP.data[2].f==="fc"));
@@ -19335,26 +19343,27 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
         if(d.k==="field"){ var f=d.f; if(swapNF && (c===2||c===3)) f = f==="no"?"fc":(f==="fc"?"no":f); v = f[0]==="c" && /^c\d$/.test(f) ? R.cats[+f.slice(1)] : R[f]; if(f==="no"||f==="fc"||f==="cat") v=v==null?"":String(v); }
         else if(d.k==="fmla") v={f:String(d.f).replace(/^=/,"").replace(/\{r\}/g,String(r+1))};
         if(!keepC(c)) return;
-        if(SLIM && slimF[c]) v={f:slimF[c](r+1)};
-        var tl=SLIM && topLab[i];
-        if(tl && c===CAT0+tl.j){ put(r,c,lsRichCell(lsCol(c)+(r+1),tl,labStyle.map[d.s]!=null?labStyle.map[d.s]:d.s)); return; }
-        put(r,c,lsCell(lsCol(c)+(r+1),v,d.s,sst2)); });
+        if(v&&v.f) v={f:RF(v.f)};
+        var tl=SLIM && c>=CAT0 && c<=LASTC && catLab[i] && catLab[i][c-CAT0];
+        if(tl){ put(r,NC(c),lsRichCell(lsCol(NC(c))+(r+1),tl,labStyle.map[d.s]!=null?labStyle.map[d.s]:d.s)); return; }
+        put(r,NC(c),lsCell(lsCol(NC(c))+(r+1),v,d.s,sst2)); });
     });
     SP.absolute.forEach(function(c){ if(c[0]<newTot0 && keepC(c[1])) put(c[0],c[1],lsCell(lsCol(c[1])+(c[0]+1),val(c[3],c[4],false),c[2],sst2)); });
-    SP.footer.forEach(function(c){ if(SLIM && (c[0]!==0 || c[1]>LASTC)) return; var r=newTot0+c[0], v=val(c[3],c[4],true);
-      if(SLIM && c[1]>=CAT0 && c[1]<=LASTC) v={f:lsN2(lsCol(c[1])+"5:"+lsCol(c[1])+newLast1)};   // 카테고리 칸에 글(금액⏎비중)이 있어도 합계가 맞게
-      put(r,c[1],lsCell(lsCol(c[1])+(r+1),v,c[2],sst2)); });
-    var merges=SP.merges.filter(function(m){ return !SLIM || (m[3]<=LASTC && (m[4]!=="f" || m[0]===0)); }).map(function(m){ return m[4]==="f" ? [m[0]+newTot0,m[1]+newTot0,m[2],m[3]] : [m[0],m[1],m[2],m[3]]; });
+    SP.footer.forEach(function(c){ if(SLIM && (c[0]!==0 || !keepC(c[1]))) return; var r=newTot0+c[0], v=val(c[3],c[4],true);
+      if(SLIM){ if(v&&v.f) v={f:RF(v.f)}; if(c[1]>=CAT0 && c[1]<=LASTC) v={f:lsN2(lsCol(NC(c[1]))+"5:"+lsCol(NC(c[1]))+newLast1)}; }   // 카테고리 칸에 글(금액⏎비중)이 있어도 합계가 맞게
+      put(r,NC(c[1]),lsCell(lsCol(NC(c[1]))+(r+1),v,c[2],sst2)); });
+    var merges=SP.merges.filter(function(m){ return !SLIM || (m[3]<=LASTC && (m[4]!=="f" || m[0]===0) && CM.has(m[2]) && CM.has(m[3])); }).map(function(m){ return m[4]==="f" ? [m[0]+newTot0,m[1]+newTot0,NC(m[2]),NC(m[3])] : [m[0],m[1],NC(m[2]),NC(m[3])]; });
     var sCols=SP.cols;
-    if(SLIM){ sCols=[]; SP.cols.forEach(function(c){ if(c[0]>LASTC) return; for(var k=c[0];k<=Math.min(c[1],LASTC);k++){ var fl=c[4]||0; if(fl&0x700) fl&=~0x701; fl&=~0x1000; sCols.push([k,k,c[2],c[3],fl]); } });
-      sCols.forEach(function(c){ if(c[0]>=CAT0 && c[0]<=LASTC){ var need=0; topLab.forEach(function(t){ if(t && CAT0+t.j===c[0]) need=Math.max(need,t.w); }); if(need*256>c[2]) c[2]=Math.ceil(need*256); } }); }
-    var cf=(SP.cf||[]).map(function(b){ var rf=b.ref[0]; return '<conditionalFormatting sqref="'+lsCol(rf[2])+'5:'+lsCol(rf[3])+newLast1+'">'+b.rules.map(function(ru){ return '<cfRule type="expression" dxfId="'+ru[1]+'" priority="'+ru[2]+'"><formula>'+lsX(ru[3])+'</formula></cfRule>'; }).join("")+'</conditionalFormatting>'; }).join("");
-    s.w(lsSheetHead({sel:true, zoom:40, cols:sCols, pane:lsPane(SP.pane)}));
+    if(SLIM){ sCols=[]; SP.cols.forEach(function(c){ for(var k=c[0];k<=Math.min(c[1],LASTC);k++){ if(!CM.has(k)) continue; var fl=c[4]||0; if(fl&0x700) fl&=~0x701; fl&=~0x1000; sCols.push([NC(k),NC(k),c[2],c[3],fl]); } }); }
+    var cf=(SLIM?[]:(SP.cf||[])).map(function(b){ var rf=b.ref[0]; return '<conditionalFormatting sqref="'+lsCol(rf[2])+'5:'+lsCol(rf[3])+newLast1+'">'+b.rules.map(function(ru){ return '<cfRule type="expression" dxfId="'+ru[1]+'" priority="'+ru[2]+'"><formula>'+lsX(ru[3])+'</formula></cfRule>'; }).join("")+'</conditionalFormatting>'; }).join("");
+    var pane=lsPane(SP.pane);
+    if(SLIM && pane){ pane=pane.replace(/xSplit="(\d+)"/,function(_,x){ var n=0; CM.forEach(function(nc,oc){ if(oc<+x) n++; }); return 'xSplit="'+n+'"'; })
+      .replace(/topLeftCell="([A-Z]+)(\d+)"/,function(_,cl,rw){ var oc=lsColIdx(cl), nc=oc; while(nc>=0 && !CM.has(nc)) nc++; return 'topLeftCell="'+lsCol(CM.has(nc)?CM.get(nc):0)+rw+'"'; }); }
+    s.w(lsSheetHead({sel:true, zoom:40, cols:sCols, pane:pane}));
     var keys=Array.from(rows.keys()); for(var r0=0;r0<4;r0++) if(!rows.has(r0)) keys.push(r0);
     keys=Array.from(new Set(keys)).sort(function(a,b){ return a-b; });
     keys.forEach(function(r){
       var info = r<4 ? SP.rows.header[r] : (r<newTot0 ? SP.rows.data : SP.rows.footer[r-newTot0]);
-      if(SLIM && r>=4 && r<newTot0 && info){ info=info.slice(); info[1]=Math.max(info[1],1290); info[3]=(info[3]||0)|0x20; }   // 금액 + 비중 두 줄
       var m=rows.get(r), x="";
       if(m) Array.from(m.keys()).sort(function(a,b){ return a-b; }).forEach(function(c){ x+=m.get(c); });
       s.w('<row r="'+(r+1)+'"'+lsRowAttr(info)+'>'+x+'</row>');
