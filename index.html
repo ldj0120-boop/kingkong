@@ -1713,7 +1713,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 279 · 2026-10-30</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 280 · 2026-10-30</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -3560,7 +3560,7 @@ function buildStateObject(){
       STORES, STOCK, CATEGORIES, CATEGORY_ORIGIN, SHIP, ACTUAL,
       HQ_ACTUAL, APPLIANCE_ACTUAL, CENTER_DIRECT_ACTUAL, FRESH_ACTUAL, CENTER_M, HQ_M, APPLIANCE_M, CENTER_DIRECT_M, DIRECT_MAIN_D, DIRECT_FILE_D, CENTER_D, HQ_D, APPLIANCE_D, DAY_SRC, UNMATCHED_WHERE, FRESH_M, FRESH_SUMMARY_M, LOTTE_M, shipScope, HQ_SUPPLY_HISTORY, APPLIANCE_SUPPLY_HISTORY, unmatchedHQStores, unmatchedApplianceStores,
       selected, SUPPLY_HISTORY, STOCK_HISTORY, unmatchedActualStores,
-      SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodBStart, periodBEnd, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, SPECIAL_DAYS, goalsScope, selectedSalesMonth, FIXED_INTAKE_HISTORY, FI_ELIG, FI_SETTINGS_SAVED, FI_DISPATCH_HISTORY, selectedMonthlyStore, IMPROVE_DECISIONS: (typeof IMPROVE_DECISIONS!=="undefined" && IMPROVE_DECISIONS) || {}, IMPROVE_REQUESTS: (typeof IMPROVE_REQUESTS!=="undefined" && IMPROVE_REQUESTS) || [], FI_DISP_DEL_IDS: fiDispDelList(), salesViewMode, EVENTS_COMMON, EVENTS_STORE, PLT_LIVE_META, PLT_DAILY, PROCESSED_FILES, CENTER_STOCK: (typeof CENTER_STOCK!=="undefined" ? CENTER_STOCK : null),
+      SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodBStart, periodBEnd, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, SPECIAL_DAYS, goalsScope, selectedSalesMonth, FIXED_INTAKE_HISTORY, FI_ELIG, FI_SETTINGS_SAVED, FI_DISPATCH_HISTORY, selectedMonthlyStore, IMPROVE_DECISIONS: (typeof IMPROVE_DECISIONS!=="undefined" && IMPROVE_DECISIONS) || {}, IMPROVE_REQUESTS: (typeof IMPROVE_REQUESTS!=="undefined" && IMPROVE_REQUESTS) || [], FI_DISP_DEL_IDS: fiDispDelList(), salesViewMode, EVENTS_COMMON, EVENTS_STORE, PLT_LIVE_META, PLT_DAILY, OPS_PLAN, COST_LIVE, PROCESSED_FILES, CENTER_STOCK: (typeof CENTER_STOCK!=="undefined" ? CENTER_STOCK : null),
       basedateIdx: (typeof basedateEl!=="undefined" && basedateEl.value!=="") ? +basedateEl.value : STOCK_HISTORY.length-1
   };
 }
@@ -3842,6 +3842,8 @@ function applyStateObject(s){
     EVENTS_COMMON = (s.EVENTS_COMMON && typeof s.EVENTS_COMMON==="object") ? s.EVENTS_COMMON : {};
     if(s.PLT_LIVE_META && typeof s.PLT_LIVE_META==="object") PLT_LIVE_META = s.PLT_LIVE_META;   // build 151
     if(s.PLT_DAILY && typeof s.PLT_DAILY==="object" && s.PLT_DAILY.d) PLT_DAILY = s.PLT_DAILY;   // build 182
+    if(s.OPS_PLAN && typeof s.OPS_PLAN==="object" && s.OPS_PLAN.months) OPS_PLAN = s.OPS_PLAN;   // build 280 승현 운영계획
+    if(s.COST_LIVE && typeof s.COST_LIVE==="object" && s.COST_LIVE.labor) COST_LIVE = s.COST_LIVE;   // build 280 승현 인건비 · 폐기비용
     SPECIAL_DAYS = (s.SPECIAL_DAYS && typeof s.SPECIAL_DAYS==="object") ? s.SPECIAL_DAYS : {};
     if(s.goalsScope && typeof s.goalsScope==="object") goalsScope = Object.assign({mode:"month",month:null,from:null,to:null}, s.goalsScope);
     EVENTS_STORE = (s.EVENTS_STORE && typeof s.EVENTS_STORE==="object") ? s.EVENTS_STORE : {};
@@ -4331,6 +4333,13 @@ function freshInfo(){
       const fz = PLT_LIVE_META && PLT_LIVE_META.fresh; const cm = fmtDate(new Date()).slice(0,7);
       if(fz && fz.months && fz.months.includes(cm)){ const d = new Date(fz.at); c.txt = `${+cm.slice(5)}월 · ${d.toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}`; c.tip += ` · 승현 사이트(리퀴데이션 분배관리 · 신선)에서 ${d.toLocaleString("ko-KR")}에 받음`; }
       return c; })(),
+    (()=>{ // build 280: 운영계획(목표매출) = 승현 매장운영 실시간
+      const k = opsMonthKey(); const at = OPS_PLAN && OPS_PLAN.at ? new Date(OPS_PLAN.at) : null;
+      if(!k || !at) return { label:"운영계획", txt:"엑셀 고정값", cls:"warn", tip:"목표매출 · 공급계획이 아직 승현 사이트 '5. 매장운영'에서 안 받아졌습니다 — 사이트에 저장된 운영계획 엑셀 값을 씁니다. 관리자가 승현 로그인하면 자동으로 받습니다." };
+      const df = opsPlanDiff(); const cm = fmtDate(new Date()).slice(0,7);
+      return { label:"운영계획", txt:`승현 ${+k.slice(5)}월 계획`, cls:"ok",
+               tip:`목표매출 · 공급계획 = 승현 사이트 '5. 매장운영' ${k} 계획${k<cm?` (${cm}은 아직 안 고쳐 ${k} 계획을 이어 씀)`:""} · ${at.toLocaleString("ko-KR")}에 받음 · 운영 목표 합계 ${Math.round((df?df.ops:0)/1e6).toLocaleString()}백만원 · 승현 계획표에 없는 매장(동김해점 등)은 사이트 고정값` };
+    })(),
     (()=>{ // build 151: 승현 사이트 매장 PLT 재고(관리자 브라우저가 로그인해 받은 시각)
       const at = PLT_LIVE_META && PLT_LIVE_META.at ? new Date(PLT_LIVE_META.at) : null;
       if(!at || isNaN(at)) return { label:"승현 PLT", txt:"미연동", cls:"warn", tip:"승현 사이트 매장 PLT 재고를 아직 받지 않았습니다 — 관리자 화면 '데이터 관리 › 승현 PLT 실시간'에서 로그인하세요." };
@@ -9092,7 +9101,57 @@ SUPPLY_PLAN["동김해점"] = {
 Object.keys(SUPPLY_PLAN).forEach(s=>{
   if(typeof SUPPLY_PLAN[s].opTotal==="number" && SUPPLY_PLAN[s].opTotal>=0) STORE_MONTHLY_TARGETS[s] = SUPPLY_PLAN[s].opTotal;
 });
-function storeHasZeroTarget(s){ const t = groupMonthlyTarget(s); return t!=null && !(t>0); }
+/* ★ build 280 (2026-10-30) 운영계획 = 승현 사이트 '5. 매장운영' 실시간 (사용자 결정: 승현 값 그대로 따름)
+   - 승현 Supabase store_ops_param(단가·전환율·월 환산일수) · store_ops_store(회사 목표) · store_ops_plan(매장×카테고리 PLT)을
+     관리자 브라우저(승현 로그인)가 받아 OPS_PLAN에 저장 → 클라우드로 뷰어 공유.
+   - 계산은 승현과 같음: 월 PLT = 일별 수량 × 월 환산일수(신선) 또는 월 수량, 기대매출 = PLT × 단가 × 전환율, 운영 목표 = 합.
+   - 달마다: 그 달 계획이 없으면 그 전 달 계획을 이어 씀(승현 store_ops_effective_month와 같은 규칙). 승현 첫 계획 달보다 앞선 달은 첫 계획.
+   - 승현 계획표에 없는 매장(동김해점 등) · 아직 한 번도 못 받았을 때 = 위 고정값(SUPPLY_PLAN · STORE_MONTHLY_TARGETS) 그대로. */
+var OPS_PLAN = null;   // { at, by, months:{ "YYYY-MM":{ stores:{매장:{kind, companyTarget, plt:{}, target:{}, opTotal, src}}, params:{카테고리:{price, conv, days}} } }, unmatched:[] }
+const OPS_STORE_MAP = { "신광주점패션관":"패션관광주점" };   // 승현 표기 → 이 사이트 매장(회사 목표 5천만 같은 매장)
+function opsStoreName(raw){ const t = String(raw==null?"":raw).trim(); return OPS_STORE_MAP[t] || resolveStoreName(t); }
+function opsMonthKeys(){ return (OPS_PLAN && OPS_PLAN.months) ? Object.keys(OPS_PLAN.months).filter(k=> OPS_PLAN.months[k] && Object.keys(OPS_PLAN.months[k].stores||{}).length).sort() : []; }
+function opsMonthKey(ym){   // 그 달에 쓰는 승현 계획 달(없으면 null)
+  const ks = opsMonthKeys(); if(!ks.length) return null;
+  const y = ym || fmtDate(new Date()).slice(0,7); let pick = null;
+  ks.forEach(k=>{ if(k<=y) pick = k; });
+  return pick || ks[0];
+}
+function opsMonth(ym){ const k = opsMonthKey(ym); return k ? OPS_PLAN.months[k] : null; }
+function planOf(store, ym){ const M = opsMonth(ym); return (M && M.stores[store]) || SUPPLY_PLAN[store] || null; }
+function planParamsOf(ym){ const M = opsMonth(ym); return (M && M.params && Object.keys(M.params).length) ? M.params : SUPPLY_PLAN_PARAMS; }
+function storeTargetOf(store, ym){ const M = opsMonth(ym); if(M && M.stores[store]) return M.stores[store].opTotal; return STORE_MONTHLY_TARGETS[store]; }
+function planSourceOf(store, ym){ const k = opsMonthKey(ym); return (k && OPS_PLAN.months[k].stores[store]) ? `승현 매장운영 ${k} 계획` : "사이트 고정값(운영계획 엑셀)"; }
+// 승현 표 행 → 월별 계획. rows = {params:[], stores:[], plans:[]} (Supabase 행 그대로, month 칸 포함)
+function opsPlanBuild(rows){
+  const months = {}, unmatched = new Set();
+  const mo = m => months[m] || (months[m] = { stores:{}, params:{} });
+  (rows.params||[]).forEach(r=>{ const m = String(r.month||"").slice(0,7); if(!m || !r.category) return;
+    mo(m).params[String(r.category).trim()] = { price:Number(r.unit_price)||0, conv:Number(r.rate)||0, days: r.days_per_month==null ? null : Number(r.days_per_month),
+      note: (SUPPLY_PLAN_PARAMS[String(r.category).trim()]||{}).note || "" }; });
+  const raw2site = {};
+  (rows.stores||[]).forEach(r=>{ const m = String(r.month||"").slice(0,7); if(!m || !r.store) return; const st = opsStoreName(r.store);
+    if(STORES.indexOf(st) < 0){ unmatched.add(String(r.store)); return; }
+    raw2site[r.store] = st;
+    mo(m).stores[st] = { kind: r.kind||"", companyTarget: Number(r.company_target||0), plt:{}, target:{}, opTotal:0, src: String(r.store) }; });
+  (rows.plans||[]).forEach(r=>{ const m = String(r.month||"").slice(0,7); const M = months[m]; if(!M) return;
+    const st = raw2site[r.store] || opsStoreName(r.store); const S = M.stores[st]; if(!S){ unmatched.add(String(r.store)); return; }
+    const c = String(r.category||"").trim(); const p = M.params[c]; if(!c) return;
+    const daily = r.daily_qty==null ? null : Number(r.daily_qty), qty0 = r.plt_qty==null ? null : Number(r.plt_qty);
+    const qty = (daily!=null && p && p.days!=null) ? daily*p.days : qty0;
+    if(qty==null || !isFinite(qty)) return;
+    S.plt[c] = Math.round(qty*1000)/1000;
+    S.target[c] = p ? Math.round(qty*p.price*p.conv) : 0; });
+  Object.values(months).forEach(M=> Object.values(M.stores).forEach(S=>{ S.opTotal = Object.values(S.target).reduce((a,v)=>a+v,0); }));
+  return { months, unmatched:[...unmatched] };
+}
+// 고정값 대비 차이(관리자 상태 줄 · 검수용)
+function opsPlanDiff(ym){
+  const M = opsMonth(ym); if(!M) return null; let ops = 0, fix = 0; const rows = [];
+  Object.keys(M.stores).forEach(s=>{ const a = M.stores[s].opTotal, b = SUPPLY_PLAN[s] ? SUPPLY_PLAN[s].opTotal : (STORE_MONTHLY_TARGETS[s]||0); ops += a; fix += b; if(Math.abs(a-b) >= 1) rows.push({ store:s, ops:a, fix:b }); });
+  return { month: opsMonthKey(ym), ops, fix, rows };
+}
+function storeHasZeroTarget(s, ym){ const t = groupMonthlyTarget(s, ym); return t!=null && !(t>0); }
 // 계획표 카테고리(9종) ↔ 실제 출고/매출 원장 카테고리 대응표.
 // 사이트 자체 분류 규칙(CATE_RULES, 1347행 부근)과 동일한 대응관계를 그대로 따랐다:
 //   XLK → "대형가전"(방도리/가전센터 출고내역서 전용 표기, 1350행) · XLW → "대형가구"(1352행)
@@ -9145,7 +9204,7 @@ function goalsSupplyDetail(ctx, month){
   // 진행 중인 달만 경과일 비례로 계획을 잘라 비교한다. 과거(이미 끝난) 달을 골랐을 땐 월 총량 그대로 비교.
   const prorate = isOngoing ? (elapsed/dim) : 1;
   const rows = ctx.rows.map(r=>{
-    const plan = SUPPLY_PLAN[r.store];
+    const plan = planOf(r.store, m);   // build 280: 그 달 승현 운영계획(없으면 고정값)
     const pltInfo = goalsPlanCatPLT(r.members, m);
     const actualRevenue = ctx.monthMaps[m] ? (ctx.monthMaps[m].map[r.store] || 0) : 0;
     if(!plan){
@@ -9178,7 +9237,7 @@ function goalsSupplyDetail(ctx, month){
              companyPct: r.pct };
   });
   // 전사 카테고리별 합계(계획이 있는 매장만) — PLT만 실제와 대조하고, 매출은 "계획" 참고값만 낸다.
-  const catKeys = Object.keys(SUPPLY_PLAN_PARAMS);
+  const catKeys = Object.keys(planParamsOf(m));
   const catTotals = catKeys.map(pc=>{
     let planPLT=0, planPLTFull=0, actualPLT=0, planRevFull=0;
     rows.forEach(x=>{ if(!x.cats) return; const c = x.cats.find(y=>y.cat===pc); if(!c) return;
@@ -9383,8 +9442,8 @@ function goalsCumulative(store, months, curMonth){
   // 누적 목표 = Σ(그 달 영업일수 비례 목표). 15차부터 **오픈 전 달과 폐점 후 달은 아예 세지 않는다**
   // (제주서귀포점 2026-02 오픈 → 1월은 결측이 아니라 영업 전 / 광주점 2026-08-23 폐점 → 8월은 23일치).
   // 영업한 달인데 실적이 0이면 그건 진짜 "업로드 결측"이므로 예전처럼 누적 비교를 만들지 않는다.
-  const target = groupMonthlyTarget(store);
-  if(target == null) return null;
+  if(groupMonthlyTarget(store, curMonth) == null) return null;
+  const tOf = m => groupMonthlyTarget(store, m) || 0;   // build 280: 달마다 그 달 운영계획 목표
   const pastMonths = months.filter(m=>m!==curMonth);
   let actualCum = 0, targetCum = 0, hasGap = false;
   const skipped = [];
@@ -9394,21 +9453,22 @@ function goalsCumulative(store, months, curMonth){
     if(a.days<=0){ skipped.push(m); actualCum += v; return; }   // 영업 전/후 — 목표에서 제외
     if(v<=0) hasGap = true;
     actualCum += v;
-    targetCum += target*(a.days/a.dim);
+    targetCum += tOf(m)*(a.days/a.dim);
   });
   const curActual = goalsGroupMap(curMonth).map[store] || 0;
   actualCum += curActual;
   if(hasGap) return { actualCum, targetCum:null, pct:null, gap:true, skipped };
   const elapsedDays = goalsElapsedDays(curMonth);
   const curA = storeActiveDays(store, curMonth, elapsedDays);
-  targetCum += target*(curA.days/curA.dim);
+  targetCum += tOf(curMonth)*(curA.days/curA.dim);
   return { actualCum, targetCum, pct: targetCum>0 ? actualCum/targetCum*100 : 0, gap:false, skipped };
 }
 // 대표 매장의 월 목표 = 합산 매장 목표의 합 (2026-09-23 현재 합산되는 매장이 없어 항상 자기 자신 목표와 같음)
-function groupMonthlyTarget(store){
-  const members = storeGroupMembers(store).filter(m=>STORE_MONTHLY_TARGETS[m]!=null);
+// build 280: ym(그 달) — 승현 운영계획이 있으면 그 달 계획의 운영 목표, 없으면 고정값. ym 생략 = 이번 달.
+function groupMonthlyTarget(store, ym){
+  const members = storeGroupMembers(store).filter(m=>storeTargetOf(m, ym)!=null);
   if(!members.length) return null;
-  return members.reduce((a,m)=>a+STORE_MONTHLY_TARGETS[m],0);
+  return members.reduce((a,m)=>a+storeTargetOf(m, ym),0);
 }
 function goalsCategoryDiagnosis(store, scopedSales){
   // 이 매장의 카테고리 구성비 - 전사 평균 구성비 격차로 강점/기회 카테고리를 자동 진단.
@@ -9477,8 +9537,7 @@ function goalsCategoryEfficiency(scopedSales, scopeMonths){
 function goalsMonthlyHistory(store, months, curMonth){
   // 월별 달성률 이력. 15차: 오픈 전/폐점 후 달은 아예 점을 만들지 않고, 오픈월·폐점월은
   // 그 달 영업일수 비례 목표로 나눠 달성률을 왜곡하지 않는다.
-  const target = groupMonthlyTarget(store);
-  if(target == null) return null;
+  if(groupMonthlyTarget(store, curMonth) == null) return null;
   const elapsedDays = goalsElapsedDays(curMonth);
   const points = [], inactive = [];
   months.forEach(m=>{
@@ -9486,6 +9545,7 @@ function goalsMonthlyHistory(store, months, curMonth){
     if(a.days<=0){ inactive.push({month:m, state:a.state}); return; }
     const v = goalsGroupMap(m).map[store] || 0;
     if(v<=0) return;
+    const target = groupMonthlyTarget(store, m) || 0;   // build 280: 그 달 운영계획 목표
     const t = target*(a.days/a.dim);
     points.push({ month:m, pct: t>0 ? v/t*100 : 0, partial: a.state==="partial", actual: v, target: t, monthTarget: target, days: a.days, dim: a.dim });   // build 101: monthTarget(월 목표 전액)·일수 — 07표 말풍선용
   });
@@ -10036,20 +10096,20 @@ function goalsBuildContext(){
     .filter(s=>STORES.includes(s))
     .filter(s=>!storeProfile(s).mergeSalesInto)
     .filter(s=>storeActiveDays(s, curMonth).days > 0)
-    .filter(s=>!storeHasZeroTarget(s)); // 목표 0원(대소점) — 달성률 계산 대상 아님
+    .filter(s=>!storeHasZeroTarget(s, curMonth)); // 목표 0원(대소점) — 달성률 계산 대상 아님
   const noTargetStores = Object.keys(STORE_MONTHLY_TARGETS)
-    .filter(s=>STORES.includes(s) && !storeProfile(s).mergeSalesInto && storeHasZeroTarget(s));
+    .filter(s=>STORES.includes(s) && !storeProfile(s).mergeSalesInto && storeHasZeroTarget(s, curMonth));
   const closedStores = Object.keys(STORE_MONTHLY_TARGETS)
     .filter(s=>STORES.includes(s) && !storeProfile(s).mergeSalesInto)
     .filter(s=>storeActiveDays(s, curMonth).days <= 0)
     .map(s=>`${s}(${storeStateBadge(s, curMonth)||'-'})`);
   const missingMonths = {}, inactiveMonths = {};
   const rows = targetStores.map(s=>{
-    const target = groupMonthlyTarget(s);
+    const target = groupMonthlyTarget(s, curMonth);
     // 선택 기간의 실적 합계와 목표 합계(그 달 영업일수 비례, 진행 중인 달은 경과일까지)
     const actual = scopeMonths.reduce((a,m)=> a + (monthMaps[m].map[s]||0), 0);
     const proratedTarget = scopeMonths.reduce((a,m)=>
-      a + storeMonthTarget(s, m, target, m===curMonth ? elapsedDays : null).target, 0);
+      a + storeMonthTarget(s, m, groupMonthlyTarget(s, m)||0, m===curMonth ? elapsedDays : null).target, 0);
     const ta = storeMonthTarget(s, curMonth, target, elapsedDays);
     const pct = proratedTarget>0 ? actual/proratedTarget*100 : 0;
     const monthActual = months.map(m=> monthMaps[m].map[s] || 0);
@@ -11393,6 +11453,7 @@ function goalsRender08Body(ctx, opts){
       <td><span class="num">${d.stockTot||"-"}</span></td>
       <td><span class="num ${d.yard>=15?'neg':''}">${d.yard||"-"}</span></td>
       <td style="white-space:nowrap" title="${escHtml(r.freshLabel||"")}">${escHtml(storeFreshShort(r.store))}</td>
+      ${COST_LIVE ? (cc=>`<td style="white-space:nowrap"${cc.tip?` data-tip="${escHtml(cc.tip)}"`:""}><span class="num">${cc.html}</span></td>`)(costPctCell(r.members && r.members.length ? r.members : [r.store])) : ""}
       <td>${d.tags.length?(tp=>d.tags.map(t=>`<span class="g-chip ${t==="공급기아"?"good":"warn"}" style="cursor:help" title="${escHtml(tp[t]||t)}">${t}</span>`).join(""))(diagTagTips(d, ctx, D)):'<span class="g-chip">정상</span>'}</td>
       ${opts && opts.solutions ? `<td class="g11-topsol">${top ? `<span data-tip="${escHtml(top.why||"")}">${escHtml(top.title)}</span>${top.fill?` <span class="g11-dn" style="white-space:nowrap">메울 ${g11Eok(top.fill)}</span>`:""}${top.gain>0?` <span class="g11-gain">+${(top.gain/1e4>=1e4?(top.gain/1e8).toFixed(1)+"억":Math.round(top.gain/1e4).toLocaleString()+"만")}</span>`:""}` : '<span class="g11-mute">-</span>'}</td>` : ""}
     </tr>`;
@@ -11401,7 +11462,7 @@ function goalsRender08Body(ctx, opts){
     <div class="g-tbl-title">매장별 공급 × 매출 교차표 (${ctx.mLbl(cur)} 기준)</div>
     <div class="g-tbl-sub">줄을 누르면 그 매장 분석(솔루션 · 카테고리 · 월별)이 열립니다. 월별 공급 PLT는 03 재고·공급(PLT) › 월별 추이. <b>매출/PLT</b> = 그 달 매출 ÷ (출고 PLT − 매출 0 카테고리 PLT). 받은 물건을 얼마나 돈으로 바꿨는지를 봅니다. 전사 중앙값 ${D.medPerPlt?won(D.medPerPlt)+"원":"-"} · 물량 중앙값 ${D.medPlt||"-"}PLT.</div>
     <div class="tblbox"><table class="g-tbl">
-      <thead><tr><th>매장</th><th>달성률</th><th>추세</th><th>${ctx.mLbl(cur)} PLT</th><th>무매출%</th><th>매출/PLT<br>(백만)</th><th>재고PLT</th><th>야적</th><th>신선</th><th>판정</th>${opts && opts.solutions?`<th>1순위 솔루션 <span style="font-weight:400;font-size:11.5px">(추정 효과/월)</span></th>`:""}</tr></thead>
+      <thead><tr><th>매장</th><th>달성률</th><th>추세</th><th>${ctx.mLbl(cur)} PLT</th><th>무매출%</th><th>매출/PLT<br>(백만)</th><th>재고PLT</th><th>야적</th><th>신선</th>${COST_LIVE?`<th data-tip="승현 사이트 인건비(월 1회) · 폐기비용(수거일 기준)을 이 사이트 그 달 매출(매일 업로드)로 나눈 값. 자료가 있는 가장 최근 달 — 칸에 마우스를 올리면 달 · 금액">인건비 · 폐기<br>(매출 대비)</th>`:""}<th>판정</th>${opts && opts.solutions?`<th>1순위 솔루션 <span style="font-weight:400;font-size:11.5px">(추정 효과/월)</span></th>`:""}</tr></thead>
       <tbody>${rowsHtml}</tbody>${(()=>{   // build 78: 합계·평균 행
         const L = D.stores, n = L.length||1, avg = f=>{ const v=L.map(f).filter(x=>x!=null&&isFinite(x)); return v.length? v.reduce((a,b)=>a+b,0)/v.length : null; };
         const sumPlt = L.reduce((a,d)=>a+(+d.t||0),0);
@@ -11414,7 +11475,7 @@ function goalsRender08Body(ctx, opts){
           <td><span class="num">평균 ${aPer!=null?(aPer/1e6).toFixed(1):'-'}</span></td>
           <td><span class="num"><b>${L.reduce((a,d)=>a+(+d.stockTot||0),0).toLocaleString()}</b></span></td>
           <td><span class="num"><b>${L.reduce((a,d)=>a+(+d.yard||0),0).toLocaleString()}</b></span></td>
-          <td></td><td><span class="num">${L.length}곳</span></td>${opts && opts.solutions?`<td class="g11-mute">매장을 누르면 솔루션 전체</td>`:""}</tr></tfoot>`; })()}</table></div>`;
+          <td></td>${COST_LIVE?(cc=>`<td style="white-space:nowrap"${cc.tip?` data-tip="${escHtml(cc.tip)}"`:""}><span class="num">${cc.html}</span></td>`)(costPctCell(L.flatMap(d=> d.r.members && d.r.members.length ? d.r.members : [d.r.store]))):""}<td><span class="num">${L.length}곳</span></td>${opts && opts.solutions?`<td class="g11-mute">매장을 누르면 솔루션 전체</td>`:""}</tr></tfoot>`; })()}</table></div>`;
   // ── 유형 요약
   const byTag = t => D.stores.filter(s=>s.tags.indexOf(t)>=0)
       .sort((a,b)=>(a.r.pct)-(b.r.pct)).map(s=>escHtml(s.r.label)).join(" · ") || "해당 없음";
@@ -11756,15 +11817,16 @@ function goalsRender10Body(ctx){
       </tr></tfoot>
     </table></div>`;
 
-  const paramRows = Object.keys(SUPPLY_PLAN_PARAMS).map(c=>{
-    const p = SUPPLY_PLAN_PARAMS[c];
+  const PP = planParamsOf(D.month);   // build 280: 그 달 승현 운영계획 단가·전환율(없으면 고정값)
+  const paramRows = Object.keys(PP).map(c=>{
+    const p = PP[c];
     return `<tr><td>${escHtml(c)}</td><td><span class="num">${won(p.price)}</span></td><td><span class="num">${(p.conv*100).toFixed(0)}%</span></td><td>${escHtml(p.note||"")}</td></tr>`;
   }).join("");
 
   const ref = `
-    <div class="g-tbl-title" style="margin-top:18px">참고 — 카테고리별 단가 · 전환율 (계획표 산출 기준)</div>
+    <div class="g-tbl-title" style="margin-top:18px">참고 — 카테고리별 단가 · 전환율 (${escHtml(opsMonthKey(D.month) ? "승현 매장운영 "+opsMonthKey(D.month)+" 계획" : "운영계획 엑셀 고정값")})</div>
     <div class="tblbox"><table class="g-tbl"><thead><tr><th>카테고리</th><th>PLT당 단가</th><th>전환율</th><th>비고</th></tr></thead><tbody>${paramRows}</tbody>
-    <tfoot>${(()=>{ const ps = Object.values(SUPPLY_PLAN_PARAMS); const n = ps.length||1; const ap = ps.reduce((a,x)=>a+(+x.price||0),0)/n, ac = ps.reduce((a,x)=>a+(+x.conv||0),0)/n;
+    <tfoot>${(()=>{ const ps = Object.values(PP); const n = ps.length||1; const ap = ps.reduce((a,x)=>a+(+x.price||0),0)/n, ac = ps.reduce((a,x)=>a+(+x.conv||0),0)/n;
       return `<tr><td>평균 (${ps.length}개 카테고리 단순 평균)</td><td><span class="num">${won(ap)}</span></td><td><span class="num">${(ac*100).toFixed(0)}%</span></td><td></td></tr>`; })()}</tfoot></table></div>`;
 
   // build 270: 중복 정리 — 전사 카테고리 목표 대비 표(catTable)는 배정 도우미와 같은 숫자 → 도우미에 합침(출처 말풍선 · 계획 외 줄)
@@ -11865,11 +11927,43 @@ const G11_PLAN_GROUP = { "상온":"XLE", "신선":"신선식품", "XLA":"XLA", "
 const G11_PLAN_LABEL = { "상온":"XLE(상온)", "신선":"신선", "XLK":"대형가전", "XLW":"대형가구", "XLS":"생수" };
 const G11_PLAN_STOCK_IDX = { "상온":[3], "XLA":[0], "XLB":[1], "XLC":[2], "XLG":[4], "XLS":[17], "XLK":[9], "XLW":[8] };
 const G11_NOT_MERCH = /재사용봉투|미분류|더스트레이|봉투|기타/;
+// build 280: 04 매장 분석 KPI — 인건비 · 폐기비용(승현 사이트 '인건비' 월 1회 · '폐기비용' 수거일 기준).
+// 매출 대비 %의 매출 = 이 사이트 매출(매일 오전 업로드). 승현 매출(주 1회)·경영지원 기준 매출은 말풍선에 참고로.
+function g11CostKpis(sel, D, salesOfM, kpi, mL, eok, won){
+  if(!COST_LIVE) return "";
+  const has = (kind, m)=> !!(COST_LIVE[kind] && COST_LIVE[kind][m] && sel.some(s=> COST_LIVE[kind][m][s]));
+  const lm = has("labor", D) ? D : costLatestMonth("labor", sel), wm = has("waste", D) ? D : costLatestMonth("waste", sel);
+  const pctTxt = (a,b)=> b>0 ? (a/b*100).toFixed(1)+"%" : "-";
+  let out = "";
+  if(lm){ const c = costOf(sel, lm).labor, sales = salesOfM(lm);
+    const br = c.branches.length>1 ? "\n" + c.branches.map(x=>`  ${x.branch||"-"}: 인건비 ${won(x.total)} · 매출(경영지원) ${won(x.sales)} · ${pctTxt(x.total,x.sales)}`).join("\n") : "";
+    out += kpi(pctTxt(c.total, sales), `${lm!==D?mL(lm)+" ":""}인건비 ${eok(c.total)}원 · 매출 대비`, null,
+      `${mL(lm)} 인건비 ${won(c.total)}원 = 급여 ${won(c.salary)} + 일용직 ${won(c.daily)} + 도급비 ${won(c.contract)}${br}\n÷ 이 사이트 ${mL(lm)} 매출 ${won(sales)}원\n(참고: 경영지원 기준 매출 ${won(c.sales)}원으로 나누면 ${pctTxt(c.total,c.sales)} — 승현 화면 값)\n출처: 승현 사이트 '인건비'(월 1회 엑셀)${lm!==D?` · ${mL(D)} 자료는 아직 없음`:""}`); }
+  if(wm){ const c = costOf(sel, wm).waste, sales = salesOfM(wm);
+    const it = c.items.slice(0,15).map(x=>`  ${x.day.slice(5).replace("-","/")}${x.book!==x.day?` (장부 ${x.book.slice(5).replace("-","/")})`:""} · ${won(x.amount)}원${x.note?` · ${x.note}`:""}`).join("\n") + (c.items.length>15?`\n  … ${c.items.length-15}건 더`:"");
+    out += kpi(pctTxt(c.amount, sales), `${wm!==D?mL(wm)+" ":""}폐기 ${eok(c.amount)}원 · ${c.count}건 · 매출 대비`, null,
+      `${mL(wm)} 수거분 폐기비용 ${won(c.amount)}원 (${c.count}건)\n${it}\n÷ 이 사이트 ${mL(wm)} 매출 ${won(sales)}원\n출처: 승현 사이트 '폐기비용'(메모의 실제 수거일 기준 달)${wm!==D?` · ${mL(D)} 자료는 아직 없음`:""}`); }
+  return out;
+}
+// build 280: 전 매장 교차표 '인건비 · 폐기' 칸 — 자료가 있는 가장 최근 달, 매출 = 이 사이트 매출(매일 업로드)
+function costPctCell(members){
+  if(!COST_LIVE) return { html:"-", tip:"" };
+  const sales = m => members.reduce((a,s)=> a + g11Num(g11MonthTotals(m).map[s]), 0);
+  const lm = costLatestMonth("labor", members), wm = costLatestMonth("waste", members);
+  const L = lm ? costOf(members, lm).labor : null, W = wm ? costOf(members, wm).waste : null;
+  const sl = lm ? sales(lm) : 0, sw = wm ? sales(wm) : 0;
+  const pct = (a,b)=> b>0 ? (a/b*100).toFixed(1)+"%" : "-";
+  const html = `${L ? pct(L.total, sl) : "-"} · ${W ? pct(W.amount, sw) : "-"}`;
+  const won = v => Math.round(v||0).toLocaleString();
+  const tip = [L ? `인건비 ${+lm.slice(5)}월 ${won(L.total)}원 ÷ 매출 ${won(sl)}원` : "인건비 자료 없음",
+               W ? `폐기 ${+wm.slice(5)}월 수거분 ${won(W.amount)}원(${W.count}건) ÷ 매출 ${won(sw)}원` : "폐기 자료 없음"].join(" · ");
+  return { html, tip };
+}
 function g11Eok(v){ v = v||0; const a = Math.abs(v); return a>=1e8 ? (v/1e8).toFixed(2)+"억" : a>=1e4 ? Math.round(v/1e4).toLocaleString()+"만" : Math.round(v).toLocaleString(); }
 function g11F1(v){ return (Math.round((v||0)*10)/10).toLocaleString(undefined,{maximumFractionDigits:1}); }
 function g11Env(ctx){
   const c = g11Cache(); c.env = c.env || {};
-  const key = [ctx.curMonth, ctx.scopeLabel, ctx.elapsedDays, (STOCK_HISTORY||[]).length, PLT_DAILY && PLT_DAILY.at || ""].join("|");
+  const key = [ctx.curMonth, ctx.scopeLabel, ctx.elapsedDays, (STOCK_HISTORY||[]).length, PLT_DAILY && PLT_DAILY.at || "", OPS_PLAN && OPS_PLAN.at || "", COST_LIVE && COST_LIVE.at || ""].join("|");
   if(c.env[key]) return c.env[key];
   const m = ctx.curMonth;
   let SD = null, diag = null; try{ SD = goalsSupplyDetail(ctx, m); }catch(_){} try{ diag = diagBuild(ctx); }catch(_){}
@@ -11934,7 +12028,7 @@ function g11Solutions(r, ctx, env){
       const pace = c.planPLT>0 ? c.actualPLT/c.planPLT : null; if(ongoing && pace!=null && pace >= 0.95) return;
       const g = G11_PLAN_GROUP[c.cat] || c.cat, u = unit(g), lb = G11_PLAN_LABEL[c.cat] || c.cat;
       // 이 매장 PLT당 매출(3 PLT 이상 받았을 때)이 없으면 공급계획 단가(PLT당 단가 × 전환율 — 기대매출과 같은 기준)
-      const pp = SUPPLY_PLAN_PARAMS[c.cat], planU = pp ? pp.price*pp.conv : null, useU = u.own!=null ? u.own : (planU || u.comp), uLbl = u.own!=null ? (u.comp?`(전사 ${(u.ratio*100).toFixed(0)}%)`:"") : planU ? " 계획 단가" : " 전사값";
+      const pp = planParamsOf(env.SD && env.SD.month)[c.cat], planU = pp ? pp.price*pp.conv : null, useU = u.own!=null ? u.own : (planU || u.comp), uLbl = u.own!=null ? (u.comp?`(전사 ${(u.ratio*100).toFixed(0)}%)`:"") : planU ? " 계획 단가" : " 전사값";
       const key = g==="가전" ? c.cat : g;   // XLB · 대형가전은 따로 보냄
       if(u.ratio!=null && u.ratio < 0.6) return;   // 덜 팔리는 카테고리는 ③에서 '진열 점검'으로
       const stk = stockOf(G11_PLAN_STOCK_IDX[c.cat]);
@@ -12063,7 +12157,7 @@ function goalsRender11Body(ctx){
   const title = sel.length===1 ? sel[0] : `${sel.length}개 매장 합계 (${sel.join(" · ")})`;
   // ---------- 월별 수치 ----------
   const salesOf = (m,s) => g11Num(g11MonthTotals(m).map[s]);
-  const tgtOf = (m,s) => { const T = groupMonthlyTarget(s); if(!T) return {full:0, pace:0, days:0, dim:goalsDaysInMonth(m)};
+  const tgtOf = (m,s) => { const T = groupMonthlyTarget(s, m); if(!T) return {full:0, pace:0, days:0, dim:goalsDaysInMonth(m)};
     const full = storeMonthTarget(s, m, T, null); const pace = storeMonthTarget(s, m, T, isCur(m)?elapsed:null);
     return { full: full.target, pace: pace.target, days: pace.days, dim: pace.dim }; };
   const pltOf = (m,s) => Object.values(g11StorePlt(m,s)).reduce((a,v)=>a+v,0);
@@ -12112,6 +12206,7 @@ function goalsRender11Body(ctx){
       ${gapD!=null?kpi((gapD>0?"−":"+")+eok(Math.abs(gapD))+"원", gapD>0?"목표까지 부족 (월말 예상 기준)":"목표 초과 예상", gapD>0?"var(--down)":"var(--up)"):""}
       ${kpi(f1(pD.plt)+" PLT", `${mL(D)} 공급 PLT${pPrev?` · 전월 ${f1(pPrev.plt)}`:""} · PLT당 ${pD.perPlt!=null?eok(pD.perPlt):"-"}`)}
       ${kpi(stkTot!=null?f1(stkTot)+" PLT":"-", snap?`매장재고 (${h(snap.date)})${leftDays!=null?` · 약 ${Math.round(leftDays)}일치`:""}${stkYard?` · 야적 ${f1(stkYard)}`:""}`:"매장재고 파일 없음")}
+      ${g11CostKpis(sel, D, m=> sel.reduce((a,s)=> a + salesOf(m,s), 0), kpi, mL, eok, won)}
       ${single&&single.cum&&!single.cum.gap?kpi(single.cum.pct.toFixed(1)+"%", `누적 달성 (${ctx.months.length}개월) · ${single.cum.actualCum>=single.cum.targetCum?"+":"−"}${eok(Math.abs(single.cum.actualCum-single.cum.targetCum))}`, pctColor(single.cum.pct)):""}
     </div>`;
   const tagHtml = tags.length ? tags.map(t=>`<span class="g11-tag">${h(t)}</span>`).join("") : `<span class="g11-mute">판정 신호 없음</span>`;
@@ -14792,6 +14887,74 @@ function pltLiveApplyResult(result){
    → 이 사이트 신선식품 공급 PLT(FRESH_M[월][매장]["신선식품"]). 승현 화면의 XLSX 내보내기와 같은 데이터(liquidation_rows_effective)를
    직접 읽는다. 이번 달 포함 최근 3개월만 받아, 받은 달은 그 달 신선식품 값을 통째로 교체한다(수박 등 다른 카테고리는 그대로). */
 const PLT_FRESH_LIVE_TAG = "승현 사이트 실시간(리퀴데이션 분배관리 · 신선)";
+/* build 280: 승현 '5. 매장운영' 운영계획 + '인건비' · '폐기비용' (같은 로그인 세션, 본사 계정이어야 보임) */
+async function pltPageAll(table, orders){
+  const sb = pltLiveClient, out = [];
+  for(let off=0; off<50000; off+=1000){
+    let q = sb.from(table).select("*"); (orders||[]).forEach(o=>{ q = q.order(o); });
+    const { data, error } = await q.range(off, off+999);
+    if(error) throw error;
+    (data||[]).forEach(r=> out.push(r));
+    if(!data || data.length < 1000) break;
+  }
+  return out;
+}
+async function pltOpsFetch(){
+  const [params, stores, plans] = await Promise.all([
+    pltPageAll("store_ops_param", ["month","sort_order"]), pltPageAll("store_ops_store", ["month","store"]), pltPageAll("store_ops_plan", ["month","store","category"]) ]);
+  return { params, stores, plans };
+}
+async function pltCostFetch(){
+  let labor = [], waste = [], laborError = null, wasteError = null;
+  try{ labor = await pltPageAll("labor_cost", ["month","store","branch"]); }catch(e){ laborError = (e && e.message) || String(e); }
+  try{ waste = await pltPageAll("waste_cost", ["id"]); }catch(e){ wasteError = (e && e.message) || String(e); }
+  return { labor, waste, laborError, wasteError };
+}
+// 폐기 메모 정리 · 실제 수거일(승현과 같은 규칙: 메모의 20261021 또는 10/21, 장부일보다 뒤면 작년)
+function costWasteNote(n){ return n ? String(n).replace(/={3,}\s*ID#\S+\s+[^()]*\(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2})?\)\s*/g,"").replace(/\s+/g," ").trim() || null : null; }
+function costPickupDate(note, book){
+  if(!note || !book) return null;
+  const mk = (y,m,d)=>{ if(m<1||m>12||d<1||d>31) return null; const t = new Date(y,m-1,d); if(t.getFullYear()!==y||t.getMonth()!==m-1||t.getDate()!==d) return null; return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`; };
+  let r = note.match(/(?<!\d)(20\d{2})(\d{2})(\d{2})(?!\d)/); if(r) return mk(+r[1],+r[2],+r[3]);
+  r = note.match(/(?<!\d)(\d{1,2})\/(\d{1,2})(?!\d)/);
+  if(r){ const y = +String(book).slice(0,4), d = mk(y,+r[1],+r[2]); return d ? (d > book ? mk(y-1,+r[1],+r[2]) : d) : null; }
+  return null;
+}
+// labor:{월:{매장:{total, salary, daily, contract, sales(경영지원 기준), branches:[{branch,total,sales}]}}}
+// waste:{수거 월:{매장:{amount, count, items:[{day, book, amount, note}]}}} · wasteCenter:{월:{센터:금액}}
+function costLiveBuild(cr){
+  const labor = {}, waste = {}, wasteCenter = {}, unmatched = new Set();
+  (cr.labor||[]).forEach(r=>{ const m = String(r.month||"").slice(0,7), st = opsStoreName(r.store); if(!m) return;
+    if(STORES.indexOf(st) < 0){ unmatched.add("인건비:"+r.store); return; }
+    const o = (labor[m] || (labor[m] = {}))[st] || (labor[m][st] = { total:0, salary:0, daily:0, contract:0, sales:0, branches:[] });
+    const v = k => Number(r[k]||0);
+    o.total += v("total"); o.salary += v("salary"); o.daily += v("daily"); o.contract += v("contract"); o.sales += v("sales");
+    o.branches.push({ branch: String(r.branch||""), total: v("total"), sales: v("sales") }); });
+  (cr.waste||[]).forEach(r=>{ const book = String(r.date||"").slice(0,10), note = costWasteNote(r.note), pk = costPickupDate(note, book) || book, m = pk.slice(0,7), amt = Number(r.amount||0);
+    if(!m) return;
+    if(r.place_kind==="center"){ const c = wasteCenter[m] || (wasteCenter[m] = {}); c[String(r.place)] = (c[String(r.place)]||0) + amt; return; }
+    const st = opsStoreName(r.place); if(STORES.indexOf(st) < 0){ unmatched.add("폐기:"+r.place); return; }
+    const o = (waste[m] || (waste[m] = {}))[st] || (waste[m][st] = { amount:0, count:0, items:[] });
+    o.amount += amt; o.count++; o.items.push({ day: pk, book, amount: amt, note: note ? note.slice(0,80) : null }); });
+  Object.values(waste).forEach(M=> Object.values(M).forEach(o=> o.items.sort((a,b)=> a.day.localeCompare(b.day))));
+  return { labor, waste, wasteCenter, unmatched:[...unmatched], rows:{ labor:(cr.labor||[]).length, waste:(cr.waste||[]).length } };
+}
+var COST_LIVE = null;
+// 매장(그룹) · 달의 인건비 · 폐기비용 — 매출 대비 %는 이 사이트 매출(매일 오전 업로드, 승현 매출은 주 1회)로 나눔
+function costOf(members, ym){
+  const C = COST_LIVE; if(!C) return null;
+  const sum = (src, k)=> members.reduce((a,s)=> a + ((src && src[s] && src[s][k]) || 0), 0);
+  const L = C.labor && C.labor[ym], W = C.waste && C.waste[ym];
+  const hasL = !!(L && members.some(s=> L[s])), hasW = !!(W && members.some(s=> W[s]));
+  return { ym, hasL, hasW,
+    labor: hasL ? { total:sum(L,"total"), salary:sum(L,"salary"), daily:sum(L,"daily"), contract:sum(L,"contract"), sales:sum(L,"sales"),
+                    branches: [].concat(...members.map(s=> (L[s] && L[s].branches) || [])) } : null,
+    waste: hasW ? { amount:sum(W,"amount"), count:sum(W,"count"), items: [].concat(...members.map(s=> (W[s] && W[s].items) || [])).sort((a,b)=> a.day.localeCompare(b.day)) } : null };
+}
+function costLatestMonth(kind, members){   // 그 매장 자료가 있는 가장 최근 달
+  const C = COST_LIVE && COST_LIVE[kind]; if(!C) return null;
+  const ks = Object.keys(C).filter(m=> members.some(s=> C[m][s])).sort(); return ks.length ? ks[ks.length-1] : null;
+}
 async function pltFreshFetch(){
   const sb = pltLiveClient, now = new Date();
   const months = [2,1,0].map(k=> pltMonthKey(new Date(now.getFullYear(), now.getMonth()-k, 1)));
@@ -14969,6 +15132,17 @@ async function pltLiveSync(){
       pltLiveStatus.ship = ship; pltLiveStatus.shipError = shipErr;
       // build 182: 매장 소진율용 일별 입고·해체 + 이월(최근 3개월)
       try{ const dl = await pltDailyFetch(); if(dl.rows){ PLT_DAILY = dl; try{ saveState(); }catch(_){} } }catch(e){ pltLiveStatus.dailyError = (e && e.message) || String(e); }
+      // build 280: 운영계획(목표매출 · 공급계획) + 인건비 · 폐기비용 — 실패해도 다른 값은 그대로
+      const by = (pltLiveSession.user && pltLiveSession.user.email) || "";
+      try{ const raw = await pltOpsFetch(); const bp = opsPlanBuild(raw);
+           if(Object.keys(bp.months).length){ OPS_PLAN = { at:new Date().toISOString(), by, months: bp.months, unmatched: bp.unmatched, rows:{ params:raw.params.length, stores:raw.stores.length, plans:raw.plans.length } }; }
+           else pltLiveStatus.opsError = "받은 운영계획 0줄(계정 권한 확인)"; }
+      catch(e){ pltLiveStatus.opsError = (e && e.message) || String(e); }
+      try{ const cr = await pltCostFetch(); const cb = costLiveBuild(cr); if(cb.rows.labor || cb.rows.waste) COST_LIVE = Object.assign({ at:new Date().toISOString(), by }, cb);
+           if(cr.laborError) pltLiveStatus.laborError = cr.laborError; if(cr.wasteError) pltLiveStatus.wasteError = cr.wasteError; }
+      catch(e){ pltLiveStatus.costError = (e && e.message) || String(e); }
+      try{ _g11Cache.key = ""; }catch(_){}
+      try{ saveState(); }catch(_){}
       if(ship && ship.days) PLT_LIVE_META = Object.assign({}, PLT_LIVE_META||{}, { ship });
       if(n>0 || (fresh && fresh.months.length)) PLT_LIVE_META = Object.assign({}, PLT_LIVE_META||{},
         n>0 ? { at:new Date().toISOString(), storeCount:n } : {},
@@ -14994,7 +15168,7 @@ function pltAuthRender(){
   const t = pltMetaTimeStr();
   if(email){
     const fz = PLT_LIVE_META && PLT_LIVE_META.fresh;
-    st.innerHTML = `<span style="color:var(--green)">● ${escHtml(email)}</span>${t?` · 마지막 받음 ${escHtml(t)}`:""}${fz?` · 신선 ${escHtml(fz.months.map(m=>(+m.slice(5))+"월").join("·"))} 반영`:""}${pltLiveStatus.freshError?` · <span style="color:var(--amber)">신선 받기 실패: ${escHtml(pltLiveStatus.freshError)}</span>`:""}${(PLT_LIVE_META&&PLT_LIVE_META.ship)?` · 센터 출고 ~${escHtml(String(PLT_LIVE_META.ship.last||"").slice(5).replace("-","/"))} 반영`:""}${pltLiveStatus.shipError?` · <span style="color:var(--amber)">센터 출고 받기 실패: ${escHtml(pltLiveStatus.shipError)}</span>`:""}${pltLiveStatus.state==="empty"?` · <span style="color:var(--amber)">받은 매장 0곳(계정 권한 확인)</span>`:""}${pltLiveStatus.state==="error"?` · <span style="color:var(--red)">${escHtml(String(pltLiveStatus.error||""))}</span>`:""}`;
+    st.innerHTML = `<span style="color:var(--green)">● ${escHtml(email)}</span>${t?` · 마지막 받음 ${escHtml(t)}`:""}${fz?` · 신선 ${escHtml(fz.months.map(m=>(+m.slice(5))+"월").join("·"))} 반영`:""}${pltLiveStatus.freshError?` · <span style="color:var(--amber)">신선 받기 실패: ${escHtml(pltLiveStatus.freshError)}</span>`:""}${opsMonthKey()?` · 운영계획 승현 ${escHtml(opsMonthKey())} 계획`:""}${pltLiveStatus.opsError?` · <span style="color:var(--amber)">운영계획 받기 실패: ${escHtml(pltLiveStatus.opsError)}</span>`:""}${COST_LIVE&&COST_LIVE.rows?` · 인건비 ${COST_LIVE.rows.labor}줄 · 폐기 ${COST_LIVE.rows.waste}줄`:""}${(pltLiveStatus.laborError||pltLiveStatus.wasteError||pltLiveStatus.costError)?` · <span style="color:var(--amber)">인건비/폐기 받기 실패: ${escHtml(pltLiveStatus.laborError||pltLiveStatus.wasteError||pltLiveStatus.costError)}</span>`:""}${(PLT_LIVE_META&&PLT_LIVE_META.ship)?` · 센터 출고 ~${escHtml(String(PLT_LIVE_META.ship.last||"").slice(5).replace("-","/"))} 반영`:""}${pltLiveStatus.shipError?` · <span style="color:var(--amber)">센터 출고 받기 실패: ${escHtml(pltLiveStatus.shipError)}</span>`:""}${pltLiveStatus.state==="empty"?` · <span style="color:var(--amber)">받은 매장 0곳(계정 권한 확인)</span>`:""}${pltLiveStatus.state==="error"?` · <span style="color:var(--red)">${escHtml(String(pltLiveStatus.error||""))}</span>`:""}`;
     if(open) open.hidden = true; if(out) out.hidden = false; if(sync) sync.hidden = false; if(form){ form.hidden = true; form.style.display = "none"; }
   } else {
     st.innerHTML = `<span style="color:var(--muted2)">로그인 안 됨</span>${t?` · 공유된 값 ${escHtml(t)}`:""}`;
@@ -15049,6 +15223,9 @@ function pltLiveInit(){
       .on("postgres_changes", { event:"*", schema:"public", table:"store_plt_carryover" }, pltDebouncedSync)
       .on("postgres_changes", { event:"*", schema:"public", table:"store_plt_status" }, pltDebouncedSync)
       .on("postgres_changes", { event:"*", schema:"public", table:"liquidation_rows" }, pltDebouncedSync)   // build 152: 신선 공급
+      .on("postgres_changes", { event:"*", schema:"public", table:"store_ops_plan" }, pltDebouncedSync)    // build 280: 운영계획
+      .on("postgres_changes", { event:"*", schema:"public", table:"store_ops_param" }, pltDebouncedSync)
+      .on("postgres_changes", { event:"*", schema:"public", table:"store_ops_store" }, pltDebouncedSync)
       .subscribe();
   }catch(e){
     pltLiveStatus = { state:"error", at:new Date(), error:(e&&e.message)||String(e), storeCount:0 };
@@ -23808,7 +23985,7 @@ function upFreshRender(info, late){
     if(b){ b.setAttribute("data-fresh", `${i.cls==="ok" ? "✓" : "!"} ${i.txt}`); b.classList.add("fr-"+i.cls); b.title = (b.title||"").split(" ‖ ")[0] + " ‖ " + i.tip; }
     else rest.push(i);
   });
-  const ic = { "매장 재고":"📦", "신선 공급":"🥬", "승현 PLT":"🔗" };
+  const ic = { "매장 재고":"📦", "신선 공급":"🥬", "승현 PLT":"🔗", "운영계획":"🎯" };   // build 280: 운영계획(승현 매장운영)
   const box = document.getElementById("upInfo");
   if(box) box.innerHTML = rest.map(i=>`<div class="up-card fr-${i.cls}" title="${escHtml(i.tip)}"><span class="up-ic">${ic[i.label]||"📄"}</span>${escHtml(i.label)}<span class="up-d">${i.cls==="ok"?"✓":"!"} ${escHtml(i.txt)}</span><small>자동으로 받음</small></div>`).join("");
   const n = { ok:0, warn:0, bad:0 }; items.forEach(i=> n[i.cls] = (n[i.cls]||0)+1);
