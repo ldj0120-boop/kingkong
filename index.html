@@ -1739,6 +1739,9 @@
   .ask-cmp{font-size:14px;font-weight:600;margin-left:12px;}
   .ask-tbl .up,.ask-cmp.up{color:var(--up, #d32f2f);} .ask-tbl .down,.ask-cmp.down{color:var(--down, #1565c0);}
   .ask-exl{color:inherit;}
+  .ask-learn-btn{border-style:solid;color:inherit;}
+  .ask-learn-tbl td{padding:4px 8px;} .ask-teach{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;}
+  .ask-teach input,.ask-teach select{font-size:13px;padding:4px 8px;border:1px solid var(--line);border-radius:8px;background:transparent;color:inherit;}
   .ask-basis{font-size:12px;color:var(--muted2);margin-top:6px;}
 </style>
 </head>
@@ -1747,7 +1750,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 282 · 2026-10-30</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 283 · 2026-10-30</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -3605,7 +3608,7 @@ function buildStateObject(){
       STORES, STOCK, CATEGORIES, CATEGORY_ORIGIN, SHIP, ACTUAL,
       HQ_ACTUAL, APPLIANCE_ACTUAL, CENTER_DIRECT_ACTUAL, FRESH_ACTUAL, CENTER_M, HQ_M, APPLIANCE_M, CENTER_DIRECT_M, DIRECT_MAIN_D, DIRECT_FILE_D, CENTER_D, HQ_D, APPLIANCE_D, DAY_SRC, UNMATCHED_WHERE, FRESH_M, FRESH_SUMMARY_M, LOTTE_M, shipScope, HQ_SUPPLY_HISTORY, APPLIANCE_SUPPLY_HISTORY, unmatchedHQStores, unmatchedApplianceStores,
       selected, SUPPLY_HISTORY, STOCK_HISTORY, unmatchedActualStores,
-      SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodBStart, periodBEnd, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, SPECIAL_DAYS, goalsScope, selectedSalesMonth, FIXED_INTAKE_HISTORY, FI_ELIG, FI_SETTINGS_SAVED, FI_DISPATCH_HISTORY, selectedMonthlyStore, IMPROVE_DECISIONS: (typeof IMPROVE_DECISIONS!=="undefined" && IMPROVE_DECISIONS) || {}, IMPROVE_REQUESTS: (typeof IMPROVE_REQUESTS!=="undefined" && IMPROVE_REQUESTS) || [], FI_DISP_DEL_IDS: fiDispDelList(), salesViewMode, EVENTS_COMMON, EVENTS_STORE, PLT_LIVE_META, PLT_DAILY, OPS_PLAN, COST_LIVE, SUPPLY_AMT, PROCESSED_FILES, CENTER_STOCK: (typeof CENTER_STOCK!=="undefined" ? CENTER_STOCK : null),
+      SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodBStart, periodBEnd, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, SPECIAL_DAYS, goalsScope, selectedSalesMonth, FIXED_INTAKE_HISTORY, FI_ELIG, FI_SETTINGS_SAVED, FI_DISPATCH_HISTORY, selectedMonthlyStore, IMPROVE_DECISIONS: (typeof IMPROVE_DECISIONS!=="undefined" && IMPROVE_DECISIONS) || {}, IMPROVE_REQUESTS: (typeof IMPROVE_REQUESTS!=="undefined" && IMPROVE_REQUESTS) || [], FI_DISP_DEL_IDS: fiDispDelList(), salesViewMode, EVENTS_COMMON, EVENTS_STORE, PLT_LIVE_META, PLT_DAILY, OPS_PLAN, COST_LIVE, SUPPLY_AMT, ASK_LEARN, PROCESSED_FILES, CENTER_STOCK: (typeof CENTER_STOCK!=="undefined" ? CENTER_STOCK : null),
       basedateIdx: (typeof basedateEl!=="undefined" && basedateEl.value!=="") ? +basedateEl.value : STOCK_HISTORY.length-1
   };
 }
@@ -3890,6 +3893,7 @@ function applyStateObject(s){
     if(s.OPS_PLAN && typeof s.OPS_PLAN==="object" && s.OPS_PLAN.months) OPS_PLAN = s.OPS_PLAN;   // build 280 승현 운영계획
     if(s.COST_LIVE && typeof s.COST_LIVE==="object" && s.COST_LIVE.labor) COST_LIVE = s.COST_LIVE;   // build 280 승현 인건비 · 폐기비용
     if(s.SUPPLY_AMT && typeof s.SUPPLY_AMT==="object" && s.SUPPLY_AMT.d) SUPPLY_AMT = s.SUPPLY_AMT;   // build 281 승현 공급액(전산작업)
+    if(s.ASK_LEARN && typeof s.ASK_LEARN==="object"){ try{ Object.keys(s.ASK_LEARN).forEach(w=>{ if(!ASK_LEARN[w] || (s.ASK_LEARN[w].at||"") > (ASK_LEARN[w].at||"")) ASK_LEARN[w] = s.ASK_LEARN[w]; }); }catch(_){} }   // build 283 배운 말
     SPECIAL_DAYS = (s.SPECIAL_DAYS && typeof s.SPECIAL_DAYS==="object") ? s.SPECIAL_DAYS : {};
     if(s.goalsScope && typeof s.goalsScope==="object") goalsScope = Object.assign({mode:"month",month:null,from:null,to:null}, s.goalsScope);
     EVENTS_STORE = (s.EVENTS_STORE && typeof s.EVENTS_STORE==="object") ? s.EVENTS_STORE : {};
@@ -10526,14 +10530,22 @@ function askStoreResolve(text){
   return { stores:[...new Set(picked)], ambig, fuzzy, usedWords };
 }
 function askPeriodFrom(t, last){
-  const cy = +last.slice(0,4), cm = +last.slice(5,7), ymOf = m => `${m > cm ? cy-1 : cy}-${String(m).padStart(2,"0")}`; let r; const P = {};
+  // build 283: '2026년' · '작년' · 상반기/하반기 · N분기 · N월부터 · N월까지
+  const cy = +last.slice(0,4), cm = +last.slice(5,7); const yM = t.match(/(20\d{2})\s*년/); const yr = yM ? +yM[1] : (/작년|지난\s*해|전년(?!\s*대비)/.test(t) ? cy-1 : null);
+  const ymOf = m => `${yr!=null ? yr : (m > cm ? cy-1 : cy)}-${String(m).padStart(2,"0")}`; let r; const P = {};
   const fd = (a,b,c)=> `${a}-${String(b).padStart(2,"0")}-${String(c).padStart(2,"0")}`;
   if((r = t.match(/(20\d{2})[-.\/](\d{1,2})[-.\/](\d{1,2})\s*(?:~|-|부터)\s*(20\d{2})[-.\/](\d{1,2})[-.\/](\d{1,2})/))){ P.from = fd(r[1],r[2],r[3]); P.to = fd(r[4],r[5],r[6]); }
   else if((r = t.match(/(20\d{2})[-.\/](\d{1,2})[-.\/](\d{1,2})/))){ P.from = P.to = fd(r[1],r[2],r[3]); }
   else if((r = t.match(/(\d{1,2})\s*[\/월]\s*(\d{1,2})\s*일?\s*(?:~|-|부터)\s*(\d{1,2})\s*[\/월]\s*(\d{1,2})\s*일?/))){ P.from = `${ymOf(+r[1])}-${r[2].padStart(2,"0")}`; P.to = `${ymOf(+r[3])}-${r[4].padStart(2,"0")}`; }
   else if((r = t.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/)) || (r = t.match(/(?<![\d.])(\d{1,2})\/(\d{1,2})(?![\d\/])/))){ P.from = P.to = `${ymOf(+r[1])}-${r[2].padStart(2,"0")}`; }
   else if((r = t.match(/(\d{1,2})\s*월?\s*(?:~|-|부터)\s*(\d{1,2})\s*월(?!요)/))){ P.from = `${ymOf(+r[1])}-01`; P.to = askMonthEnd(ymOf(+r[2])); }
+  else if((r = t.match(/(\d{1,2})\s*월\s*(부터|이후)/))){ P.from = `${ymOf(+r[1])}-01`; P.to = last; }
+  else if((r = t.match(/(\d{1,2})\s*월\s*까지/))){ const ym = ymOf(+r[1]); P.from = `${ym.slice(0,4)}-01-01`; P.to = askMonthEnd(ym); }
   else if((r = t.match(/(\d{1,2})\s*월(?!요)/))){ const ym = ymOf(+r[1]); P.from = `${ym}-01`; P.to = askMonthEnd(ym); }
+  else if((r = t.match(/([1-4])\s*분기/))){ const y = yr!=null ? yr : cy, k = +r[1]; P.from = fd(y,(k-1)*3+1,1); P.to = askMonthEnd(`${y}-${String(k*3).padStart(2,"0")}`); }
+  else if(/상반기/.test(t)){ const y = yr!=null ? yr : cy; P.from = fd(y,1,1); P.to = fd(y,6,30); }
+  else if(/하반기/.test(t)){ const y = yr!=null ? yr : cy; P.from = fd(y,7,1); P.to = fd(y,12,31); }
+  else if(yr!=null){ P.from = fd(yr,1,1); P.to = fd(yr,12,31); }
   else if(/이번\s*달|이번달|당월|금월/.test(t)){ P.from = `${last.slice(0,7)}-01`; P.to = last; }
   else if(/지난\s*달|저번\s*달|전월|지난달/.test(t) && !/대비/.test(t)){ const ym = askYm(new Date(+last.slice(0,4), +last.slice(5,7)-2, 1)); P.from = `${ym}-01`; P.to = askMonthEnd(ym); }
   else if(/오늘/.test(t)){ P.from = P.to = fmtDate(new Date()); }
@@ -10588,10 +10600,16 @@ function askParseSlots(text, prev){
   // 나눠 보기
   if(/매장별|점포별/.test(t)) S.by = "store"; else if(/카테고리별|분류별|품목별|카테별/.test(t)) S.by = "cat"; else if(/시간대별|시간별/.test(t)) S.by = "hour";
   else if(/요일별/.test(t)) S.by = "wd"; else if(/일별|날짜별|일자별|하루별/.test(t)) S.by = "day"; else if(/월별|달별/.test(t)) S.by = "month";
+  if(/추이|흐름|변화|트렌드|추세|동향|그래프|변동/.test(t)) S.trend = true;   // build 283
   // 오타 지표(한 글자 차이) — 지표를 못 찾았을 때만
   if(!S.metric){ const ws = raw.match(/[가-힣]{2,}/g) || [];
     for(const w of ws){ if(ASK_STOP.has(w) || askStoreList().some(s=> s.includes(w))) continue; const hit = Object.keys(ASK_METRIC_WORDS).find(k=> k.length>=2 && askLev(w.replace(/(은|는|이|가|을|를|좀)$/,""), k)===1);
       if(hit){ S.metric = ASK_METRIC_WORDS[hit]; notes.push(`'${w}' → ${hit}(으)로 봤습니다`); break; } } }
+  // build 283: 배운 말 적용 + 못 알아들은 말 모으기(바로 뒤에 칩을 누르면 그 뜻으로 배움)
+  const leftovers = askLeftovers(raw, R.usedWords);
+  Object.keys(ASK_LEARN).filter(w=> w && raw.includes(w)).sort((a,b)=> b.length-a.length).forEach(w=>{ const L = ASK_LEARN[w]; if(!L || !L.set) return; const ap = [];
+    Object.keys(L.set).forEach(k=>{ if(S[k]==null){ S[k] = L.set[k]; ap.push(askLearnLabel(k, L.set[k])); } });
+    if(ap.length){ notes.push(`🧠 배운 말 '${w}' → ${ap.join(" · ")}`); L.hit = (L.hit||0)+1; } });
   // 이어서 묻기: "그럼 9월은?" · "인천점은?" · "카테고리별로" — 지표가 없고 짧거나 '그럼'으로 시작하면 앞 질문 칸을 이어받음
   const said = Object.keys(S).filter(k=> S[k]!=null);
   const follow = !!(prev && (/^(그럼|그러면|그리고|이번엔|그건|그거|그럼요|또)/.test(raw) || (!S.metric && said.length && raw.length <= 16)));
@@ -10600,18 +10618,67 @@ function askParseSlots(text, prev){
     notes.unshift(`앞 질문에 이어서 봤습니다 (${askSlotsLabel(prev)})`); }
   // 아무것도 못 알아들음 → 되묻기
   if(!follow && !Object.keys(S).length && !ask.length) ask.push({ block:true, q:"무엇을 볼까요?", opts: ["sales","supplyAmt","plt","conv","achieve","waste","labor","stock"].map(k=>({ label:ASK_METRIC_LABEL[k], set:{ metric:k } })) });
-  return { slots, used, notes, ask, followUp:follow };
+  return { slots, used, notes, ask, followUp:follow, leftovers: leftovers.filter(w=> !ASK_LEARN[w]) };
 }
+/* build 283: 🧠 배운 말 — 사이트가 못 알아들은 말을 쓰고 바로 뒤에 칩(지표 · 나눠 보기 · 매장 등)으로 고치면, 그 말을 그 뜻으로 기억했다가 다음부터 바로 적용.
+   (진짜 딥러닝 모델이 아니라 '고친 것을 기억하는' 학습 — 이 브라우저(localStorage)에 바로 저장, 관리자 화면에선 서버 상태에도 저장해 뷰어와 공유) */
+var ASK_LEARN = (()=>{ try{ return JSON.parse(localStorage.getItem("kk_ask_learn_v1")||"{}") || {}; }catch(_){ return {}; } })();
+const ASK_LEARNABLE = ["metric","by","cat","stores","top","order","cmpPrev","wd","hours","allStores"];
+const ASK_KNOWN_RE = /이번|지난|저번|최근|올해|금년|누적|연간|오늘|어제|주말|평일|요일|분기|반기|작년|전년|부터|까지|이후|추이|흐름|변화|트렌드|추세|동향|그래프|변동|비교|대비|상위|하위|가장|제일|베스트|워스트|꼴찌|매주|매일|오전|오후|매장별|점포별|카테고리별|분류별|품목별|시간대별|시간별|요일별|일별|날짜별|일자별|월별|달별|전체|전사|모든|알려|보여|해줘|주세요|얼마/;
+function askStripParticle(w){ const m = w.match(/^(.{2,}?)(에서는|에서|으로|은|는|이|가|을|를|의|에|도|만|로|랑|과|와|좀|요)$/); return m ? m[1] : w; }
+function askKnownWord(w){
+  if(ASK_STOP.has(w) || ASK_KNOWN_RE.test(w)) return true;
+  if(ASK_METRICS.some(([re])=> re.test(w)) || ASK_CATS.some(([re])=> re.test(w))) return true;
+  if(askStoreList().some(s=> s.includes(w) || w.includes(s.replace(/점$/,"")))) return true;
+  return false;
+}
+// 이 글에서 사이트가 못 알아들은 말(2글자 이상 한글)
+function askLeftovers(raw, usedWords){
+  const used = new Set(usedWords||[]);
+  return [...new Set((String(raw).match(/[가-힣]{2,}/g)||[]).filter(w=> !used.has(w)).map(askStripParticle).filter(w=> w.length>=2 && !askKnownWord(w)))];
+}
+function askLearnLabel(k, v){
+  if(k==="metric") return ASK_METRIC_LABEL[v]||v; if(k==="by") return ASK_BY_LABEL[v]||v; if(k==="cat") return v; if(k==="stores") return (v||[]).join("·");
+  if(k==="top") return `상위 ${v}`; if(k==="order") return v==="asc" ? "작은 순" : "큰 순"; if(k==="cmpPrev") return v ? "전월 대비" : "비교 없음";
+  if(k==="wd") return (v||[]).map(x=>ASK_WD_NAME[x]).join("·")+"요일"; if(k==="hours") return `${v[0]}~${v[1]}시`; if(k==="allStores") return "전 매장"; return `${k}`;
+}
+function askLearnSave(){ try{ localStorage.setItem("kk_ask_learn_v1", JSON.stringify(ASK_LEARN)); }catch(_){} try{ if(typeof IS_ADMIN!=="undefined" && IS_ADMIN) saveState(); }catch(_){} }
+function askLearnSet(word, set){
+  const pick = {}; Object.keys(set||{}).forEach(k=>{ if(ASK_LEARNABLE.includes(k) && set[k]!=null && set[k]!==false) pick[k] = set[k]; });
+  if(!word || !Object.keys(pick).length) return null;
+  const cur = ASK_LEARN[word] || { set:{}, hit:0 };
+  ASK_LEARN[word] = { set: Object.assign({}, cur.set, pick), hit: cur.hit||0, at: new Date().toISOString() };
+  askLearnSave(); return pick;
+}
+// 칩을 누름 = 앞에서 못 알아들은 말의 뜻을 알려 준 것
+function askLearnFrom(set){
+  const ws = ASK_STATE.leftovers || []; if(!ws.length) return null; const got = [];
+  ws.forEach(w=>{ const p = askLearnSet(w, set); if(p) got.push(`'${w}' = ${Object.keys(p).map(k=> askLearnLabel(k, p[k])).join(" · ")}`); });
+  try{ askHistRender(); }catch(_){}
+  return got.length ? `🧠 배웠습니다: ${got.join(", ")} — 다음부터 이 말을 쓰면 바로 적용합니다 (🧠 배운 말에서 지울 수 있음)` : null;
+}
+function askLearnListRender(){
+  const box = document.getElementById("askResult"); if(!box) return; box.hidden = false;
+  const ws = Object.keys(ASK_LEARN).sort((a,b)=> (ASK_LEARN[b].at||"").localeCompare(ASK_LEARN[a].at||""));
+  const opts = [["월별","{\"by\":\"month\"}"],["일별","{\"by\":\"day\"}"],["매장별","{\"by\":\"store\"}"],["카테고리별","{\"by\":\"cat\"}"],["매출","{\"metric\":\"sales\"}"],["공급액","{\"metric\":\"supplyAmt\"}"],["공급 PLT","{\"metric\":\"plt\"}"],["전환율","{\"metric\":\"conv\"}"],["달성률","{\"metric\":\"achieve\"}"],["폐기비용","{\"metric\":\"waste\"}"],["인건비","{\"metric\":\"labor\"}"],["재고","{\"metric\":\"stock\"}"],["전월 대비","{\"cmpPrev\":true}"],["상위 5","{\"top\":5,\"order\":\"desc\"}"]];
+  box.innerHTML = `<div class="ask-res-hd"><div class="ask-title">🧠 배운 말 (${ws.length})</div><button type="button" class="ask-x" data-ask-close title="닫기">✕</button></div>
+    <div class="ask-sub">사이트가 모르는 말을 쓴 뒤 아래 칩으로 고치면 그 말을 기억합니다. 여기서 직접 가르치거나 지울 수 있습니다.</div>
+    ${ws.length ? `<table class="g-tbl ask-learn-tbl kk-keep"><thead><tr><th>말</th><th>뜻</th><th>쓴 횟수</th><th></th></tr></thead><tbody>${ws.map(w=>{ const L = ASK_LEARN[w];
+      return `<tr><td><b>${escHtml(w)}</b></td><td>${escHtml(Object.keys(L.set||{}).map(k=> askLearnLabel(k, L.set[k])).join(" · "))}</td><td class="num">${L.hit||0}</td><td><button type="button" class="ask-opt" data-ask-unlearn="${escHtml(w)}">지우기</button></td></tr>`; }).join("")}</tbody></table>` : `<div class="ask-note">아직 배운 말이 없습니다.</div>`}
+    <div class="ask-teach"><span class="ask-rl">직접 가르치기</span><input id="askTeachWord" placeholder="말 (예: 흐름)" style="width:130px"><span>=</span><select id="askTeachSel">${opts.map(([lb,v])=>`<option value='${v}'>${lb}</option>`).join("")}</select><button type="button" class="ask-opt" data-ask-teach="1">배우기</button></div>`;
+}
+
 function askSlotsLabel(s){ if(!s) return ""; return [s.stores ? s.stores.join("·") : "전 매장", s.cat, s.from ? (s.from===s.to ? s.from : `${s.from}~${s.to}`) : null, s.wd ? s.wd.map(x=>ASK_WD_NAME[x]).join("·")+"요일" : null, s.hours ? `${s.hours[0]}~${s.hours[1]}시` : null, ASK_METRIC_LABEL[s.metric||"sales"], s.by ? ASK_BY_LABEL[s.by] : null].filter(Boolean).join(" · "); }
 // 칸 → 다시 읽을 수 있는 글(최근 검색 · 입력칸)
 function askSlotsText(s){ const metricWord = { sales:"매출", supplyAmt:"공급액", plt:"공급 PLT", conv:"전환율", target:"목표", achieve:"달성률", waste:"폐기비용", labor:"인건비", stock:"재고", count:"건수", avgTicket:"객단가" };
   return [s.stores ? s.stores.join(" ") : (s.allStores ? "전 매장" : ""), s.cat||"", s.from ? (s.from===s.to ? s.from : `${s.from}~${s.to}`) : "", s.wd ? s.wd.map(x=>ASK_WD_NAME[x]+"요일").join(" ") : "", s.hours ? `${s.hours[0]}~${s.hours[1]}시` : "",
-    metricWord[s.metric||"sales"], s.by && s.by!=="none" ? ASK_BY_LABEL[s.by] : "", s.top ? (s.order==="asc" ? `하위 ${s.top}` : `상위 ${s.top}`) : "", s.cmp ? `비교기간 ${s.cmp.from}~${s.cmp.to}` : (s.cmpPrev ? "전월 대비" : "")].filter(Boolean).join(" ").replace(/\s+/g," ").trim(); }
+    metricWord[s.metric||"sales"], s.by && s.by!=="none" ? ASK_BY_LABEL[s.by] : "", s.top ? (s.order==="asc" ? `하위 ${s.top}` : `상위 ${s.top}`) : "", s.cmp ? `비교기간 ${s.cmp.from}~${s.cmp.to}` : (s.cmpPrev ? "전월 대비" : ""), s.trend && !s.by ? "추이" : ""].filter(Boolean).join(" ").replace(/\s+/g," ").trim(); }
 // 기본값 채우기 → 실행용 q (옛 askParse와 같은 모양)
 function askFinalize(slots){
   const s = Object.assign({}, slots||{}); const last = askLastDataDate();
   const q = { text: askSlotsText(s), metric: s.metric || "sales", metricGuessed: !s.metric, stores: s.stores && s.stores.length ? s.stores.slice() : null, allStores: !!s.allStores, cat: s.cat || null,
     from: s.from || null, to: s.to || null, wd: s.wd || null, hours: s.hours || null, by: s.by || null, top: s.top || null, order: s.order || "desc", cmp: s.cmp || null, notes:[], used:[], periodGuessed:false };
+  if(!q.from && s.trend && !["waste","labor","stock"].includes(q.metric)){ q.from = `${last.slice(0,4)}-01-01`; q.to = last; q.notes.push(`'추이'라 올해 전체(${q.from}~${q.to})로 봤습니다`); q.periodGuessed = true; }   // build 283
   if(!q.from){
     if(q.metric==="waste" || q.metric==="labor"){ const C = COST_LIVE && COST_LIVE[q.metric]; const ks = C ? Object.keys(C).sort() : []; const ym = ks.length ? ks[ks.length-1] : last.slice(0,7); q.from = `${ym}-01`; q.to = askMonthEnd(ym); q.notes.push(`기간을 안 적어 자료가 있는 가장 최근 달(${ym})로 봤습니다`); }
     else if(q.wd && q.metric!=="stock"){ q.to = last; q.from = askAddDays(last, -55); q.notes.push(`기간을 안 적어 최근 8주(${q.from}~${q.to})로 봤습니다`); }
@@ -10626,6 +10693,7 @@ function askFinalize(slots){
     // 진행 중인 달을 지난달 전체와 비교하면 날 수가 달라짐 → 비교도 같은 날까지
     if(q.cmp && q.cmp.from.slice(8)==="01" && q.cmp.to===askMonthEnd(q.cmp.to.slice(0,7)) && q.from.slice(8)==="01" && q.from.slice(0,7)===q.to.slice(0,7)){
       const d = +q.to.slice(8), ce = q.cmp.to; const cto = `${q.cmp.from.slice(0,7)}-${String(d).padStart(2,"0")}`; q.cmp = { from:q.cmp.from, to: cto > ce ? ce : cto }; q.notes.push(`비교도 같은 기간(1~${d}일)`); } }
+  if(!q.by && s.trend && q.from){ q.by = askMonthsIn(q.from, q.to).length>1 ? "month" : "day"; }   // build 283: 추이 = 시간 순서
   if(!q.by){
     if(!q.stores || q.stores.length>1) q.by = "store";
     else if(q.from && askMonthsIn(q.from, q.to).length>1) q.by = "month";
@@ -10635,7 +10703,7 @@ function askFinalize(slots){
   // 알아들은 조건 칩
   q.used = [ s.metric ? ASK_METRIC_LABEL[s.metric] : null, q.hours ? `${q.hours[0]}~${q.hours[1]}시` : null, q.wd ? q.wd.map(x=>ASK_WD_NAME[x]).join("·")+"요일" : null,
     s.from ? (q.from===q.to ? q.from : `${q.from}~${q.to}`) : null, q.stores ? q.stores.join("·") : null, q.cat, s.by ? ASK_BY_LABEL[s.by] : null,
-    q.top ? (q.order==="asc" ? `하위 ${q.top}` : `상위 ${q.top}`) : null, q.cmp ? `비교 ${q.cmp.from}~${q.cmp.to}` : null ].filter(Boolean);
+    q.top ? (q.order==="asc" ? `하위 ${q.top}` : `상위 ${q.top}`) : null, q.cmp ? `비교 ${q.cmp.from}~${q.cmp.to}` : null, s.trend && !s.by ? "추이" : null ].filter(Boolean);
   return q;
 }
 // 옛 이름 그대로(build 281 검사 · 다른 곳 호환)
@@ -10785,13 +10853,15 @@ function askRender(text){
   const t = String(text||"").trim(); const box = document.getElementById("askResult"); if(!box) return;
   if(!t){ box.hidden = true; box.innerHTML = ""; return; }
   const P = askParseSlots(t, ASK_STATE.slots);
+  ASK_STATE.leftovers = P.leftovers || []; ASK_STATE.learnNote = null;
   askShow(P.slots, P.notes, P.ask, t);
 }
 function askApply(set){   // 칩: 지금 칸에 덮어쓰고 다시
+  const learned = askLearnFrom(set);   // build 283: 못 알아들은 말이 있었으면 이 칩을 그 말의 뜻으로 배움
   const s = Object.assign({}, ASK_STATE.slots || {}, set);
   if(set.stores) delete s.allStores; if(set.from){ delete s.cmpPrev; if(!set.cmp) delete s.cmp; } if(set.cmp===null) delete s.cmp; if(set.top===null){ delete s.top; delete s.order; }
   const inp = document.getElementById("askInput"); const txt = askSlotsText(s); if(inp) inp.value = txt;
-  askShow(s, [], [], txt);
+  askShow(s, learned ? [learned] : [], [], txt);
 }
 function askShow(slots, notes, asks, text){
   const box = document.getElementById("askResult"); if(!box) return; box.hidden = false;
@@ -10858,7 +10928,8 @@ function askDataMonths(metric){
 function askHistRender(){
   const el = document.getElementById("askEx"); if(!el) return; let h = []; try{ h = JSON.parse(localStorage.getItem("kk_ask_hist_v1")||"[]"); }catch(_){}
   const list = [...h.slice(0,4), ...ASK_EXAMPLES.filter(x=> !h.includes(x))].slice(0,8);
-  el.innerHTML = list.map(x=>`<button type="button" class="ask-ex${h.includes(x)?" hist":""}" data-ask="${escHtml(x)}">${h.includes(x)?"↻ ":""}${escHtml(x)}</button>`).join("");
+  el.innerHTML = list.map(x=>`<button type="button" class="ask-ex${h.includes(x)?" hist":""}" data-ask="${escHtml(x)}">${h.includes(x)?"↻ ":""}${escHtml(x)}</button>`).join("")
+    + `<button type="button" class="ask-ex ask-learn-btn" data-ask-learnlist="1" title="못 알아들은 말을 칩으로 고쳐 주면 사이트가 그 뜻을 기억합니다">🧠 배운 말 ${Object.keys(ASK_LEARN).length}</button>`;
 }
 function askWire(){
   const inp = document.getElementById("askInput"), go = document.getElementById("askGo"), panel = document.getElementById("askPanel"); if(!inp || inp._w) return; inp._w = 1;
@@ -10868,7 +10939,10 @@ function askWire(){
   if(panel) panel.addEventListener("click", e=>{
     const ex = e.target.closest("[data-ask]"); if(ex){ e.preventDefault(); ASK_STATE.slots = null; inp.value = ex.getAttribute("data-ask"); run(); return; }   // 예시 = 새 질문
     const st = e.target.closest("[data-ask-set]"); if(st){ try{ askApply(JSON.parse(st.getAttribute("data-ask-set"))); }catch(_){} return; }
-    if(e.target.closest("[data-ask-close]")){ document.getElementById("askResult").hidden = true; ASK_STATE.slots = null; } });
+    if(e.target.closest("[data-ask-close]")){ document.getElementById("askResult").hidden = true; ASK_STATE.slots = null; }
+    if(e.target.closest("[data-ask-learnlist]")){ askLearnListRender(); return; }
+    const ul = e.target.closest("[data-ask-unlearn]"); if(ul){ delete ASK_LEARN[ul.getAttribute("data-ask-unlearn")]; askLearnSave(); askLearnListRender(); askHistRender(); return; }
+    const la = e.target.closest("[data-ask-teach]"); if(la){ const w = (document.getElementById("askTeachWord")||{}).value, k = (document.getElementById("askTeachSel")||{}).value; if(w && k){ try{ askLearnSet(w.trim(), JSON.parse(k)); }catch(_){} askLearnListRender(); askHistRender(); } } });
   askHistRender();
 }
 document.addEventListener("DOMContentLoaded", ()=>{ try{ askWire(); }catch(_){} });
