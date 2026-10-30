@@ -317,6 +317,8 @@
   .audit-list li button{font-size:12px;padding:2px 8px;}
   @media (max-width:640px){ .audit-list li{grid-template-columns:54px 1fr;} .audit-list li .ab-area{grid-column:2;} .audit-list li > :nth-child(3){grid-column:1 / -1;} }
   .stat[data-tip],.g-kpi[data-tip],.lp-kpi[data-tip],.mix-kpi[data-tip]{cursor:help;}
+  td.kk-acc[data-tip]{cursor:help;}
+  th.kk-msort{cursor:pointer;user-select:none;} th.kk-msort:hover{text-decoration:underline;} th.kk-msort.on{color:var(--red,#d0342c);} td.kk-acc[data-tip] .num{text-decoration:underline dotted;text-decoration-color:rgba(120,130,150,.55);text-underline-offset:4px;}
   .stat[data-tip] .stat-v,.g-kpi[data-tip] .v,.lp-kpi[data-tip] b,.mix-kpi[data-tip] .v b{text-decoration:underline dotted;text-decoration-color:rgba(120,130,150,.55);text-underline-offset:5px;}
   .stat[data-tip] .stat-k::after,.g-kpi[data-tip] .l::after,.lp-kpi[data-tip] > .fi-mut:first-child::after{content:" ⓘ";color:var(--muted2,#8A93A6);font-size:.9em;}
   .delta-line{display:flex;align-items:baseline;gap:7px;font-size:13px;margin-top:3px;}
@@ -1677,13 +1679,41 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<style id="kkBigText">
+  /* build 278: 사용자 요청(2026-10-30) — "제목 · 설정 입력값 등 사람이 보기 편하게 글씨 크게, 사이트 전체".
+     배율: 카드 제목 ×1.8(16.5→30px) · 표 위 소제목 ×1.55(13.5→21px) · 칸 이름(label) ×1.55(13→20px)
+           고르기 · 입력칸 ×1.5(13~14.5→20px, 높이 46px) · 카드 설명 ×1.25(14.5→18px) · 하위 탭 ×1.45(14→20px) · 표 머리글 ×1.3(13→17px).
+     표 안 숫자 칸(td)은 그대로(열이 많은 표가 한 화면에 들어가게). 표 안 입력칸도 그대로. 이 블록만 지우면 예전 크기. */
+  .agg-card .p-hd .store-name,.panel .p-hd .store-name,.trend-card .p-hd .store-name,.g-note-card .p-hd .store-name{font-size:30px !important;font-weight:800;line-height:1.25;}
+  #view-fixed .agg-card > .p-hd > .store-name{font-size:36px !important;}
+  #view-fixed .agg-card.kk-sub > .p-hd > .store-name{font-size:28px !important;}
+  #gsub-04 .agg-card .p-hd .store-name{font-size:34px !important;}
+  .p-hd .meta{font-size:18px !important;}
+  .p-hd{row-gap:6px;flex-wrap:wrap;}
+  label:not(table *){font-size:20px !important;letter-spacing:.02em !important;}
+  input[type=date]:not(table *),input[type=month]:not(table *){width:auto !important;min-width:200px;}
+  input[type=number]:not(table *){min-width:96px;}
+  #kdDate{width:160px !important;}
+  :is(select,input[type=text],input[type=date],input[type=month],input[type=number],input[type=search],input:not([type]),textarea):not(table *){font-size:20px !important;min-height:46px;padding:8px 14px !important;box-sizing:border-box;}
+  select:not(table *){max-width:min(100%,480px) !important;width:auto !important;padding-right:40px !important;}
+  .gsub-tab{font-size:20px !important;padding:12px 24px !important;}
+  th{font-size:17px !important;}
+  div[style*="letter-spacing:.06em"]:not(table *){font-size:21px !important;font-weight:700;color:var(--text) !important;}
+  .g-tbl-title{font-size:21px !important;}
+  /* build 278: 기간별 카테고리별 매출 비교 — 기준 A 녹색 · 비교 B 파랑 */
+  #periodCompareBody{--pcA:#16A34A;--pcB:#2563EB;}
+  #periodCompareBody .cat-bar-fill.compare{background:var(--pcA) !important;}
+  #periodCompareBody .cat-bar-fill.base{background:var(--pcB) !important;}
+  #periodCompareBody .compare-v{color:var(--pcA);}
+  #periodCompareBody .base-v{color:var(--pcB);}
+</style>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 276 · 2026-10-30</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 278 · 2026-10-30</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -4884,6 +4914,7 @@ function renderSalesMonTotCat(){
   sel.onchange = ()=>{ selectedMonthlyCat = sel.value; try{ localStorage.setItem("kk_mon_cat_v1", selectedMonthlyCat); }catch(_){}
     renderSalesMonthTotals(); try{ renderSalesMonthly(); }catch(_){} };
 }
+let kkMonSort = { col:null, dir:1 };   // build 277: 매장 × 월 표 머리글 정렬(이 화면에서만)
 function renderSalesMonthly(){
   const wrap = document.getElementById("salesMonthlyWrap");
   const meta = document.getElementById("salesMonthlyMeta");
@@ -4900,7 +4931,10 @@ function renderSalesMonthly(){
   const allStores = STORES.filter(s=> months.some(m=>(storeMonth[m][s]||0)>0));
   const storeGrand = s => months.reduce((a,m)=>a+(storeMonth[m][s]||0),0);
   allStores.sort((a,b)=>storeGrand(b)-storeGrand(a));
+  if(typeof kkMonSort==="undefined" || (kkMonSort.col && kkMonSort.col!=="__acc__" && !months.includes(kkMonSort.col))) kkMonSort = { col:null, dir:1 };
   if(monthlyCatOn()){ const lm = months[months.length-1]; allStores.sort((a,b)=> ((storeMonth[lm][b]||0)-(storeMonth[lm][a]||0)) || (storeGrand(b)-storeGrand(a))); }
+  if(kkMonSort.col){ const kc = kkMonSort.col, kv = s=> kc==="__acc__" ? storeGrand(s) : (storeMonth[kc][s]||0);
+    allStores.sort((a,b)=> kkMonSort.dir*(kv(b)-kv(a)) || (storeGrand(b)-storeGrand(a))); }
   const monthGrand = m => allStores.reduce((a,s)=>a+(storeMonth[m][s]||0),0);
   const mlabel = m => m.slice(2).replace('-','/');
   // 매장 필터
@@ -4935,12 +4969,33 @@ function renderSalesMonthly(){
     <div style="padding:0 4px 10px;">
       <span style="font-size:12.5px;color:var(--muted2);">각 칸 아래 전월 대비(있으면 작년 동기 대비)${Object.keys(partialDay).map(m=>` · 진행 중인 ${+m.slice(5)}월(${partialDay[m]}일까지)은 전월·작년 <b>같은 기간(1~${partialDay[m]}일)</b>과 비교`).join("")}</span>
     </div>`;
+  // build 277: 누적 칸에 마우스 → 월평균 · 최고 달 · 최저 달 · 갭(최고−최저). 진행 중인 달(덜 끝난 달)과 매출 0인 달은 빼고 계산.
+  const kkAccTip = (label, valFn) => {
+    const won = v => Math.round(v).toLocaleString() + "원";
+    const ml = m => `${m.slice(0,4)}년 ${+m.slice(5)}월`;
+    const all = months.map(m=>({ m, v: valFn(m) })).filter(x=>x.v>0);
+    if(!all.length) return "";
+    let use = all.filter(x=>!partialDay[x.m]);
+    const skipped = all.filter(x=>partialDay[x.m]);
+    if(!use.length) use = all;
+    const tot = all.reduce((a,x)=>a+x.v,0), avg = use.reduce((a,x)=>a+x.v,0)/use.length;
+    const hi = use.reduce((a,x)=>x.v>a.v?x:a), lo = use.reduce((a,x)=>x.v<a.v?x:a);
+    const gap = hi.v - lo.v;
+    return `${label} · ${escHtml(monthlyCatLabel())}
+누적: ${won(tot)} (${all.length}개월${skipped.length && use!==all?` · 진행 중 ${skipped.map(x=>+x.m.slice(5)+"월 "+partialDay[x.m]+"일까지").join(", ")} 포함`:""})
+월평균: ${won(avg)} (다 끝난 ${use.length}개월${skipped.length && use!==all?` · 진행 중인 달 빼고`:""})
+최고: ${ml(hi.m)} ${won(hi.v)} (평균 대비 ${avg>0?(hi.v>=avg?"+":"")+((hi.v/avg-1)*100).toFixed(1):"0"}%)
+최저: ${ml(lo.m)} ${won(lo.v)} (평균 대비 ${avg>0?((lo.v/avg-1)*100).toFixed(1):"0"}%)
+갭(최고−최저): ${won(gap)}${hi.v>0?` · 최고 대비 −${(gap/hi.v*100).toFixed(1)}%`:""}${lo.v>0?` · 최고는 최저의 ${(hi.v/lo.v).toFixed(2)}배`:""}`;
+  };
   // 표 A: 매장 × 월 (+ 전월/작년 대비)
-  let A = storeSel + `<table${monthlyCatOn()?' class="kk-keep"':''}><thead><tr><th>매장</th>${months.map(m=>`<th>${mlabel(m)}</th>`).join("")}<th class="total-col">누적</th></tr></thead><tbody>`;
+  const msTh = (key, lab, cls) => { const on = kkMonSort.col===key; const ar = on ? (kkMonSort.dir>0?" ▼":" ▲") : "";
+    return `<th class="kk-msort${cls?" "+cls:""}${on?" on":""}" data-msort="${key}" title="누르면 ${on&&kkMonSort.dir>0?"작은":"큰"} 순으로 줄 세우기">${lab}${ar}</th>`; };
+  let A = storeSel + `<table${(monthlyCatOn()||kkMonSort.col)?' class="kk-keep"':''}><thead><tr><th class="kk-msort" data-msort="" title="누르면 기본 순서(${monthlyCatOn()?"마지막 달 "+escHtml(selectedMonthlyCat)+" 매출 큰 순":"매출 큰 순"})">매장</th>${months.map(m=>msTh(m, mlabel(m))).join("")}${msTh("__acc__","누적","total-col")}</tr></thead><tbody>`;
   rowsStores.forEach(s=>{
-    A += `<tr><td>${s}</td>${months.map(m=>{const v=storeMonth[m][s]||0;return `<td><span class="num">${v?Math.round(v).toLocaleString():''}</span>${v?cellDeltas(m,v,(mm)=>storeMonth[mm][s]||0,s):''}</td>`;}).join("")}<td class="total-col"><span class="num">${Math.round(storeGrand(s)).toLocaleString()}</span></td></tr>`;
+    A += `<tr><td>${s}</td>${months.map(m=>{const v=storeMonth[m][s]||0;return `<td><span class="num">${v?Math.round(v).toLocaleString():''}</span>${v?cellDeltas(m,v,(mm)=>storeMonth[mm][s]||0,s):''}</td>`;}).join("")}<td class="total-col kk-acc" data-tip="${escHtml(kkAccTip(s, mm=>storeMonth[mm][s]||0))}"><span class="num">${Math.round(storeGrand(s)).toLocaleString()}</span></td></tr>`;
   });
-  A += `</tbody><tfoot><tr><td>합계</td>${months.map(m=>{const v=monthGrand(m);return `<td><span class="num">${Math.round(v).toLocaleString()}</span>${cellDeltas(m,v,(mm)=>monthGrand(mm))}</td>`;}).join("")}<td class="total-col"><span class="num">${Math.round(months.reduce((a,m)=>a+monthGrand(m),0)).toLocaleString()}</span></td></tr></tfoot></table>`;
+  A += `</tbody><tfoot><tr><td>합계</td>${months.map(m=>{const v=monthGrand(m);return `<td><span class="num">${Math.round(v).toLocaleString()}</span>${cellDeltas(m,v,(mm)=>monthGrand(mm))}</td>`;}).join("")}<td class="total-col kk-acc" data-tip="${escHtml(kkAccTip("합계("+(selectedMonthlyStore==="__all__"?"전체 매장":selectedMonthlyStore)+")", mm=>monthGrand(mm)))}"><span class="num">${Math.round(months.reduce((a,m)=>a+monthGrand(m),0)).toLocaleString()}</span></td></tr></tfoot></table>`;
   // C: build 256 — 목표 대비 달성률 · 인센티브 구간 표는 목표매출 › 01 요약 한 곳으로 옮김(goalsIncentiveTableHtml).
   //   여기는 바로 가기 한 줄만.
   let C = `<div class="kk-moved" style="padding:12px 4px 2px;font-size:13px;color:var(--muted2);">목표 대비 달성률 · 인센티브 구간 → <a href="#" class="kk-jump" data-jump="goals:01">목표매출 › 01 요약에서 보기</a></div>`;
@@ -5036,6 +5091,10 @@ function renderSalesMonthly(){
       `</div>`;
   }
   wrap.innerHTML = A + C + B + diag;
+  wrap.querySelectorAll("th[data-msort]").forEach(th=> th.addEventListener("click", ()=>{
+    const k = th.getAttribute("data-msort") || null;
+    kkMonSort = !k ? { col:null, dir:1 } : (kkMonSort.col===k ? { col:k, dir:-kkMonSort.dir } : { col:k, dir:1 });
+    renderSalesMonthly(); }));
   const ssel = document.getElementById("salesMonthlyStore");
   if(ssel) ssel.onchange = ()=>{ selectedMonthlyStore = ssel.value; renderSalesMonthly(); saveState(); };
   if(meta) meta.textContent = (monthlyCatOn() ? `카테고리: ${selectedMonthlyCat} — 금액 = 카테고리 매출 파일의 그 카테고리 실매출액 · ` : "") + `업로드된 월 ${months.length}개 (${months[0]}~${months[months.length-1]}) · 매장 ${allStores.length}곳(매출이 한 번이라도 있는 매장 전부${allStores.filter(isNonDirectStore).length?` · 가맹·센터 ${allStores.filter(isNonDirectStore).length}곳 포함`:""} — 목표 달성률은 월 목표가 있는 매장만) · 금액 기준: 월마다 더 완전한 소스 자동 채택 (${months.map(m=>m.slice(5)+'월:'+storeMonthSrc[m]).join(', ')})`;
@@ -5622,13 +5681,13 @@ function renderPeriodCompare(){
   const curDays = curSnaps.length, cmpDays = cmpSnaps.length;
   const totalBox = `
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin:0 0 12px;">
-      <div style="flex:1;min-width:200px;background:var(--ink);border:1px solid var(--amber);border-radius:10px;padding:12px 14px;">
-        <div style="font-size:13px;color:var(--amber);font-family:'Gothic A1';letter-spacing:.04em;">기준 A · ${escHtml(curLabel)} · ${curDays}일치</div>
+      <div style="flex:1;min-width:200px;background:var(--ink);border:2px solid var(--pcA);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:13px;color:var(--pcA);font-weight:700;font-family:'Gothic A1';letter-spacing:.04em;">기준 A · ${escHtml(curLabel)} · ${curDays}일치</div>
         <div style="font-size:22px;font-weight:800;font-family:'Gothic A1';color:var(--text);margin-top:2px;">${Math.round(curSum).toLocaleString()}<span style="font-size:14.5px;color:var(--muted);">원</span></div>
         <div style="font-size:13.5px;color:var(--muted2);">${eok(curSum)}</div>
       </div>
-      <div style="flex:1;min-width:200px;background:var(--ink);border:1px solid var(--info);border-radius:10px;padding:12px 14px;">
-        <div style="font-size:13px;color:var(--info);font-family:'Gothic A1';letter-spacing:.04em;">비교 B · ${escHtml(cmpLabel)} · ${cmpDays}일치</div>
+      <div style="flex:1;min-width:200px;background:var(--ink);border:2px solid var(--pcB);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:13px;color:var(--pcB);font-weight:700;font-family:'Gothic A1';letter-spacing:.04em;">비교 B · ${escHtml(cmpLabel)} · ${cmpDays}일치</div>
         <div style="font-size:22px;font-weight:800;font-family:'Gothic A1';color:var(--text);margin-top:2px;">${Math.round(cmpSum).toLocaleString()}<span style="font-size:14.5px;color:var(--muted);">원</span></div>
         <div style="font-size:13.5px;color:var(--muted2);">${eok(cmpSum)}</div>
       </div>
@@ -5640,8 +5699,8 @@ function renderPeriodCompare(){
     </div>
     ${(curDays!==cmpDays)?`<p style="font-size:13px;color:var(--amber);margin:-4px 0 10px;">※ 두 기간의 업로드 일수가 다릅니다(A ${curDays}일 / B ${cmpDays}일) — 총합 비교 시 감안하세요.</p>`:''}`;
   const legend = `<div class="period-legend">
-      <span><span class="sw" style="background:var(--amber);"></span><b style="color:var(--amber);">기준 A</b> = ${escHtml(curLabel)}</span>
-      <span><span class="sw" style="background:var(--info);"></span><b style="color:var(--info);">비교 B</b> = ${escHtml(cmpLabel)}</span>
+      <span><span class="sw" style="background:var(--pcA);"></span><b style="color:var(--pcA);">기준 A</b> = ${escHtml(curLabel)}</span>
+      <span><span class="sw" style="background:var(--pcB);"></span><b style="color:var(--pcB);">비교 B</b> = ${escHtml(cmpLabel)}</span>
       <span style="color:var(--muted2);">· 증감% = <b>(A − B) ÷ B</b>(비교 B를 기준으로 본 기준 A의 증가율) — <b style="color:var(--red);">A가 더 많으면 ＋(빨강)</b>, <b style="color:var(--info);">A가 더 적으면 －(파랑)</b>. 날짜 순서와 무관하게 항상 A가 기준입니다. 금액은 실매출액 기준.</span>
     </div>`;
   body.innerHTML = `<p style="font-size:14px;color:var(--muted);margin:0 0 8px;"><b style="color:var(--text);">${escHtml(storeLabel)}</b> · 기간 총합(실매출액)</p>${totalBox}${legend}${warnHtml}<div class="cat-bar-list">${rows}</div>`;
