@@ -1713,7 +1713,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 278 · 2026-10-30</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 279 · 2026-10-30</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -3554,6 +3554,7 @@ function reparseSkippedNoticeHtml(){
   }).join(" / ");
 }
 function buildStateObject(){
+  try{ compactOldSalesHours(); }catch(_){}   // build 279: 1~7월 시간대 매출은 합계만 저장
   return {
       PARSE_LOGIC_VERSION, _parseVerBySrc, shipMergePolicy, _shipMergeDefaultVer: SHIP_MERGE_DEFAULT_VERSION,
       STORES, STOCK, CATEGORIES, CATEGORY_ORIGIN, SHIP, ACTUAL,
@@ -3721,6 +3722,25 @@ function posCatSeedFix(){
   });
   return n;
 }
+// build 279: 제안 P261029-01(P229-02 대안) — 1~7월(HOUR_KEEP_FROM 이전) 매장별 시간대 매출을 '전체 합계 시간대'로 줄여 서버 상태를 가볍게.
+//   8월 이후 시간대 · 매장별/카테고리 매출은 그대로. 줄인 날: byStoreHour = { [HOUR_ALL]: {시:{count,amount}} }, hourCompact:1.
+//   불러올 때(applyStateObject) · 저장할 때(buildStateObject) 부름 → 옛 날짜 원본을 다시 올려도 저장 전에 다시 줄어듦.
+const HOUR_KEEP_FROM = "2026-08-01", HOUR_ALL = "__전체합계__";
+function compactOldSalesHours(){
+  let n = 0;
+  (SALES_HISTORY||[]).forEach(h=>{
+    if(!h || !h.date || h.date >= HOUR_KEEP_FROM || !h.byStoreHour || typeof h.byStoreHour!=="object") return;
+    const keys = Object.keys(h.byStoreHour); if(!keys.length || (keys.length===1 && keys[0]===HOUR_ALL)) return;
+    const o = {};
+    keys.forEach(st=>{ const sh = h.byStoreHour[st]||{}; Object.keys(sh).forEach(k=>{ const v = sh[k]||{}, x = o[k] || (o[k] = {count:0, amount:0}); x.count += +v.count||0; x.amount += +v.amount||0; }); });
+    Object.values(o).forEach(x=>{ x.amount = Math.round(x.amount*100)/100; });
+    h.byStoreHour = Object.keys(o).length ? { [HOUR_ALL]: o } : {}; h.hourCompact = 1; n++;
+  });
+  return n;
+}
+function hourIsCompact(h){ return !!(h && h.byStoreHour && h.byStoreHour[HOUR_ALL]); }
+// 줄인 날에 고른 매장들이 그날 매출 있는 매장을 모두 덮으면(= 전체) 합계 시간대를 쓴다. 일부 매장만이면 시간대 없음.
+function hourCompactCoversAll(h, sel){ const ss = new Set(sel||[]); return Object.keys(h.byStoreCat||{}).every(st=> ss.has(st) || !Object.values(h.byStoreCat[st]||{}).some(v=> +(v&&v.amount)||0)); }
 // 상품 구성(SALES_MIX) 하루치의 김해점 → 김해점 + 동김해점. 서버에서 다시 받아 덮이면 다시 나눈다(그래서 받는 곳마다 부른다).
 function posMixFixDay(d){
   const day = SALES_MIX && SALES_MIX[d], sd = POS_CAT_SEED_B264[d], R = SALES_POS_SPLIT[0];
@@ -3893,6 +3913,7 @@ function applyStateObject(s){
     // 매장명("동탄점")으로 이관 — RENAMED_STORES/migrateRenamedStores() 선언부 주석 참고.
     try{ migrateRenamedStores(); }catch(_){}
     try{ ensureAddedStores(); posCatSeedFix(); posSplitFix(); }catch(e){ console.warn("build 262 매장 추가/POS 나누기", e); }   // build 262: 동김해점
+    try{ compactOldSalesHours(); }catch(e){ console.warn("build 279 옛 시간대 매출 줄이기", e); }
     // ★ 사용자가 직접 고른 카테고리 지정은 어떤 상태 블롭보다 우선한다 — 반드시 마지막에 덮어쓴다.
     // (로컬/IndexedDB/클라우드 어디서 호출돼도 지정이 살아남게 하는 지점. 위 mergeStoredCatMaps 주석 참고)
     mergeStoredCatMaps();
@@ -12290,7 +12311,7 @@ function goalsRender11Body(ctx){
     </div>`;
   const hr = {}; const dSet = new Set([D]);
   SALES_HISTORY.forEach(x=>{ if(!x || !x.date || !dSet.has(x.date.slice(0,7)) || !x.byStoreHour) return;
-    sel.forEach(s=>{ const sh = x.byStoreHour[s]; if(!sh) return; Object.keys(sh).forEach(k=>{ const o = hr[k] || (hr[k]={a:0,c:0}); o.a += +sh[k].amount||0; o.c += +sh[k].count||0; }); }); });
+    (hourIsCompact(x) ? (hourCompactCoversAll(x, sel) ? [HOUR_ALL] : []) : sel).forEach(s=>{ const sh = x.byStoreHour[s]; if(!sh) return; Object.keys(sh).forEach(k=>{ const o = hr[k] || (hr[k]={a:0,c:0}); o.a += +sh[k].amount||0; o.c += +sh[k].count||0; }); }); });   // build 279
   const hrArr = Object.keys(hr).map(k=>({h:+k, a:hr[k].a, c:hr[k].c})).filter(x=>x.a>0).sort((a,b)=>a.h-b.h);
   const hrTot = hrArr.reduce((a,x)=>a+x.a,0);
   const hrTop = hrArr.slice().sort((a,b)=>b.a-a.a).slice(0,3).map(x=>x.h);
@@ -12661,7 +12682,7 @@ function mixAnalyze(){
 }
 function mixHourWeek(dA, dB, store){
   const by = {}; (SALES_HISTORY||[]).forEach(h=>{ if(h && h.date) by[h.date] = h; });
-  const hs = (dates)=>{ const o = {}, w = {}, wn = {}; let n = 0; dates.forEach(d=>{ const h = by[d]; if(!h || !h.byStoreHour) return; n++; let t = 0;
+  const hs = (dates)=>{ const o = {}, w = {}, wn = {}; let n = 0; dates.forEach(d=>{ const h = by[d]; if(!h || !h.byStoreHour || (store && hourIsCompact(h))) return; n++; let t = 0;   // build 279: 줄인 날은 매장별 시간대 없음
       (store ? [h.byStoreHour[store]||{}] : Object.values(h.byStoreHour)).forEach(sh=> Object.keys(sh).forEach(k=>{ const a = +sh[k].amount||0; o[k] = (o[k]||0) + a; t += a; }));
       const wd = new Date(d+"T00:00:00").getDay(); w[wd] = (w[wd]||0) + t; wn[wd] = (wn[wd]||0) + 1; });
     return { o, w, wn, n }; };
@@ -23602,7 +23623,7 @@ const IMPROVE_PROPOSALS = [
   { id:"P229-02", date:"2026-10-22", area:"속도", title:"첫 화면 로딩 가볍게 — 지난 달 시간대 매출 압축",
     why:"서버 저장 자료 약 5.6MB 중 매출 시간대 자료가 4.3MB — 휴대폰 · 느린 PC에서 처음 열 때 오래 걸림",
     what:"끝난 달(1~9월)의 매장 × 시간대 매출을 일별 → 월 합계로 줄여 저장(카테고리 · 매장 일매출은 그대로)",
-    risk:"중간 — 지난 달은 '시간대별 매출'을 월 합계로만 볼 수 있음" },
+    risk:"중간 — 지난 달은 '시간대별 매출'을 월 합계로만 볼 수 있음" , done:"build 279 (P261029-01로 대신 — 1~7월 시간대만 합계로 줄임)" },
   { id:"P229-03", date:"2026-10-22", area:"코드", title:"안 쓰는 옛 함수 22개 정리",
     why:"화면에서 더는 불리지 않는 옛 기능 코드(옛 02 · 03 · 09 탭, 옛 매출 카드 등 약 31KB)가 남아 있음",
     what:"호출되지 않는 함수만 삭제 — 화면 · 엑셀 결과는 그대로(자동 검증으로 확인)",
@@ -23630,7 +23651,7 @@ const IMPROVE_PROPOSALS = [
   { id:"P261029-01", date:"2026-10-29", area:"속도", title:"P229-02 대안 — 1~7월 시간대 매출만 줄이기",
     why:"서버 상태 6.07MB 중 시간대 매출(매장별 시간대) 2.44MB, 그중 1~7월(212일)이 1.73MB. P229-02는 지난 달 비교 기능이 시간대 자료를 써서 보류됨 → 8월 이후 자료(0.71MB)는 그대로 두면 지난 달 비교는 영향 없음.",
     what:"1~7월 날짜의 매장별 시간대 매출만 '전체 합계 시간대(24칸)'로 줄이고, 8월 이후 · 매장별 매출 · 카테고리 매출은 그대로. 승인하면 P229-02는 이것으로 대신함.",
-    risk:"중간 — 자세한 매출분석에서 1~7월 기간을 직접 고르면 매장별 시간대가 안 나오고 전체 합계만 나옴. 서버 자료가 되돌릴 수 없게 바뀜." }
+    risk:"중간 — 자세한 매출분석에서 1~7월 기간을 직접 고르면 매장별 시간대가 안 나오고 전체 합계만 나옴. 서버 자료가 되돌릴 수 없게 바뀜." , done:"build 279" }
 ];
 var IMPROVE_DECISIONS; if(!IMPROVE_DECISIONS || typeof IMPROVE_DECISIONS!=="object") IMPROVE_DECISIONS = {};
 var IMPROVE_REQUESTS; if(!Array.isArray(IMPROVE_REQUESTS)) IMPROVE_REQUESTS = [];
