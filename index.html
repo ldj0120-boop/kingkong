@@ -1664,7 +1664,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 267 · 2026-10-29</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 269 · 2026-10-30</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -23359,6 +23359,10 @@ const IMPROVE_PROPOSALS = [
     why:"build마다 문서가 따로 있어 '지금 이 기능이 어떻게 동작하는지' 찾기 어려움",
     what:"프로젝트 문서를 기능별(요약본 · 낙찰파일 · 분배 · 배차 · 매출 · 목표) 설명서와 변경 이력으로 묶음(원본 문서는 남김)",
     risk:"없음(사이트 변경 없음)", done:"build 245 (프로젝트 문서 claude/기능설명서.md · claude/변경이력.md)" },
+  { id:"P261029-01", date:"2026-10-29", area:"속도", title:"P229-02 대안 — 1~7월 시간대 매출만 줄이기",
+    why:"서버 상태 6.07MB 중 시간대 매출(매장별 시간대) 2.44MB, 그중 1~7월(212일)이 1.73MB. P229-02는 지난 달 비교 기능이 시간대 자료를 써서 보류됨 → 8월 이후 자료(0.71MB)는 그대로 두면 지난 달 비교는 영향 없음.",
+    what:"1~7월 날짜의 매장별 시간대 매출만 '전체 합계 시간대(24칸)'로 줄이고, 8월 이후 · 매장별 매출 · 카테고리 매출은 그대로. 승인하면 P229-02는 이것으로 대신함.",
+    risk:"중간 — 자세한 매출분석에서 1~7월 기간을 직접 고르면 매장별 시간대가 안 나오고 전체 합계만 나옴. 서버 자료가 되돌릴 수 없게 바뀜." }
 ];
 var IMPROVE_DECISIONS; if(!IMPROVE_DECISIONS || typeof IMPROVE_DECISIONS!=="object") IMPROVE_DECISIONS = {};
 var IMPROVE_REQUESTS; if(!Array.isArray(IMPROVE_REQUESTS)) IMPROVE_REQUESTS = [];
@@ -23652,12 +23656,18 @@ function kkSortStoreLists(root){
   _kkSortBusy = true;
   try{
     const R = root || document;
+    // build 269: 매장 고르기 칸은 매장명 가나다순(ㄱㄴㄷ) — 이름 옆에 그 달 매출 순위 · 금액을 붙여 매출 순서도 보이게
     R.querySelectorAll('select').forEach(sel=>{ try{
       if(sel.classList.contains('kk-keep') || sel.hasAttribute('data-keep-order')) return;
-      const opts = [...sel.options], st = opts.filter(o=> o.parentNode===sel && (STORES.includes(String(o.textContent).replace(/\s*\(.*$/,"").trim()) || STORES.includes(o.value)));   // 묶음(optgroup) 안 목록은 그대로
+      const nm = o=> (o.dataset && o.dataset.kkName) || (STORES.includes(o.value) ? o.value : String(o.textContent).replace(/\s*\(.*$/,"").trim());
+      const opts = [...sel.options], st = opts.filter(o=> o.parentNode===sel && STORES.includes(nm(o)));   // 묶음(optgroup) 안 목록은 그대로
       if(st.length < 3) return;
-      const rank = kkStoreRank(kkSortMonth(sel)), nm = o=> STORES.includes(o.value) ? o.value : String(o.textContent).replace(/\s*\(.*$/,"").trim();
-      const sorted = st.slice().sort((a,b)=> (rank[nm(b)]||0) - (rank[nm(a)]||0));
+      const rank = kkStoreRank(kkSortMonth(sel));
+      const byAmt = st.map(nm).filter(n=> (rank[n]||0) > 0).sort((a,b)=> (rank[b]||0) - (rank[a]||0));
+      st.forEach(o=>{ const n = nm(o); if(!o.dataset.kkName){ o.dataset.kkName = n; o.dataset.kkText = o.textContent; }
+        const i = byAmt.indexOf(n), lab = i>=0 ? `${n} (${i+1}위 · ${kkAmtShort(rank[n])})` : o.dataset.kkText;
+        if(o.textContent !== lab) o.textContent = lab; });
+      const sorted = st.slice().sort((a,b)=> nm(a).localeCompare(nm(b), 'ko'));
       if(sorted.every((o,i)=> o===st[i])) return;
       const val = sel.value, firstIdx = opts.indexOf(st[0]); let ref = opts[firstIdx];
       // 매장 옵션이 있던 자리에 순서대로 다시 넣는다(앞쪽 '전체 매장' 등은 그대로)
@@ -23697,8 +23707,66 @@ function kkSortStoreLists(root){
       const ths = [...((tb.tHead && tb.tHead.rows.length) ? tb.tHead.rows[tb.tHead.rows.length-1].cells : [])].map(c=> c.textContent.trim());
       const ri = ths.findIndex(t=> /^(순위|#|No\.?)$/i.test(t)); if(ri>0){ let k = 0; sorted.forEach(g=>{ const c = g.rows[0].cells[ri]; if(c && /^\d+$/.test(c.textContent.trim())) c.textContent = String(++k); }); }
     }catch(e){ console.warn("매장 정렬(표)", e); } });
+    kkSortAmountTables(R);
   }catch(e){ console.warn("매장 정렬", e); }
   finally{ _kkSortBusy = false; }
+}
+/* build 269: 매장과 연결되지 않은 숫자 표(카테고리 · 분류 · 센터 재고 등)는 금액 큰 순(내림차순)
+   · 기준 열 = 머리글이 매출액/매출/금액/실적 → '지금' → '하루 매출' → '합계' → 마지막 달(6월…10월 · 26/10) 순서로 처음 찾은 것. 못 찾으면 그대로 둠.
+   · 시간대 · 날짜 · 요일 · 월 · 순위 · 상품(늘어난/줄어든 TOP) 표, 머리글 정렬(▲▼) 표, 칸 합친 표는 그대로.
+   · 세부 줄(class sub/detail/child)은 위 줄과 함께, 합계 · 평균 줄은 맨 아래, 구분 줄은 경계. */
+function kkAmtShort(v){ v = +v||0; return v >= 1e8 ? (v/1e8).toFixed(1) + "억" : Math.round(v/1e4).toLocaleString() + "만"; }
+function kkCellNum(txt){
+  let t = String(txt||"").replace(/\s+/g,""); if(t.includes("→")) t = t.split("→").pop(); t = t.split(/[▲▼]/)[0];
+  const m = t.match(/[-−+]?\d[\d,]*(\.\d+)?/); if(!m) return 0;
+  let v = parseFloat(m[0].replace(/,/g,"").replace("−","-")); const after = t.slice(t.indexOf(m[0]) + m[0].length);
+  if(/^억/.test(after)) v *= 1e8; else if(/^만/.test(after)) v *= 1e4; else if(/^천/.test(after)) v *= 1e3;
+  return isFinite(v) ? v : 0;
+}
+const KK_AMT_SKIP_HDR = /^(시간대|시간|날짜|일자|일|월|요일|기간|구간|순위|#|No\.?|상품|목표|매장)/i;
+function kkAmountCol(hs){
+  const f = re=> hs.findIndex((h,i)=> i>0 && re.test(h));
+  let i = f(/^(★\s*)?(매출액|매출|실제 매출|금액|실적)/); if(i>0) return i;
+  i = f(/^지금/); if(i>0) return i;
+  i = f(/^하루 매출/); if(i>0) return i;
+  i = f(/^합계/); if(i>0) return i;
+  for(let k = hs.length-1; k>0; k--) if(/^(\d{1,2}월|\d{2}\/\d{2})(\s|$|\()/.test(hs[k])) return k;
+  return -1;
+}
+function kkSortAmountTables(R){
+  (R||document).querySelectorAll('table').forEach(tb=>{ try{
+    if(tb.classList.contains('kk-keep') || tb.hasAttribute('data-keep-order')) return;
+    const body = tb.tBodies && tb.tBodies[0]; if(!body) return;
+    const rows = [...body.rows]; if(rows.length < 3) return;
+    if(rows.some(r=> [...r.cells].some(c=> c.rowSpan>1))) return;
+    const hr = (tb.tHead && tb.tHead.rows.length) ? tb.tHead.rows[tb.tHead.rows.length-1] : null; if(!hr) return;
+    const hs = [...hr.cells].map(c=> c.textContent.replace(/\s+/g," ").trim());
+    if(!hs.length || KK_AMT_SKIP_HDR.test(hs[0]) || hs.some(h=> /[▲▼]$/.test(h))) return;
+    if(rows.filter(r=> r.cells[0] && kkStoreOfCell(r.cells[0].textContent)).length >= 3) return;   // 매장 줄 표는 kkSortStoreLists 담당
+    const ci = kkAmountCol(hs); if(ci < 0) return;
+    const isSub = r=> /(^|[\s-])(sub|detail|child)([\s-]|$)/i.test(r.className||"");
+    const isSep = r=> /(^|[\s-])(sep|grp|group|section)([\s-]|$)/i.test(r.className||"") || (r.cells.length===1 && r.cells[0].colSpan>1);
+    const secs = [{ lead:null, groups:[], pre:[] }], tail = []; let cur = null, n = 0;
+    rows.forEach(r=>{ const sec = secs[secs.length-1], t0 = r.cells[0] ? r.cells[0].textContent.trim() : "";
+      if(KK_TOTAL_ROW.test(t0)){ tail.push(r); cur = null; return; }
+      if(tail.length){ tail.push(r); return; }
+      if(isSep(r)){ secs.push({ lead:r, groups:[], pre:[] }); cur = null; return; }
+      if(isSub(r) && cur){ cur.rows.push(r); return; }
+      const c = r.cells[ci]; cur = { v: c ? kkCellNum(c.textContent) : 0, rows:[r] }; sec.groups.push(cur); n++; });
+    if(n < 3) return;
+    let changed = false;
+    // 세부 줄도 그 안에서 금액 큰 순
+    secs.forEach(sec=> sec.groups.forEach(g=>{ if(g.rows.length < 3) return; const kids = g.rows.slice(1), ks = kids.map((r,i)=>({ r, i, v: r.cells[ci] ? kkCellNum(r.cells[ci].textContent) : 0 }));
+      ks.sort((a,b)=> (b.v - a.v) || (a.i - b.i)); if(ks.some((k,i)=> k.i!==i)){ changed = true; g.rows = [g.rows[0], ...ks.map(k=> k.r)]; } }));
+    secs.forEach(sec=>{ const idx = new Map(sec.groups.map((g,i)=>[g,i]));
+      sec.sorted = sec.groups.slice().sort((a,b)=> (b.v - a.v) || (idx.get(a) - idx.get(b)));
+      if(!sec.sorted.every((g,i)=> g===sec.groups[i])) changed = true; });
+    if(!changed) return;
+    const frag = document.createDocumentFragment();
+    secs.forEach(sec=>{ if(sec.lead) frag.appendChild(sec.lead); sec.pre.forEach(r=> frag.appendChild(r)); sec.sorted.forEach(g=> g.rows.forEach(r=> frag.appendChild(r))); });
+    tail.forEach(r=> frag.appendChild(r));
+    body.appendChild(frag);
+  }catch(e){ console.warn("금액 정렬(표)", e); } });
 }
 // 매출 · 목표매출 화면만(비딩·낙찰·출고의 분배표 · 도착지 목록은 추천 순서가 의미 있어 건드리지 않음)
 function kkSortSchedule(){ if(_kkSortT) return; _kkSortT = setTimeout(()=>{ _kkSortT = null; ['view-sales','view-goals'].forEach(id=>{ const v = document.getElementById(id); if(v && !v.hidden) kkSortStoreLists(v); }); }, 120); }
