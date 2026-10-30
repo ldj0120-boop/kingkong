@@ -1740,6 +1740,7 @@
   .ask-tbl .up,.ask-cmp.up{color:var(--up, #d32f2f);} .ask-tbl .down,.ask-cmp.down{color:var(--down, #1565c0);}
   .ask-exl{color:inherit;}
   .ask-learn-btn{border-style:solid;color:inherit;}
+  .ask-ai-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0;}
   .ask-learn-tbl td{padding:4px 8px;} .ask-teach{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;}
   .ask-teach input,.ask-teach select{font-size:13px;padding:4px 8px;border:1px solid var(--line);border-radius:8px;background:transparent;color:inherit;}
   .ask-basis{font-size:12px;color:var(--muted2);margin-top:6px;}
@@ -1750,7 +1751,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 283 · 2026-10-30</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 284 · 2026-10-30</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -10665,6 +10666,8 @@ function askLearnListRender(){
     <div class="ask-sub">사이트가 모르는 말을 쓴 뒤 아래 칩으로 고치면 그 말을 기억합니다. 여기서 직접 가르치거나 지울 수 있습니다.</div>
     ${ws.length ? `<table class="g-tbl ask-learn-tbl kk-keep"><thead><tr><th>말</th><th>뜻</th><th>쓴 횟수</th><th></th></tr></thead><tbody>${ws.map(w=>{ const L = ASK_LEARN[w];
       return `<tr><td><b>${escHtml(w)}</b></td><td>${escHtml(Object.keys(L.set||{}).map(k=> askLearnLabel(k, L.set[k])).join(" · "))}</td><td class="num">${L.hit||0}</td><td><button type="button" class="ask-opt" data-ask-unlearn="${escHtml(w)}">지우기</button></td></tr>`; }).join("")}</tbody></table>` : `<div class="ask-note">아직 배운 말이 없습니다.</div>`}
+    <div class="ask-teach"><span class="ask-rl">🔎 비슷한 말 찾기</span>${ASK_SEM.on?`<b>켜짐</b> <span class="ask-sub">${ASK_SEM.state==="ready"?"(모델 준비됨)":ASK_SEM.state==="error"?escHtml(askSemStatus()):"(모르는 말이 나오면 모델을 받음)"}</span><button type="button" class="ask-opt" data-ask-sem-off="1">끄기</button>`:`<span class="ask-sub">꺼짐</span><button type="button" class="ask-opt" data-ask-sem-on="1">켜기 (처음 한 번 약 120MB)</button>`}
+      <span class="ask-rl">🤖 AI 해석</span><span class="ask-sub">${ASK_LLM.state==="ready"?"준비됨":"모르는 말이 있을 때 'AI로 해석'을 누르면 받음 (PC 크롬)"}</span></div>
     <div class="ask-teach"><span class="ask-rl">직접 가르치기</span><input id="askTeachWord" placeholder="말 (예: 흐름)" style="width:130px"><span>=</span><select id="askTeachSel">${opts.map(([lb,v])=>`<option value='${v}'>${lb}</option>`).join("")}</select><button type="button" class="ask-opt" data-ask-teach="1">배우기</button></div>`;
 }
 
@@ -10849,12 +10852,179 @@ function askRun(q){
 function askFmt(v, unit){ if(v==null || !isFinite(v)) return "-"; if(unit==="%") return v.toFixed(1)+"%"; if(unit==="PLT") return (Math.round(v*10)/10).toLocaleString()+" PLT"; if(unit==="건") return Math.round(v).toLocaleString()+"건"; return Math.round(v).toLocaleString()+"원"; }
 function askShort(v, unit){ if(unit!=="원" || v==null) return ""; const a = Math.abs(v); return a>=1e8 ? `(${(v/1e8).toFixed(2)}억)` : a>=1e4 ? `(${Math.round(v/1e4).toLocaleString()}만)` : ""; }
 // build 282: 글 → 칸(이어서 묻기 포함) → 되물을 게 있으면 질문, 아니면 실행
-function askRender(text){
+/* ================= build 284: 서버 없이 무료 — 브라우저 안 AI로 처음 보는 말 이해 =================
+   단계: ① 규칙 + 🧠 배운 말(바로) → ② 🔎 비슷한 말(임베딩 모델 multilingual-e5-small, 처음 한 번 약 120MB, 휴대폰도 됨)
+         → ③ 🤖 AI로 해석(WebLLM Qwen2.5-1.5B, 처음 한 번 약 1GB, PC 크롬 WebGPU — 누를 때만)
+   AI는 문장을 '조건'으로만 바꾸고 숫자는 기존 엔진(askRun)이 사이트 자료로 계산 → 숫자를 지어내지 않음.
+   모델 파일은 브라우저 캐시에 저장(다음부터 받지 않음). 서버 · API 키 · 사용료 없음. */
+const ASK_TF_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/dist/transformers.min.js";
+const ASK_EMB_MODEL = "Xenova/multilingual-e5-small";
+const ASK_LLM_URL = "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.85/lib/index.js";
+const ASK_LLM_MODEL = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC", ASK_LLM_MODEL32 = "Qwen2.5-1.5B-Instruct-q4f32_1-MLC";
+// 뜻 사전: 칩과 같은 뜻 + 그 뜻을 말하는 여러 표현(임베딩이 비교할 기준)
+const ASK_INTENTS = [
+  { set:{metric:"sales"}, label:"매출", ph:["매출","판매 금액","장사 실적","번 돈","수입","팔린 금액","매상","영업 실적"] },
+  { set:{metric:"supplyAmt"}, label:"공급액", ph:["공급액","입고 금액","들어온 물건 금액","보낸 물건 금액","납품 금액"] },
+  { set:{metric:"plt"}, label:"공급 PLT", ph:["공급 PLT","파레트 수량","보낸 물량","출고 수량","입고 물량"] },
+  { set:{metric:"conv"}, label:"전환율", ph:["전환율","판매 전환","공급 대비 판매 비율","팔린 비율","소진 비율"] },
+  { set:{metric:"achieve"}, label:"달성률", ph:["목표 달성률","목표 대비 실적","달성 정도","목표 채운 비율"] },
+  { set:{metric:"target"}, label:"목표매출", ph:["목표 매출","매출 목표","계획 매출","목표 금액"] },
+  { set:{metric:"waste"}, label:"폐기비용", ph:["폐기비용","버린 물건 비용","폐기 처리 금액","손실 처분 비용","버린 돈","쓰레기 비용"] },
+  { set:{metric:"labor"}, label:"인건비", ph:["인건비","직원 급여","사람 쓰는 비용","알바비","임금","월급"] },
+  { set:{metric:"stock"}, label:"매장재고", ph:["재고","남은 물건","창고 물량","쌓인 물건","보유 수량"] },
+  { set:{metric:"count"}, label:"매출 건수", ph:["매출 건수","손님 수","영수증 수","구매 건수","방문객"] },
+  { set:{metric:"avgTicket"}, label:"객단가", ph:["객단가","손님당 금액","1인당 구매액","평균 구매 금액"] },
+  { set:{by:"month"}, label:"월별", ph:["월별","달마다","매달","한 달씩"] },
+  { set:{by:"day"}, label:"일별", ph:["일별","날마다","매일","하루씩","날짜마다"] },
+  { set:{by:"store"}, label:"매장별", ph:["매장별","점포마다","지점별","가게마다"] },
+  { set:{by:"cat"}, label:"카테고리별", ph:["카테고리별","품목별","분류마다","종류별","상품군별"] },
+  { set:{by:"hour"}, label:"시간대별", ph:["시간대별","시간마다","몇 시에"] },
+  { set:{by:"wd"}, label:"요일별", ph:["요일별","요일마다"] },
+  { set:{trend:true}, label:"추이", ph:["추이","흐름","변화","오르내림","추세","동향"] },
+  { set:{cmpPrev:true}, label:"전월 대비", ph:["지난달과 비교","전월 대비","저번 달보다","전달 대비"] },
+  { set:{top:3, order:"desc"}, label:"가장 많은", ph:["제일 많은","가장 잘 팔린","1등","순위 높은","최고"] },
+  { set:{top:3, order:"asc"}, label:"가장 적은", ph:["제일 적은","가장 안 팔린","꼴찌","최저","부진한"] },
+];
+let ASK_SEM = { on: (()=>{ try{ return localStorage.getItem("kk_ask_sem")==="1"; }catch(_){ return false; } })(), state:"off", pct:0, ext:null, vecs:null, err:null, p:null };
+let ASK_LLM = { state:"off", pct:0, text:"", engine:null, err:null, p:null };
+const ASK_SEM_AUTO = 0.90, ASK_SEM_GAP = 0.03, ASK_SEM_SUGGEST = 0.80;   // 확신이 크면 바로 적용, 아니면 '혹시 이 뜻?' 칩만
+function askSemStatus(){ return ASK_SEM.state==="loading" ? `🔎 비슷한 말 모델 받는 중… ${ASK_SEM.pct}%` : ASK_SEM.state==="error" ? `🔎 비슷한 말 모델을 못 받았습니다: ${ASK_SEM.err}` : ""; }
+async function askEmbed(texts){
+  if(typeof window.__askEmbedMock==="function") return window.__askEmbedMock(texts);
+  const out = await ASK_SEM.ext(texts.map(t=> "query: "+t), { pooling:"mean", normalize:true });
+  return out.tolist();
+}
+async function askSemEnsure(onProgress){
+  if(ASK_SEM.state==="ready") return true;
+  if(ASK_SEM.p) return ASK_SEM.p;
+  ASK_SEM.state = "loading"; ASK_SEM.pct = 0;
+  ASK_SEM.p = (async()=>{
+    try{
+      if(typeof window.__askEmbedMock!=="function"){
+        const T = await import(ASK_TF_URL);
+        const files = {};
+        ASK_SEM.ext = await T.pipeline("feature-extraction", ASK_EMB_MODEL, { dtype:"q8", progress_callback: e=>{ if(e && e.file && e.total){ files[e.file] = [e.loaded||0, e.total]; const a = Object.values(files).reduce((x,v)=>[x[0]+v[0], x[1]+v[1]], [0,0]); ASK_SEM.pct = a[1] ? Math.round(a[0]/a[1]*100) : 0; if(onProgress) onProgress(); } } });
+      }
+      const ph = [], idx = []; ASK_INTENTS.forEach((it,i)=> it.ph.forEach(x=>{ ph.push(x); idx.push(i); }));
+      const v = await askEmbed(ph); ASK_SEM.vecs = v.map((vec,k)=>({ i:idx[k], vec }));
+      ASK_SEM.state = "ready"; return true;
+    }catch(e){ ASK_SEM.state = "error"; ASK_SEM.err = String(e && e.message || e).slice(0,120); ASK_SEM.p = null; return false; }
+  })();
+  return ASK_SEM.p;
+}
+function askCos(a, b){ let s = 0, na = 0, nb = 0; for(let i=0;i<a.length;i++){ s += a[i]*b[i]; na += a[i]*a[i]; nb += b[i]*b[i]; } return s / (Math.sqrt(na*nb) || 1); }
+// 모르는 말마다 뜻 후보(점수 큰 순)
+async function askSemMatch(words){
+  if(!words.length || ASK_SEM.state!=="ready") return [];
+  const vs = await askEmbed(words);
+  return words.map((w,k)=>{ const best = {}; ASK_SEM.vecs.forEach(x=>{ const c = askCos(vs[k], x.vec); if(best[x.i]==null || c > best[x.i]) best[x.i] = c; });
+    const c = Object.keys(best).map(i=>({ it:ASK_INTENTS[+i], score:best[i] })).sort((a,b)=> b.score-a.score);
+    return { word:w, cands:c.slice(0,3) }; });
+}
+// 규칙이 못 채운 칸에만 적용. 확신 큼 → 적용 + 안내 / 애매 → 제안 칩
+async function askSemApply(P){
+  const out = { applied:[], suggest:[] };
+  if(!P.leftovers || !P.leftovers.length || !ASK_SEM.on) return out;
+  const ok = await askSemEnsure(()=>{ const b = document.getElementById("askResult"); const st = b && b.querySelector(".ask-semload"); if(st) st.textContent = askSemStatus(); });
+  if(!ok) return out;
+  const res = await askSemMatch(P.leftovers);
+  res.forEach(r=>{ const [a, b] = r.cands; if(!a) return;
+    const key = Object.keys(a.it.set)[0], taken = P.slots[key]!=null;
+    if(!taken && a.score >= ASK_SEM_AUTO && (!b || a.score - b.score >= ASK_SEM_GAP)){ Object.assign(P.slots, a.it.set); out.applied.push(`🔎 비슷한 말 '${r.word}' ≈ ${a.it.label} (${(a.score*100).toFixed(0)}%)`); }
+    else if(a.score >= ASK_SEM_SUGGEST) out.suggest.push({ word:r.word, cands:r.cands.filter(c=> c.score >= ASK_SEM_SUGGEST) }); });
+  if(out.applied.length && P.slots.metric) P.ask = (P.ask||[]).filter(x=> !/무엇을 볼까요/.test(x.q));
+  return out;
+}
+// ---- ③ 브라우저 AI(WebLLM)
+async function askLLMSupported(){ try{ if(typeof window.__askLLMMock==="function") return true; if(!navigator.gpu) return false; const ad = await navigator.gpu.requestAdapter(); return !!ad; }catch(_){ return false; } }
+async function askLLMEnsure(onProgress){
+  if(ASK_LLM.state==="ready") return true; if(ASK_LLM.p) return ASK_LLM.p;
+  ASK_LLM.state = "loading"; ASK_LLM.pct = 0;
+  ASK_LLM.p = (async()=>{
+    try{
+      if(typeof window.__askLLMMock!=="function"){
+        const ad = await navigator.gpu.requestAdapter(); const f16 = ad && ad.features && ad.features.has("shader-f16");
+        const W = await import(ASK_LLM_URL);
+        ASK_LLM.engine = await W.CreateMLCEngine(f16 ? ASK_LLM_MODEL : ASK_LLM_MODEL32, { initProgressCallback: r=>{ ASK_LLM.pct = Math.round((r && r.progress || 0)*100); ASK_LLM.text = r && r.text || ""; if(onProgress) onProgress(); } });
+      }
+      ASK_LLM.state = "ready"; return true;
+    }catch(e){ ASK_LLM.state = "error"; ASK_LLM.err = String(e && e.message || e).slice(0,160); ASK_LLM.p = null; return false; }
+  })();
+  return ASK_LLM.p;
+}
+function askLLMSystem(){
+  const last = askLastDataDate();
+  return `너는 킹콩백화점 매출 사이트의 검색어를 JSON 조건으로 바꾸는 도우미다. 설명 없이 JSON 하나만 답한다.
+오늘 자료 마지막 날: ${last}
+키(필요한 것만):
+- metric: sales(매출) | supplyAmt(공급액) | plt(공급 PLT) | conv(전환율) | target(목표매출) | achieve(달성률) | waste(폐기비용) | labor(인건비) | stock(재고) | count(매출 건수) | avgTicket(객단가)
+- stores: 매장 이름 배열. 가능한 이름: ${askStoreList().join(", ")}
+- cat: ${[...new Set(ASK_CATS.map(x=>x[1]))].join(", ")} 중 하나
+- from, to: "YYYY-MM-DD"
+- by: store | cat | month | day | hour | wd
+- wd: 요일 숫자 배열(0=일 ~ 6=토), hours: [시작시, 끝시]
+- cmpPrev: true(전월 대비), top: 숫자, order: "desc" | "asc", trend: true(추이)
+예) "기흥점 올해 장사 흐름" → {"metric":"sales","stores":["기흥점"],"from":"${last.slice(0,4)}-01-01","to":"${last}","by":"month"}
+예) "지난달 제일 많이 버린 매장 3곳" → {"metric":"waste","by":"store","top":3,"order":"desc"}
+예) "주말 오후 2시부터 4시까지 손님 수" → {"metric":"count","wd":[0,6],"hours":[14,16]}`;
+}
+// AI 답(JSON) → 검사해서 칸으로(모르는 값은 버림)
+function askLLMToSlots(txt){
+  const m = String(txt||"").match(/\{[\s\S]*\}/); if(!m) return null; let o; try{ o = JSON.parse(m[0]); }catch(_){ return null; }
+  const S = {}, METS = Object.keys(ASK_METRIC_LABEL), BYS = ["store","cat","month","day","hour","wd"], CATS = new Set(ASK_CATS.map(x=>x[1])), D = /^20\d{2}-\d{2}-\d{2}$/;
+  if(METS.includes(o.metric)) S.metric = o.metric;
+  if(Array.isArray(o.stores)){ const st = o.stores.map(x=> opsStoreName(x)).filter(x=> askStoreList().includes(x)); if(st.length) S.stores = [...new Set(st)]; }
+  if(CATS.has(o.cat)) S.cat = o.cat;
+  if(D.test(o.from||"") && D.test(o.to||"") && o.from <= o.to){ S.from = o.from; S.to = o.to; }
+  if(BYS.includes(o.by)) S.by = o.by;
+  if(Array.isArray(o.wd)){ const w = o.wd.map(Number).filter(x=> x>=0 && x<=6); if(w.length) S.wd = [...new Set(w)].sort(); }
+  if(Array.isArray(o.hours) && o.hours.length===2){ const a = +o.hours[0], b = +o.hours[1]; if(a>=0 && a<24 && b>a && b<=24) S.hours = [a, b]; }
+  if(o.cmpPrev===true) S.cmpPrev = true; if(o.trend===true) S.trend = true;
+  if(Number.isFinite(+o.top) && +o.top>0) { S.top = Math.min(50, Math.round(+o.top)); S.order = o.order==="asc" ? "asc" : "desc"; }
+  return Object.keys(S).length ? S : null;
+}
+async function askLLMInterpret(text){
+  const box = document.getElementById("askResult");
+  const prog = ()=>{ const st = box && box.querySelector(".ask-llmload"); if(st) st.textContent = ASK_LLM.state==="loading" ? `🤖 AI 모델 받는 중… ${ASK_LLM.pct}% (처음 한 번만, PC 크롬)` : "🤖 해석 중…"; };
+  if(box){ box.hidden = false; box.insertAdjacentHTML("afterbegin", `<div class="ask-note ask-llmload">🤖 준비 중…</div>`); }
+  const ok = await askLLMEnsure(prog); prog();
+  if(!ok){ if(box){ const st = box.querySelector(".ask-llmload"); if(st) st.textContent = `🤖 AI를 못 켰습니다: ${ASK_LLM.err} — 이 기기(브라우저)가 WebGPU를 지원하지 않거나 모델을 못 받았습니다`; } return null; }
+  let reply = "";
+  try{
+    if(typeof window.__askLLMMock==="function") reply = await window.__askLLMMock(text, askLLMSystem());
+    else { const r = await ASK_LLM.engine.chat.completions.create({ messages:[{ role:"system", content:askLLMSystem() }, { role:"user", content:text }], temperature:0, max_tokens:220 }); reply = r.choices[0].message.content; }
+  }catch(e){ reply = ""; }
+  const slots = askLLMToSlots(reply);
+  if(!slots){ if(box){ const st = box.querySelector(".ask-llmload"); if(st) st.textContent = "🤖 AI도 조건을 못 찾았습니다 — 아래 칩으로 골라 주세요"; } return null; }
+  try{ const C = JSON.parse(localStorage.getItem("kk_ask_llmcache_v1")||"{}"); C[text] = slots; const ks = Object.keys(C); if(ks.length > 200) delete C[ks[0]]; localStorage.setItem("kk_ask_llmcache_v1", JSON.stringify(C)); }catch(_){}
+  ASK_STATE.leftovers = [];
+  const inp = document.getElementById("askInput"); if(inp) inp.value = text;
+  askShow(slots, [`🤖 AI 해석: ${askSlotsLabel(slots)} — 틀렸으면 아래 칩으로 고쳐 주세요`], [], text);
+  return slots;
+}
+function askLLMCached(text){ try{ const C = JSON.parse(localStorage.getItem("kk_ask_llmcache_v1")||"{}"); return C[text] || null; }catch(_){ return null; } }
+
+async function askRender(text){
   const t = String(text||"").trim(); const box = document.getElementById("askResult"); if(!box) return;
   if(!t){ box.hidden = true; box.innerHTML = ""; return; }
+  const cached = askLLMCached(t);   // build 284: 전에 AI가 해석한 문장은 바로
+  if(cached){ ASK_STATE.leftovers = []; ASK_STATE.sem = null; askShow(Object.assign({}, cached), ["🤖 전에 AI가 해석한 문장 — 바로 적용 (틀렸으면 칩으로 고치기)"], [], t); return; }
+  ASK_STATE.prevForRerun = ASK_STATE.slots;   // 같은 질문을 다시 돌릴 때(비슷한 말 켜기) 이어서 묻기로 보지 않게
   const P = askParseSlots(t, ASK_STATE.slots);
-  ASK_STATE.leftovers = P.leftovers || []; ASK_STATE.learnNote = null;
+  ASK_STATE.leftovers = P.leftovers || []; ASK_STATE.learnNote = null; ASK_STATE.sem = null;
+  if(ASK_STATE.leftovers.length && ASK_SEM.on){   // build 284: 🔎 비슷한 말
+    if(ASK_SEM.state!=="ready"){ box.hidden = false; box.innerHTML = `<div class="ask-note ask-semload">${escHtml(askSemStatus() || "🔎 비슷한 말 찾는 중…")}</div>`; }
+    try{ const r = await askSemApply(P); P.notes.push(...r.applied); ASK_STATE.sem = r; }catch(_){}
+  }
   askShow(P.slots, P.notes, P.ask, t);
+}
+// build 284: 모르는 말이 있을 때 — 🔎 혹시 이 뜻? 칩 · 비슷한 말 켜기 · 🤖 AI로 해석
+function askAIBox(){
+  const lo = ASK_STATE.leftovers || [], sem = ASK_STATE.sem; let h = "";
+  if(sem && sem.suggest && sem.suggest.length) h += `<div class="ask-qbox"><div class="ask-q">🔎 혹시 이런 뜻인가요? <span class="ask-sub">(누르면 그 뜻으로 배움)</span></div>${sem.suggest.map(x=>`<div class="ask-opts" style="margin-bottom:4px"><span class="ask-rl">'${escHtml(x.word)}'</span>${x.cands.map(c=>`<button type="button" class="ask-opt" data-ask-set="${escHtml(JSON.stringify(c.it.set))}" title="비슷한 정도 ${(c.score*100).toFixed(0)}%">${escHtml(c.it.label)} <span class="ask-s">${(c.score*100).toFixed(0)}%</span></button>`).join("")}</div>`).join("")}</div>`;
+  if(lo.length) h += `<div class="ask-ai-row"><span class="ask-sub">모르는 말: ${lo.map(w=>`'${escHtml(w)}'`).join(" ")}</span>${!ASK_SEM.on?`<button type="button" class="ask-opt" data-ask-sem-on="1">🔎 비슷한 말 찾기 켜기 <span class="ask-s">(처음 한 번 약 120MB)</span></button>`:""}<button type="button" class="ask-opt" data-ask-llm="1">🤖 AI로 해석 <span class="ask-s">(PC 크롬 · 처음 한 번 약 1GB)</span></button></div>`;
+  if(ASK_SEM.state==="error") h += `<div class="ask-note">${escHtml(askSemStatus())}</div>`;
+  return h;
 }
 function askApply(set){   // 칩: 지금 칸에 덮어쓰고 다시
   const learned = askLearnFrom(set);   // build 283: 못 알아들은 말이 있었으면 이 칩을 그 말의 뜻으로 배움
@@ -10871,6 +11041,7 @@ function askShow(slots, notes, asks, text){
     ASK_STATE.slots = slots;
     box.innerHTML = `<div class="ask-res-hd"><div class="ask-title">🤔 조금만 더 알려 주세요</div><button type="button" class="ask-x" data-ask-close title="닫기">✕</button></div>
       ${blocking.map(a=>`<div class="ask-qbox"><div class="ask-q">${escHtml(a.q)}</div><div class="ask-opts">${optBtns(a.opts)}</div></div>`).join("")}
+      ${askAIBox()}
       ${notes.length?`<div class="ask-note">${notes.map(escHtml).join(" · ")}</div>`:""}
       <div class="ask-sub" style="margin-top:6px">이렇게 물어도 됩니다: ${ASK_EXAMPLES.slice(0,4).map(x=>`<a href="#" class="ask-exl" data-ask="${escHtml(x)}">${escHtml(x)}</a>`).join(" · ")}</div>`;
     return;
@@ -10912,6 +11083,7 @@ function askShow(slots, notes, asks, text){
     <div class="ask-und">알아들은 조건: ${understood}</div>
     ${q.notes.length?`<div class="ask-note">${q.notes.map(escHtml).join(" · ")}</div>`:""}
     ${rows.length ? tbl : `<div class="ask-note">조건에 맞는 자료가 없습니다.</div>`}
+    ${askAIBox()}
     ${refine.join("")}
     <div class="ask-basis">${res.basis.map(escHtml).join(" · ")}${res.jump?` · <a href="#" class="kk-jump" data-jump="${escHtml(res.jump)}">관련 화면 →</a>`:""} · <span class="ask-sub">이어서 "그럼 9월은?" · "인천점은?" · "카테고리별로"처럼 물어도 됩니다</span></div>`;
   try{ const h = JSON.parse(localStorage.getItem("kk_ask_hist_v1")||"[]").filter(v=> v!==text); h.unshift(text); localStorage.setItem("kk_ask_hist_v1", JSON.stringify(h.slice(0,8))); askHistRender(); }catch(_){}
@@ -10941,6 +11113,9 @@ function askWire(){
     const st = e.target.closest("[data-ask-set]"); if(st){ try{ askApply(JSON.parse(st.getAttribute("data-ask-set"))); }catch(_){} return; }
     if(e.target.closest("[data-ask-close]")){ document.getElementById("askResult").hidden = true; ASK_STATE.slots = null; }
     if(e.target.closest("[data-ask-learnlist]")){ askLearnListRender(); return; }
+    if(e.target.closest("[data-ask-sem-on]")){ ASK_SEM.on = true; try{ localStorage.setItem("kk_ask_sem","1"); }catch(_){} ASK_STATE.slots = ASK_STATE.prevForRerun || null; askRender(inp.value); return; }   // build 284
+    if(e.target.closest("[data-ask-sem-off]")){ ASK_SEM.on = false; try{ localStorage.setItem("kk_ask_sem","0"); }catch(_){} askLearnListRender(); return; }
+    if(e.target.closest("[data-ask-llm]")){ askLLMInterpret(inp.value); return; }
     const ul = e.target.closest("[data-ask-unlearn]"); if(ul){ delete ASK_LEARN[ul.getAttribute("data-ask-unlearn")]; askLearnSave(); askLearnListRender(); askHistRender(); return; }
     const la = e.target.closest("[data-ask-teach]"); if(la){ const w = (document.getElementById("askTeachWord")||{}).value, k = (document.getElementById("askTeachSel")||{}).value; if(w && k){ try{ askLearnSet(w.trim(), JSON.parse(k)); }catch(_){} askLearnListRender(); askHistRender(); } } });
   askHistRender();
