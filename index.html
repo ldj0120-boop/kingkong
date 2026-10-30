@@ -1664,7 +1664,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 269 · 2026-10-30</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 270 · 2026-10-30</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -17168,7 +17168,7 @@ function fiDispSave(){
     rows:_fiDisp.rows.map(r=>({ bidDate:r.bidDate, bidcode:r.bidcode, group:r.group, number:r.number, numFull:r.numFull||"", pallets:r.pallets, outboundDate:r.outboundDate,
       outboundAmPm:r.outboundAmPm, outTime:r.outTime||"", typeSub:r.typeSub||"", dw:!!r.dw, dwLot:r.dwLot||"", fc:r.fc, dest:r.dest, type:r.type, memo:r.memo||"", co:fiCoOf(r), skip:!!r.skip, sms:!!r.sms,
       lot:r.lot||"", addr:r.addr||"", person:r.person||"", phone:r.phone||"", opNote:r.opNote||"", remark:r.remark||"", palOk:!!r.palOk, srcLine:r.srcLine||"",
-      eos:!!r.eos, src:r.src||null, srcs:r.srcs||null, histPlt:r.histPlt==null?null:r.histPlt, wdBad:r.wdBad||null, dirFilled:r.dirFilled||null, onlyIn:r.onlyIn||null, missingIn:r.missingIn||null, warn:r.warn||[], center:r.center||"" })),
+      eos:!!r.eos, src:r.src||null, srcs:r.srcs||null, histPlt:r.histPlt==null?null:r.histPlt, wdBad:r.wdBad||null, dirFilled:r.dirFilled||null, onlyIn:r.onlyIn||null, missingIn:r.missingIn||null, warn:r.warn||[], center:r.center||"", hbNo:r.hbNo||"", bidNo:r.bidNo||"", bidNoManual:!!r.bidNoManual })),   // build 270
     srcs:_fiDisp.srcs||null, answers:_fiDisp.answers||null };
   FI_DISPATCH_HISTORY = fiMergeHistory([e], FI_DISPATCH_HISTORY.filter(h=>h.id!==e.id));
   fiDispPersist();
@@ -17232,11 +17232,18 @@ function fiOrderRows(rows){
     dk(a.r.bidDate).localeCompare(dk(b.r.bidDate)) || tk(a.r)-tk(b.r) || fk(a.r)-fk(b.r) || a.i-b.i
   ).map(x=>x.r);
 }
+// build 270 (사용자 지정): 낙찰NO = 2026_쿠팡 낙찰금액 "종합" 시트에서 같은 행(입차코드 · 센터로 찾은 줄)의 G열 NO.
+//   G열 NO.가 비어 있으면 D열 센터명. 낙찰금액에 그 행이 없으면 예전 규칙(XLG = 센터명, 그 외 = 메일 Group). 화면 표에서 직접 고친 값이 최우선.
+function fiBidNoOf(r){
+  if(r.bidNoManual && String(r.bidNo||"").trim()) return String(r.bidNo).trim();
+  if(r.hbNo) return r.hbNo;
+  return r.type==="XLG" ? (fiCenterName(r.fc)||r.group) : r.group;
+}
 // 엑셀 예시(더한 배차표) 열 구성: NO | 낙찰일 | 입차CODE | 낙찰NO | Group Number | PLT수량 | 출고일시 | FC | 도착지 | 카테. | 비고
 function fiDispSheetRows(rows){
   return fiOrderRows(rows).map(r=>({
     NO:"", 낙찰일:r.bidDate, 입차CODE:r.bidcode,
-    낙찰NO: r.type==="XLG" ? (fiCenterName(r.fc)||r.group) : r.group,
+    낙찰NO: fiBidNoOf(r),   // build 270
     GroupNumber: r.numFull ? r.numFull : /^\d+$/.test(String(r.number||"")) ? +r.number : (r.number||""),   // build 169: 메일 NUMBER 전체
     PLT: r.pallets==null||r.pallets==="" ? "" : +r.pallets,
     출고일시: `${r.outboundDate||""} ${r.outboundAmPm||""} ${r.outTime||""}`.replace(/\s+/g," ").trim(),   // build 196: "오전 11시"
@@ -17271,16 +17278,16 @@ function fiDispRender(){
   // build 134: 모든 행 도착지 한 번에 (임박식품처럼 도착지를 직접 고르는 경우)
   h += `<div style="margin:10px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b style="font-size:14.5px">모든 행 도착지</b> <select id="fiDispBulkSel">${fiDispDestOptions({ type:(d.rows[0]||{}).type, dest:"", fc: d.rows.length && d.rows.every(x=> x.fc===d.rows[0].fc) ? d.rows[0].fc : "" })}</select> <input id="fiDispBulkFree" placeholder="직접 입력" style="width:110px"> <button class="act fi-mini" id="fiDispBulkEmpty">빈 행에만 적용</button> <button class="act fi-mini" id="fiDispBulkAll">전체 행에 적용</button> <span class="fi-mut">행마다 다르면 아래 표에서 고르세요</span></div>`;
   h += `<div class="fi-sec-t" style="margin-top:12px">인식 결과 · 수정 <span class="fi-mut">노란 칸 = 자동 보정/확인 필요</span></div>
-  <div style="overflow-x:auto"><table class="fi-tbl"><thead><tr><th>포함</th><th>#</th><th>낙찰일</th><th>입차CODE (BIDCODE)</th><th>Group (메일)</th><th>Group Number</th><th class="n">파렛트</th><th>출고일</th><th>오전/오후</th><th>FC</th><th>도착지</th><th>유형</th></tr></thead><tbody>
+  <div style="overflow-x:auto"><table class="fi-tbl"><thead><tr><th>포함</th><th>#</th><th>낙찰일</th><th>입차CODE (BIDCODE)</th><th>Group (메일)</th><th title="출고요청서 엑셀의 낙찰NO — 낙찰금액 종합 G열 NO.(없으면 D열 센터명), 낙찰금액에 없는 행은 예전 규칙. 직접 고치면 그 값">낙찰NO</th><th>Group Number</th><th class="n">파렛트</th><th>출고일</th><th>오전/오후</th><th>FC</th><th>도착지</th><th>유형</th></tr></thead><tbody>
   ${d.rows.map((r,i)=>`<tr class="${r.memo?"fi-warnrow":""}" style="${r.skip?"opacity:.45":""}"><td><input type="checkbox" class="fi-dinp" data-fd-i="${i}" data-fd-k="skip" ${r.skip?"":"checked"}></td>
     <td>${i+1}</td>
-    <td>${ed(r,i,"bidDate",r.bidDate,92)}</td><td>${ed(r,i,"bidcode",r.bidcode,104)}</td><td>${ed(r,i,"group",r.group,130)}</td>
+    <td>${ed(r,i,"bidDate",r.bidDate,92)}</td><td>${ed(r,i,"bidcode",r.bidcode,104)}</td><td>${ed(r,i,"group",r.group,130)}</td><td>${ed(r,i,"bidNo",fiBidNoOf(r),96)}${r.hbNo && !r.bidNoManual ? `<div class="fi-mut" style="font-size:12px">📒 낙찰금액</div>` : ""}</td>
     <td>${ed(r,i,"number",fiNumShow(r),128)}</td><td class="n">${ed(r,i,"pallets",r.pallets,40)}</td><td>${ed(r,i,"outboundDate",r.outboundDate,92)}</td>
     <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="outboundAmPm">${["오전","오후",""].map(x=>`<option ${x===r.outboundAmPm?"selected":""} value="${x}">${x||"-"}</option>`).join("")}</select></td>
     <td>${ed(r,i,"fc",r.fc,62)} <span class="fi-mut">${escHtml(fiCenterName(r.fc)||"")}</span></td>
     <td style="white-space:nowrap"><select class="fi-dinp" data-fd-i="${i}" data-fd-k="dest">${fiDispDestOptions(r)}</select> <input class="fi-dinp fi-dfree" data-fd-i="${i}" data-fd-k="dest" placeholder="직접 입력" title="목록에 없는 도착지는 여기에 입력" value="${escHtml(r.dest && !fiDispKnownDest(r.dest) ? r.dest : "")}" style="width:96px">${r.dest && r.fc ? `<div class="fi-mut" style="font-size:13px;margin-top:2px">📍 ${escHtml(fiKmLabel(r.fc, r.dest))}</div>` : ""}</td>
     <td><select class="fi-dinp" data-fd-i="${i}" data-fd-k="type">${["XLG","XLS","XLD","XLA","XLB","XLC","XLE","XLK","XLW","임박"].concat(r.type&&!["XLG","XLS","XLD","XLA","XLB","XLC","XLE","XLK","XLW","임박"].includes(r.type)?[r.type]:[]).map(x=>`<option ${x===r.type?"selected":""}>${x}</option>`).join("")}</select></td>
-    </tr>${r.memo ? `<tr class="fi-whyrow ${r.memo?"fi-warnrow":""}" style="${r.skip?"opacity:.45":""}"><td></td><td colspan="11" class="fi-whynote">확인: ${escHtml(r.memo)}${V && V.rows[i] && V.rows[i].length ? ` <span style="color:var(--amber)">🔎 ${escHtml(V.rows[i].join(" · "))}</span>` : ""}</td></tr>` : (V && V.rows[i] && V.rows[i].length ? `<tr class="fi-whyrow fi-warnrow"><td></td><td colspan="11" class="fi-whynote"><span style="color:var(--amber)">🔎 ${escHtml(V.rows[i].join(" · "))}</span></td></tr>` : "")}${fiDispEosSubRow(r,i)}`).join("")}
+    </tr>${r.memo ? `<tr class="fi-whyrow ${r.memo?"fi-warnrow":""}" style="${r.skip?"opacity:.45":""}"><td></td><td colspan="12" class="fi-whynote">확인: ${escHtml(r.memo)}${V && V.rows[i] && V.rows[i].length ? ` <span style="color:var(--amber)">🔎 ${escHtml(V.rows[i].join(" · "))}</span>` : ""}</td></tr>` : (V && V.rows[i] && V.rows[i].length ? `<tr class="fi-whyrow fi-warnrow"><td></td><td colspan="12" class="fi-whynote"><span style="color:var(--amber)">🔎 ${escHtml(V.rows[i].join(" · "))}</span></td></tr>` : "")}${fiDispEosSubRow(r,i)}`).join("")}
   </tbody></table></div>`;
   h += `<div id="fiDispOut">${fiDispOutHtml(d)}</div>`;
   wrap.innerHTML = h;
@@ -17300,14 +17307,14 @@ function fiRemarkOf(r){
 function fiDispEosSubRow(r, i){
   if(fiIsDw(r)){   // build 220
     const g = (k, v, w, ph)=>`<input class="fi-dinp" data-fd-i="${i}" data-fd-k="${k}" value="${escHtml(v==null?"":v)}" placeholder="${ph}" style="width:${w}px;${v?"":"border-color:var(--red,#C8232F)"}">`;
-    return `<tr class="fi-eosinfo" style="${r.skip?"opacity:.45":""}"><td></td><td colspan="11" style="padding:0 6px 10px;font-size:13.5px;white-space:nowrap">
+    return `<tr class="fi-eosinfo" style="${r.skip?"opacity:.45":""}"><td></td><td colspan="12" style="padding:0 6px 10px;font-size:13.5px;white-space:nowrap">
       <span class="fi-mut">상차지</span> ${g("addr", r.addr, 420, "상차지 주소(비고 칸에 들어감)")}
       <span class="fi-mut">연락처</span> ${g("phone", r.phone, 260, "센터명 번호 / 번호")}</td></tr>`;
   }
   if(r.type!=="임박") return "";
   const f = (k, v, w, ph)=>`<input class="fi-dinp" data-fd-i="${i}" data-fd-k="${k}" value="${escHtml(v==null?"":v)}" placeholder="${ph}" style="width:${w}px;${v?"":"border-color:var(--red,#C8232F)"}">`;
   const nt = r.remark!=null ? r.remark : (r.opNote||"");
-  return `<tr class="fi-eosinfo" style="${r.skip?"opacity:.45":""}"><td></td><td colspan="11" style="padding:0 6px 10px;font-size:13.5px;white-space:nowrap">
+  return `<tr class="fi-eosinfo" style="${r.skip?"opacity:.45":""}"><td></td><td colspan="12" style="padding:0 6px 10px;font-size:13.5px;white-space:nowrap">
     <span class="fi-mut">상차지</span> ${f("addr", r.addr, 360, "상차지 주소(필수)")}
     <span class="fi-mut">담당자</span> ${f("person", r.person, 120, "담당자(필수)")}
     <span class="fi-mut">연락처</span> ${f("phone", r.phone, 120, "연락처(필수)")}
@@ -22049,11 +22056,13 @@ function fiHbCands(r){
 function fiHbApply(rows, reapply){
   let n = 0; const used = {};
   (rows||[]).forEach(r=>{
-    const f = fiHbCands(r); if(!f) return;
+    const f = fiHbCands(r); if(!f){ r.hbNo = ""; return; }
     const k = used[f.key] = (used[f.key]||0) + 1;   // 직접 고친 행도 자리는 차지(순서 유지)
+    const x = f.lot ? f.c[0] : f.c[Math.min(k, f.c.length) - 1];
+    r.hbNo = x ? (String(x.no||"").replace(/\u00a0/g," ").trim() || String(x.fcRaw||"").trim()) : "";   // build 270: 낙찰NO = G열 NO. (없으면 D열 센터명)
     if(reapply && r.destManual) return;
     if(!reapply && r.dw && r.dest) return;   // build 226: 데드우드 · FC파손에 사용자가 쓴 출고지(A= 진천센터)는 그대로
-    const x = f.lot ? f.c[0] : f.c[Math.min(k, f.c.length) - 1]; if(!x || !x.dest) return;
+    if(!x || !x.dest) return;
     const d = (typeof resolveStoreName==="function" && resolveStoreName(x.dest)) || x.dest;
     const prev = r.hbDest ? r.hbAuto : r.dest;
     if(!r.hbDest) r.hbAuto = r.dest || "";
@@ -22936,6 +22945,7 @@ function wireFixedDispatch(){
     const r = _fiDisp.rows[+t.dataset.fdI]; const k = t.dataset.fdK;
     r[k] = k==="pallets" ? (t.value===""?null:+t.value) : k==="skip" ? !t.checked : t.value;
     if(k==="number"){ r.numFull = ""; if(!fiNumFullSet(r, t.value)) r.number = String(t.value).trim(); }   // build 169: 전체 NUMBER 입력 허용
+    if(k==="bidNo") r.bidNoManual = String(t.value).trim()!=="";   // build 270: 낙찰NO 직접 고침(비우면 낙찰금액 · 예전 규칙으로)
     if(k==="dest") r.destManual = true;   // build 225: 낙찰금액을 다시 읽어도 직접 고른 도착지는 그대로
     if(k==="dest" && !t.classList.contains("fi-dfree")) fiDispDestChanged(r);   // build 161
     if(k==="dest" && r.dw){ _fiDisp.rows.forEach(x=>{ if(x!==r && x.dw && x.dwLot===r.dwLot){ x.dest = r.dest; x.warn = (x.warn||[]).filter(w=>!/출고지/.test(w)); x.memo = x.warn.join(" / "); } }); r.warn = (r.warn||[]).filter(w=>!/출고지/.test(w)); r.memo = r.warn.join(" / "); }   // build 196: 같은 LOT 전체
@@ -23218,7 +23228,7 @@ async function fiLedgerBuild(co){
     const prev = last > hdr.row ? ws.getRow(last) : null;
     const vals = {
       "NO":"", "낙찰일": (/^\d{4}-\d{2}-\d{2}$/.test(r.bidDate) ? (()=>{ const [yy,mm,dd]=r.bidDate.split("-").map(Number); return new Date(Date.UTC(yy,mm-1,dd)); })() : r.bidDate),
-      "입차CODE": r.bidcode, "낙찰NO": r.type==="XLG" ? (fiCenterName(r.fc)||r.group) : r.group,
+      "입차CODE": r.bidcode, "낙찰NO": fiBidNoOf(r),
       "Group Number": r.numFull ? r.numFull : /^\d+$/.test(String(r.number)) ? +r.number : r.number, "PLT수량": r.pallets==null||r.pallets==="" ? null : +r.pallets,
       "출고일시": `${r.outboundDate||""} ${r.outboundAmPm||""}`.trim(), "FC": fiCenterName(r.fc)||r.fc, "도착지": r.dest||"", "카테.": r.type||"", "비고": r.remark||""
     };
