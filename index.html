@@ -19036,7 +19036,7 @@ function xlRowCompact(s){
 function lsColIdx(name){ var n=0; for(var i=0;i<name.length;i++) n=n*26+name.charCodeAt(i)-64; return n-1; }
 function lsSlimColMap(SP, last){   // 지울 열: 낙찰여부 · 낙찰가 · 상한가 · 상한가요율 · XLA~XLC · 입찰여부 (3행 머리글 이름으로 찾음)
   var drop={}; SP.header.forEach(function(c){ if(c[0]===2 && c[1]<=last && c[4]!=null && /^(낙찰여부|낙찰가|상한가|상한가요율|XL[A-Z]|입찰여부)/.test(String(c[4]).trim())) drop[c[1]]=1; });
-  var m=new Map(), n=0; for(var c=0;c<=last;c++){ if(drop[c]) continue; m.set(c,n++); } return m;
+  var m=new Map(), n=0; for(var c=0;c<16384;c++){ if(drop[c]) continue; m.set(c,n++); } return m;   // 오른쪽 표(점유율 · 요율표 · 낙찰가 기록용 …)는 지운 열 수만큼 왼쪽으로
 }
 function lsRemapCols(f, CM){   // 같은 시트 칸 참조의 열만 새 위치로 ("…" 글 · 다른 시트!참조는 그대로)
   return String(f).replace(/"[^"]*"|[^\s(),=+\-*\/&<>:"]+![$A-Z0-9:]+|(\$?)([A-Z]{1,3})(\$?)(\d+)/g, function(m0,d1,cl,d2,rw){
@@ -19053,7 +19053,8 @@ function lsCatLabels(A, colW){   // build 285: 카테고리 칸 = 두 줄 "16,89
       var m=new Map(); if(o) LIQSUM_CAT[j][1].forEach(function(c2){ var t2=o.tree.get(c2); if(t2) t2.k.forEach(function(t4,c4){ var k=c4||"(비어 있음)"; m.set(k,(m.get(k)||0)+t4.s); }); });
       var tn="", tv=0; m.forEach(function(v,k){ if(v>tv){ tv=v; tn=k; } });
       var p1=Math.round(bv/R.total*100), p2=Math.round(tv/bv*100);
-      return { l1:Math.round(bv).toLocaleString("en-US")+"("+(p1<1?"<1":p1)+"%)", top:tn, p2:(p2<1?"<1":p2)+"%", value:bv };
+      var amt=Math.round(bv).toLocaleString("en-US"), pc1="("+(p1<1?"<1":p1)+"%)";
+      return { l1:amt+" "+pc1, amt:amt, pc1:pc1, top:tn, p2:(p2<1?"<1":p2)+"%", value:bv };
     });
   });
   var l2=function(t,cut){ if(!t.top) return ""; var nm=t.top; if(cut<nm.length) nm=nm.slice(0,Math.max(cut,1))+"…"; return "("+nm+t.p2+")"; };
@@ -19062,10 +19063,18 @@ function lsCatLabels(A, colW){   // build 285: 카테고리 칸 = 두 줄 "16,89
     var w0=colW(j), wMax=w0*1.2, room=wMax*PX*0.92, need=0;
     cells.forEach(function(row){ var t=row[j]; if(!t) return;
       var cut=t.top.length; while(cut>2 && pxOf(l2(t,cut))>room) cut--;
-      t.text=t.l1+(t.top?"\n"+l2(t,cut):""); need=Math.max(need, pxOf(t.l1), pxOf(l2(t,cut))); });
+      t.text=t.l1+(t.top?"\n"+l2(t,cut):""); t.nm=t.top?l2(t,cut).slice(1,-1-t.p2.length):""; need=Math.max(need, pxOf(t.l1), pxOf(l2(t,cut))); });
     widths[j]=need ? Math.min(wMax, Math.max(w0, need/(PX*0.92))) : 0;
   }
-  return { rows: cells.map(function(row){ return row.map(function(t){ return t ? { text:t.text, value:t.value } : null; }); }), w:widths, sz:SZ };
+  return { rows: cells.map(function(row){ return row.map(function(t){ return t ? { text:t.text, value:t.value, runs: lsLabRuns(t, SZ) } : null; }); }), w:widths, sz:SZ };
+}
+/* build 285: 카테고리 칸 서식 글자 — 금액 · (전체 비중%) 빨강 ⏎ (CATE4 · 그 안 비중%) 파랑. 공유 문자열 서식 글자(<si><r>)로 저장 */
+function lsLabRuns(t, sz){
+  var rp=function(col){ return '<rPr><b/><sz val="'+sz+'"/>'+(col?'<color rgb="'+col+'"/>':'<color theme="1"/>')+'<rFont val="맑은 고딕"/><family val="3"/><charset val="129"/><scheme val="minor"/></rPr>'; };
+  var run=function(txt,col){ return '<r>'+rp(col)+'<t xml:space="preserve">'+lsX(txt)+'</t></r>'; };
+  var x=run(t.amt+" ",null)+run(t.pc1,"FFFF0000");
+  if(t.top) x+=run("\n("+t.nm,null)+run(t.p2,"FF0070C0")+run(")",null);
+  return x;
 }
 function lsSlimLayout(SP){   // 요약 템플릿에서 카테고리 9칸 · 요율 찾기 (일반: S~AA, 바이나우: U~AC)
   var D=SP&&SP.data; if(!D) return null; var cat0=-1;
@@ -19149,6 +19158,7 @@ function lsAnalyze(iter, maxRows){   // build 219: iter(fn) = 행 읽기(xlsb �
 function lsX(s){ return String(s).replace(/[&<>"]/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F￾￿]/g,""); }
 function LsSst(){ this.m=new Map(); this.a=[]; this.n=0; }
 LsSst.prototype.idx=function(s){ this.n++; var i=this.m.get(s); if(i===undefined){ i=this.a.length; this.a.push(s); this.m.set(s,i); } return i; };
+LsSst.prototype.rich=function(text, runs){ var k="\u0000R"+runs; this.n++; var i=this.m.get(k); if(i===undefined){ i=this.a.length; this.a.push({rich:runs, text:text}); this.m.set(k,i); } return i; };   // build 285: 서식 글자
 function lsCell(ref, v, s, sst){
   var sa = s!=null && s!==0 ? ' s="'+s+'"' : "";
   if(v==null || v==="") return sa ? '<c r="'+ref+'"'+sa+'/>' : "";
@@ -19344,9 +19354,13 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
     //   + 카테고리별 금액: 금액이 있는 모든 칸 = 금액 ⏎ (비중 n%) (CATE4 m%) — 칸 크기는 그대로, 글씨를 칸에 맞춤
     var LY = lsSlimLayout(SP), SLIM = !!LY, CAT0 = SLIM?LY.cat0:0, LASTC = SLIM?LY.last:0;
     var CM = SLIM ? lsSlimColMap(SP, LASTC) : null;   // 옛 열 → 새 열 (지운 열은 없음)
-    var keepC=function(c){ return !SLIM || (c<=LASTC && CM.has(c)); }, NC=function(c){ return SLIM ? CM.get(c) : c; };
+    var keepC=function(c){ return !SLIM || CM.has(c); }, NC=function(c){ return SLIM ? CM.get(c) : c; };
+    // build 285 (사용자 요청): 오른쪽 자료(파일명 Sample · 카테고리 금액별 점유율 · 킹콩 요율표 · 낙찰가 기록용 · 유형표)는 유지 — 카테고리 칸이 글이라 그 칸을 읽는 수식은 "(" 앞 금액만
+    var catNew={}; if(SLIM) for(var cj=CAT0;cj<=LASTC;cj++) catNew[lsCol(CM.get(cj))]=1;
+    var numCat=function(f){ return String(f).replace(/"[^"]*"|[^\s(),=+\-*\/&<>:"]+![$A-Z0-9:]+|(:?)(\$?)([A-Z]{1,3})(\$?)(\d+)(:?)/g, function(m0,c1,d1,cl,d2,rw,c2){
+      if(cl==null || c1 || c2 || !catNew[cl]) return m0; var ref=d1+cl+d2+rw; return '(--(0&SUBSTITUTE(SUBSTITUTE(LEFT('+ref+',FIND("(",'+ref+'&"(")-1),",","")," ","")))'; }); };
     var RF=function(f){ return SLIM ? lsRemapCols(f, CM) : f; };
-    var lsN2=function(rng){ return 'SUMPRODUCT(--(0&SUBSTITUTE(LEFT('+rng+',FIND("(",'+rng+'&"(")-1),",","")))'; };   // 금액 또는 "금액(비중%)(…)" 글 → 금액 합
+    var lsN2=function(rng){ return 'SUMPRODUCT(--(0&SUBSTITUTE(SUBSTITUTE(LEFT('+rng+',FIND("(",'+rng+'&"(")-1),",","")," ","")))'; };   // 금액 또는 "금액(비중%)(…)" 글 → 금액 합
     var colW={}; if(SLIM) SP.cols.forEach(function(c){ for(var k=c[0];k<=Math.min(c[1],LASTC);k++) colW[k]=c[2]/256; });
     var catFit = SLIM ? lsCatLabels(A, function(j){ return colW[CAT0+j]||38; }) : null, catLab = SLIM ? catFit.rows : [];
     var labStyle = SLIM ? lsWrapStyles(T.styles, LY.styles, catFit.sz) : null;   // 21pt · 줄바꿈 서식
@@ -19364,18 +19378,20 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
         if(d.k==="field"){ var f=d.f; if(swapNF && (c===2||c===3)) f = f==="no"?"fc":(f==="fc"?"no":f); v = f[0]==="c" && /^c\d$/.test(f) ? R.cats[+f.slice(1)] : R[f]; if(f==="no"||f==="fc"||f==="cat") v=v==null?"":String(v); }
         else if(d.k==="fmla") v={f:String(d.f).replace(/^=/,"").replace(/\{r\}/g,String(r+1))};
         if(!keepC(c)) return;
-        if(v&&v.f) v={f:RF(v.f)};
+        if(v&&v.f){ v={f:RF(v.f)}; if(SLIM && c>LASTC) v={f:numCat(v.f)}; }
         var tl=SLIM && c>=CAT0 && c<=LASTC && catLab[i] && catLab[i][c-CAT0];
-        if(tl){ put(r,NC(c),lsCell(lsCol(NC(c))+(r+1),tl.text,labStyle.map[d.s]!=null?labStyle.map[d.s]:d.s,sst2)); return; }
+        if(tl){ var st0=labStyle.map[d.s]!=null?labStyle.map[d.s]:d.s; put(r,NC(c),'<c r="'+lsCol(NC(c))+(r+1)+'" s="'+st0+'" t="s"><v>'+sst2.rich(tl.text, tl.runs)+'</v></c>'); return; }
         put(r,NC(c),lsCell(lsCol(NC(c))+(r+1),v,d.s,sst2)); });
     });
-    SP.absolute.forEach(function(c){ if(c[0]<newTot0 && keepC(c[1])) put(c[0],c[1],lsCell(lsCol(c[1])+(c[0]+1),val(c[3],c[4],false),c[2],sst2)); });
+    SP.absolute.forEach(function(c){ if(!SLIM && c[0]<newTot0 && keepC(c[1])) put(c[0],c[1],lsCell(lsCol(c[1])+(c[0]+1),val(c[3],c[4],false),c[2],sst2)); });
     SP.footer.forEach(function(c){ if(SLIM && (c[0]!==0 || !keepC(c[1]))) return; var r=newTot0+c[0], v=val(c[3],c[4],true);
-      if(SLIM){ if(v&&v.f) v={f:RF(v.f)}; if(c[1]>=CAT0 && c[1]<=LASTC) v={f:lsN2(lsCol(NC(c[1]))+"5:"+lsCol(NC(c[1]))+newLast1)}; }   // 카테고리 칸에 글(금액⏎비중)이 있어도 합계가 맞게
+      if(SLIM){ if(v&&v.f){ v={f:RF(v.f)}; if(c[1]>LASTC) v={f:numCat(v.f)}; } if(c[1]>=CAT0 && c[1]<=LASTC) v={f:lsN2(lsCol(NC(c[1]))+"5:"+lsCol(NC(c[1]))+newLast1)}; }   // 카테고리 칸에 글(금액⏎비중)이 있어도 합계가 맞게
       put(r,NC(c[1]),lsCell(lsCol(NC(c[1]))+(r+1),v,c[2],sst2)); });
-    var merges=SP.merges.filter(function(m){ return !SLIM || (m[3]<=LASTC && (m[4]!=="f" || m[0]===0) && CM.has(m[2]) && CM.has(m[3])); }).map(function(m){ return m[4]==="f" ? [m[0]+newTot0,m[1]+newTot0,NC(m[2]),NC(m[3])] : [m[0],m[1],NC(m[2]),NC(m[3])]; });
+    var merges=SP.merges.filter(function(m){ return !SLIM || ((m[4]!=="f" || m[0]===0) && CM.has(m[2]) && CM.has(m[3])); }).map(function(m){ return m[4]==="f" ? [m[0]+newTot0,m[1]+newTot0,NC(m[2]),NC(m[3])] : [m[0],m[1],NC(m[2]),NC(m[3])]; });
     var sCols=SP.cols;
-    if(SLIM){ sCols=[]; SP.cols.forEach(function(c){ for(var k=c[0];k<=Math.min(c[1],LASTC);k++){ if(!CM.has(k)) continue; var fl=c[4]||0; if(fl&0x700) fl&=~0x701; fl&=~0x1000;
+    if(SLIM){ sCols=[]; SP.cols.forEach(function(c){
+      if(c[0]>LASTC){ if(CM.has(c[0]) && CM.has(Math.min(c[1],16383))) sCols.push([NC(c[0]),NC(Math.min(c[1],16383)),c[2],c[3],c[4]]); return; }   // 오른쪽 표: 원래 너비 · 숨김 그룹 그대로
+      for(var k=c[0];k<=Math.min(c[1],LASTC);k++){ if(!CM.has(k)) continue; var fl=c[4]||0; if(fl&0x700) fl&=~0x701; fl&=~0x1000;
         var w=c[2]; if(k>=CAT0 && k<=LASTC && catFit.w[k-CAT0]) w=Math.round(catFit.w[k-CAT0]*256);   // 카테고리 칸: 글이 들어가게 최대 +20%
         sCols.push([NC(k),NC(k),w,c[3],fl]); } }); }
     var cf=(SLIM?[]:(SP.cf||[])).map(function(b){ var rf=b.ref[0]; return '<conditionalFormatting sqref="'+lsCol(rf[2])+'5:'+lsCol(rf[3])+newLast1+'">'+b.rules.map(function(ru){ return '<cfRule type="expression" dxfId="'+ru[1]+'" priority="'+ru[2]+'"><formula>'+lsX(ru[3])+'</formula></cfRule>'; }).join("")+'</conditionalFormatting>'; }).join("");
@@ -19388,7 +19404,7 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
     keys=Array.from(new Set(keys)).sort(function(a,b){ return a-b; });
     keys.forEach(function(r){
       var info = r<4 ? SP.rows.header[r] : (r<newTot0 ? SP.rows.data : SP.rows.footer[r-newTot0]);
-      if(SLIM && r>=4 && r<newTot0 && info){ info=info.slice(); info[1]=Math.max(info[1],1300); info[3]=(info[3]||0)|0x20; }   // 21pt 두 줄이 칸 안에 들어가게 65pt
+      if(SLIM && r>=4 && r<newTot0 && info){ info=info.slice(); info[1]=Math.max(info[1],1430); info[3]=(info[3]||0)|0x20; }   // 21pt 두 줄 65pt → 사용자 요청 +10% = 71.5pt
       var m=rows.get(r), x="";
       if(m) Array.from(m.keys()).sort(function(a,b){ return a-b; }).forEach(function(c){ x+=m.get(c); });
       s.w('<row r="'+(r+1)+'"'+lsRowAttr(info)+'>'+x+'</row>');
@@ -19428,7 +19444,7 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
   // ---- 공유 문자열 · 스타일 · 테마 · 통합 문서
   prog("파일 마무리 중…"); await tick();
   (function(){ var s=stream("xl/sharedStrings.xml"); s.w('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="'+sst2.n+'" uniqueCount="'+sst2.a.length+'">');
-    for(var i=0;i<sst2.a.length;i++){ var t=sst2.a[i]; s.w('<si><t'+(/^\s|\s$|\n/.test(t)?' xml:space="preserve"':'')+'>'+lsX(t)+'</t></si>'); } s.w('</sst>'); s.end(); })();
+    for(var i=0;i<sst2.a.length;i++){ var t=sst2.a[i]; if(t && typeof t==="object"){ s.w('<si>'+t.rich+'</si>'); continue; } s.w('<si><t'+(/^\s|\s$|\n/.test(t)?' xml:space="preserve"':'')+'>'+lsX(t)+'</t></si>'); } s.w('</sst>'); s.end(); })();
   addText("xl/styles.xml", (function(){ var ly=lsSlimLayout(T.summary); return ly ? lsWrapStyles(T.styles, ly.styles, 21).xml : T.styles; })());
   addText("xl/theme/theme1.xml", TPL.theme);
   var sumIdx=order.indexOf(sumName);
