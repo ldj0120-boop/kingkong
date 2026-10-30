@@ -1751,7 +1751,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 285 · 2026-10-30</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 286 · 2026-10-30</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -19093,7 +19093,9 @@ function lsWrapStyles(xml, list, sz){   // 카테고리 칸 서식을 줄바꿈 
   var fm=/<fonts count="(\d+)"[^>]*>([\s\S]*?)<\/fonts>/.exec(xml), fonts=fm?(fm[2].match(/<font\/>|<font>[\s\S]*?<\/font>/g)||[]):[], fAdd=[], fMap={};
   list.forEach(function(i){ var x=xfs[i]; if(!x) return;
     if(sz && fm){ var fid=+((/fontId="(\d+)"/.exec(x)||[])[1]||0); if(fMap[fid]==null){ var f=fonts[fid]||"<font/>"; f = /<sz val="[^"]*"\/>/.test(f) ? f.replace(/<sz val="[^"]*"\/>/,'<sz val="'+sz+'"/>') : f.replace(/<font\/?>/,'<font><sz val="'+sz+'"/>').replace(/<font><sz val="[^"]*"\/>$/,'<font><sz val="'+sz+'"/></font>'); fMap[fid]=fonts.length+fAdd.length; fAdd.push(f); }
-      x=x.replace(/fontId="\d+"/,'fontId="'+fMap[fid]+'"'); if(!/applyFont=/.test(x)) x=x.replace(/^<xf /,'<xf applyFont="1" '); }
+      x=x.replace(/fontId="\d+"/,'fontId="'+fMap[fid]+'"'); if(!/applyFont=/.test(x)) x=x.replace(/^<xf /,'<xf applyFont="1" ');
+      // build 286: 표시 형식을 '일반'으로 — 회계 형식(41)은 글 구역(@)이 있어 엑셀이 칸 안 글자 색 · 크기를 무시하고 표시함(편집할 때만 색이 보이던 원인)
+      x=x.replace(/numFmtId="\d+"/,'numFmtId="0"'); }
     var y = /<alignment /.test(x) ? x.replace(/<alignment /,'<alignment wrapText="1" ') : x.replace(/\/>$/,'><alignment horizontal="center" vertical="center" wrapText="1"/></xf>').replace(/<\/xf><alignment/,'<alignment');
     if(!/applyAlignment=/.test(y)) y=y.replace(/^<xf /,'<xf applyAlignment="1" ');
     map[i]=xfs.length+add.length; add.push(y); });
