@@ -1895,7 +1895,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 287 · 2026-11-03</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 288 · 2026-11-04</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -8803,7 +8803,7 @@ const STORE_PROFILE = {
   "천안점":      { fresh:{chilled:false, frozen:true,  ambient:true} },
   "청주점":      { fresh:F_ALL, freshStop:"2026-10-19" },   // build 270: 2026-10-19(월)부터 신선식품 운영 중지
   "충주점":      { fresh:{chilled:false, frozen:true,  ambient:true} },
-  "평택점":      { fresh:{chilled:true,  frozen:false, ambient:true} },
+  "평택점":      { fresh:{chilled:true,  frozen:false, ambient:true}, close:"2026-11-01" },   // build 288: 2026-11-01까지 영업 후 폐점(사용자 확인 11/4)
   "동탄점":      { fresh:{chilled:false, frozen:false, ambient:false} }, // 구 "기흥 패션관" — 가구·패션 위주라 식품 미취급, 기흥점과는 독립 집계(build 57)
 };
 // 냉장·냉동 취급 여부로 판단할 "신선식품" 성격의 매출 카테고리
@@ -25528,7 +25528,7 @@ const IMPROVE_PROPOSALS = [
   { id:"P261104-01", date:"2026-11-04", area:"매출·목표", title:"평택점 매출 11/2부터 없음 — 폐점이면 폐점일 등록",
     why:"평택점 매출이 11/2 · 11/3 두 자료(카테고리 · 매장별) 모두 없음. 10/25~11/1은 하루 169만~842만원(8일 평균 약 384만). 평택점은 폐점 예정(FI_CLOSING, build 112)인데 STORE_PROFILE에 close가 없어 11월 목표 2.14억이 그대로 잡히고 달성률이 0으로 계속 깎임.",
     what:"폐점이 맞으면 STORE_PROFILE 평택점에 close:'폐점일'을 넣어(광주점 8/23과 같은 방식) 11월 목표를 영업일만큼만 인정하고 12월부터 대상에서 뺌. 승인할 때 메모에 폐점일(예: 2026-11-01)을 적어 주세요. 폐점이 아니면 반려(매출 업로드 누락 확인 필요).",
-    risk:"낮음 — 날짜가 틀리면 그 사이 매출이 '영업 안 한 날'로 표시됨(메모의 날짜로만 반영).", done:"" },
+    risk:"낮음 — 날짜가 틀리면 그 사이 매출이 '영업 안 한 날'로 표시됨(메모의 날짜로만 반영).", done:"build 288 (사용자 확인: 2026-11-01까지 영업 후 폐점)" },
   { id:"P261104-02", date:"2026-11-04", area:"점검", title:"매장 매출이 2일 연속 0이면 알림",
     why:"이번 평택점처럼 한 매장 매출이 빠져도 지금은 '파일 없음/일부 매장만' 경고가 날짜 단위라 잘 안 보임(11/2 · 11/3은 22개 매장이 있어 경고 없음). 8/20 · 8/25 매장별 매출 누락도 며칠 뒤에야 발견됨.",
     what:"최근 7일 중 매출이 있던 매장이 마지막 2일 연속 두 자료 모두 0/없음이면 맨 위 검수 알림에 '○○점 매출 n일 없음(마지막 ○/○ ○○만원)' 한 줄. 폐점(close)·휴무일(STORE_CLOSED_DAYS)·오픈 전 매장은 제외.",
