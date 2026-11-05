@@ -1895,7 +1895,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 288 · 2026-11-04</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 289 · 2026-11-05</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -2072,6 +2072,14 @@
       <div id="salesMonTotWrap" style="padding:12px 18px 6px;"></div>
       <div style="padding:0 18px;"><span class="meta" id="salesMonthlyMeta" style="font-size:12px;"></span></div>
       <div class="agg-scroll" id="salesMonthlyWrap"></div>
+    </div>
+    <!-- build 289: 킹고프리(온라인) 매출 종합 — 따로 집계, 매장별 총매출 합계에는 다시 더하지 않음 -->
+    <div class="agg-card" id="kgSumCard">
+      <div class="p-hd">
+        <span class="store-name">킹고프리 매출 종합</span>
+        <span class="meta" id="kgSumMeta">온라인 주문 · 매장 매출에 이미 포함 · 합계에 다시 더하지 않음</span>
+      </div>
+      <div class="agg-scroll" id="kgSumWrap" style="padding:10px 18px 14px;"></div>
     </div>
     <!-- build 257: 일별 매출(월별) 카드는 사용자 요청으로 맨 위로 옮김 -->
 
@@ -3902,6 +3910,49 @@ function ensureAddedStores(){
   });
 }
 const SALES_POS_SPLIT = [ { from:"김해점", to:"동김해점", pos:3, since:"2026-10-08" } ];
+// build 289: 킹고프리(회원명 KINGGOFREE · 메모 '킹고프리 KM…') 온라인 주문 — 다음 날 00:01에 매장마다 한 장씩 등록되고 영업일자는 전날.
+//   매출현황(청구금액)에는 있지만 상품별 매출현황(실매출액)에는 없다 → 두 자료가 매장별로 그만큼 달랐다(10/29~11/1 −142만 ~ −944만).
+//   사용자 결정(2026-11-05): 매장 매출에는 그대로 두고(달성률 변화 없음), 카테고리 쪽에 '킹고프리' 카테고리로 더해 매장별로 맞춘다.
+//   킹고프리 매출 종합은 따로 집계하고, 매장별 총매출 합계에는 다시 더하지 않는다(이미 매장 매출에 들어 있음).
+//   STORE_SALES_HISTORY[].kg = {매장: [금액, 영수증 수, 상품수량]} — 매출현황 파일의 '회원명' · '메모' 열로 찾는다.
+const KG_CAT = "킹고프리";
+// 2026-10-15~11-01 원본 매출현황(업로드용자료\매장별매출현황)에서 찾은 킹고프리 영수증 — kg가 없는 예전 스냅샷에만 쓴다(사이트 차이와 60칸 원 단위 일치 확인)
+const KG_SEED_B289 = {"2026-10-15":{"김해점":[21560,1,1]},"2026-10-17":{"용인점":[464023,1,6],"수원점":[174384,1,1],"원주점":[9786,1,1],"이천점":[138726,1,2],"김포점":[11858,1,1],"천안점":[150987,1,2],"인천점":[871164,1,4]},"2026-10-19":{"김해점":[27678,1,1]},"2026-10-20":{"김해점":[234850,1,1]},"2026-10-21":{"김해점":[15456,1,1]},"2026-10-22":{"김해점":[28812,1,1]},"2026-10-23":{"수원점":[70056,1,2],"양주점":[214536,1,3],"이천점":[120120,1,1],"김포점":[13167,1,1],"안중점":[58590,1,1],"인천점":[246646,1,1],"경안점":[187338,1,1]},"2026-10-24":{"용인점":[131546,1,2],"이천점":[930672,1,4],"김포점":[10612,1,1],"경안점":[377574,1,1]},"2026-10-26":{"김해점":[173880,1,1]},"2026-10-29":{"용인점":[1367335,1,6],"수원점":[105160,1,1],"양주점":[142758,1,1],"이천점":[-246344,2,2],"김해점":[14900,1,1],"인천점":[23320,1,1],"경안점":[10114,2,2]},"2026-10-30":{"용인점":[2462850,2,7],"수원점":[484036,1,4],"이천점":[1014782,1,3],"김포점":[12320,1,1],"제주점":[169000,1,1],"동탄점":[31878,1,1],"인천점":[1090194,1,3],"경안점":[3228610,1,1],"제주서귀포점":[30322,1,2]},"2026-10-31":{"용인점":[1846781,2,6],"수원점":[267960,2,5],"이천점":[1170974,1,6],"김포점":[38704,1,1],"천안점":[77600,1,1],"김해점":[239400,1,2],"아산점":[34900,1,1],"인천점":[186052,2,6],"남양주점":[76545,1,1],"경안점":[248402,1,2]},"2026-11-01":{"용인점":[3660220,2,7],"수원점":[830214,1,3],"양주점":[539616,1,2],"이천점":[2277850,2,6],"청주점":[227178,1,1],"기흥점":[138600,1,2],"안중점":[804115,1,3],"인천점":[1093759,1,5],"경안점":[-100714,2,2],"동탄점":[-31878,1,1]}};
+function kgIsRow(member, memo){ return String(member==null?"":member).replace(/\s+/g,"").toUpperCase()==="KINGGOFREE" || /^\s*킹고프리/.test(String(memo==null?"":memo)); }
+function kgOfDate(date){ const h = (STORE_SALES_HISTORY||[]).find(x=> x && x.date===date); if(h && h.kg) return h.kg; return KG_SEED_B289[date] || null; }
+function kgAmtOf(c){ return c && c[KG_CAT] ? (+c[KG_CAT].amount||0) : 0; }
+function kgStrip(bsc){ const o = {}; Object.keys(bsc||{}).forEach(st=>{ const c = Object.assign({}, bsc[st]); delete c[KG_CAT]; if(Object.keys(c).length) o[st] = c; }); return o; }
+// 카테고리 매출(SALES_HISTORY)에 '킹고프리' 칸을 다시 맞춘다 — 상태를 읽을 때 · 매출 파일을 올릴 때마다(여러 번 돌아도 같은 결과)
+function kgApplySales(){
+  let n = 0; const ssh = {}; (STORE_SALES_HISTORY||[]).forEach(h=>{ if(h && h.date) ssh[h.date] = h; });
+  (SALES_HISTORY||[]).forEach(h=>{
+    if(!h || !h.byStoreCat) return;
+    Object.keys(h.byStoreCat).forEach(st=>{ const c = h.byStoreCat[st]; if(c && c[KG_CAT]){ delete c[KG_CAT]; if(!Object.keys(c).length) delete h.byStoreCat[st]; } });
+    const kg = kgOfDate(h.date); if(!kg) return;
+    const bs = ssh[h.date] && ssh[h.date].byStore;
+    Object.keys(kg).forEach(st=>{
+      const v = kg[st] || [], a = Math.round(+v[0]||0); if(!a) return;
+      if(!bs || bs[st]==null) return;   // 그날 매장별 매출(청구금액)이 없거나 그 매장이 없으면 건너뜀
+      const c = h.byStoreCat[st] || {};
+      // 상품별 파일에 이미 들어 있으면(그 매장 청구금액 = 실매출액) 두 번 더하지 않는다
+      if(bs && bs[st]!=null && Math.abs((+bs[st]||0) - Object.values(c).reduce((x,y)=> x + (+y.amount||0), 0)) <= 1) return;
+      c[KG_CAT] = { qty: +v[2]||+v[1]||0, amount: a }; h.byStoreCat[st] = c; n++;
+    });
+  });
+  return n;
+}
+// 한 달의 킹고프리 매출: { total, n(영수증), days, byStore:{매장:[금액, 영수증]} }
+function kgMonthSummary(month){
+  const o = { total:0, n:0, days:0, byStore:{} };
+  (STORE_SALES_HISTORY||[]).forEach(h=>{
+    if(!h || !h.date || h.date.slice(0,7)!==month) return;
+    const kg = kgOfDate(h.date); if(!kg) return; let any = false;
+    Object.keys(kg).forEach(st=>{ const v = kg[st]||[], a = +v[0]||0; if((!a && !(+v[1])) || !h.byStore || h.byStore[st]==null) return; any = true;
+      const b = o.byStore[st] || (o.byStore[st] = [0,0]); b[0] += a; b[1] += +v[1]||0; o.total += a; o.n += +v[1]||0; });
+    if(any) o.days++;
+  });
+  return o;
+}
 function salesPosNo(v){ const m = String(v==null?"":v).match(/^\s*POS\s*0*(\d+)\s*$/i); return m ? +m[1] : null; }
 function findSalesPosCol(row){ return (row||[]).findIndex(h=>{ const n = String(h==null?"":h).replace(/\s+/g,""); return n==="포스" || n==="포스명" || /^POS(명|번호|NO)?$/i.test(n); }); }
 // 원본 한 줄의 매장 → POS 규칙 적용(해당 없으면 그대로)
@@ -4129,6 +4180,7 @@ function applyStateObject(s){
     try{ migrateRenamedStores(); }catch(_){}
     try{ ensureAddedStores(); posCatSeedFix(); posSplitFix(); }catch(e){ console.warn("build 262 매장 추가/POS 나누기", e); }   // build 262: 동김해점
     try{ compactOldSalesHours(); }catch(e){ console.warn("build 279 옛 시간대 매출 줄이기", e); }
+    try{ kgApplySales(); }catch(e){ console.warn("build 289 킹고프리", e); }
     // ★ 사용자가 직접 고른 카테고리 지정은 어떤 상태 블롭보다 우선한다 — 반드시 마지막에 덮어쓴다.
     // (로컬/IndexedDB/클라우드 어디서 호출돼도 지정이 살아남게 하는 지점. 위 mergeStoredCatMaps 주석 참고)
     mergeStoredCatMaps();
@@ -4341,7 +4393,8 @@ function auditSales(out){
   const tot = h=>{ let t = 0; Object.values(h.byStoreCat).forEach(sc=> Object.values(sc).forEach(v=> t += +v.amount||0)); return t; };
   const recent = H.slice(-35);
   // ① 원본 합계 = 매장×카테고리 합 + 매장 목록 밖 + 분류 없음
-  recent.forEach(h=>{ if(!h.chk) return; const t = tot(h), want = h.chk.raw - h.chk.unm - h.chk.nocat;
+  const kgT = h=> Object.values(h.byStoreCat).reduce((x,sc)=> x + kgAmtOf(sc), 0);   // build 289: 킹고프리 칸은 원본(상품별)에 없으므로 빼고 대조
+  recent.forEach(h=>{ if(!h.chk) return; const t = tot(h) - kgT(h), want = h.chk.raw - h.chk.unm - h.chk.nocat;
     if(Math.abs(t - want) > 5) out.push({ id:"s-raw-"+h.date, lv:"err", area:"카테고리별 매출", msg:`${h.date} 카테고리로 나눈 합계가 원본과 ${_aw(t-want)}원 다릅니다`,
       tip:`원본 실매출액 합 ${_aw(h.chk.raw)}원\n− 매장 목록 밖 ${_aw(h.chk.unm)}원 − 분류 없음 ${_aw(h.chk.nocat)}원 = ${_aw(want)}원\n카테고리별 합계 ${_aw(t)}원\n→ 같은 파일을 다시 올려 주세요. 계속 다르면 알려 주세요.` });
     else if(h.chk.unm > 0) out.push({ id:"s-unm-"+h.date, lv:"warn", area:"카테고리별 매출", msg:`${h.date} 매장 목록에 없는 매장 매출 ${_aw(h.chk.unm)}원이 빠졌습니다`, tip:`원본 합계 ${_aw(h.chk.raw)}원 중 매장 이름이 목록과 맞지 않는 줄. 매장 이름 정리(STORE_ALIASES)가 필요합니다.` }); });
@@ -4368,7 +4421,11 @@ function auditSales(out){
   const lh = H[H.length-1], lt = tot(lh), pd = parseYMD(lh.date); pd.setDate(pd.getDate()-7); const pw = byD[fmtDate(pd)];
   const cats = {}; Object.values(lh.byStoreCat).forEach(sc=> Object.entries(sc).forEach(([c,v])=> cats[salesCatGroup(c)] = (cats[salesCatGroup(c)]||0) + (+v.amount||0)));
   out.push({ id:"s-new-"+lh.date+"-"+Math.round(lt), lv:"chg", area:"카테고리별 매출", msg:`${lh.date} 매출 반영 ${_aw(lt)}원${pw ? ` (전주 같은 요일 ${pw>lt?"−":"+"}${Math.abs(Math.round((lt/pw-1)*100))}%)` : ""}`,
-    tip:`카테고리별: ${Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([c,v])=>`${c} ${Math.round(v/10000).toLocaleString()}만`).join(" · ")}${lh.chk ? `\n원본 합계 ${_aw(lh.chk.raw)}원 = 카테고리 합 ${_aw(lt)} + 목록 밖 ${_aw(lh.chk.unm)} + 분류 없음 ${_aw(lh.chk.nocat)} ✓` : ""}` });
+    tip:`카테고리별: ${Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([c,v])=>`${c} ${Math.round(v/10000).toLocaleString()}만`).join(" · ")}${lh.chk ? `\n원본 합계 ${_aw(lh.chk.raw)}원 = 카테고리 합 ${_aw(lt - kgT(lh))} + 목록 밖 ${_aw(lh.chk.unm)} + 분류 없음 ${_aw(lh.chk.nocat)} ✓${kgT(lh) ? `\n+ 킹고프리(온라인) ${_aw(kgT(lh))}원 — 매장별 매출현황에서 더함` : ""}` : ""}` });
+  // build 289: 킹고프리(온라인) — 상품별 매출현황에 없어 매장별 매출현황에서 '킹고프리' 카테고리로 더한 금액(마지막 달)
+  { const m = lh.date.slice(0,7), k = kgMonthSummary(m);
+    if(k.n) out.push({ id:"s-kg-"+m+"-"+Math.round(k.total), lv:"ok", area:"카테고리별 매출", msg:`킹고프리(온라인) ${+m.slice(5)}월 ${k.n}건 ${_aw(k.total)}원 — 카테고리 '킹고프리'로 더해 매장별 매출과 맞춤 ✓`,
+      tip:`킹고프리 주문은 다음 날 00:01에 매장마다 한 장씩 등록되고, 상품별 매출현황에는 없습니다.\n매장 매출(청구금액)에는 이미 들어 있으므로 총매출 합계에 다시 더하지 않습니다.\n${Object.entries(k.byStore).sort((a,b)=>b[1][0]-a[1][0]).slice(0,10).map(([s,v])=>`${s} ${_aw(v[0])}원 (${v[1]}건)`).join("\n")}` }); }
 }
 function auditCenter(out){
   const C = CENTER_STOCK; if(!C || !C.centers) return;
@@ -4457,9 +4514,10 @@ function auditStoreData(out){
       // 청구금액 ↔ 실매출액: 두 자료 모두 그 매장이 있는 날만 더해 매장별로 비교
       if(sb && sb.byStore && sb.byStore[st]!=null){ const o = P.bill[st] || (P.bill[st] = { c:0, s:0, n:0 }); o.c += a; o.s += +sb.byStore[st]||0; o.n++; }
       // 시간대 합 = 카테고리 합(같은 원본 · 등록일시 없는 줄만 빠질 수 있음)
-      const hh = h.byStoreHour && h.byStoreHour[st]; if(hh && Object.keys(hh).length){ const t = Object.values(hh).reduce((x,v)=> x + (+v.amount||0), 0); if(Math.abs(t-a) > Math.max(10000, a*0.01)) P.hour.push(`${h.date} ${st}: 시간대 ${_aw(t)} · 카테고리 ${_aw(a)}`); }
+      const ak = a - kgAmtOf(h.byStoreCat[st]);   // build 289: 킹고프리 칸은 시간대 · 상품 구성에 없음
+      const hh = h.byStoreHour && h.byStoreHour[st]; if(hh && Object.keys(hh).length){ const t = Object.values(hh).reduce((x,v)=> x + (+v.amount||0), 0); if(Math.abs(t-ak) > Math.max(10000, ak*0.01)) P.hour.push(`${h.date} ${st}: 시간대 ${_aw(t)} · 카테고리 ${_aw(a)}`); }
       // 상품 구성(SALES_MIX) 매장 합 = 카테고리 합
-      const mx = SALES_MIX && SALES_MIX[h.date] && SALES_MIX[h.date].s; if(mx && Object.keys(mx).length){ const m = mx[st] ? Object.values(mx[st]).reduce((x,v)=> x + (+v[0]||0), 0) : 0; if(Math.abs(m-a) > Math.max(10000, a*0.01)) P.mix.push(`${h.date} ${st}: 상품 구성 ${_aw(m)} · 카테고리 ${_aw(a)}`); }
+      const mx = SALES_MIX && SALES_MIX[h.date] && SALES_MIX[h.date].s; if(mx && Object.keys(mx).length){ const m = mx[st] ? Object.values(mx[st]).reduce((x,v)=> x + (+v[0]||0), 0) : 0; if(Math.abs(m-ak) > Math.max(10000, ak*0.01)) P.mix.push(`${h.date} ${st}: 상품 구성 ${_aw(m)} · 카테고리 ${_aw(a)}`); }
       // ★ 리퀴 매출은 그 매장 매출보다 클 수 없음
       const sv = h.star && h.star[st]; if(sv!=null && sv > a + 1000) P.star.push(`${h.date} ${st}: ★ ${_aw(sv)} > 매출 ${_aw(a)}`);
       // 오픈 전 · 폐점 뒤 매출
@@ -5158,7 +5216,27 @@ function renderSalesMonTotCat(){
     renderSalesMonthTotals(); try{ renderSalesMonthly(); }catch(_){} };
 }
 let kkMonSort = { col:null, dir:1 };   // build 277: 매장 × 월 표 머리글 정렬(이 화면에서만)
-function renderSalesMonthly(){
+function renderSalesMonthly(){ renderSalesMonthlyCore(); try{ renderKgSummary(); }catch(e){ console.warn("build 289 킹고프리 종합", e); } }
+// build 289: 킹고프리 매출 종합 — 달마다 금액 · 건수 · 전체 매출 대비, 매장 × 월 금액(따로 집계 · 매장 합계에 다시 더하지 않음)
+function renderKgSummary(){
+  const wrap = document.getElementById("kgSumWrap"), card = document.getElementById("kgSumCard"); if(!wrap) return;
+  const months = salesAllMonths().filter(m=> kgMonthSummary(m).n);
+  if(!months.length){ wrap.innerHTML = `<p class="trend-empty">킹고프리(온라인) 주문이 든 매출현황 파일이 아직 없습니다.</p>`; return; }
+  const S = {}; months.forEach(m=> S[m] = kgMonthSummary(m));
+  const stores = Array.from(new Set(months.flatMap(m=> Object.keys(S[m].byStore))));
+  const sTot = st=> months.reduce((a,m)=> a + ((S[m].byStore[st]||[0])[0]), 0);
+  { const rk = (typeof kkStoreRank==="function") ? (kkStoreRank(months[months.length-1])||{}) : {}; stores.sort((a,b)=> ((rk[b]||0)-(rk[a]||0)) || (sTot(b)-sTot(a))); }   // build 265 규칙: 매장 줄은 매출 큰 순
+  const won = v=> Math.round(v||0).toLocaleString();
+  const ml = m=> m.slice(2).replace("-","/");
+  const share = m=>{ const t = (monthStoreTotals(m)||{}).total||0; return t ? (S[m].total/t*100) : 0; };
+  let h = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">${months.map(m=>`<div class="kg-chip" style="border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-width:150px;" data-tip="${escHtml(`${m} 킹고프리 ${won(S[m].total)}원 · ${S[m].n}건 · ${S[m].days}일\n전체 매출 ${won((monthStoreTotals(m)||{}).total)}원의 ${share(m).toFixed(2)}%\n매장 매출에 이미 포함(합계에 다시 더하지 않음)`)}"><div style="font-size:12.5px;color:var(--muted2);">${+m.slice(5)}월 킹고프리</div><div style="font-size:18px;font-weight:700;"><span class="num">${won(S[m].total)}</span>원</div><div style="font-size:12px;color:var(--muted2);">${S[m].n}건 · 전체의 ${share(m).toFixed(1)}%</div></div>`).join("")}</div>`;
+  h += `<table class="kk-keep kg-sum-tbl"><thead><tr><th>매장</th>${months.map(m=>`<th>${ml(m)}</th>`).join("")}<th class="total-col">누적</th></tr></thead><tbody>`;
+  stores.forEach(st=>{ h += `<tr><td>${escHtml(st)}</td>${months.map(m=>{ const v = S[m].byStore[st]; return `<td><span class="num">${v && v[0] ? won(v[0]) : ""}</span>${v && v[1] ? `<div class="mm-delta">${v[1]}건</div>` : ""}</td>`; }).join("")}<td class="total-col"><span class="num">${won(sTot(st))}</span></td></tr>`; });
+  h += `</tbody><tfoot><tr><td>킹고프리 합계</td>${months.map(m=>`<td><span class="num">${won(S[m].total)}</span><div class="mm-delta">${S[m].n}건</div></td>`).join("")}<td class="total-col"><span class="num">${won(months.reduce((a,m)=>a+S[m].total,0))}</span></td></tr></tfoot></table>`;
+  h += `<div style="padding:8px 2px 0;font-size:12.5px;color:var(--muted2);">회원명 KINGGOFREE · 메모 '킹고프리 KM…' 영수증(다음 날 00:01 등록). 매장별 매출 · 월별 매출 합계에는 이미 들어 있어 다시 더하지 않습니다. 상품별 매출현황에는 없어서 카테고리 매출에는 '킹고프리' 카테고리로 더합니다. 금액이 −이면 반품.</div>`;
+  wrap.innerHTML = h;
+}
+function renderSalesMonthlyCore(){
   const wrap = document.getElementById("salesMonthlyWrap");
   const meta = document.getElementById("salesMonthlyMeta");
   if(!wrap) return;
@@ -5239,6 +5317,15 @@ function renderSalesMonthly(){
     A += `<tr><td>${s}</td>${months.map(m=>{const v=storeMonth[m][s]||0;return `<td><span class="num">${v?Math.round(v).toLocaleString():''}</span>${v?cellDeltas(m,v,(mm)=>storeMonth[mm][s]||0,s):''}</td>`;}).join("")}<td class="total-col kk-acc" data-tip="${escHtml(kkAccTip(s, mm=>storeMonth[mm][s]||0))}"><span class="num">${Math.round(storeGrand(s)).toLocaleString()}</span></td></tr>`;
   });
   A += `</tbody><tfoot><tr><td>합계</td>${months.map(m=>{const v=monthGrand(m);return `<td><span class="num">${Math.round(v).toLocaleString()}</span>${cellDeltas(m,v,(mm)=>monthGrand(mm))}</td>`;}).join("")}<td class="total-col kk-acc" data-tip="${escHtml(kkAccTip("합계("+(selectedMonthlyStore==="__all__"?"전체 매장":selectedMonthlyStore)+")", mm=>monthGrand(mm)))}"><span class="num">${Math.round(months.reduce((a,m)=>a+monthGrand(m),0)).toLocaleString()}</span></td></tr></tfoot></table>`;
+  // build 289: 킹고프리(온라인) 줄 — 매장 매출에 이미 들어 있으므로 위 합계에 다시 더하지 않고 따로 보여 준다(전체 매출일 때만)
+  if(!monthlyCatOn()){
+    const kgv = m=>{ const k = kgMonthSummary(m); return selectedMonthlyStore==="__all__" ? k.total : ((k.byStore[selectedMonthlyStore]||[0])[0]); };
+    const kgn = m=>{ const k = kgMonthSummary(m); return selectedMonthlyStore==="__all__" ? k.n : ((k.byStore[selectedMonthlyStore]||[0,0])[1]); };
+    const kvals = months.map(kgv);
+    if(kvals.some(v=>v)){
+      A += `<table class="kg-mon-tbl" style="margin-top:6px;"><tbody><tr class="kg-row" style="color:var(--muted2);"><td data-tip="${escHtml("킹고프리 온라인 주문(회원명 KINGGOFREE) — 다음 날 00:01에 매장마다 한 장씩 등록.\n각 매장 매출에 이미 들어 있으므로 위 합계에 다시 더하지 않습니다.\n자세한 매장별 금액은 아래 '킹고프리 매출 종합' 카드.")}">킹고프리(온라인)<br><span style="font-size:11.5px;">매장 매출에 포함 · 합계 제외</span></td>${months.map((m,i)=>`<td><span class="num">${kvals[i]?Math.round(kvals[i]).toLocaleString():""}</span>${kvals[i]?`<div class="mm-delta">${kgn(m)}건</div>`:""}</td>`).join("")}<td class="total-col"><span class="num">${Math.round(kvals.reduce((a,v)=>a+v,0)).toLocaleString()}</span></td></tr></tbody></table>`;
+    }
+  }
   // C: build 256 — 목표 대비 달성률 · 인센티브 구간 표는 목표매출 › 01 요약 한 곳으로 옮김(goalsIncentiveTableHtml).
   //   여기는 바로 가기 한 줄만.
   let C = `<div class="kk-moved" style="padding:12px 4px 2px;font-size:13px;color:var(--muted2);">목표 대비 달성률 · 인센티브 구간 → <a href="#" class="kk-jump" data-jump="goals:01">목표매출 › 01 요약에서 보기</a></div>`;
@@ -8532,7 +8619,7 @@ function parseStoreSalesWorkbook(wb){
   wb.SheetNames.forEach(sn=>{
     const aoa = sheetAoA(wb, sn);
     if(!aoa.length) return;
-    let hr=-1, colBill=-1, colStore=-1, colDate=-1, colCnt=-1, colPos=-1;
+    let hr=-1, colBill=-1, colStore=-1, colDate=-1, colCnt=-1, colPos=-1, colMember=-1, colMemo=-1, colQtyB=-1;   // build 289: 회원명 · 메모 · 상품수량(킹고프리)
     for(let r=0;r<Math.min(aoa.length,8);r++){
       const row = aoa[r]||[];
       const bill = row.findIndex(c=>/청구금액/.test(norm(c)));
@@ -8542,6 +8629,7 @@ function parseStoreSalesWorkbook(wb){
         colDate = row.findIndex(c=> /영업일자|판매일자|매출일자|일자/.test(norm(c)));
         colCnt = row.findIndex(c=> /전표건수|영수증건수|거래건수/.test(norm(c)));
         colPos = findSalesPosCol(row); if(colPos>=0) hasPos = true;   // build 262
+        colMember = row.findIndex(c=> norm(c)==="회원명"); colMemo = row.findIndex(c=> norm(c)==="메모"); colQtyB = row.findIndex(c=> norm(c)==="상품수량");   // build 289
         usedColLabel = bill>=0?String(row[bill]).trim():"G열(청구금액)"; break;
       }
     }
@@ -8556,7 +8644,7 @@ function parseStoreSalesWorkbook(wb){
       else { for(const c of row){ const cand = resolveSalesStoreName(c); if(STORES.includes(cand)){ store=cand; break; } } }
       if(colPos>=0 && store) store = salesPosStore(store, row[colPos], dstr);   // build 262: 김해점 POS3 → 동김해점
       const matched = store && STORES.includes(store);
-      if(dstr){ if(!byDate[dstr]) byDate[dstr]={byStore:{}, noStore:0, cnt:{}}; }
+      if(dstr){ if(!byDate[dstr]) byDate[dstr]={byStore:{}, noStore:0, cnt:{}}; if((colMember>=0 || colMemo>=0) && !byDate[dstr].kg) byDate[dstr].kg = {}; }   // build 289: 킹고프리 열이 있는 파일만 kg 기록
       const cntAdd = colCnt>=0 ? num(row[colCnt]) : (bill>0 ? 1 : 0);
       if(!matched){
         if(colStore<0){ noStoreTotal += bill; if(dstr) byDate[dstr].noStore += bill; }
@@ -8566,6 +8654,8 @@ function parseStoreSalesWorkbook(wb){
       byStore[store] = (byStore[store]||0) + bill; total += bill;
       cntByStore[store] = (cntByStore[store]||0) + cntAdd;
       if(dstr){ byDate[dstr].byStore[store] = (byDate[dstr].byStore[store]||0) + bill; byDate[dstr].cnt[store] = (byDate[dstr].cnt[store]||0) + cntAdd; }
+      // build 289: 킹고프리 온라인 주문 — 매장 매출에는 그대로 두고 따로 기록(카테고리 매출 맞추기 · 킹고프리 매출 종합)
+      if(dstr && byDate[dstr].kg && kgIsRow(colMember>=0 ? row[colMember] : null, colMemo>=0 ? row[colMemo] : null)){ const k = byDate[dstr].kg[store] || (byDate[dstr].kg[store] = [0,0,0]); k[0] += bill; k[1] += 1; k[2] += colQtyB>=0 ? num(row[colQtyB]) : 0; }
     }
   });
   return { byStore, total, noStoreTotal, byDate, cntByStore, unmatched: Array.from(unmatched), usedColLabel, hasPos };
@@ -8587,7 +8677,10 @@ function storeSalesPutSnap(snap, hasPos){
       Object.keys(bs).forEach(st=>{ if(baseSet.has(salesPosBase(st))){ delete bs[st]; delete cn[st]; } });
       baseSet.forEach(b=>{ delete sp[b]; delete sb[b]; });
       Object.assign(bs, snap.byStore); Object.assign(cn, snap.cnt||{}); Object.assign(sp, snap.split);
+      // build 289: 킹고프리 — 이 파일 매장만 바꾸고 다른 매장 kg(없으면 KG_SEED_B289)는 그대로
+      let kgM = null; { const ok0 = old.kg || KG_SEED_B289[snap.date]; if(ok0){ kgM = {}; Object.keys(ok0).forEach(st=>{ if(!baseSet.has(salesPosBase(st))) kgM[st] = ok0[st]; }); } if(snap.kg) kgM = Object.assign(kgM||{}, snap.kg); }
       snap = Object.assign({}, old, { byStore: bs, cnt: cn, split: sp, splitBase: sb, file: (old.file ? old.file + " + " : "") + snap.file });
+      if(kgM) snap.kg = kgM; else delete snap.kg;
       snap.total = Object.values(bs).reduce((a,v)=>a+(+v||0),0) + (snap.noStore||0);
       mode = "merge";
     } else {
@@ -8598,6 +8691,7 @@ function storeSalesPutSnap(snap, hasPos){
         [R.from, R.to].forEach(st=>{ if(old.byStore[st]!=null) snap.byStore[st] = old.byStore[st]; else delete snap.byStore[st]; if(old.cnt && old.cnt[st]!=null) snap.cnt[st] = old.cnt[st]; });
         snap.split[R.from] = "exact";
       });
+      if(!snap.kg && old.kg) snap.kg = old.kg;   // build 289: 회원명 · 메모 열이 없는 파일이면 예전 킹고프리 기록 유지
       mode = "replace";
     }
   }
@@ -8633,6 +8727,7 @@ async function handleStoreSalesFiles(files){
           const bd = parsed.byDate[dk];
           const t = Object.values(bd.byStore).reduce((a,v)=>a+v,0) + (bd.noStore||0);
           const snap = { date: dk, byStore: bd.byStore, cnt: bd.cnt||{}, total: t, noStore: bd.noStore||0, file: file.name };
+          if(bd.kg) snap.kg = bd.kg;   // build 289
           if(storeSalesPutSnap(snap, parsed.hasPos)==="merge") mergedDays++;   // build 262
         });
       } else {
@@ -8646,6 +8741,7 @@ async function handleStoreSalesFiles(files){
   }
   STORE_SALES_HISTORY.sort((a,b)=>a.date.localeCompare(b.date));
   const posFix = posSplitFix();   // build 262: 김해점 POS3 → 동김해점
+  try{ kgApplySales(); }catch(e){ console.warn("build 289 킹고프리", e); }
   unmatchedSalesStores = Array.from(new Set(unmatchedSalesStores));
   if(STORE_SALES_HISTORY.length) selectedSalesDate = STORE_SALES_HISTORY[STORE_SALES_HISTORY.length-1].date;
   saveState();
@@ -15261,8 +15357,8 @@ function handleSalesFile(file){
           const idx = SALES_HISTORY.findIndex(h=>h.date===date);
           const newTotal = dateAmount(result.byDate[date]);
           if(idx>=0){
-            const oldTotal = dateAmount(SALES_HISTORY[idx].byStoreCat);
-            const same = dateFingerprint(SALES_HISTORY[idx].byStoreCat) === dateFingerprint(result.byDate[date]);
+            const oldTotal = dateAmount(kgStrip(SALES_HISTORY[idx].byStoreCat));   // build 289: 킹고프리 칸은 빼고 비교
+            const same = dateFingerprint(kgStrip(SALES_HISTORY[idx].byStoreCat)) === dateFingerprint(result.byDate[date]);
             if(same) diff.unchanged.push({date, total:newTotal});
             else diff.changed.push({date, oldTotal, newTotal});
             SALES_HISTORY[idx] = Object.assign({ date, cv: result.cv, pos: result.hasPos ? 1 : 0, chk: (result.chk||{})[date] || null, byStoreCat: result.byDate[date], byStoreHour: (result.byDateHour||{})[date] || {} }, result.byDateStar ? { star: result.byDateStar[date] || {} } : (SALES_HISTORY[idx].star ? { star: SALES_HISTORY[idx].star } : {}));
@@ -15272,6 +15368,7 @@ function handleSalesFile(file){
           }
         });
         SALES_HISTORY.sort((a,b)=> a.date<b.date?-1:(a.date>b.date?1:0));
+        try{ kgApplySales(); }catch(e){ console.warn("build 289 킹고프리", e); }
         const posFix = posSplitFix();   // build 262: 매장별 매출(청구금액)의 김해점도 같은 날 POS3 실매출액으로 나눔
         if(result.byDateMix){ try{ mixPutDays(result.byDateMix, "upload"); }catch(e){ console.warn("mix", e); } }   // build 233
         const lastDate = dates[dates.length-1];
@@ -25544,7 +25641,7 @@ const IMPROVE_PROPOSALS = [
   { id:"P261105-02", date:"2026-11-05", area:"점검", title:"매출 두 자료 차이 알림에 '차이 큰 매장' 표시 (문구 바로잡기)",
     why:"알림이 '11/1 금액 차이 9,438,960원 — 빠진 날짜 파일을 올리면 자동으로 맞춰집니다'라고 하지만 11/1은 두 파일이 다 있음. 실제 차이는 매장별: 용인점 2,376만 vs 2,010만(−366만) · 이천점 −228만 · 인천점 −110만 · 수원점 −83만 · 안중점 −81만. 10/30(−852만)도 경안점 912만 vs 589만 등 같은 모양.",
     what:"두 자료가 그 날짜에 모두 있으면 문구를 '파일은 있음 — 매장별 차이: 용인점 −366만, 이천점 −228만 …(상위 3곳)'으로 바꾸고, 정말 한쪽 파일이 없을 때만 '빠진 날짜 파일을 올리면'을 보여 줌.",
-    risk:"낮음 — 알림 문구만 바뀜, 계산 변경 없음.", done:"" },
+    risk:"낮음 — 알림 문구만 바뀜, 계산 변경 없음.", done:"취소(build 289 — 원인은 킹고프리 온라인 주문, 카테고리 '킹고프리'로 더해 차이 0원)" },
 ];
 var IMPROVE_DECISIONS; if(!IMPROVE_DECISIONS || typeof IMPROVE_DECISIONS!=="object") IMPROVE_DECISIONS = {};
 var IMPROVE_REQUESTS; if(!Array.isArray(IMPROVE_REQUESTS)) IMPROVE_REQUESTS = [];
