@@ -1895,7 +1895,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 290 · 2026-11-05</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 291 · 2026-11-06</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -4067,6 +4067,7 @@ function posSplitFix(){
 function applyStateObject(s){
   try{
     if(!s || !Array.isArray(s.STORES) || !s.STORES.length) return null;
+    try{ unpackSalesCat(s); }catch(_){}   // build 291: 서버에서 받은 짧은 형식 [수량,금액] → {qty,amount}
     STORES = s.STORES;
     STOCK = s.STOCK || {};
     if(Array.isArray(s.CATEGORIES) && s.CATEGORIES.length) CATEGORIES = s.CATEGORIES;
@@ -4538,9 +4539,36 @@ function auditStoreData(out){
   if(!billBad.length && !P.hour.length && !P.mix.length && !P.star.length && !P.life.length && !nt.length)
     out.push({ id:`st-ok-${last}-${n}`, lv:"ok", area:"매장", msg:`매장 ${n}곳 · 최근 35일 — 청구금액 · 실매출액 · 시간대 · 상품 구성 · ★ 매장별로 일치 ✓`, tip:"매장마다 같은 날 매출이 자료 5종에서 서로 맞는지, 오픈 전/폐점 뒤 매출, 목표 없는 매장을 확인합니다." });
 }
+/* build 291: P261104-02 — 매장 매출이 마지막 2일 연속 두 자료(카테고리 실매출액 · 매장별 청구금액) 모두 0/없음이면 알림.
+   날짜 = 두 자료 중 하나라도 매출이 있는 날(전 매장 휴무일 STORE_CLOSED_DAYS 제외 — 파일이 통째로 없는 날은 '빠진 날짜' 알림이 따로 잡음).
+   대상 = 최근 7일(마지막 날짜 기준) 중 매출이 있던 매장. 폐점일 이후 · 오픈 전 매장 · 센터/가맹 등 매출 매장이 아닌 곳은 뺀다. */
+function auditStoreZero(out){
+  const day = {};
+  (SALES_HISTORY||[]).forEach(h=>{ if(!h || !h.date || !h.byStoreCat) return; const o = day[h.date] || (day[h.date] = {});
+    Object.keys(h.byStoreCat).forEach(st=>{ const a = Object.values(h.byStoreCat[st]||{}).reduce((x,v)=> x + (Array.isArray(v) ? +v[1]||0 : +(v&&v.amount)||0), 0); o[st] = Math.max(o[st]||0, a); }); });
+  (STORE_SALES_HISTORY||[]).forEach(h=>{ if(!h || !h.date || !h.byStore) return; const o = day[h.date] || (day[h.date] = {});
+    Object.keys(h.byStore).forEach(st=>{ o[st] = Math.max(o[st]||0, +h.byStore[st]||0); }); });
+  const ds = Object.keys(day).filter(d=> /^\d{4}-\d{2}-\d{2}$/.test(d) && !(typeof STORE_CLOSED_DAYS!=="undefined" && STORE_CLOSED_DAYS[d]) && Object.values(day[d]).some(v=> v>0)).sort();
+  if(ds.length < 3) return;
+  const L = ds[ds.length-1], f = parseYMD(L); f.setDate(f.getDate()-6); const from = fmtDate(f);
+  const win = ds.filter(d=> d>=from); if(win.length < 3) return;
+  const lastTwo = win.slice(-2), stores = new Set();
+  win.forEach(d=> Object.keys(day[d]).forEach(st=>{ if(day[d][st]>0) stores.add(st); }));
+  [...stores].sort().forEach(st=>{
+    if(AUDIT_NON_SALES_STORES.test(st)) return;
+    if(lastTwo.some(d=> (day[d][st]||0) > 0)) return;
+    let n = 0, li = -1; for(let i=ds.length-1; i>=0 && i>=ds.length-60; i--){ if((day[ds[i]][st]||0) > 0){ li = i; break; } n++; }
+    const firstZero = ds[ds.length-n], pf = storeProfile(st);
+    if(pf.close && pf.close < firstZero) return;   // 폐점 뒤
+    if(pf.open && pf.open > lastTwo[0]) return;     // 오픈 전
+    const ld = li>=0 ? ds[li] : null, la = ld ? day[ld][st] : 0, md = d=> `${+d.slice(5,7)}/${+d.slice(8)}`;
+    out.push({ id:`s-zero-${st}-${L}-${n}`, lv:"warn", area:"매장별 매출", msg:`${st} 매출 ${n}일 없음${ld ? ` (마지막 ${md(ld)} ${Math.round(la/10000).toLocaleString()}만원)` : ""}`,
+      tip:`${ds.slice(-n).map(md).join(", ")} — 카테고리별 매출(실매출액) · 매장별 매출(청구금액) 두 자료 모두 이 매장이 0/없음\n다른 매장은 매출이 있는 날입니다. 그날 파일에 이 매장이 빠졌는지, 휴무 · 폐점인지 확인하세요.\n폐점이면 매장 폐점일(STORE_PROFILE close)을 등록하면 이 알림이 사라집니다.` });
+  });
+}
 function siteAudit(){
   const out = [];
-  [auditSales, auditPosSplit, auditStoreData, auditCenter, auditShip, auditStock].forEach(f=>{ try{ f(out); }catch(e){ console.warn("검수 오류", f.name, e); out.push({ id:"x-"+f.name, lv:"warn", area:"검수", msg:`검수 중 오류(${f.name}): ${String(e && e.message || e)}` }); } });
+  [auditSales, auditPosSplit, auditStoreData, auditStoreZero, auditCenter, auditShip, auditStock].forEach(f=>{ try{ f(out); }catch(e){ console.warn("검수 오류", f.name, e); out.push({ id:"x-"+f.name, lv:"warn", area:"검수", msg:`검수 중 오류(${f.name}): ${String(e && e.message || e)}` }); } });
   return out;
 }
 function renderAuditBar(){
@@ -16273,6 +16301,33 @@ async function adoptCloudState(){
     location.reload();
   }catch(e){ alert("클라우드 데이터로 맞추지 못했습니다: " + (e && e.message || e)); }
 }
+/* build 291: P261104-03 — 서버(클라우드)로 보낼 때만 SALES_HISTORY.byStoreCat의 {qty,amount}를 [수량(소수 2자리), 금액(원)] 배열로 줄인다(약 −1.3MB).
+   화면 · 계산 · 이 브라우저 저장(IndexedDB · localStorage)은 그대로 객체 모양. 받을 때 applyStateObject가 unpackSalesCat으로 원래 모양으로 푼다(옛 형식도 그대로 읽음).
+   원본 객체는 건드리지 않고 복사본만 만든다. qty · amount 둘만 있는 숫자 칸만 줄이고 그 밖의 모양은 그대로 둔다. */
+function packSalesCatForCloud(st){
+  if(!st || !Array.isArray(st.SALES_HISTORY)) return st;
+  const o = Object.assign({}, st);
+  o.SALES_HISTORY = st.SALES_HISTORY.map(h=>{
+    if(!h || !h.byStoreCat || typeof h.byStoreCat!=="object") return h;
+    const b = {};
+    Object.keys(h.byStoreCat).forEach(s=>{ const sc = h.byStoreCat[s];
+      if(!sc || typeof sc!=="object"){ b[s] = sc; return; }
+      const t = b[s] = {};
+      Object.keys(sc).forEach(c=>{ const v = sc[c];
+        const ok = v && typeof v==="object" && !Array.isArray(v) && typeof v.qty==="number" && typeof v.amount==="number" && isFinite(v.qty) && isFinite(v.amount) && Object.keys(v).length===2;
+        t[c] = ok ? [Math.round(v.qty*100)/100, Math.round(v.amount)] : v; });
+    });
+    return Object.assign({}, h, { byStoreCat:b });
+  });
+  return o;
+}
+function unpackSalesCat(st){
+  if(!st || !Array.isArray(st.SALES_HISTORY)) return st;
+  st.SALES_HISTORY.forEach(h=>{ if(!h || !h.byStoreCat || typeof h.byStoreCat!=="object") return;
+    Object.values(h.byStoreCat).forEach(sc=>{ if(!sc || typeof sc!=="object") return;
+      Object.keys(sc).forEach(c=>{ const v = sc[c]; if(Array.isArray(v)) sc[c] = { qty:+v[0]||0, amount:+v[1]||0 }; }); }); });
+  return st;
+}
 function cloudPush(){
   if(!CLOUD_ON || !IS_ADMIN || !_cloudRef) return;
   clearTimeout(_cloudPushTimer);
@@ -16286,7 +16341,7 @@ function cloudPush(){
         if(why.length){ if(maybeAutoAdoptCloud("push")) return; showPushGuard(why); return; }
       }
       _pushOverride = false; hidePushGuard();
-      _cloudRef.set(JSON.stringify(st)).catch(()=>{});
+      _cloudRef.set(JSON.stringify(packSalesCatForCloud(st))).catch(()=>{});   // build 291: P261104-03 카테고리 매출 짧은 형식
     }catch(_){}
   }, 1500);
 }
@@ -25631,11 +25686,11 @@ const IMPROVE_PROPOSALS = [
   { id:"P261104-02", date:"2026-11-04", area:"점검", title:"매장 매출이 2일 연속 0이면 알림",
     why:"이번 평택점처럼 한 매장 매출이 빠져도 지금은 '파일 없음/일부 매장만' 경고가 날짜 단위라 잘 안 보임(11/2 · 11/3은 22개 매장이 있어 경고 없음). 8/20 · 8/25 매장별 매출 누락도 며칠 뒤에야 발견됨.",
     what:"최근 7일 중 매출이 있던 매장이 마지막 2일 연속 두 자료 모두 0/없음이면 맨 위 검수 알림에 '○○점 매출 n일 없음(마지막 ○/○ ○○만원)' 한 줄. 폐점(close)·휴무일(STORE_CLOSED_DAYS)·오픈 전 매장은 제외.",
-    risk:"낮음 — 알림 한 줄 추가만, 계산 변경 없음.", done:"" },
+    risk:"낮음 — 알림 한 줄 추가만, 계산 변경 없음.", done:"build 291" },
   { id:"P261104-03", date:"2026-11-04", area:"속도", title:"서버 저장 때만 카테고리 매출을 짧은 형식으로 (−1.3MB)",
     why:"서버 상태 4.71MB 중 SALES_HISTORY.byStoreCat이 2.95MB. 항목 81,964개가 모두 {\"qty\":..,\"amount\":..} 모양이라 이름이 반복됨. [수량,금액] 배열(수량 소수 2자리 · 금액 원 단위)로 저장하면 3.93MB → 2.59MB(−1.34MB, 전체의 28%), 반올림 차이는 하루 합계 최대 10원.",
     what:"화면 · 계산 코드(byStoreCat 131곳)는 그대로 두고, cloudPush로 보낼 때만 배열로 줄이고 받을 때 원래 모양으로 풀기. 옛 형식으로 저장된 자료도 그대로 읽음.",
-    risk:"중간 — 저장 형식 변경이라 구버전 화면(Ctrl+F5 안 한 PC)이 새 자료를 받으면 카테고리 매출이 비어 보일 수 있음 → 전 PC 새로고침 후 적용 필요. 금액 원 미만 버림.", done:"" },
+    risk:"중간 — 저장 형식 변경이라 구버전 화면(Ctrl+F5 안 한 PC)이 새 자료를 받으면 카테고리 매출이 비어 보일 수 있음 → 전 PC 새로고침 후 적용 필요. 금액 원 미만 버림.", done:"build 291" },
   { id:"P261105-01", date:"2026-11-05", area:"점검", title:"매장 하루 매출이 평소의 3배 넘거나 ⅓ 아래면 변동 알림",
     why:"지금 '새 변동'은 전체 매출(전주 같은 요일 −2%)만 봄. 11/4 대소점 796만원(111건)은 직전 7일 평균 126만원의 6.3배(XLB 수량 166 — 전날 13, 새상품 160만원)인데 전체가 −2%라 아무 알림 없음. 행사인지 · 다른 매장 매출이 섞였는지 확인할 길이 없음.",
     what:"마지막 날 매장별 매출(청구금액)을 직전 7일 평균과 비교해, 평균 100만원 이상 매장 중 3배 이상이거나 ⅓ 이하이면 '변동' 줄에 '대소점 796만(7일 평균 126만의 6.3배) — 많이 늘어난 카테고리: XLB · XLG' 한 줄. 폐점 · 휴무일 제외. 행사 달력에 그 매장 행사가 있으면 '(행사)' 표시.",
