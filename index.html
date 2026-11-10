@@ -1896,7 +1896,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 294 · 2026-11-10</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 295 · 2026-11-10</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -17636,7 +17636,7 @@ function fiRender(){
   ["XLS","XLG","XLD"].forEach(t=> h += fiRenderPlanTable(t, c.plan[t], true));
   h += fiRenderStockRef();
   h += `<div class="fi-sec-t">카카오톡 문구 <button class="act primary fi-mini" id="fiCopy">복사</button> <span id="fiCopyMsg" class="fi-mut"></span></div>
-    <textarea id="fiText" class="fi-text" readonly>${escHtml(fiPlanText(c.builds, c.plan))}</textarea>`;
+    <textarea id="fiText" class="fi-text" style="min-height:450px" readonly>${escHtml(fiPlanText(c.builds, c.plan))}</textarea>`;
   if(planEl) planEl.innerHTML = h; else wrap.innerHTML = h;
   fiRenderHistory();
 }
