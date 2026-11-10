@@ -1896,7 +1896,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 293 · 2026-11-10</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 294 · 2026-11-10</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -2200,6 +2200,8 @@
       <button class="gsub-tab" data-gsub="11" role="tab">04 매장 분석</button>
       <!-- build 287: 판매에 따른 전환율(공급액 대비 매출) — 04 매장 분석의 '카테고리별 공급액'과 따로, 승현 사이트 전환율 화면 배치 -->
       <button class="gsub-tab" data-gsub="12" role="tab">05 판매에 따른 전환율</button>
+      <!-- build 294: 06 통합 배차 대장 — 배차 앱(kingkong-dispatch)의 본사 통합 대장을 그대로 끼워 넣음(계산 · 자료는 배차 앱 한 곳, 여기선 보기만) -->
+      <button class="gsub-tab" data-gsub="13" role="tab">06 통합 배차 대장</button>
     </div>
 
     <div class="gsub-panel" id="gsub-01">
@@ -2351,6 +2353,16 @@
           <span class="meta" id="goals12Meta"></span>
         </div>
         <div id="goals12Wrap" style="padding:12px 18px 18px;"></div>
+      </div>
+    </div>
+    <!-- build 294: 06 통합 배차 대장 (배차 앱 ?embed=ledger — 본사 이름 + PIN 로그인, 한 번 들어가면 이 PC는 계속) -->
+    <div class="gsub-panel" id="gsub-13" hidden>
+      <div class="agg-card">
+        <div class="p-hd">
+          <span class="store-name">06 통합 배차 대장</span>
+          <span class="meta" data-tip="자료: 배차 앱(Supabase) 통합 대장 · 구글시트(킹콩_쿠팡배차내역 · 고객배송 · 경산2)는 매일 9시 · 17시 자동 반영 · 채널: 킹콩 내부물류 / 쿠팡 / 고객 직배송">쿠팡 · 킹콩 내부물류 · 고객 직배송 · 구글시트 9시 · 17시 반영 · <a href="/kingkong-dispatch/#ledger" target="_blank" rel="noopener">배차 앱 새 창 ↗</a></span>
+        </div>
+        <iframe id="kkDispatchFrame" title="통합 배차 대장" data-src="/kingkong-dispatch/?embed=ledger" loading="lazy" style="width:100%;height:calc(100vh - 170px);min-height:760px;border:0;border-radius:18px;background:#fff;display:block"></iframe>
       </div>
     </div>
   </section>
@@ -13440,7 +13452,7 @@ function convWire(){
 
 /* ---------------- 서브탭 전환 ---------------- */
 let goalsSubTab = "01";
-const GOALS_SUB_KEYS = ["01","04","10","11","12"];   // build 287: 12 = 05 판매에 따른 전환율   // build 270: 06(전 매장 진단)은 11(매장 분석, 매장 안 고르면 전 매장)으로 합침   // build 233: 05(전사 카테고리 벤치마크)는 04(02 카테고리 분석)에 합침   // build 150: 08(매장 진단)은 06(전 매장 진단)에 합침 // build 73: 07(월별 추이→06 안으로)·09(관리매장) 제외 // 02·03은 2026-09-23 삭제(아래 참고)
+const GOALS_SUB_KEYS = ["01","04","10","11","12","13"];   // build 294: 13 = 06 통합 배차 대장(배차 앱 끼워 넣기)   // build 287: 12 = 05 판매에 따른 전환율   // build 270: 06(전 매장 진단)은 11(매장 분석, 매장 안 고르면 전 매장)으로 합침   // build 233: 05(전사 카테고리 벤치마크)는 04(02 카테고리 분석)에 합침   // build 150: 08(매장 진단)은 06(전 매장 진단)에 합침 // build 73: 07(월별 추이→06 안으로)·09(관리매장) 제외 // 02·03은 2026-09-23 삭제(아래 참고)
 function selectGoalsSub(key){
   if(key==="06" || key==="08" || key==="07" || key==="09"){ key = "11"; try{ G11_SEL = { mode:G11_SEL.mode||"single", sel:[] }; g11Save(); }catch(_){} }   // build 270: 옛 전 매장 진단 → 매장 분석(전 매장)
   if(key==="05") key = "04";   // build 233: 옛 03 전사 카테고리 벤치마크 → 02 카테고리 분석
@@ -13455,6 +13467,7 @@ function selectGoalsSub(key){
   GOALS_SUB_KEYS.forEach(k=>{ const p = document.getElementById("gsub-"+k); if(p) p.hidden = (k!==key); });
   if(key==="11" && typeof g11Rerender==="function") g11Rerender();   // build 103: 06 매장 분석은 열 때 그린다
   if(key==="12") renderConv();   // build 287: 05 판매에 따른 전환율은 열 때 그린다
+  if(key==="13"){ const f = document.getElementById("kkDispatchFrame"); if(f && !f.getAttribute("src")) f.setAttribute("src", f.getAttribute("data-src")); }   // build 294: 열 때 한 번만 불러옴
   if(key==="10") aggRenderAll();   // build 185: 옛 재고/공급 탭 내용(추이 · PLT 종합 · 원본 표)
 }
 let _goalsSubWired = false;
