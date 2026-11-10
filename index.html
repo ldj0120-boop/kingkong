@@ -1896,7 +1896,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 295 · 2026-11-10</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 296 · 2026-11-10</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -11032,9 +11032,106 @@ function askStoreResolve(text){
   } });
   return { stores:[...new Set(picked)], ambig, fuzzy, usedWords };
 }
+/* build 293: 날짜 여러 개 · 26년 · 'N개월간' · 상품 이름 검색 */
+// "26년10월30일 31일 1일" · "10/30, 10/31, 11/1" · "2026-10-30 2026-10-31" · "30, 31, 1일" · "10월 30일~11월 1일"
+// → { dates:[…], range:true/false, rest:날짜 글을 지운 나머지 }. 앞 날짜보다 작은 '일'만 오면 다음 달로 넘김(30일 31일 1일 → 11/1).
+function askDateList(t, last){
+  const cy = +last.slice(0,4), cm = +last.slice(5,7);
+  let s = String(t);
+  s = s.replace(/((?:\d{1,2}\s*[,·、]\s*)+)(\d{1,2})\s*일/g, (all, head, tail)=> head.split(/[,·、]/).map(x=>x.trim()).filter(Boolean).map(x=> x+"일").join(" ") + " " + tail + "일");
+  const re = /(?:(\d{4}|\d{2})\s*[년.\-\/]\s*)?(?:(\d{1,2})\s*[월.\-\/]\s*)?(\d{1,2})\s*일?(?=[^\d]|$)/g;
+  const toks = []; let m;
+  const reMark = /(?:(20\d{2}|\d{2})\s*년\s*)?(?:(\d{1,2})\s*월\s*)?(\d{1,2})\s*일(?!\s*(?:간|동안|치|째|부터\s*\d+\s*일간))|(20\d{2})-(\d{1,2})-(\d{1,2})|(?<![\d.\/])(\d{1,2})\/(\d{1,2})(?![\d\/])/g;
+  while((m = reMark.exec(s))){
+    const before = s.slice(Math.max(0, m.index-4), m.index);
+    if(/최근\s*$|지난\s*$/.test(before)) continue;
+    if(m[4]) toks.push({ y:+m[4], mo:+m[5], d:+m[6], i:m.index, j:m.index+m[0].length });
+    else if(m[7]) toks.push({ y:null, mo:+m[7], d:+m[8], i:m.index, j:m.index+m[0].length });
+    else toks.push({ y: m[1] ? (+m[1] < 100 ? 2000 + +m[1] : +m[1]) : null, mo: m[2] ? +m[2] : null, d:+m[3], i:m.index, j:m.index+m[0].length });
+  }
+  if(!toks.length) return null;
+  const yMatch = s.match(/(20\d{2}|(?<!\d)\d{2})\s*년/); let y = yMatch ? (+yMatch[1] < 100 ? 2000 + +yMatch[1] : +yMatch[1]) : null, mo = null, prevD = null;
+  const out = []; let range = false;
+  const fd = (a,b,c)=> `${a}-${String(b).padStart(2,"0")}-${String(c).padStart(2,"0")}`;
+  const valid = (a,b,c)=>{ const x = new Date(a, b-1, c); return x.getFullYear()===a && x.getMonth()===b-1 && x.getDate()===c; };
+  toks.forEach((k, idx)=>{
+    if(k.y) y = k.y;
+    if(k.mo) mo = k.mo;
+    else if(mo==null) mo = (k.d > +last.slice(8,10)) ? (cm===1 ? 12 : cm-1) : cm;   // '30, 31, 1일'처럼 달이 없고 아직 안 온 날이면 지난달부터
+    else if(prevD!=null && k.d < prevD){ mo++; if(mo>12){ mo = 1; if(y) y++; } }   // 30일 31일 1일 → 다음 달 1일
+    const yy = y!=null ? y : (mo > cm ? cy-1 : cy);
+    if(!valid(yy, mo, k.d)) return;
+    const ds = fd(yy, mo, k.d);
+    const between = idx>0 ? s.slice(toks[idx-1].j, k.i) : "";
+    if(idx>0 && /~|부터|에서|－|–/.test(between) && out.length){ range = true; let x = out[out.length-1]; while(x < ds){ x = askAddDays(x, 1); if(x<=ds) out.push(x); } }
+    else out.push(ds);
+    prevD = k.d;
+  });
+  if(!out.length) return null;
+  let rest = s; for(let i=toks.length-1;i>=0;i--) rest = rest.slice(0, toks[i].i) + " " + rest.slice(toks[i].j);
+  rest = rest.replace(/(20\d{2}|(?<!\d)\d{2})\s*년/g, " ");
+  const dates = [...new Set(out)].sort();
+  return { dates, range, rest };
+}
+// ---- 상품 이름 (매출 구성 자료: 그날 상위 150개 상품 p · 매장별 상위 25개 sp)
+let _askProdIdx = { n:-1, names:[], tot:{} };
+function askProductIndex(){
+  const ds = Object.keys(SALES_MIX||{}); if(_askProdIdx.n === ds.length) return _askProdIdx;
+  const tot = {};
+  ds.forEach(d=>{ const M = SALES_MIX[d]; (M && M.p || []).forEach(x=>{ tot[x[0]] = (tot[x[0]]||0) + (+x[2]||0); });
+    if(M && M.sp) Object.values(M.sp).forEach(L=> (L||[]).forEach(x=>{ if(tot[x[0]]==null) tot[x[0]] = 0; tot[x[0]] += 0; })); });
+  _askProdIdx = { n: ds.length, names: Object.keys(tot).filter(Boolean), tot };
+  return _askProdIdx;
+}
+// 말 하나 → 상품 이름들(글자 포함 먼저, 없으면 오타 허용)
+function askLevT(a, b){   // 글자 순서가 바뀐 오타(파리 ↔ 라피)도 1글자 차이로
+  const m = a.length, n = b.length; const d = Array.from({length:m+1}, (_,i)=> { const r = new Array(n+1).fill(0); r[0] = i; return r; }); for(let j=0;j<=n;j++) d[0][j] = j;
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++){ const c = a[i-1]===b[j-1] ? 0 : 1; d[i][j] = Math.min(d[i-1][j]+1, d[i][j-1]+1, d[i-1][j-1]+c); if(i>1 && j>1 && a[i-1]===b[j-2] && a[i-2]===b[j-1]) d[i][j] = Math.min(d[i][j], d[i-2][j-2]+1); }
+  return d[m][n]; }
+function askJamo(str){   // 한글을 자모로 풀기(워시테파리 ↔ 워시테라피 = 자음 2개 차이)
+  const CH = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ", JU = "ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ", JO = ["","ㄱ","ㄲ","ㄳ","ㄴ","ㄵ","ㄶ","ㄷ","ㄹ","ㄺ","ㄻ","ㄼ","ㄽ","ㄾ","ㄿ","ㅀ","ㅁ","ㅂ","ㅄ","ㅅ","ㅆ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+  let o = ""; for(const c of String(str)){ const k = c.charCodeAt(0) - 0xAC00; if(k>=0 && k<11172){ o += CH[Math.floor(k/588)] + JU[Math.floor((k%588)/28)] + JO[k%28]; } else o += c; } return o; }
+function askProductFind(word){
+  const w = String(word||"").replace(/\s+/g,""); if(w.length < 2) return { names:[], fuzzy:false };
+  const I = askProductIndex(); const norm = n => n.replace(/\s+/g,"");
+  let hit = I.names.filter(n=> norm(n).includes(w));
+  let fuzzy = false;
+  if(!hit.length && w.length >= 3){
+    // 글자 단위 오타(순서 바뀜 포함) 또는 자모 단위로 20% 이내 차이
+    const wj = askJamo(w), tolC = w.length >= 6 ? 2 : 1, tolJ = Math.max(1, Math.floor(wj.length*0.2));
+    hit = I.names.filter(n=>{ const s = norm(n); for(let L = w.length-1; L <= w.length+1; L++){ for(let i=0;i+L<=s.length;i++){ const sub = s.slice(i, i+L); if(askLevT(w, sub) <= tolC || askLevT(wj, askJamo(sub)) <= tolJ) return true; } } return false; });
+    fuzzy = hit.length > 0;
+  }
+  hit.sort((a,b)=> (I.tot[b]||0) - (I.tot[a]||0));
+  return { names: hit.slice(0, 40), fuzzy };
+}
+function askProductRun(q, res){
+  const names = new Set(q.product.names), won = v => Math.round(v||0).toLocaleString();
+  const qty = q.metric==="count";
+  const keyOf = (d, nm, st)=> q.by==="day" ? d : q.by==="month" ? d.slice(0,7) : q.by==="wd" ? ASK_WD_NAME[new Date(d+"T00:00:00").getDay()]+"요일" : q.by==="cat" ? nm : q.by==="store" ? (st||"전 매장") : "합계";
+  const out = {}, add = (k, v, n)=>{ const o = out[k] || (out[k] = { v:0, n:0, days:new Set() }); o.v += v; o.n += n; };
+  let days = 0, hitDays = 0, noDetail = 0;
+  askDates(q).forEach(d=>{ const M = SALES_MIX && SALES_MIX[d]; if(!M) return; days++; let got = false;
+    if(q.stores){ if(!M.sp){ noDetail++; return; }
+      q.stores.forEach(st=> (M.sp[st]||[]).forEach(x=>{ if(!names.has(x[0])) return; got = true; add(keyOf(d, x[0], st), qty ? +x[3]||0 : +x[2]||0, +x[3]||0); })); }
+    else (M.p||[]).forEach(x=>{ if(!names.has(x[0])) return; got = true; add(keyOf(d, x[0], null), qty ? +x[3]||0 : +x[2]||0, +x[3]||0); });
+    if(got) hitDays++; });
+  res.unit = qty ? "건" : "원";
+  res.rows = Object.keys(out).map(k=>({ k, v: out[k].v, sub: qty ? "" : `수량 ${won(out[k].n)}개` }));
+  const t = res.rows.reduce((a,r)=>a+r.v,0); res.rows.forEach(r=> r.share = t>0 ? r.v/t*100 : null); res.total = t;
+  const per = q.dates ? q.dates.map(d=>d.slice(5)).join("·") : (q.from===q.to ? q.from : `${q.from}~${q.to}`);
+  const nm = [...names];
+  res.title = `${q.stores ? q.stores.join("·")+" · " : ""}🛒 ${q.product.q}${nm.length>1?` (${nm.length}개 상품)`:""} · ${per} · ${qty?"판매 수량":"매출"}`;
+  res.basis = [`상품 매출 = 카테고리별 매출 파일에서 날마다 저장한 상위 상품(전 매장: 그날 10만 원 이상 상위 150개${q.stores?" · 매장별: 5만 원 이상 상위 25개":""}) — 적게 팔린 날은 빠져 실제보다 작을 수 있음`, `자료 있는 날 ${days}일 중 이 상품이 잡힌 날 ${hitDays}일`];
+  if(noDetail) q.notes.push(`매장별 상품 자료가 아직 없는 날 ${noDetail}일 — 잠시 뒤 다시 찾으면 받아 옵니다`);
+  q.notes.push(`${q.product.fuzzy?`'${q.product.q}' 비슷한 이름으로 찾음: `:"찾은 상품: "}${nm.slice(0,5).join(" · ")}${nm.length>5?` 외 ${nm.length-5}개`:""}`);
+  res.jump = "goals:04"; res.productNames = nm;
+  return res;
+}
+
 function askPeriodFrom(t, last){
   // build 283: '2026년' · '작년' · 상반기/하반기 · N분기 · N월부터 · N월까지
-  const cy = +last.slice(0,4), cm = +last.slice(5,7); const yM = t.match(/(20\d{2})\s*년/); const yr = yM ? +yM[1] : (/작년|지난\s*해|전년(?!\s*대비)/.test(t) ? cy-1 : null);
+  const cy = +last.slice(0,4), cm = +last.slice(5,7); const yM = t.match(/(20\d{2}|(?<!\d)\d{2})\s*년/); const yr = yM ? (+yM[1] < 100 ? 2000 + +yM[1] : +yM[1]) : (/작년|지난\s*해|전년(?!\s*대비)/.test(t) ? cy-1 : null);
   const ymOf = m => `${yr!=null ? yr : (m > cm ? cy-1 : cy)}-${String(m).padStart(2,"0")}`; let r; const P = {};
   const fd = (a,b,c)=> `${a}-${String(b).padStart(2,"0")}-${String(c).padStart(2,"0")}`;
   if((r = t.match(/(20\d{2})[-.\/](\d{1,2})[-.\/](\d{1,2})\s*(?:~|-|부터)\s*(20\d{2})[-.\/](\d{1,2})[-.\/](\d{1,2})/))){ P.from = fd(r[1],r[2],r[3]); P.to = fd(r[4],r[5],r[6]); }
@@ -11055,7 +11152,7 @@ function askPeriodFrom(t, last){
   else if(/어제/.test(t)){ P.from = P.to = askAddDays(fmtDate(new Date()), -1); }
   else if(/이번\s*주/.test(t)){ const k = (new Date(last+"T00:00:00").getDay()+6)%7; P.from = askAddDays(last, -k); P.to = last; }
   else if(/지난\s*주|저번\s*주|전주/.test(t)){ const k = (new Date(last+"T00:00:00").getDay()+6)%7; P.to = askAddDays(last, -k-1); P.from = askAddDays(P.to, -6); }
-  else if((r = t.match(/최근\s*(\d+)\s*(일|주|개월|달)/))){ const n = +r[1]; P.to = last; if(r[2]==="일") P.from = askAddDays(last, -(n-1)); else if(r[2]==="주") P.from = askAddDays(last, -(n*7-1)); else P.from = fmtDate(new Date(+last.slice(0,4), +last.slice(5,7)-n, 1)); }
+  else if((r = t.match(/(?:최근|지난|요)\s*(\d+)\s*(일|주|개월|달)/) || (r0 => r0 ? [r0[0], r0[1], r0[2]] : null)(t.match(/(\d+)\s*(일|주|개월|달)\s*(?:간|동안|치)/)))){ const n = +r[1]; P.to = last; if(r[2]==="일") P.from = askAddDays(last, -(n-1)); else if(r[2]==="주") P.from = askAddDays(last, -(n*7-1)); else P.from = fmtDate(new Date(+last.slice(0,4), +last.slice(5,7)-n, 1)); }
   else if(/올해|누적|연간|금년/.test(t)){ P.from = `${cy}-01-01`; P.to = last; }
   return P.from ? P : null;
 }
@@ -11080,6 +11177,9 @@ function askParseSlots(text, prev){
   else if((r = t.match(/(하위|꼴찌|워스트)\s*(\d+)?/))){ S.top = +(r[2]||3); S.order = "asc"; }
   else if(/가장\s*(많|높|크|잘)|제일\s*(많|높|크|잘)|1등|1위/.test(t)){ S.top = 3; S.order = "desc"; }
   else if(/가장\s*(적|낮|작|못)|제일\s*(적|낮|작|못)/.test(t)){ S.top = 3; S.order = "asc"; }
+  // build 293: 날짜 여러 개("26년10월30일 31일 1일") · 날짜 범위 — 비교 · 기간 규칙보다 먼저, 쓴 날짜 글은 지움
+  const DL = askDateList(t, last);
+  if(DL && DL.dates.length){ S.from = DL.dates[0]; S.to = DL.dates[DL.dates.length-1]; if(DL.dates.length >= 2 && !DL.range) S.dates = DL.dates; t = DL.rest; }
   // 비교: 두 달 / 전월 대비
   const monthsSaid = [...t.matchAll(/(\d{1,2})\s*월(?!요)/g)].map(m=> +m[1]);
   if(!S.cmp && monthsSaid.length>=2 && /vs|대비|비교|와|과|하고|랑|이랑/i.test(t) && !/~|부터|-\s*\d/.test(t)){
@@ -11101,7 +11201,7 @@ function askParseSlots(text, prev){
   // 카테고리
   for(const [re, c] of ASK_CATS){ if(re.test(rest)){ S.cat = c; break; } }
   // 나눠 보기
-  if(/매장별|점포별/.test(t)) S.by = "store"; else if(/카테고리별|분류별|품목별|카테별/.test(t)) S.by = "cat"; else if(/시간대별|시간별/.test(t)) S.by = "hour";
+  if(/매장별|점포별/.test(t)) S.by = "store"; else if(/카테고리별|분류별|품목별|카테별|상품별|제품별/.test(t)) S.by = "cat"; else if(/시간대별|시간별/.test(t)) S.by = "hour";
   else if(/요일별/.test(t)) S.by = "wd"; else if(/일별|날짜별|일자별|하루별/.test(t)) S.by = "day"; else if(/월별|달별/.test(t)) S.by = "month";
   if(/추이|흐름|변화|트렌드|추세|동향|그래프|변동/.test(t)) S.trend = true;   // build 283
   // 오타 지표(한 글자 차이) — 지표를 못 찾았을 때만
@@ -11110,6 +11210,11 @@ function askParseSlots(text, prev){
       if(hit){ S.metric = ASK_METRIC_WORDS[hit]; notes.push(`'${w}' → ${hit}(으)로 봤습니다`); break; } } }
   // build 283: 배운 말 적용 + 못 알아들은 말 모으기(바로 뒤에 칩을 누르면 그 뜻으로 배움)
   const leftovers = askLeftovers(raw, R.usedWords);
+  // build 293: 모르는 말이 상품 이름이면 상품 검색(매출 구성 자료의 상위 상품)
+  const prodWords = new Set();
+  leftovers.forEach(w=>{ if(prodWords.size >= 2) return; const f = askProductFind(w); if(!f.names.length) return;
+    if(S.product){ const keep = S.product.names.filter(n=> f.names.includes(n)); if(keep.length){ S.product = { q: S.product.q+" "+w, names: keep, fuzzy: S.product.fuzzy || f.fuzzy }; prodWords.add(w); } return; }
+    S.product = { q:w, names:f.names, fuzzy:f.fuzzy }; prodWords.add(w); });
   Object.keys(ASK_LEARN).filter(w=> w && raw.includes(w)).sort((a,b)=> b.length-a.length).forEach(w=>{ const L = ASK_LEARN[w]; if(!L || !L.set) return; const ap = [];
     Object.keys(L.set).forEach(k=>{ if(S[k]==null){ S[k] = L.set[k]; ap.push(askLearnLabel(k, L.set[k])); } });
     if(ap.length){ notes.push(`🧠 배운 말 '${w}' → ${ap.join(" · ")}`); L.hit = (L.hit||0)+1; } });
@@ -11117,17 +11222,17 @@ function askParseSlots(text, prev){
   const said = Object.keys(S).filter(k=> S[k]!=null);
   const follow = !!(prev && (/^(그럼|그러면|그리고|이번엔|그건|그거|그럼요|또)/.test(raw) || (!S.metric && said.length && raw.length <= 16)));
   let slots = S;
-  if(follow){ slots = Object.assign({}, prev, S); if(S.stores && !S.allStores) delete slots.allStores; if(S.allStores) delete slots.stores; if(S.from && !S.cmp && !S.cmpPrev){ delete slots.cmp; delete slots.cmpPrev; }
+  if(follow){ slots = Object.assign({}, prev, S); if(S.stores && !S.allStores) delete slots.allStores; if(S.allStores) delete slots.stores; if(S.from && !S.cmp && !S.cmpPrev){ delete slots.cmp; delete slots.cmpPrev; } if(S.from && !S.dates) delete slots.dates;
     notes.unshift(`앞 질문에 이어서 봤습니다 (${askSlotsLabel(prev)})`); }
   // 아무것도 못 알아들음 → 되묻기
   if(!follow && !Object.keys(S).length && !ask.length) ask.push({ block:true, q:"무엇을 볼까요?", opts: ["sales","supplyAmt","plt","conv","achieve","waste","labor","stock"].map(k=>({ label:ASK_METRIC_LABEL[k], set:{ metric:k } })) });
-  return { slots, used, notes, ask, followUp:follow, leftovers: leftovers.filter(w=> !ASK_LEARN[w]) };
+  return { slots, used, notes, ask, followUp:follow, leftovers: leftovers.filter(w=> !ASK_LEARN[w] && !prodWords.has(w)) };
 }
 /* build 283: 🧠 배운 말 — 사이트가 못 알아들은 말을 쓰고 바로 뒤에 칩(지표 · 나눠 보기 · 매장 등)으로 고치면, 그 말을 그 뜻으로 기억했다가 다음부터 바로 적용.
    (진짜 딥러닝 모델이 아니라 '고친 것을 기억하는' 학습 — 이 브라우저(localStorage)에 바로 저장, 관리자 화면에선 서버 상태에도 저장해 뷰어와 공유) */
 var ASK_LEARN = (()=>{ try{ return JSON.parse(localStorage.getItem("kk_ask_learn_v1")||"{}") || {}; }catch(_){ return {}; } })();
 const ASK_LEARNABLE = ["metric","by","cat","stores","top","order","cmpPrev","wd","hours","allStores"];
-const ASK_KNOWN_RE = /이번|지난|저번|최근|올해|금년|누적|연간|오늘|어제|주말|평일|요일|분기|반기|작년|전년|부터|까지|이후|추이|흐름|변화|트렌드|추세|동향|그래프|변동|비교|대비|상위|하위|가장|제일|베스트|워스트|꼴찌|매주|매일|오전|오후|매장별|점포별|카테고리별|분류별|품목별|시간대별|시간별|요일별|일별|날짜별|일자별|월별|달별|전체|전사|모든|알려|보여|해줘|주세요|얼마/;
+const ASK_KNOWN_RE = /개월|주간|일간|동안|기간|날짜|이번|지난|저번|최근|올해|금년|누적|연간|오늘|어제|주말|평일|요일|분기|반기|작년|전년|부터|까지|이후|추이|흐름|변화|트렌드|추세|동향|그래프|변동|비교|대비|상위|하위|가장|제일|베스트|워스트|꼴찌|매주|매일|오전|오후|매장별|점포별|카테고리별|분류별|품목별|시간대별|시간별|요일별|일별|날짜별|일자별|월별|달별|전체|전사|모든|알려|보여|해줘|주세요|얼마/;
 function askStripParticle(w){ const m = w.match(/^(.{2,}?)(에서는|에서|으로|은|는|이|가|을|를|의|에|도|만|로|랑|과|와|좀|요)$/); return m ? m[1] : w; }
 function askKnownWord(w){
   if(ASK_STOP.has(w) || ASK_KNOWN_RE.test(w)) return true;
@@ -11173,16 +11278,16 @@ function askLearnListRender(){
     <div class="ask-teach"><span class="ask-rl">직접 가르치기</span><input id="askTeachWord" placeholder="말 (예: 흐름)" style="width:130px"><span>=</span><select id="askTeachSel">${opts.map(([lb,v])=>`<option value='${v}'>${lb}</option>`).join("")}</select><button type="button" class="ask-opt" data-ask-teach="1">배우기</button></div>`;
 }
 
-function askSlotsLabel(s){ if(!s) return ""; return [s.stores ? s.stores.join("·") : "전 매장", s.cat, s.from ? (s.from===s.to ? s.from : `${s.from}~${s.to}`) : null, s.wd ? s.wd.map(x=>ASK_WD_NAME[x]).join("·")+"요일" : null, s.hours ? `${s.hours[0]}~${s.hours[1]}시` : null, ASK_METRIC_LABEL[s.metric||"sales"], s.by ? ASK_BY_LABEL[s.by] : null].filter(Boolean).join(" · "); }
+function askSlotsLabel(s){ if(!s) return ""; return [s.stores ? s.stores.join("·") : "전 매장", s.product ? "🛒 "+s.product.q : null, s.cat, s.dates ? s.dates.map(d=>d.slice(5)).join("·") : null, s.from && !s.dates ? (s.from===s.to ? s.from : `${s.from}~${s.to}`) : null, s.wd ? s.wd.map(x=>ASK_WD_NAME[x]).join("·")+"요일" : null, s.hours ? `${s.hours[0]}~${s.hours[1]}시` : null, ASK_METRIC_LABEL[s.metric||"sales"], s.by ? ASK_BY_LABEL[s.by] : null].filter(Boolean).join(" · "); }
 // 칸 → 다시 읽을 수 있는 글(최근 검색 · 입력칸)
 function askSlotsText(s){ const metricWord = { sales:"매출", supplyAmt:"공급액", plt:"공급 PLT", conv:"전환율", target:"목표", achieve:"달성률", waste:"폐기비용", labor:"인건비", stock:"재고", count:"건수", avgTicket:"객단가" };
-  return [s.stores ? s.stores.join(" ") : (s.allStores ? "전 매장" : ""), s.cat||"", s.from ? (s.from===s.to ? s.from : `${s.from}~${s.to}`) : "", s.wd ? s.wd.map(x=>ASK_WD_NAME[x]+"요일").join(" ") : "", s.hours ? `${s.hours[0]}~${s.hours[1]}시` : "",
+  return [s.stores ? s.stores.join(" ") : (s.allStores ? "전 매장" : ""), s.cat||"", s.dates ? s.dates.join(" ") : (s.from ? (s.from===s.to ? s.from : `${s.from}~${s.to}`) : ""), s.product ? s.product.q : "", s.wd ? s.wd.map(x=>ASK_WD_NAME[x]+"요일").join(" ") : "", s.hours ? `${s.hours[0]}~${s.hours[1]}시` : "",
     metricWord[s.metric||"sales"], s.by && s.by!=="none" ? ASK_BY_LABEL[s.by] : "", s.top ? (s.order==="asc" ? `하위 ${s.top}` : `상위 ${s.top}`) : "", s.cmp ? `비교기간 ${s.cmp.from}~${s.cmp.to}` : (s.cmpPrev ? "전월 대비" : ""), s.trend && !s.by ? "추이" : ""].filter(Boolean).join(" ").replace(/\s+/g," ").trim(); }
 // 기본값 채우기 → 실행용 q (옛 askParse와 같은 모양)
 function askFinalize(slots){
   const s = Object.assign({}, slots||{}); const last = askLastDataDate();
   const q = { text: askSlotsText(s), metric: s.metric || "sales", metricGuessed: !s.metric, stores: s.stores && s.stores.length ? s.stores.slice() : null, allStores: !!s.allStores, cat: s.cat || null,
-    from: s.from || null, to: s.to || null, wd: s.wd || null, hours: s.hours || null, by: s.by || null, top: s.top || null, order: s.order || "desc", cmp: s.cmp || null, notes:[], used:[], periodGuessed:false };
+    from: s.from || null, to: s.to || null, wd: s.wd || null, hours: s.hours || null, by: s.by || null, top: s.top || null, order: s.order || "desc", cmp: s.cmp || null, notes:[], used:[], periodGuessed:false, dates: s.dates && s.dates.length ? s.dates.slice() : null, product: s.product || null };
   if(!q.from && s.trend && !["waste","labor","stock"].includes(q.metric)){ q.from = `${last.slice(0,4)}-01-01`; q.to = last; q.notes.push(`'추이'라 올해 전체(${q.from}~${q.to})로 봤습니다`); q.periodGuessed = true; }   // build 283
   if(!q.from){
     if(q.metric==="waste" || q.metric==="labor"){ const C = COST_LIVE && COST_LIVE[q.metric]; const ks = C ? Object.keys(C).sort() : []; const ym = ks.length ? ks[ks.length-1] : last.slice(0,7); q.from = `${ym}-01`; q.to = askMonthEnd(ym); q.notes.push(`기간을 안 적어 자료가 있는 가장 최근 달(${ym})로 봤습니다`); }
@@ -11198,6 +11303,8 @@ function askFinalize(slots){
     // 진행 중인 달을 지난달 전체와 비교하면 날 수가 달라짐 → 비교도 같은 날까지
     if(q.cmp && q.cmp.from.slice(8)==="01" && q.cmp.to===askMonthEnd(q.cmp.to.slice(0,7)) && q.from.slice(8)==="01" && q.from.slice(0,7)===q.to.slice(0,7)){
       const d = +q.to.slice(8), ce = q.cmp.to; const cto = `${q.cmp.from.slice(0,7)}-${String(d).padStart(2,"0")}`; q.cmp = { from:q.cmp.from, to: cto > ce ? ce : cto }; q.notes.push(`비교도 같은 기간(1~${d}일)`); } }
+  if(!q.by && q.dates && q.dates.length > 1) q.by = "day";   // build 293: 날짜를 여러 개 쓰면 날짜별
+  if(!q.by && q.product && q.from){ q.by = q.from===q.to ? "none" : askMonthsIn(q.from, q.to).length > 1 ? "month" : "day"; }   // 상품은 매장 구분이 없어 시간 순서로
   if(!q.by && s.trend && q.from){ q.by = askMonthsIn(q.from, q.to).length>1 ? "month" : "day"; }   // build 283: 추이 = 시간 순서
   if(!q.by){
     if(!q.stores || q.stores.length>1) q.by = "store";
@@ -11207,7 +11314,7 @@ function askFinalize(slots){
   }
   // 알아들은 조건 칩
   q.used = [ s.metric ? ASK_METRIC_LABEL[s.metric] : null, q.hours ? `${q.hours[0]}~${q.hours[1]}시` : null, q.wd ? q.wd.map(x=>ASK_WD_NAME[x]).join("·")+"요일" : null,
-    s.from ? (q.from===q.to ? q.from : `${q.from}~${q.to}`) : null, q.stores ? q.stores.join("·") : null, q.cat, s.by ? ASK_BY_LABEL[s.by] : null,
+    q.dates ? q.dates.join(" · ") : s.from ? (q.from===q.to ? q.from : `${q.from}~${q.to}`) : null, q.product ? `🛒 ${q.product.q}` : null, q.stores ? q.stores.join("·") : null, q.cat, s.by ? ASK_BY_LABEL[s.by] : null,
     q.top ? (q.order==="asc" ? `하위 ${q.top}` : `상위 ${q.top}`) : null, q.cmp ? `비교 ${q.cmp.from}~${q.cmp.to}` : null, s.trend && !s.by ? "추이" : null ].filter(Boolean);
   return q;
 }
@@ -11215,8 +11322,8 @@ function askFinalize(slots){
 function askParse(text){ const P = askParseSlots(text, null); const q = askFinalize(P.slots); q.notes.unshift(...P.notes); q.ask = P.ask; return q; }
 
 // ---- 자료 꺼내기
-function askDates(q){ const out = []; if(!q.from) return out; let d = q.from; let n = 0; while(d <= q.to && n < 800){ if(!q.wd || q.wd.includes(new Date(d+"T00:00:00").getDay())) out.push(d); d = askAddDays(d, 1); n++; } return out; }
-function askWholeMonths(q){ if(!q.from || q.wd || q.hours) return null; const ms = askMonthsIn(q.from, q.to); const last = askLastDataDate();
+function askDates(q){ const out = []; if(q.dates && q.dates.length) return q.dates.filter(d=> !q.wd || q.wd.includes(new Date(d+"T00:00:00").getDay())); if(!q.from) return out; let d = q.from; let n = 0; while(d <= q.to && n < 800){ if(!q.wd || q.wd.includes(new Date(d+"T00:00:00").getDay())) out.push(d); d = askAddDays(d, 1); n++; } return out; }
+function askWholeMonths(q){ if(!q.from || q.wd || q.hours || (q.dates && q.dates.length)) return null; const ms = askMonthsIn(q.from, q.to); const last = askLastDataDate();
   if(q.from !== `${ms[0]}-01`) return null; const endOk = q.to === askMonthEnd(ms[ms.length-1]) || (q.to >= last && last.slice(0,7) === ms[ms.length-1]); return endOk ? ms : null; }
 function askInStores(q, s){ return !q.stores || q.stores.includes(s) || storeGroupMembers(s).some(x=> q.stores.includes(x)); }
 // 매출: {key:{v, c}} — key = 매장 / 카테고리 / 날짜 / 월 / 시간 / 요일
@@ -11297,7 +11404,8 @@ function askCost(q, kind){
 function askRun(q){
   const won = v => Math.round(v||0).toLocaleString();
   const res = { q, unit:"원", rows:[], total:null, basis:[], notes:q.notes, jump:null, extraHead:null };
-  const per = q.from ? (q.from===q.to ? q.from : `${q.from}~${q.to}`) : "";
+  if(q.product) return askProductRun(q, res);   // build 293
+  const per = q.dates ? q.dates.map(d=>d.slice(5)).join("·") : q.from ? (q.from===q.to ? q.from : `${q.from}~${q.to}`) : "";
   const cond = [q.stores ? q.stores.join("·") : (q.allStores||q.by==="store" ? "전 매장" : "전 매장"), q.cat, q.wd ? q.wd.map(x=>ASK_WD_NAME[x]).join("·")+"요일" : null, q.hours ? `${q.hours[0]}~${q.hours[1]}시` : null].filter(Boolean).join(" · ");
   const toRows = (o, f)=> Object.keys(o).map(k=> Object.assign({ k }, f(o[k], k)));
   const sortRows = ()=>{ if(["day","month","hour"].includes(q.by)) res.rows.sort((a,b)=> a.k.localeCompare(b.k)); else if(q.by==="wd") res.rows.sort((a,b)=> "월화수목금토일".indexOf(a.k[0]) - "월화수목금토일".indexOf(b.k[0])); else res.rows.sort((a,b)=> (b.v||0)-(a.v||0)); };
@@ -11518,6 +11626,7 @@ async function askRender(text){
     if(ASK_SEM.state!=="ready"){ box.hidden = false; box.innerHTML = `<div class="ask-note ask-semload">${escHtml(askSemStatus() || "🔎 비슷한 말 찾는 중…")}</div>`; }
     try{ const r = await askSemApply(P); P.notes.push(...r.applied); ASK_STATE.sem = r; }catch(_){}
   }
+  if(P.slots.product && P.slots.stores){ try{ await mixFetchStoreDetail(askDates(askFinalize(P.slots))); }catch(_){} }   // build 293: 매장별 상품 자료 받기
   askShow(P.slots, P.notes, P.ask, t);
 }
 // build 284: 모르는 말이 있을 때 — 🔎 혹시 이 뜻? 칩 · 비슷한 말 켜기 · 🤖 AI로 해석
@@ -11571,6 +11680,10 @@ function askShow(slots, notes, asks, text){
   const last = askLastDataDate(), pm = askYm(new Date(+last.slice(0,4), +last.slice(5,7)-2, 1));
   const chip = (lb, set, on)=> `<button type="button" class="ask-opt${on?" on":""}" data-ask-set="${escHtml(JSON.stringify(set))}">${escHtml(lb)}</button>`;
   const refine = [];
+  if(res.productNames && res.productNames.length > 1){   // build 293: 상품 여러 개 → 하나 고르기 · 상품별
+    const nm = res.productNames;
+    refine.push(`<div class="ask-qbox"><div class="ask-q">🛒 어느 상품인가요? <span class="ask-sub">(지금은 ${nm.length}개 합계)</span></div><div class="ask-opts">${nm.slice(0,8).map(n=> chip(n.length>22 ? n.slice(0,22)+"…" : n, { product:{ q:n, names:[n], fuzzy:false } }, false)).join("")}${chip("상품별로 나눠 보기", { by:"cat" }, q.by==="cat")}</div></div>`);
+  }
   if(q.metricGuessed) refine.push(`<div class="ask-qbox"><div class="ask-q">매출로 봤습니다 — 다른 걸 보실 건가요?</div><div class="ask-opts">${["sales","supplyAmt","plt","conv","achieve","waste","labor","stock"].map(k=> chip(ASK_METRIC_LABEL[k], {metric:k}, q.metric===k)).join("")}</div></div>`);
   const per = [["이번 달", { from:`${last.slice(0,7)}-01`, to:last }], ["지난달", { from:`${pm}-01`, to:askMonthEnd(pm) }], ["최근 8주", { from:askAddDays(last,-55), to:last }], ["올해", { from:`${last.slice(0,4)}-01-01`, to:last }]];
   refine.push(`<div class="ask-refine"><span class="ask-rl">기간</span>${per.map(([lb,set])=> chip(lb, set, q.from===set.from && q.to===set.to)).join("")}
