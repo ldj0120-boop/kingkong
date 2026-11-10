@@ -1326,7 +1326,7 @@
   .imp-panel button:disabled, .imp-panel input:disabled, .imp-panel textarea:disabled{opacity:.4;cursor:not-allowed;}
   .imp-reqrow{font-size:14px;padding:5px 0;border-top:1px solid var(--line-soft);}
   /* ================= build 231: 쉬운 화면(메뉴 · 레이아웃) ================= */
-  :root{ --c-ls:#F5B211; --c-es:#0B7A3B; --c-fd:#D14343; --c-dw:#9A6A3A; --c-ev:#6B4BC4; }
+  :root{ --c-ls:#F5B211; --c-es:#0B7A3B; --c-fd:#D14343; --c-dw:#9A6A3A; --c-ev:#6B4BC4; --c-fr:#1F8FB0; }
   body{font-size:15px;}
   /* 헤더 한 줄 */
   header.top{padding:14px 20px;gap:16px;margin-bottom:14px;border-radius:16px;}
@@ -1411,13 +1411,14 @@
     display:inline-flex;align-items:center;gap:8px;background:var(--panel);color:var(--text);min-width:128px;justify-content:center;}
   .kk-dot{width:13px;height:13px;border-radius:50%;display:inline-block;}
   .kk-ty[data-gen="ls"] .kk-dot{background:var(--c-ls);} .kk-ty[data-gen="es"] .kk-dot{background:var(--c-es);}
-  .kk-ty[data-gen="fd"] .kk-dot{background:var(--c-fd);} .kk-ty[data-gen="dw"] .kk-dot{background:var(--c-dw);} .kk-ty[data-gen="ev"] .kk-dot{background:var(--c-ev);}
+  .kk-ty[data-gen="fd"] .kk-dot{background:var(--c-fd);} .kk-ty[data-gen="dw"] .kk-dot{background:var(--c-dw);} .kk-ty[data-gen="ev"] .kk-dot{background:var(--c-ev);} .kk-ty[data-gen="fr"] .kk-dot{background:var(--c-fr);}
   #view-fixed .kk-nav .act.kk-ty.primary{color:#141414;} #view-fixed .kk-nav .act.kk-ty.primary .kk-dot{background:#141414 !important;}
   #view-fixed .kk-nav .act.kk-ty[data-gen="ls"].primary{background:var(--c-ls);border-color:var(--c-ls);}
   #view-fixed .kk-nav .act.kk-ty[data-gen="es"].primary{background:var(--c-es);border-color:var(--c-es);}
   #view-fixed .kk-nav .act.kk-ty[data-gen="fd"].primary{background:var(--c-fd);border-color:var(--c-fd);}
   #view-fixed .kk-nav .act.kk-ty[data-gen="dw"].primary{background:var(--c-dw);border-color:var(--c-dw);}
   #view-fixed .kk-nav .act.kk-ty[data-gen="ev"].primary{background:var(--c-ev);border-color:var(--c-ev);}
+  #view-fixed .kk-nav .act.kk-ty[data-gen="fr"].primary{background:var(--c-fr);border-color:var(--c-fr);}
   #view-fixed .kk-nav .kk-alldl{font-family:inherit;text-transform:none;letter-spacing:0;font-size:15px;font-weight:800;padding:9px 16px;border-radius:10px;background:var(--info);border-color:var(--info);color:#fff;}
   #view-fixed .kk-nav .kk-reset{font-family:inherit;text-transform:none;font-size:14.5px;padding:7px 12px;border-color:rgba(239,111,111,.6);color:var(--red);background:transparent;}
   #view-fixed .kk-nav a.kk-st{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:10px;padding:8px 12px;border:2px solid var(--line);border-radius:12px;background:var(--panel);position:relative;}
@@ -1443,7 +1444,7 @@
   #view-fixed > .agg-card > .p-hd .store-name{font-size:23px;font-weight:800;}
   #view-fixed > .agg-card.kk-gen{border-width:2px;}
   #view-fixed[data-kkgen="ls"] > .kk-gen{border-color:var(--c-ls);} #view-fixed[data-kkgen="es"] > .kk-gen{border-color:var(--c-es);}
-  #view-fixed[data-kkgen="fd"] > .kk-gen{border-color:var(--c-fd);} #view-fixed[data-kkgen="dw"] > .kk-gen{border-color:var(--c-dw);} #view-fixed[data-kkgen="ev"] > .kk-gen{border-color:var(--c-ev);}
+  #view-fixed[data-kkgen="fd"] > .kk-gen{border-color:var(--c-fd);} #view-fixed[data-kkgen="dw"] > .kk-gen{border-color:var(--c-dw);} #view-fixed[data-kkgen="ev"] > .kk-gen{border-color:var(--c-ev);} #view-fixed[data-kkgen="fr"] > .kk-gen{border-color:var(--c-fr);}
   .ev-ttl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px;font-size:15px;font-weight:700;} .ev-ttl input{font-size:16px;padding:7px 10px;border:2px solid var(--c-ev);border-radius:10px;min-width:260px;background:var(--panel);color:var(--text);}
   .ev-bad{margin-top:8px;padding:8px 12px;border-radius:10px;background:var(--red-dim,#fde8e8);color:var(--red);font-weight:700;}
   #view-fixed .fi-drop{padding:30px 18px;border-width:3px;border-radius:14px;}
@@ -1797,7 +1798,7 @@
   }
   #view-fixed > .agg-card.kk-gen{border:3px solid transparent !important;}
   #view-fixed[data-kkgen="ls"] > .kk-gen{border-color:var(--c-ls) !important;} #view-fixed[data-kkgen="es"] > .kk-gen{border-color:var(--c-es) !important;}
-  #view-fixed[data-kkgen="fd"] > .kk-gen{border-color:var(--c-fd) !important;} #view-fixed[data-kkgen="dw"] > .kk-gen{border-color:var(--c-dw) !important;} #view-fixed[data-kkgen="ev"] > .kk-gen{border-color:var(--c-ev) !important;}
+  #view-fixed[data-kkgen="fd"] > .kk-gen{border-color:var(--c-fd) !important;} #view-fixed[data-kkgen="dw"] > .kk-gen{border-color:var(--c-dw) !important;} #view-fixed[data-kkgen="ev"] > .kk-gen{border-color:var(--c-ev) !important;} #view-fixed[data-kkgen="fr"] > .kk-gen{border-color:var(--c-fr) !important;}
   /* build 238: 가독성 — 작은 숫자 진하게 · 표 머리 굵게 · 줄 간격 */
   body{line-height:1.5;}
   thead th{font-weight:700;color:var(--muted);}
@@ -1895,7 +1896,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 292 · 2026-11-10</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 293 · 2026-11-10</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -2360,7 +2361,7 @@
     <div class="kk-nav" id="kkNav">
       <div class="kk-row kk-row1">
         <span class="kk-q"><i>1</i>어떤 비딩?</span>
-        <button class="act kk-ty" data-gen="ls"><span class="kk-dot"></span>정기비딩</button><button class="act kk-ty" data-gen="es"><span class="kk-dot"></span>임박식품</button><button class="act kk-ty" data-gen="fd"><span class="kk-dot"></span>FC파손</button><button class="act kk-ty" data-gen="dw"><span class="kk-dot"></span>데드우드</button><button class="act kk-ty" data-gen="ev" title="고정 비딩이 아닌 이벤트성 경매(Orphan 리스트 등) — 원본 + 경매 제목으로 요약본"><span class="kk-dot"></span>이벤트 경매</button>
+        <button class="act kk-ty" data-gen="ls"><span class="kk-dot"></span>정기비딩</button><button class="act kk-ty" data-gen="es"><span class="kk-dot"></span>임박식품</button><button class="act kk-ty" data-gen="fd"><span class="kk-dot"></span>FC파손</button><button class="act kk-ty" data-gen="dw"><span class="kk-dot"></span>데드우드</button><button class="act kk-ty" data-gen="ev" title="고정 비딩이 아닌 이벤트성 경매(Orphan 리스트 등) — 원본 + 경매 제목으로 요약본"><span class="kk-dot"></span>이벤트 경매</button><button class="act kk-ty" data-gen="fr" title="쿠팡 신선 리퀴데이션 — 신선원본을 놓으면 쿠팡_신선 리퀴데이션 리스트_날짜_킹콩백화점.xlsx"><span class="kk-dot"></span>신선</button>
         <span class="kk-sep"></span>
         <button class="act primary kk-alldl" data-all-dl="1" style="font-weight:700" title="전체 출고요청서 다운로드 — ④ 배차요청 & 직출 분배표에 넣은 배차 요청 전부(고정인수 · 일반 리퀴 · 임박식품)를 출고일자별 시트로 한 파일에">⬇ 전체 출고요청서</button>
         <button class="act fi-mini fi-del kk-reset" data-reset="all" title="이 탭 전체 초기화 — ①~④에 올린 원본 · 입력칸 · 화면 결과를 모두 지웁니다 (각 기록은 그대로)">↺ 전체 초기화</button>
@@ -2457,6 +2458,23 @@
         <div id="evsResult"></div>
       </div>
     </div>
+<div class="agg-card kk-sub" id="frsBox">
+      <div class="p-hd">
+        <span class="store-name">신선 리퀴데이션 리스트</span>
+        <span class="meta">신선원본을 놓으면 → 쿠팡_신선 리퀴데이션 리스트_날짜_킹콩백화점.xlsx (Sheet2 피벗 · Sheet1 리스트 + 매장판매가)</span>
+        <button class="act fi-mini fi-del" data-reset="frs" style="margin-left:auto" title="올린 원본 · 화면 결과를 지웁니다">↺ 초기화</button>
+      </div>
+      <div class="fi-body">
+        <div id="frsDrop" class="fi-drop" role="button" tabindex="0">
+          <div class="fi-drop-t" title="쿠팡 신선원본(인수업체 · FC · … · 판매가(부가세x) · Date · 비고)을 끌어다 놓거나 클릭 — 여러 개 가능" data-cz-skip>신선원본 놓기 (.xlsx · 여러 개 가능)</div>
+          <div class="fi-drop-s">머리글 이름으로 읽습니다 · 인수업체 열은 빼고 매장판매가 = 판매단가 × 1.1(면세 N) · ×1(Y) · 비고 줄 먼저 → FC → 날짜 순 · 여러 날 원본이나 지난 완성본을 같이 놓으면 합칩니다(똑같은 줄은 한 번만)</div>
+          <div id="frsFileInfo" style="margin-top:8px;font-size:14px"></div>
+        </div>
+        <input type="file" id="frsInput" accept=".xlsx,.xlsm,.xlsb,.xls,.csv" multiple hidden>
+        <div id="frsStatus" class="fi-status"></div>
+        <div id="frsResult"></div>
+      </div>
+    </div>
       </div>
     </div>
     <div class="agg-card kk-gen" id="genBidBox">
@@ -2466,6 +2484,7 @@
       </div>
       <div class="fi-body">
 <div class="agg-card kk-sub" id="evBidBox"><div class="fi-body"><div class="fi-mut" style="font-size:15px">이벤트 경매는 ① 요약본까지 만듭니다. 낙찰 뒤 낙찰파일이 필요하면 같은 원본을 <b>FC파손</b> ② 낙찰파일 생성기에 넣으면 됩니다(RAW 양식이 같음 · 파일명은 FC파손 형식으로 나옴).</div></div></div>
+<div class="agg-card kk-sub" id="frBidBox"><div class="fi-body"><div class="fi-mut" style="font-size:15px">신선 리퀴데이션 리스트는 ① 한 단계로 끝납니다(낙찰파일 없음) — 위 ①에서 받은 파일을 그대로 쓰면 됩니다.</div></div></div>
 <div class="agg-card kk-sub" id="liqBox">
       <div class="p-hd">
         <span class="store-name">정기비딩(일반 리퀴데이션) 낙찰파일</span>
@@ -7482,7 +7501,7 @@ function selectTab(which){
   });
   if(which==="sales"){ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); try{ renderSalesDaily(); }catch(_){} }
   if(which==="goals"){ renderGoals(); try{ selectGoalsSub(goalsSubTab); }catch(_){} }
-  if(which==="fixed"){ try{ wireFixedIntake(); fiRender(); wireLiqSum(); wireLiquidation(); wireEsSum(); wireEosLiq(); wireKdDist(); wireFdSum(); wireFdBid(); wireEvSum(); wireDw(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } try{ wireToday(); tdRender(); }catch(e){ console.error(e); } }
+  if(which==="fixed"){ try{ wireFixedIntake(); fiRender(); wireLiqSum(); wireLiquidation(); wireEsSum(); wireEosLiq(); wireKdDist(); wireFdSum(); wireFdBid(); wireEvSum(); wireFrSum(); wireDw(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } try{ wireToday(); tdRender(); }catch(e){ console.error(e); } }
 }
 tabSales.onclick=()=>selectTab("sales");
 tabGoals.onclick=()=>selectTab("goals");
@@ -20505,6 +20524,7 @@ var _lsCur = null;
 async function lsHandleFile(f){
   var st=document.getElementById("lsStatus");
   if(!f) return;
+  if(frRouteIf(f)) return;   // build 293: 신선원본이면 신선 칸으로
   if(!/\.(xlsb|xlsx|xlsm|xls)$/i.test(f.name)){ st.innerHTML='<span style="color:var(--red)">원본 엑셀(.xlsb · .xlsx)을 올려 주세요 (AR_Bidding_Liquidation_… - 원본 / 바이나우원본)</span>'; return; }
   _lsCur=null; lsRender(); st.textContent="준비 중…";
   try{
@@ -21555,6 +21575,7 @@ async function esBuild(ff, D, srcName, prog){
 // ---- 화면
 async function esHandleFile(f){
   const st = document.getElementById("esStatus"); if(!f) return;
+  if(frRouteIf(f)) return;   // build 293
   if(!/\.(xlsx|xlsm|xls|csv)$/i.test(f.name)){ st.innerHTML = '<span style="color:var(--red)">임박식품 원본 엑셀(.xlsx · .xls · .csv)을 올려 주세요 (FC_EOS_Liquidation_… )</span>'; return; }
   _esFile = f; _esCur = null; esRender();
   const say = m=>{ st.textContent = m; };
@@ -22045,6 +22066,7 @@ let _fdsFile = null, _fdsCur = null, _fdFile = null, _fdData = null, _fdCur = nu
 function fdPersist(){ try{ localStorage.setItem(FD_LS, JSON.stringify(FD_HISTORY.slice(0,200))); }catch(_){} try{ cloudHistPush("fd"); }catch(_){} }
 async function fdsHandleFile(f){
   const st = document.getElementById("fdsStatus"); if(!f) return;
+  if(frRouteIf(f)) return;   // build 293
   if(!/\.(xlsx|xlsm|xlsb|xls)$/i.test(f.name)){ st.innerHTML = '<span style="color:var(--red)">FC파손 원본 엑셀(FC_Liquidation_… 원본.xlsx)을 올려 주세요</span>'; return; }
   _fdsFile = f; _fdsCur = null; fdsRender();
   const say = mm=>{ st.textContent = mm; };
@@ -22271,6 +22293,7 @@ async function evsBuild(){
 }
 async function evsHandleFile(f){
   const st = document.getElementById("evsStatus"); if(!f || !st) return;
+  if(frRouteIf(f)) return;   // build 293
   if(!/\.(xlsx|xlsm|xlsb|xls)$/i.test(f.name)){ st.innerHTML = '<span style="color:var(--red)">이벤트 경매 원본 엑셀(.xlsx · .xlsb)을 올려 주세요</span>'; return; }
   _evsFile = f; _evsData = null;
   const tEl = document.getElementById("evTitle"), src = document.getElementById("evTitleSrc");
@@ -22319,6 +22342,296 @@ function wireEvSum(){
     else if(t.id==="evsDel"){ _evsCur = null; _evsFile = null; _evsData = null; document.getElementById("evsStatus").textContent = ""; evsRender(); } });
   evsRender();
 }
+
+/* ================= build 293: 신선 리퀴데이션 리스트 (쿠팡_신선 리퀴데이션 리스트_YYYYMMDD_킹콩백화점.xlsx) =================
+   신선원본(인수업체 · FC · Groupnm … 판매단가(부가세x) · 판매가(부가세x) · Date · 비고)을 놓으면 이승현 작업본과 같은 양식으로 만든다.
+   · Sheet1: 1행 SUBTOTAL(Quantity · 판매단가 · 판매가 · 매장판매가 총액) · 2행 머리글 21열 · 필터 — 인수업체 열은 뺌
+     매장판매가 = 판매단가(부가세x) × (면세유무 N → 1.1 / Y → 1) · 매장판매가 총액 = 판매가(부가세x) × 같은 배율 (값으로)
+     정렬: 비고 있는 줄(판매불가_자체폐기 등) 먼저 → FC → Date → 원본 순서
+   · Sheet2: 피벗(행 Date > FC · 합계 : Quantity · 합계 : 판매가(부가세x)) — 마지막 날짜만 보이게(완성본과 같음), 다른 날짜는 필터에서 고르면 됨
+   · 여러 파일(여러 날 원본 · 지난 완성본)을 같이 놓으면 합침. 다른 파일에 똑같은 줄이 또 있으면 한 번만.
+   · 받기 전에 만든 파일을 다시 읽어 검산(행 수 · 수량 · 판매가 · 매장판매가 · 피벗 합계). */
+const FR_COLS = ["FC","Groupnm","Unit1","Unit2","Cate2","Cate3","Cate4","Cate5","Location","ExternalSkuId","Skuid","Barcode","Unit Description","Quantity","면세유무","판매단가(부가세x)","판매가(부가세x)","매장판매가","매장판매가 총액","Date","비고"];
+const FR_SRC = FR_COLS.filter(c=> c!=="매장판매가" && c!=="매장판매가 총액");   // 원본에서 읽는 19열
+let _frFiles = [], _frCur = null;
+function frNorm(s){ return String(s==null?"":s).replace(/[\s ]+/g,"").toLowerCase(); }
+function frNum(v){ if(typeof v==="number") return isFinite(v) ? v : null; const t = String(v==null?"":v).replace(/[,₩\s원]/g,""); if(!t) return null; const n = +t; return isNaN(n) ? null : n; }
+function frDateSerial(v){
+  if(v==null || v==="") return null;
+  if(typeof v==="number" && isFinite(v)) return Math.floor(v);   // 엑셀 날짜 일련번호
+  if(v instanceof Date && !isNaN(v)) return Math.round((Date.UTC(v.getFullYear(), v.getMonth(), v.getDate()) - Date.UTC(1899,11,30))/864e5);
+  const m = String(v).trim().match(/^(\d{4})\s*[-.\/년]\s*(\d{1,2})\s*[-.\/월]\s*(\d{1,2})/) || String(v).trim().match(/^(\d{4})(\d{2})(\d{2})$/);
+  return m ? Math.round((Date.UTC(+m[1], +m[2]-1, +m[3]) - Date.UTC(1899,11,30))/864e5) : null;
+}
+function frDateStr(n, sep){ if(n==null) return ""; const d = new Date(Date.UTC(1899,11,30) + n*864e5), s = sep==null ? "-" : sep;
+  return d.getUTCFullYear() + s + String(d.getUTCMonth()+1).padStart(2,"0") + s + String(d.getUTCDate()).padStart(2,"0"); }
+function frLooksFresh(f){ const n = String(f && f.name || ""); return /신선/.test(n) && !/임박|EOS|deadwood|데드우드|파손|orphan/i.test(n); }
+// 원본 파일 → { sheet, hi(머리글 행), A(행 배열), col{열이름:위치}, vendorCol, done(이미 완성본) }
+async function frReadFile(f){
+  const wb = XLSX.read(new Uint8Array(await f.arrayBuffer()), { type:"array", dense:true });
+  for(const sn of wb.SheetNames){
+    const ws = wb.Sheets[sn]; if(!ws || !ws["!ref"]) continue;
+    const rg = XLSX.utils.decode_range(ws["!ref"]); rg.s.r = 0; rg.s.c = 0;
+    const A = XLSX.utils.sheet_to_json(ws, { header:1, defval:null, raw:true, range:rg });
+    for(let hi=0; hi<Math.min(A.length, 15); hi++){
+      const H = Array.from(A[hi]||[], frNorm), col = {};
+      FR_COLS.forEach(c=>{ const i = H.indexOf(frNorm(c)); if(i>=0) col[c] = i; });
+      if(col.FC==null || col.Quantity==null || col.Date==null || (col["판매가(부가세x)"]==null && col["판매단가(부가세x)"]==null)) continue;
+      return { sheet:sn, hi, A, col, vendorCol:H.indexOf(frNorm("인수업체")), done: col["매장판매가"]!=null, miss: FR_SRC.filter(c=> col[c]==null) };
+    }
+  }
+  return null;
+}
+// 여러 파일 → 정리된 줄
+function frCollect(list){
+  const rows = [], seen = new Map(), I = { dup:0, skipped:0, mism:0, filled:0, taxOdd:0, noDate:0, vendors:new Set(), perFile:[] };
+  list.forEach((x, fi)=>{
+    const R = x.R, A = R.A, c = R.col; let n = 0;
+    for(let i=R.hi+1; i<A.length; i++){
+      const v = A[i] || [], g = k=> c[k]==null || v[c[k]]===undefined ? null : v[c[k]];
+      const fc = String(g("FC")==null ? "" : g("FC")).trim();
+      if(!fc){ if(v.some(z=> z!=null && z!=="")) I.skipped++; continue; }
+      const o = FR_SRC.map(k=> g(k));
+      o[0] = fc;
+      const q = frNum(o[13]), u = frNum(o[15]); let s = frNum(o[16]);
+      if(s==null && q!=null && u!=null){ s = q*u; I.filled++; }
+      if(s!=null && q!=null && u!=null && Math.abs(q*u - s) > 1) I.mism++;
+      o[13] = q; o[15] = u; o[16] = s;
+      const tax = String(o[14]==null ? "" : o[14]).trim().toUpperCase(); o[14] = tax || null;
+      if(tax!=="Y" && tax!=="N") I.taxOdd++;
+      o[17] = frDateSerial(o[17]); if(o[17]==null) I.noDate++;
+      if(o[18]!=null && String(o[18]).trim()==="") o[18] = null;
+      if(R.vendorCol>=0 && v[R.vendorCol]!=null) I.vendors.add(String(v[R.vendorCol]).trim());
+      const key = JSON.stringify(o.map(z=> typeof z==="number" ? Math.round(z*1e6)/1e6 : z)), had = seen.get(key);   // 소수점 끝자리(27609.99 · 27609.989999999998) 차이는 같은 줄로
+      if(had!=null && had!==fi){ I.dup++; continue; }
+      seen.set(key, fi);
+      const m = tax==="N" ? 1.1 : 1;
+      rows.push({ o, shop: u==null ? null : u*m, shopTot: s==null ? null : s*m, f:fi, i }); n++;
+    }
+    I.perFile.push(n);
+  });
+  rows.sort((a,b)=> (a.o[18]==null) - (b.o[18]==null) || (a.o[0]<b.o[0] ? -1 : a.o[0]>b.o[0] ? 1 : 0) || ((a.o[17]==null ? 1e9 : a.o[17]) - (b.o[17]==null ? 1e9 : b.o[17])) || a.f-b.f || a.i-b.i);
+  return { rows, I };
+}
+function frColL(i){ let s = ""; i++; while(i>0){ const m = (i-1)%26; s = String.fromCharCode(65+m) + s; i = Math.floor((i-1)/26); } return s; }
+// 엑셀 파일 만들기 (fflate) — 피벗은 캐시 · 레코드까지 모두 써서 엑셀이 열 때 새로 고치지 않아도 완성본과 같이 보임
+function frBuildXlsx(ff, C){
+  const X = s=> String(s).replace(/[&<>"]/g, c=> ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F￾￿]/g,"");
+  const sst = [], sIdx = new Map(); let sCnt = 0;
+  const si = t=>{ t = String(t); sCnt++; let k = sIdx.get(t); if(k===undefined){ k = sst.length; sst.push(t); sIdx.set(t, k); } return k; };
+  const cell = (ref, v, s)=>{ const sa = s ? ' s="'+s+'"' : "";
+    if(v==null || v==="") return sa ? '<c r="'+ref+'"'+sa+'/>' : "";
+    if(typeof v==="number") return isFinite(v) ? '<c r="'+ref+'"'+sa+'><v>'+v+'</v></c>' : (sa ? '<c r="'+ref+'"'+sa+'/>' : "");
+    if(typeof v==="object" && v.f) return '<c r="'+ref+'"'+sa+'><f>'+X(v.f)+'</f><v>'+v.v+'</v></c>';
+    return '<c r="'+ref+'"'+sa+' t="s"><v>'+si(v)+'</v></c>'; };
+  const rows = C.rows, N = rows.length, last = N + 2, NUMC = new Set([13,15,16,17,18]);
+  const vals = r=> [r.o[0],r.o[1],r.o[2],r.o[3],r.o[4],r.o[5],r.o[6],r.o[7],r.o[8],r.o[9],r.o[10],r.o[11],r.o[12],r.o[13],r.o[14],r.o[15],r.o[16],r.shop,r.shopTot,r.o[17],r.o[18]];
+  const sum = k=> rows.reduce((a,r)=> a + (+vals(r)[k]||0), 0);
+  // ---- Sheet1 (리스트)
+  const S1 = [];
+  S1.push('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><dimension ref="A1:U'+last+'"/><sheetViews><sheetView tabSelected="1" zoomScale="70" zoomScaleNormal="70" workbookViewId="0"><selection activeCell="A3" sqref="A3"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="17.399999999999999"/><cols><col min="1" max="1" width="9" customWidth="1"/><col min="9" max="9" width="16" customWidth="1"/><col min="13" max="13" width="48" customWidth="1"/><col min="16" max="19" width="15.59765625" customWidth="1"/><col min="20" max="20" width="14.09765625" customWidth="1"/><col min="21" max="21" width="16" customWidth="1"/></cols><sheetData>');
+  S1.push('<row r="1">' + [13,15,16,17,18].map(k=>{ const L = frColL(k)+"1"; return k===17 ? cell(L, null, 2) : cell(L, { f:"SUBTOTAL(9,"+frColL(k)+"3:"+frColL(k)+last+")", v:sum(k) }, 2); }).join("") + '</row>');
+  S1.push('<row r="2">' + FR_COLS.map((h,k)=> cell(frColL(k)+"2", h, k===13||k===15||k===16 ? 2 : k===17||k===18 ? 6 : k===19 ? 3 : 1)).join("") + '</row>');
+  for(let j=0; j<N; j++){ const v = vals(rows[j]), r = j+3; let h = '<row r="'+r+'">';
+    for(let k=0; k<21; k++) h += cell(frColL(k)+r, v[k], NUMC.has(k) ? 4 : k===19 ? 5 : 0);
+    S1.push(h + '</row>'); }
+  S1.push('</sheetData><autoFilter ref="A2:U'+last+'"/><pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/></worksheet>');
+  // ---- 피벗 캐시
+  const fcs = [...new Set(rows.map(r=> r.o[0]))].sort((a,b)=> a<b ? -1 : a>b ? 1 : 0), fcI = new Map(fcs.map((x,i)=> [x,i]));
+  const dts = [...new Set(rows.map(r=> r.o[17]).filter(x=> x!=null))].sort((a,b)=> a-b), dtI = new Map(dts.map((x,i)=> [x,i]));
+  const hasNoDate = rows.some(r=> r.o[17]==null), latest = dts.length ? dts[dts.length-1] : null;
+  const iso = n=> frDateStr(n) + "T00:00:00";
+  const fieldXml = k=>{
+    const name = ' name="'+X(FR_COLS[k])+'" numFmtId="'+(NUMC.has(k) ? 41 : k===19 ? 14 : 0)+'"';
+    if(k===0) return '<cacheField'+name+'><sharedItems count="'+fcs.length+'">'+fcs.map(x=> '<s v="'+X(x)+'"/>').join("")+'</sharedItems></cacheField>';
+    if(k===19) return '<cacheField'+name+'><sharedItems containsNonDate="0" containsDate="1" containsString="0"'+(hasNoDate ? ' containsBlank="1"' : ' containsSemiMixedTypes="0"')
+      +(dts.length ? ' minDate="'+iso(dts[0])+'" maxDate="'+iso(dts[dts.length-1]+1)+'"' : "")+' count="'+(dts.length+(hasNoDate?1:0))+'">'+dts.map(x=> '<d v="'+iso(x)+'"/>').join("")+(hasNoDate ? '<m/>' : "")+'</sharedItems></cacheField>';
+    let s = 0, n = 0, b = 0, int = true, mn = Infinity, mx = -Infinity;
+    rows.forEach(r=>{ const v = vals(r)[k]; if(v==null || v===""){ b = 1; return; } if(typeof v==="number"){ n = 1; if(!Number.isInteger(v)) int = false; if(v<mn) mn = v; if(v>mx) mx = v; } else s = 1; });
+    let a = "";
+    if(!s && !n) a = ' containsNonDate="0" containsString="0" containsBlank="1"';
+    else { if(!s && !b) a += ' containsSemiMixedTypes="0"'; if(!s) a += ' containsString="0"'; if(b) a += ' containsBlank="1"'; if(s && n) a += ' containsMixedTypes="1"';
+      if(n){ a += ' containsNumber="1"' + (int ? ' containsInteger="1"' : "") + ' minValue="'+mn+'" maxValue="'+mx+'"'; } }
+    return '<cacheField'+name+'><sharedItems'+a+'/></cacheField>';
+  };
+  const cacheDef = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotCacheDefinition xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="rId1" createdVersion="6" refreshedVersion="6" minRefreshableVersion="3" recordCount="'+N+'"><cacheSource type="worksheet"><worksheetSource ref="A2:U'+last+'" sheet="Sheet1"/></cacheSource><cacheFields count="21">'
+    + FR_COLS.map((_,k)=> fieldXml(k)).join("") + '</cacheFields></pivotCacheDefinition>';
+  const REC = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotCacheRecords xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" count="'+N+'">'];
+  rows.forEach(r=>{ const v = vals(r); let h = "<r>";
+    for(let k=0; k<21; k++){ const x = v[k];
+      if(k===0) h += '<x v="'+fcI.get(x)+'"/>';
+      else if(k===19) h += '<x v="'+(x==null ? dts.length : dtI.get(x))+'"/>';
+      else if(x==null || x==="") h += '<m/>';
+      else if(typeof x==="number") h += '<n v="'+x+'"/>';
+      else h += '<s v="'+X(x)+'"/>'; }
+    REC.push(h + "</r>"); });
+  REC.push("</pivotCacheRecords>");
+  // ---- 피벗 테이블 (마지막 날짜만 보이게) + 그 자리 값
+  const lat = rows.filter(r=> r.o[17]===latest), byFc = new Map();
+  lat.forEach(r=>{ const o = byFc.get(r.o[0]) || { q:0, s:0 }; o.q += r.o[13]||0; o.s += r.o[16]||0; byFc.set(r.o[0], o); });
+  const latFc = fcs.filter(x=> byFc.has(x)), tq = lat.reduce((a,r)=> a+(r.o[13]||0), 0), ts = lat.reduce((a,r)=> a+(r.o[16]||0), 0);
+  const pEnd = 3 + 1 + latFc.length + 1;
+  const dItems = dts.map((x,i)=> '<item'+(x===latest ? "" : ' h="1"')+' x="'+i+'"/>').join("") + (hasNoDate ? '<item h="1" x="'+dts.length+'"/>' : "");
+  const pf = FR_COLS.map((_,k)=>{
+    if(k===0) return '<pivotField axis="axisRow" showAll="0"><items count="'+(fcs.length+1)+'">'+fcs.map((_,i)=> '<item x="'+i+'"/>').join("")+'<item t="default"/></items></pivotField>';
+    if(k===19) return '<pivotField axis="axisRow" numFmtId="14" showAll="0"><items count="'+(dts.length+(hasNoDate?1:0)+1)+'">'+dItems+'<item t="default"/></items></pivotField>';
+    if(k===13 || k===16) return '<pivotField dataField="1" numFmtId="41" showAll="0"/>';
+    return '<pivotField showAll="0"'+(NUMC.has(k) ? ' numFmtId="41"' : "")+'/>'; }).join("");
+  const rItems = (latest==null ? "" : '<i><x v="'+dtI.get(latest)+'"/></i>' + latFc.map(x=> '<i r="1"><x v="'+fcI.get(x)+'"/></i>').join("")) + '<i t="grand"><x/></i>';
+  const pivot = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotTableDefinition xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" name="피벗 테이블1" cacheId="1" applyNumberFormats="0" applyBorderFormats="0" applyFontFormats="0" applyPatternFormats="0" applyAlignmentFormats="0" applyWidthHeightFormats="1" dataCaption="값" updatedVersion="6" minRefreshableVersion="3" useAutoFormatting="1" itemPrintTitles="1" createdVersion="6" indent="0" outline="1" outlineData="1" multipleFieldFilters="0">'
+    + '<location ref="A3:C'+pEnd+'" firstHeaderRow="0" firstDataRow="1" firstDataCol="1"/><pivotFields count="21">'+pf+'</pivotFields>'
+    + '<rowFields count="2"><field x="19"/><field x="0"/></rowFields><rowItems count="'+((latest==null?0:1+latFc.length)+1)+'">'+rItems+'</rowItems>'
+    + '<colFields count="1"><field x="-2"/></colFields><colItems count="2"><i><x/></i><i i="1"><x v="1"/></i></colItems>'
+    + '<dataFields count="2"><dataField name="합계 : Quantity" fld="13" baseField="0" baseItem="0" numFmtId="41"/><dataField name="합계 : 판매가(부가세x)" fld="16" baseField="0" baseItem="0" numFmtId="41"/></dataFields>'
+    + '<pivotTableStyleInfo name="PivotStyleLight16" showRowHeaders="1" showColHeaders="1" showRowStripes="0" showColStripes="0" showLastColumn="1"/>'
+    + '<extLst><ext uri="{962EF5D1-5CA2-4c93-8EF4-DBF5C05439D2}" xmlns:x14="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main"><x14:pivotTableDefinition hideValuesRow="1" xmlns:xm="http://schemas.microsoft.com/office/excel/2006/main"/></ext></extLst></pivotTableDefinition>';
+  const S2 = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><dimension ref="A3:C'+pEnd+'"/><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="17.399999999999999"/><cols><col min="1" max="1" width="14.5" customWidth="1"/><col min="2" max="2" width="16" customWidth="1"/><col min="3" max="3" width="24" customWidth="1"/></cols><sheetData>'];
+  S2.push('<row r="3">'+cell("A3","행 레이블")+cell("B3","합계 : Quantity")+cell("C3","합계 : 판매가(부가세x)")+'</row>');
+  if(latest!=null){ S2.push('<row r="4">'+cell("A4", latest, 7)+cell("B4", tq, 4)+cell("C4", ts, 4)+'</row>');
+    latFc.forEach((x,i)=>{ const r = 5+i, o = byFc.get(x); S2.push('<row r="'+r+'">'+cell("A"+r, x, 8)+cell("B"+r, o.q, 4)+cell("C"+r, o.s, 4)+'</row>'); }); }
+  S2.push('<row r="'+pEnd+'">'+cell("A"+pEnd,"총합계")+cell("B"+pEnd, tq, 4)+cell("C"+pEnd, ts, 4)+'</row></sheetData><pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/></worksheet>');
+  // ---- 스타일: 0 기본 · 1 머리글 굵게 · 2 굵게+#,##0 · 3 굵게+날짜 · 4 #,##0 · 5 날짜 · 6 굵게+#,##0+가운데 · 7 날짜(피벗 왼쪽) · 8 들여쓰기(피벗 FC)
+  const styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><color theme="1"/><name val="맑은 고딕"/><family val="3"/><charset val="129"/><scheme val="minor"/></font><font><b/><sz val="11"/><color theme="1"/><name val="맑은 고딕"/><family val="3"/><charset val="129"/><scheme val="minor"/></font></fonts>'
+    + '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"><alignment vertical="center"/></xf></cellStyleXfs>'
+    + '<cellXfs count="9"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"><alignment vertical="center"/></xf><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment vertical="center"/></xf><xf numFmtId="41" fontId="1" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"><alignment vertical="center"/></xf><xf numFmtId="14" fontId="1" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"><alignment vertical="center"/></xf>'
+    + '<xf numFmtId="41" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"><alignment vertical="center"/></xf><xf numFmtId="14" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"><alignment vertical="center"/></xf><xf numFmtId="41" fontId="1" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>'
+    + '<xf numFmtId="14" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" indent="1"/></xf></cellXfs>'
+    + '<cellStyles count="1"><cellStyle name="표준" xfId="0" builtinId="0"/></cellStyles><dxfs count="0"/><tableStyles count="0" defaultTableStyle="TableStyleMedium2" defaultPivotStyle="PivotStyleLight16"/></styleSheet>';
+  const sstXml = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="'+sCnt+'" uniqueCount="'+sst.length+'">'];
+  sst.forEach(t=> sstXml.push('<si><t'+(/^\s|\s$|\n/.test(t) ? ' xml:space="preserve"' : '')+'>'+X(t)+'</t></si>'));
+  sstXml.push('</sst>');
+  const R = (id, type, tgt)=> '<Relationship Id="'+id+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/'+type+'" Target="'+tgt+'"/>';
+  const RELS = body=> '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+body+'</Relationships>';
+  const OV = (p, t)=> '<Override PartName="'+p+'" ContentType="application/vnd.openxmlformats-officedocument.'+t+'"/>';
+  const files = {
+    "[Content_Types].xml": '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'
+      + OV("/xl/workbook.xml","spreadsheetml.sheet.main+xml") + OV("/xl/worksheets/sheet1.xml","spreadsheetml.worksheet+xml") + OV("/xl/worksheets/sheet2.xml","spreadsheetml.worksheet+xml")
+      + OV("/xl/styles.xml","spreadsheetml.styles+xml") + OV("/xl/sharedStrings.xml","spreadsheetml.sharedStrings+xml") + OV("/xl/pivotTables/pivotTable1.xml","spreadsheetml.pivotTable+xml")
+      + OV("/xl/pivotCache/pivotCacheDefinition1.xml","spreadsheetml.pivotCacheDefinition+xml") + OV("/xl/pivotCache/pivotCacheRecords1.xml","spreadsheetml.pivotCacheRecords+xml") + '</Types>',
+    "_rels/.rels": RELS('<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'),
+    "xl/workbook.xml": '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView activeTab="1"/></bookViews><sheets><sheet name="Sheet2" sheetId="2" r:id="rId1"/><sheet name="Sheet1" sheetId="1" r:id="rId2"/></sheets>'
+      + '<definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="1" hidden="1">Sheet1!$A$2:$U$'+last+'</definedName></definedNames><calcPr calcId="191029"/><pivotCaches><pivotCache cacheId="1" r:id="rId5"/></pivotCaches></workbook>',
+    "xl/_rels/workbook.xml.rels": RELS(R("rId1","worksheet","worksheets/sheet1.xml") + R("rId2","worksheet","worksheets/sheet2.xml") + R("rId3","styles","styles.xml") + R("rId4","sharedStrings","sharedStrings.xml") + R("rId5","pivotCacheDefinition","pivotCache/pivotCacheDefinition1.xml")),
+    "xl/worksheets/sheet1.xml": S2.join(""),
+    "xl/worksheets/_rels/sheet1.xml.rels": RELS(R("rId1","pivotTable","../pivotTables/pivotTable1.xml")),
+    "xl/worksheets/sheet2.xml": S1.join(""),
+    "xl/pivotTables/pivotTable1.xml": pivot,
+    "xl/pivotTables/_rels/pivotTable1.xml.rels": RELS(R("rId1","pivotCacheDefinition","../pivotCache/pivotCacheDefinition1.xml")),
+    "xl/pivotCache/pivotCacheDefinition1.xml": cacheDef,
+    "xl/pivotCache/_rels/pivotCacheDefinition1.xml.rels": RELS(R("rId1","pivotCacheRecords","pivotCacheRecords1.xml")),
+    "xl/pivotCache/pivotCacheRecords1.xml": REC.join(""),
+    "xl/styles.xml": styles,
+    "xl/sharedStrings.xml": sstXml.join("")
+  };
+  const z = {}; Object.keys(files).forEach(k=> z[k] = ff.strToU8(files[k]));
+  return { bytes: ff.zipSync(z, { level:6 }), latest, latFc, byFc, tq, ts, dts, fcs };
+}
+// 받을 파일 다시 읽어 검산
+function frAudit(C, out, ff){
+  const K = [], fmt = v=> Math.round(+v||0).toLocaleString(), I = C.I;
+  K.push({ lv:"ok", t:`원본 ${_frFiles.length}개 → ${fmt(C.rows.length)}행`, d: _frFiles.map((f,i)=> escHtml(f.name)+` (${fmt(I.perFile[i]||0)}행${f._R && f._R.done ? " · 완성본" : ""})`).join(" · ") });
+  const miss = [...new Set(_frFiles.flatMap(f=> f._R ? f._R.miss : []))];
+  if(miss.length) K.push({ lv:"warn", t:`원본에 없는 열: ${miss.join(", ")}`, d:"빈 칸으로 넣음" });
+  if(I.dup) K.push({ lv:"ok", t:`다른 파일과 똑같은 줄 ${fmt(I.dup)}개는 한 번만 넣음` });
+  if(I.skipped) K.push({ lv:"warn", t:`FC가 빈 줄 ${fmt(I.skipped)}개 뺌` });
+  if(I.filled) K.push({ lv:"warn", t:`판매가(부가세x) 빈 칸 ${fmt(I.filled)}개 → 수량 × 판매단가로 채움` });
+  if(I.mism) K.push({ lv:"warn", t:`수량 × 판매단가 ≠ 판매가 ${fmt(I.mism)}줄`, d:"원본 판매가 그대로 둠" });
+  if(I.taxOdd) K.push({ lv:"err", t:`면세유무가 Y/N이 아닌 줄 ${fmt(I.taxOdd)}개`, d:"매장판매가 배율 1로 계산 — 원본 확인" });
+  if(I.noDate) K.push({ lv:"err", t:`Date 빈 줄 ${fmt(I.noDate)}개`, d:"피벗에서 (비어 있음)으로 숨김" });
+  const vs = [...I.vendors]; if(vs.length) K.push({ lv: vs.every(v=> /킹콩/.test(v)) ? "ok" : "warn", t:`인수업체: ${vs.join(", ")} (열은 뺌)` });
+  const remark = C.rows.filter(r=> r.o[18]!=null).length; if(remark) K.push({ lv:"ok", t:`비고 있는 줄 ${fmt(remark)}개를 맨 위로` });
+  try{
+    const wb = XLSX.read(out.bytes, { type:"array" }), A = XLSX.utils.sheet_to_json(wb.Sheets.Sheet1, { header:1, raw:true, defval:null });
+    const H = A[1] || [], body = A.slice(2).filter(r=> r && r.some(v=> v!=null && v!==""));
+    const col = k=> body.reduce((a,r)=> a + (+r[k]||0), 0), near = (a,b)=> Math.abs(a-b) < 0.5;
+    const srcQ = C.rows.reduce((a,r)=> a+(r.o[13]||0), 0), srcS = C.rows.reduce((a,r)=> a+(r.o[16]||0), 0);
+    const shopOk = body.every(r=>{ const m = r[14]==="N" ? 1.1 : 1; return (r[15]==null || near(r[17], r[15]*m)) && (r[16]==null || near(r[18], r[16]*m)); });
+    K.push(FR_COLS.every((h,k)=> H[k]===h) ? { lv:"ok", t:"받을 파일 · Sheet1 머리글 21열이 완성본과 같음" } : { lv:"err", t:"받을 파일 · Sheet1 머리글이 다름" });
+    K.push(body.length===C.rows.length && near(col(13), srcQ) && near(col(16), srcS)
+      ? { lv:"ok", t:`받을 파일 다시 읽기 · ${fmt(body.length)}행 · 수량 ${fmt(srcQ)} · 판매가 ${fmt(srcS)} = 원본`, d:`매장판매가 총액 ${fmt(col(18))}` }
+      : { lv:"err", t:"받을 파일 다시 읽기 · 원본과 행 수 · 합계가 다름", d:`행 ${body.length}/${C.rows.length} · 수량 ${fmt(col(13))}/${fmt(srcQ)} · 판매가 ${fmt(col(16))}/${fmt(srcS)}` });
+    K.push(shopOk ? { lv:"ok", t:"매장판매가 = 판매단가 × 1.1(면세 N) · ×1(Y) 모든 줄 맞음" } : { lv:"err", t:"매장판매가 계산이 다른 줄 있음" });
+    const P = XLSX.utils.sheet_to_json(wb.Sheets.Sheet2, { header:1, raw:true, defval:null }), tot = (P.find(r=> r && r[0]==="총합계") || []);
+    K.push(near(tot[1], out.tq) && near(tot[2], out.ts) ? { lv:"ok", t:`Sheet2 피벗 · ${frDateStr(out.latest)} · FC ${out.latFc.length}곳 · 수량 ${fmt(out.tq)} · 판매가 ${fmt(out.ts)}`, d: out.dts.length>1 ? `다른 날짜 ${out.dts.length-1}개는 피벗 필터에서 숨김` : "" } : { lv:"err", t:"Sheet2 피벗 합계가 리스트와 다름" });
+    if(ff && ff.unzipSync){ const z = ff.unzipSync(out.bytes), rc = ff.strFromU8(z["xl/pivotCache/pivotCacheRecords1.xml"]), n = (rc.match(/<r>/g)||[]).length;
+      K.push(n===C.rows.length ? { lv:"ok", t:`피벗 원본 범위 Sheet1!A2:U${C.rows.length+2} · 레코드 ${fmt(n)}개` } : { lv:"err", t:`피벗 레코드 ${n} ≠ ${C.rows.length}` }); }
+  }catch(e){ K.push({ lv:"err", t:"받을 파일 다시 읽기 실패", d:escHtml(e && e.message || e) }); }
+  return K;
+}
+async function frHandleFiles(list){
+  const st = document.getElementById("frsStatus"); if(!st) return;
+  const add = Array.from(list||[]).filter(Boolean); if(!add.length) return;
+  const bad = add.filter(f=> !/\.(xlsx|xlsm|xlsb|xls|csv)$/i.test(f.name));
+  if(bad.length===add.length){ st.innerHTML = '<span style="color:var(--red)">신선원본 엑셀(.xlsx)을 올려 주세요</span>'; return; }
+  const say = m=>{ st.textContent = m; };
+  try{
+    say("원본 읽는 중…"); await liqTick();
+    for(const f of add){ if(bad.includes(f)) continue;
+      if(_frFiles.some(x=> x.name===f.name && x.size===f.size)) continue;   // 같은 파일 두 번
+      const R = await frReadFile(f);
+      if(!R){ st.innerHTML = `<span style="color:var(--red)">${escHtml(f.name)} — 신선원본 머리글(FC · Quantity · 판매가(부가세x) · Date)을 찾지 못했습니다</span>`; return; }
+      f._R = R; _frFiles.push(f); }
+    await frBuild();
+  }catch(e){ console.error(e); st.innerHTML = '<span style="color:var(--red)">생성 실패: '+escHtml(e && e.message || e)+'</span>'; }
+}
+async function frBuild(){
+  const st = document.getElementById("frsStatus"); _frCur = null;
+  if(!_frFiles.length){ frRender(); return; }
+  const t0 = Date.now();
+  st.textContent = "리스트 만드는 중…"; await liqTick();
+  const ff = await fiLoadScript(LIQ_FFLATE_URL, "fflate");
+  const C = frCollect(_frFiles.map(f=> ({ R:f._R })));
+  if(!C.rows.length) throw new Error("원본에 데이터 줄이 없습니다");
+  const out = frBuildXlsx(ff, C);
+  const name = `쿠팡_신선 리퀴데이션 리스트_${out.latest!=null ? frDateStr(out.latest, "") : "날짜없음"}_킹콩백화점.xlsx`;
+  st.textContent = "검수 — 받을 파일 다시 읽는 중…"; await liqTick();
+  const audit = frAudit(C, out, ff), nErr = audit.filter(c=> c.lv==="err").length, nWarn = audit.filter(c=> c.lv==="warn").length;
+  _frCur = { name, bytes:out.bytes, out, C, audit, nErr, nWarn, _uc: ucHtml("검수 (원본 + 받을 파일 다시 읽기)", audit), sec:((Date.now()-t0)/1000).toFixed(1) };
+  st.innerHTML = nErr ? `<span style="color:var(--red)">✖ 리스트는 만들었지만 확인할 것 ${nErr}건 — 아래 🔎 목록을 보고 받으세요</span>` : `✓ 신선 리퀴데이션 리스트 생성 · 검수 통과 (${_frCur.sec}초)${nWarn ? ` · ⚠ 참고 ${nWarn}건` : ""}`;
+  frRender();
+}
+function frsReset(){ _frFiles = []; _frCur = null; const st = document.getElementById("frsStatus"); if(st) st.textContent = ""; const i = document.getElementById("frsInput"); if(i) i.value = ""; frRender(); }
+function frRender(){
+  const fi = document.getElementById("frsFileInfo");
+  if(fi) fi.innerHTML = _frFiles.length ? `원본: ${_frFiles.map(f=> `<b>${escHtml(f.name)}</b>`).join(" · ")} <span class="fi-mut">— 다른 날 원본을 더 놓으면 합쳐서 다시 만듭니다</span> <button class="act fi-mini fi-del" id="frsFileDel" title="올린 원본 모두 빼기">✕ 원본 빼기</button>` : "";
+  try{ tdRender(); }catch(_){}
+  const el = document.getElementById("frsResult"); if(!el) return;
+  if(!_frCur){ el.innerHTML = ""; return; }
+  const r = _frCur, o = r.out, f = v=> Math.round(+v||0).toLocaleString();
+  const shopBy = new Map(); r.C.rows.filter(x=> x.o[17]===o.latest).forEach(x=>{ const a = shopBy.get(x.o[0]) || { n:0, t:0 }; a.n++; a.t += x.shopTot||0; shopBy.set(x.o[0], a); });
+  const tShop = [...shopBy.values()].reduce((a,x)=> a+x.t, 0), tN = [...shopBy.values()].reduce((a,x)=> a+x.n, 0);
+  const days = o.dts.map(d=>{ const rs = r.C.rows.filter(x=> x.o[17]===d); return `${frDateStr(d).slice(5)} ${f(rs.reduce((a,x)=> a+(x.o[16]||0), 0))}원`; });
+  el.innerHTML = `<div class="fi-file" style="margin-top:10px">
+    <div class="fi-file-hd"><span class="fi-type" style="border-color:var(--c-fr);color:var(--c-fr)">신선 리스트</span> <span class="fi-fname">${escHtml(r.name)}</span>
+      <button class="act primary fi-mini" id="frsDl">⬇ 다운로드</button> <button class="act fi-mini" id="frsCopy">파일명 복사</button> <button class="act fi-mini fi-del" id="frsDel" title="화면에서 결과 지우기">✕</button></div>
+    ${r.nErr ? `<div class="ev-bad">✖ 검수에서 확인할 것 ${r.nErr}건 — 아래 🔎 목록을 먼저 보세요</div>` : ""}
+    <div class="fi-mut" style="margin:4px 0 6px">${escHtml(frDateStr(o.latest))} 기준 (Sheet2 피벗과 같은 숫자)</div>
+    <table class="fi-tbl"><thead><tr><th>FC</th><th>센터</th><th class="n">행</th><th class="n">수량</th><th class="n">판매가(부가세x)</th><th class="n">매장판매가 총액</th></tr></thead><tbody>
+    ${o.latFc.map(x=>{ const b = o.byFc.get(x), s = shopBy.get(x); return `<tr><td><b>${escHtml(x)}</b></td><td>${escHtml(kkFcKo(x))}</td><td class="n">${f(s.n)}</td><td class="n" data-tip="${escHtml(`${frDateStr(o.latest)} · ${x} Quantity 합`)}">${f(b.q)}</td><td class="n" data-tip="${escHtml(`${frDateStr(o.latest)} · ${x} 판매가(부가세x) 합 = 수량 × 판매단가`)}">${f(b.s)}</td><td class="n" data-tip="판매가(부가세x) × 1.1(면세 N) · × 1(면세 Y)">${f(s.t)}</td></tr>`; }).join("")}
+    <tr style="font-weight:700"><td>합계</td><td>${o.latFc.length}곳</td><td class="n">${f(tN)}</td><td class="n">${f(o.tq)}</td><td class="n">${f(o.ts)}</td><td class="n">${f(tShop)}</td></tr></tbody></table>
+    <div class="fi-mut" style="margin-top:6px">시트: Sheet2(피벗 Date › FC · 합계 Quantity · 판매가 — ${o.dts.length>1 ? `마지막 날짜만 보임, 다른 날짜는 필터에서` : "날짜 1개"}) · Sheet1(${f(r.C.rows.length)}행 · 매장판매가 · 매장판매가 총액 추가 · 인수업체 열 뺌 · 비고 줄 먼저 → FC → 날짜 순)${o.dts.length>1 ? ` · 날짜별 판매가: ${escHtml(days.join(" · "))}` : ""}</div>
+    ${r._uc || ""}
+  </div>`;
+}
+function wireFrSum(){
+  const box = document.getElementById("frsBox"); if(!box || box._wired) return; box._wired = true;
+  const dz = document.getElementById("frsDrop"), inp = document.getElementById("frsInput");
+  dz.addEventListener("click", e=>{ if(e.target.closest("button")) return; inp.click(); });
+  dz.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); inp.click(); } });
+  inp.addEventListener("change", ()=>{ frHandleFiles(inp.files); inp.value = ""; });
+  ["dragenter","dragover"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("dragover"); }));
+  ["dragleave","drop"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove("dragover"); }));
+  dz.addEventListener("drop", e=> frHandleFiles(e.dataTransfer && e.dataTransfer.files));
+  box.addEventListener("click", e=>{ const t = e.target.closest("button"); if(!t) return;
+    const flash = (msg, back)=>{ t.textContent = msg; setTimeout(()=>{ t.textContent = back; }, 1500); };
+    if(t.id==="frsDl" && _frCur) fiDownloadBytes(_frCur.name, _frCur.bytes);
+    else if(t.id==="frsCopy" && _frCur){ fiCopyText(_frCur.name.replace(/\.xlsx$/,""), null); flash("복사됨 ✓","파일명 복사"); }
+    else if(t.id==="frsDel"){ _frCur = null; document.getElementById("frsStatus").textContent = ""; frRender(); }
+    else if(t.id==="frsFileDel"){ e.stopPropagation(); frsReset(); } });
+  frRender();
+}
+// 다른 요약본 칸에 신선원본을 놓아도 알아서 이 칸으로 (파일명에 '신선')
+function frRouteIf(f){ if(!f || !frLooksFresh(f)) return false; try{ genTab("fr"); }catch(_){} frHandleFiles([f]); return true; }
 
 function fdSetFile(f){
   if(!f) return;
@@ -22836,10 +23149,10 @@ function dwSetFile(f){
 }
 let _dwFile = null, _dwData = null, _dwSum = null, _dwCur = null, _dwsFile = null, _fdMode = "fd";
 // build 189: ① 요약본 · ② 낙찰파일 통합 카드의 종류 버튼(정기비딩 · 임박식품 · FC파손 · 데드우드) — 두 카드가 같이 바뀜
-const GEN_SHOW = { lsBox:"ls", liqBox:"ls", esBox:"es", eosBox:"es", fdsBox:"fd dw", fdBox:"fd dw", evsBox:"ev", evBidBox:"ev" };   // build 266: 이벤트 경매
+const GEN_SHOW = { lsBox:"ls", liqBox:"ls", esBox:"es", eosBox:"es", fdsBox:"fd dw", fdBox:"fd dw", evsBox:"ev", evBidBox:"ev", frsBox:"fr", frBidBox:"fr" };   // build 266: 이벤트 경매
 let _genTab = (()=>{ try{ return localStorage.getItem("gen_tab_v1") || "ls"; }catch(_){ return "ls"; } })();
 function genTab(k){
-  _genTab = ["ls","es","fd","dw","ev"].includes(k) ? k : "ls";
+  _genTab = ["ls","es","fd","dw","ev","fr"].includes(k) ? k : "ls";
   try{ localStorage.setItem("gen_tab_v1", _genTab); }catch(_){}
   Object.entries(GEN_SHOW).forEach(([id,ks])=>{ const e = document.getElementById(id); if(e) e.style.display = ks.split(" ").includes(_genTab) ? "" : "none"; });
   document.querySelectorAll("[data-gen]").forEach(b=> b.classList.toggle("primary", b.dataset.gen===_genTab));
@@ -25170,7 +25483,8 @@ function fiResetCard(k){
   if(k==="es"){ try{ _esFile = null; _esCur = null; }catch(_){} clr("esStatus"); val("esInput"); try{ esRender(); }catch(_){} }
   if(k==="eos"){ try{ _eosFile = null; _eosData = null; _eosCur = null; }catch(_){} val("eosLots"); val("eosDate"); clr("eosStatus"); val("eosInput"); try{ eosRender(); }catch(_){} }
   if(k==="fds"){ try{ _fdsFile = null; _fdsCur = null; }catch(_){} clr("fdsStatus"); val("fdsInput"); try{ fdsRender(); }catch(_){} try{ dwsReset(); }catch(_){} }   // build 170 · 188: 데드우드 요약본도
-  if(k==="evs"){ try{ evsReset(); }catch(_){} }   // build 266: 이벤트 경매 요약본
+  if(k==="evs"){ try{ evsReset(); }catch(_){} }
+  if(k==="frs"){ try{ frsReset(); }catch(_){} }   // build 293: 신선 리스트   // build 266: 이벤트 경매 요약본
   if(k==="fd"){ try{ _fdFile = null; _fdData = null; _fdCur = null; }catch(_){} val("fdLots"); val("fdDate"); clr("fdStatus"); val("fdInput"); try{ fdRender(); }catch(_){} try{ dwReset(); }catch(_){} }   // build 187: 데드우드 탭도
   if(k==="fi"){ try{ _fiCur = null; }catch(_){} clr("fiStatus"); val("fiInput"); try{ fiRender(); }catch(_){} }
   if(k==="disp" || k==="dispAll"){
@@ -25199,10 +25513,10 @@ document.addEventListener("click", e=>{
   const b = e.target.closest && e.target.closest("button[data-reset]"); if(!b) return;
   e.preventDefault(); e.stopPropagation();
   const k = b.dataset.reset;
-  const name = { ls:"① 요약본 생성기 · 정기비딩", liq:"② 낙찰파일 생성기 · 정기비딩", es:"① 요약본 생성기 · 임박식품", eos:"② 낙찰파일 생성기 · 임박식품", fds:"① 요약본 생성기 · FC파손/데드우드", evs:"① 요약본 생성기 · 이벤트 경매", fd:"② 낙찰파일 생성기 · FC파손/데드우드", kd:"③ 매장 분배표", fi:"② 낙찰파일 생성기 · 고정인수", disp:"④ 배차요청 & 직출 분배표" }[k];
+  const name = { ls:"① 요약본 생성기 · 정기비딩", liq:"② 낙찰파일 생성기 · 정기비딩", es:"① 요약본 생성기 · 임박식품", eos:"② 낙찰파일 생성기 · 임박식품", fds:"① 요약본 생성기 · FC파손/데드우드", evs:"① 요약본 생성기 · 이벤트 경매", frs:"① 신선 리퀴데이션 리스트", fd:"② 낙찰파일 생성기 · FC파손/데드우드", kd:"③ 매장 분배표", fi:"② 낙찰파일 생성기 · 고정인수", disp:"④ 배차요청 & 직출 분배표" }[k];
   if(k==="all"){
     if(!confirm("①~④에 올린 원본 파일 · 입력한 LOT · 화면 결과를 모두 지울까요?\n(낙찰파일 기록 · 분배 히스토리 · 배차 요청 기록은 그대로 남습니다)")) return;
-    ["ls","liq","es","eos","fds","fd","evs","kd","fi","disp"].forEach(fiResetCard); if(typeof flash==="function") flash("초기화 완료 ✓", "업로드 자료"); return;
+    ["ls","liq","es","eos","fds","fd","evs","frs","kd","fi","disp"].forEach(fiResetCard); if(typeof flash==="function") flash("초기화 완료 ✓", "업로드 자료"); return;
   }
   if(k==="dispAll"){
     const n = (FI_DISPATCH_HISTORY||[]).length;
@@ -25931,7 +26245,8 @@ function upFreshRender(info, late){
 // 단계 카드 상태: 고른 종류(정기 · 임박 · FC파손/데드우드) 기준. ③ 매장 분배는 기록이 없어 '필요할 때'
 function kkStepStatus(rows){
   const g = typeof _genTab!=="undefined" ? _genTab : "ls", by = {}; (rows||[]).forEach(r=> by[r.s.k] = r);
-  const key = { 1: g==="es" ? "es" : (g==="fd"||g==="dw") ? "fds" : g==="ev" ? "evs" : "ls", 2: g==="es" ? "eos" : (g==="fd"||g==="dw") ? "fd" : g==="ev" ? null : "liq", 4:"fi", 5:"disp" };
+  const key = { 1: g==="es" ? "es" : (g==="fd"||g==="dw") ? "fds" : g==="ev" ? "evs" : g==="fr" ? "frs" : "ls", 2: g==="es" ? "eos" : (g==="fd"||g==="dw") ? "fd" : (g==="ev"||g==="fr") ? null : "liq", 4:"fi", 5:"disp" };
+  if(g==="fr") by.frs = { s:{ k:"frs" }, n:0, done: typeof _frCur!=="undefined" && !!_frCur, skip:false };   // build 293: 신선 리스트
   if(g==="ev") by.evs = { s:{ k:"evs" }, n:0, done: typeof _evsCur!=="undefined" && !!_evsCur, skip:false };   // build 266: 이벤트 경매는 가끔 — 오늘 할 일 목록에는 넣지 않음
   document.querySelectorAll("#kkNav [data-st]").forEach(e=>{
     const n = +e.dataset.st, r = key[n] && by[key[n]], a = e.closest(".kk-st");
