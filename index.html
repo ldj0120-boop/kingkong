@@ -1896,7 +1896,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 296 · 2026-11-10</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 298 · 2026-11-11</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -3810,7 +3810,7 @@ function buildStateObject(){
       STORES, STOCK, CATEGORIES, CATEGORY_ORIGIN, SHIP, ACTUAL,
       HQ_ACTUAL, APPLIANCE_ACTUAL, CENTER_DIRECT_ACTUAL, FRESH_ACTUAL, CENTER_M, HQ_M, APPLIANCE_M, CENTER_DIRECT_M, DIRECT_MAIN_D, DIRECT_FILE_D, CENTER_D, HQ_D, APPLIANCE_D, DAY_SRC, UNMATCHED_WHERE, FRESH_M, FRESH_SUMMARY_M, LOTTE_M, shipScope, HQ_SUPPLY_HISTORY, APPLIANCE_SUPPLY_HISTORY, unmatchedHQStores, unmatchedApplianceStores,
       selected, SUPPLY_HISTORY, STOCK_HISTORY, unmatchedActualStores,
-      SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodBStart, periodBEnd, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, SPECIAL_DAYS, goalsScope, selectedSalesMonth, FIXED_INTAKE_HISTORY, FI_ELIG, FI_SETTINGS_SAVED, FI_DISPATCH_HISTORY, selectedMonthlyStore, IMPROVE_DECISIONS: (typeof IMPROVE_DECISIONS!=="undefined" && IMPROVE_DECISIONS) || {}, IMPROVE_REQUESTS: (typeof IMPROVE_REQUESTS!=="undefined" && IMPROVE_REQUESTS) || [], FI_DISP_DEL_IDS: fiDispDelList(), salesViewMode, EVENTS_COMMON, EVENTS_STORE, PLT_LIVE_META, PLT_DAILY, OPS_PLAN, COST_LIVE, SUPPLY_AMT, ASK_LEARN, PROCESSED_FILES, CENTER_STOCK: (typeof CENTER_STOCK!=="undefined" ? CENTER_STOCK : null),
+      SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodBStart, periodBEnd, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, SPECIAL_DAYS, goalsScope, selectedSalesMonth, FIXED_INTAKE_HISTORY, FI_ELIG, FI_SETTINGS_SAVED, FI_DISPATCH_HISTORY, selectedMonthlyStore, IMPROVE_DECISIONS: (typeof IMPROVE_DECISIONS!=="undefined" && IMPROVE_DECISIONS) || {}, IMPROVE_REQUESTS: (typeof IMPROVE_REQUESTS!=="undefined" && IMPROVE_REQUESTS) || [], FI_DISP_DEL_IDS: fiDispDelList(), salesViewMode, EVENTS_COMMON, EVENTS_STORE, PLT_LIVE_META, PLT_DAILY, OPS_PLAN, COST_LIVE, SUPPLY_AMT, ASK_LEARN, ASK_FAILLOG, PROCESSED_FILES, CENTER_STOCK: (typeof CENTER_STOCK!=="undefined" ? CENTER_STOCK : null),
       basedateIdx: (typeof basedateEl!=="undefined" && basedateEl.value!=="") ? +basedateEl.value : STOCK_HISTORY.length-1
   };
 }
@@ -4139,6 +4139,7 @@ function applyStateObject(s){
     if(s.OPS_PLAN && typeof s.OPS_PLAN==="object" && s.OPS_PLAN.months) OPS_PLAN = s.OPS_PLAN;   // build 280 승현 운영계획
     if(s.COST_LIVE && typeof s.COST_LIVE==="object" && s.COST_LIVE.labor) COST_LIVE = s.COST_LIVE;   // build 280 승현 인건비 · 폐기비용
     if(s.SUPPLY_AMT && typeof s.SUPPLY_AMT==="object" && s.SUPPLY_AMT.d) SUPPLY_AMT = s.SUPPLY_AMT;   // build 281 승현 공급액(전산작업)
+    if(Array.isArray(s.ASK_FAILLOG)){ try{ s.ASK_FAILLOG.forEach(e=>{ if(!e || !e.k) return; const cur = ASK_FAILLOG.find(x=> x.k===e.k); if(!cur) ASK_FAILLOG.push(e); else if((e.at||"") > (cur.at||"")) Object.assign(cur, e); }); ASK_FAILLOG.sort((a,b)=> (a.at||"").localeCompare(b.at||"")); if(ASK_FAILLOG.length > ASK_LOG_MAX) ASK_FAILLOG.splice(0, ASK_FAILLOG.length - ASK_LOG_MAX); }catch(_){} }   // build 297 못 알아들은 검색 기록
     if(s.ASK_LEARN && typeof s.ASK_LEARN==="object"){ try{ Object.keys(s.ASK_LEARN).forEach(w=>{ if(!ASK_LEARN[w] || (s.ASK_LEARN[w].at||"") > (ASK_LEARN[w].at||"")) ASK_LEARN[w] = s.ASK_LEARN[w]; }); }catch(_){} }   // build 283 배운 말
     SPECIAL_DAYS = (s.SPECIAL_DAYS && typeof s.SPECIAL_DAYS==="object") ? s.SPECIAL_DAYS : {};
     if(s.goalsScope && typeof s.goalsScope==="object") goalsScope = Object.assign({mode:"month",month:null,from:null,to:null}, s.goalsScope);
@@ -4419,6 +4420,8 @@ let _auditT = null, AUDIT_LAST = [];
 function scheduleAudit(){ clearTimeout(_auditT); _auditT = setTimeout(()=>{ try{ renderAuditBar(); }catch(e){ console.error("검수", e); } }, 250); }
 function auditSeen(){ try{ return JSON.parse(localStorage.getItem(AUDIT_SEEN_LS)||"{}")||{}; }catch(_){ return {}; } }
 const _aw = v=> Math.round(v||0).toLocaleString(), _ap = v=> (Math.round((v||0)*10)/10).toLocaleString();
+// build 297(P261109-01): 원본 대조 반올림 허용 = 매장×카테고리 칸 수 × 0.5원, 최소 5원
+function auditRawTol(h){ let n = 0; Object.values((h && h.byStoreCat) || {}).forEach(sc=>{ n += Object.keys(sc||{}).length; }); return Math.max(5, n*0.5); }
 function auditSales(out){
   const H = (SALES_HISTORY||[]).filter(h=> h && h.date && h.byStoreCat).slice().sort((a,b)=> a.date<b.date?-1:1);
   if(!H.length) return;
@@ -4426,10 +4429,16 @@ function auditSales(out){
   const recent = H.slice(-35);
   // ① 원본 합계 = 매장×카테고리 합 + 매장 목록 밖 + 분류 없음
   const kgT = h=> Object.values(h.byStoreCat).reduce((x,sc)=> x + kgAmtOf(sc), 0);   // build 289: 킹고프리 칸은 원본(상품별)에 없으므로 빼고 대조
-  recent.forEach(h=>{ if(!h.chk) return; const t = tot(h) - kgT(h), want = h.chk.raw - h.chk.unm - h.chk.nocat;
-    if(Math.abs(t - want) > 5) out.push({ id:"s-raw-"+h.date, lv:"err", area:"카테고리별 매출", msg:`${h.date} 카테고리로 나눈 합계가 원본과 ${_aw(t-want)}원 다릅니다`,
-      tip:`원본 실매출액 합 ${_aw(h.chk.raw)}원\n− 매장 목록 밖 ${_aw(h.chk.unm)}원 − 분류 없음 ${_aw(h.chk.nocat)}원 = ${_aw(want)}원\n카테고리별 합계 ${_aw(t)}원\n→ 같은 파일을 다시 올려 주세요. 계속 다르면 알려 주세요.` });
+  const rawRound = {}; let rawDays = 0, rawErr = 0;   // build 297: 반올림 차이(기준 안) 모음
+  recent.forEach(h=>{ if(!h.chk) return; const t = tot(h) - kgT(h), want = h.chk.raw - h.chk.unm - h.chk.nocat; rawDays++;
+    const d = Math.round(t - want), tol = auditRawTol(h);
+    if(Math.abs(t - want) <= tol && d !== 0) rawRound[h.date] = { d, tol };
+    if(Math.abs(t - want) > tol){ rawErr++; out.push({ id:"s-raw-"+h.date, lv:"err", area:"카테고리별 매출", msg:`${h.date} 카테고리로 나눈 합계가 원본과 ${_aw(t-want)}원 다릅니다`,
+      tip:`원본 실매출액 합 ${_aw(h.chk.raw)}원\n− 매장 목록 밖 ${_aw(h.chk.unm)}원 − 분류 없음 ${_aw(h.chk.nocat)}원 = ${_aw(want)}원\n카테고리별 합계 ${_aw(t)}원\n반올림 허용 차이(칸 수 × 0.5원, 최소 5원) ${_aw(tol)}원을 넘습니다\n→ 같은 파일을 다시 올려 주세요. 계속 다르면 알려 주세요.` }); }
     else if(h.chk.unm > 0) out.push({ id:"s-unm-"+h.date, lv:"warn", area:"카테고리별 매출", msg:`${h.date} 매장 목록에 없는 매장 매출 ${_aw(h.chk.unm)}원이 빠졌습니다`, tip:`원본 합계 ${_aw(h.chk.raw)}원 중 매장 이름이 목록과 맞지 않는 줄. 매장 이름 정리(STORE_ALIASES)가 필요합니다.` }); });
+  if(rawDays && !rawErr){ const rd = Object.keys(rawRound).sort(), lastD = recent[recent.length-1].date, mx = rd.reduce((a,k)=> Math.max(a, Math.abs(rawRound[k].d)), 0);   // build 297: 정상 줄
+    out.push({ id:"s-rawok-"+lastD+"-"+rd.length, lv:"ok", area:"카테고리별 매출", msg:`최근 ${rawDays}일 카테고리 합계 = 원본 합계${rd.length ? ` (반올림 차이 ${rd.length}일 · 최대 ${_aw(mx)}원)` : " ✓"}`,
+      tip:`원본 실매출액 합 − 매장 목록 밖 − 분류 없음 = 카테고리별 합계\n매장×카테고리 칸마다 원 단위 반올림 → 칸 수 × 0.5원(최소 5원)까지는 정상${rd.length ? "\n" + rd.slice(-12).map(k=>`${k} ${rawRound[k].d>0?"+":""}${rawRound[k].d}원 반올림 차이 (기준 ${_aw(rawRound[k].tol)}원)`).join("\n") : ""}` }); }
   // ② 카테고리별(실매출액) ↔ 매장별(청구금액) 같은 날짜 대조
   const ssh = {}; (STORE_SALES_HISTORY||[]).forEach(h=>{ if(h && h.date && h.byStore) ssh[h.date] = Object.values(h.byStore).reduce((a,v)=> a + (+v||0), 0); });
   const diffs = recent.filter(h=> ssh[h.date]>0).map(h=>({ d:h.date, c:tot(h), s:ssh[h.date] })).map(x=> Object.assign(x, { r: (x.c - x.s)/x.s }));
@@ -4453,7 +4462,7 @@ function auditSales(out){
   const lh = H[H.length-1], lt = tot(lh), pd = parseYMD(lh.date); pd.setDate(pd.getDate()-7); const pw = byD[fmtDate(pd)];
   const cats = {}; Object.values(lh.byStoreCat).forEach(sc=> Object.entries(sc).forEach(([c,v])=> cats[salesCatGroup(c)] = (cats[salesCatGroup(c)]||0) + (+v.amount||0)));
   out.push({ id:"s-new-"+lh.date+"-"+Math.round(lt), lv:"chg", area:"카테고리별 매출", msg:`${lh.date} 매출 반영 ${_aw(lt)}원${pw ? ` (전주 같은 요일 ${pw>lt?"−":"+"}${Math.abs(Math.round((lt/pw-1)*100))}%)` : ""}`,
-    tip:`카테고리별: ${Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([c,v])=>`${c} ${Math.round(v/10000).toLocaleString()}만`).join(" · ")}${lh.chk ? `\n원본 합계 ${_aw(lh.chk.raw)}원 = 카테고리 합 ${_aw(lt - kgT(lh))} + 목록 밖 ${_aw(lh.chk.unm)} + 분류 없음 ${_aw(lh.chk.nocat)} ✓${kgT(lh) ? `\n+ 킹고프리(온라인) ${_aw(kgT(lh))}원 — 매장별 매출현황에서 더함` : ""}` : ""}` });
+    tip:`카테고리별: ${Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([c,v])=>`${c} ${Math.round(v/10000).toLocaleString()}만`).join(" · ")}${lh.chk ? `\n원본 합계 ${_aw(lh.chk.raw)}원 = 카테고리 합 ${_aw(lt - kgT(lh))} + 목록 밖 ${_aw(lh.chk.unm)} + 분류 없음 ${_aw(lh.chk.nocat)} ✓${rawRound[lh.date] ? ` (${rawRound[lh.date].d>0?"+":""}${rawRound[lh.date].d}원 반올림 차이)` : ""}${kgT(lh) ? `\n+ 킹고프리(온라인) ${_aw(kgT(lh))}원 — 매장별 매출현황에서 더함` : ""}` : ""}` });
   // build 289: 킹고프리(온라인) — 상품별 매출현황에 없어 매장별 매출현황에서 '킹고프리' 카테고리로 더한 금액(마지막 달)
   { const m = lh.date.slice(0,7), k = kgMonthSummary(m);
     if(k.n) out.push({ id:"s-kg-"+m+"-"+Math.round(k.total), lv:"ok", area:"카테고리별 매출", msg:`킹고프리(온라인) ${+m.slice(5)}월 ${k.n}건 ${_aw(k.total)}원 — 카테고리 '킹고프리'로 더해 매장별 매출과 맞춤 ✓`,
@@ -4464,10 +4473,12 @@ function auditCenter(out){
   const sumBy = cs=>{ const o = {}; Object.values(cs||{}).forEach(m=> Object.entries(m||{}).forEach(([k,v])=> o[k] = (o[k]||0) + (+v||0))); return o; };
   const now = sumBy(C.centers), total = Object.values(now).reduce((a,v)=>a+v,0);
   // ① 엑셀 '합계' 열과 대조 — 엑셀 합계는 진천센터를 빼고 더함
-  if(C.xlTot){ const bad = [];
-    Object.keys(Object.assign({}, now, C.xlTot)).forEach(k=>{ let ours = 0; Object.entries(C.centers).forEach(([cn,m])=>{ if(!/진천/.test(cn)) ours += +((m||{})[k])||0; }); const xl = +C.xlTot[k]||0; if(Math.abs(ours - xl) > 0.5) bad.push(`${k}: 엑셀 합계 ${_ap(xl)} · 센터 칸 합(진천 제외) ${_ap(ours)}`); });
+  // build 297(P261109-02): 엑셀 합계가 '진천 제외' 또는 '진천 포함' 중 하나와 맞으면 정상
+  if(C.xlTot){ const bad = [], inc = [], exc = [];
+    Object.keys(Object.assign({}, now, C.xlTot)).forEach(k=>{ let ex = 0, all = 0; Object.entries(C.centers).forEach(([cn,m])=>{ const v = +((m||{})[k])||0; all += v; if(!/진천/.test(cn)) ex += v; }); const xl = +C.xlTot[k]||0;
+      if(Math.abs(ex - xl) <= 0.5) exc.push(k); else if(Math.abs(all - xl) <= 0.5) inc.push(k); else bad.push(`${k}: 엑셀 합계 ${_ap(xl)} · 센터 칸 합 진천 포함 ${_ap(all)} / 진천 제외 ${_ap(ex)}`); });
     out.push(bad.length ? { id:"c-xl-"+C.date, lv:"err", area:"센터 재고", msg:`${C.date} 센터 재고 — 엑셀 '합계' 열과 센터 칸 합이 ${bad.length}개 카테고리에서 다릅니다`, tip: bad.join("\n")+"\n→ 엑셀 요약 시트에 빠진 센터 열이 있거나 계산이 안 된 파일일 수 있습니다." }
-                        : { id:"c-xlok-"+C.date, lv:"ok", area:"센터 재고", msg:`${C.date} 센터 재고 ${_ap(total)} PLT — 엑셀 '합계' 열과 센터별 합 일치`, tip:"엑셀 '합계' 열(진천 제외)과 사이트가 더한 센터 칸이 모든 카테고리에서 같습니다." }); }
+                        : { id:"c-xlok-"+C.date, lv:"ok", area:"센터 재고", msg:`${C.date} 센터 재고 ${_ap(total)} PLT — 엑셀 '합계' 열과 센터별 합 일치`, tip:`엑셀 '합계' 열과 사이트가 더한 센터 칸이 모든 카테고리에서 같습니다(진천 포함 또는 제외 중 하나).\n진천 포함으로 맞음 ${inc.length}개 (${inc.join(" · ")}) · 진천 제외로 맞음 ${exc.length}개 (${exc.join(" · ")})` }); }
   const age = Math.round((new Date(fmtDate(new Date())) - new Date(C.date))/864e5);
   if(age>=7) out.push({ id:"c-old-"+C.date, lv:"warn", area:"센터 재고", msg:`센터 재고가 ${age}일 전(${C.date}) 자료입니다`, tip:"업로드용자료 › 이천센터재고현황에 최신 LOT재고현황 파일을 넣고 폴더 통째로 불러오기를 해 주세요." });
   // 변동: 이전 파일 대비
@@ -11265,6 +11276,13 @@ function askLearnFrom(set){
   try{ askHistRender(); }catch(_){}
   return got.length ? `🧠 배웠습니다: ${got.join(", ")} — 다음부터 이 말을 쓰면 바로 적용합니다 (🧠 배운 말에서 지울 수 있음)` : null;
 }
+function askLogPanelHtml(){
+  const L = ASK_FAILLOG.slice().sort((a,b)=> (b.at||"").localeCompare(a.at||"")).slice(0,15);
+  const W = { block:"되묻기", empty:"자료 없음", leftover:"모르는 말", corrected:"칩으로 고침", ai:"AI 해석", sem:"비슷한 말" };
+  return `<div class="ask-q" style="margin-top:10px">🔎 최근 못 알아들은 검색 (${ASK_FAILLOG.length}) <span class="ask-sub">— 매주 화요일 Claude가 이 기록으로 검색 엔진을 고칩니다</span></div>
+    ${L.length ? `<table class="g-tbl ask-learn-tbl kk-keep"><thead><tr><th>날짜</th><th>검색어</th><th>무엇</th><th>횟수</th></tr></thead><tbody>${L.map(e=>`<tr><td>${escHtml((e.d||"").slice(5))}</td><td>${escHtml(e.t)}</td><td>${escHtml((e.why||[]).map(w=> W[w]||w).join(" · "))}</td><td class="num">${e.n||1}</td></tr>`).join("")}</tbody></table>` : `<div class="ask-note">아직 없습니다.</div>`}
+    ${(typeof IS_ADMIN!=="undefined" && IS_ADMIN && ASK_FAILLOG.length) ? `<button type="button" class="ask-opt" data-ask-logclear="1">기록 지우기</button>` : ""}`;
+}
 function askLearnListRender(){
   const box = document.getElementById("askResult"); if(!box) return; box.hidden = false;
   const ws = Object.keys(ASK_LEARN).sort((a,b)=> (ASK_LEARN[b].at||"").localeCompare(ASK_LEARN[a].at||""));
@@ -11275,6 +11293,7 @@ function askLearnListRender(){
       return `<tr><td><b>${escHtml(w)}</b></td><td>${escHtml(Object.keys(L.set||{}).map(k=> askLearnLabel(k, L.set[k])).join(" · "))}</td><td class="num">${L.hit||0}</td><td><button type="button" class="ask-opt" data-ask-unlearn="${escHtml(w)}">지우기</button></td></tr>`; }).join("")}</tbody></table>` : `<div class="ask-note">아직 배운 말이 없습니다.</div>`}
     <div class="ask-teach"><span class="ask-rl">🔎 비슷한 말 찾기</span>${ASK_SEM.on?`<b>켜짐</b> <span class="ask-sub">${ASK_SEM.state==="ready"?"(모델 준비됨)":ASK_SEM.state==="error"?escHtml(askSemStatus()):"(모르는 말이 나오면 모델을 받음)"}</span><button type="button" class="ask-opt" data-ask-sem-off="1">끄기</button>`:`<span class="ask-sub">꺼짐</span><button type="button" class="ask-opt" data-ask-sem-on="1">켜기 (처음 한 번 약 120MB)</button>`}
       <span class="ask-rl">🤖 AI 해석</span><span class="ask-sub">${ASK_LLM.state==="ready"?"준비됨":"모르는 말이 있을 때 'AI로 해석'을 누르면 받음 (PC 크롬)"}</span></div>
+    ${askLogPanelHtml()}
     <div class="ask-teach"><span class="ask-rl">직접 가르치기</span><input id="askTeachWord" placeholder="말 (예: 흐름)" style="width:130px"><span>=</span><select id="askTeachSel">${opts.map(([lb,v])=>`<option value='${v}'>${lb}</option>`).join("")}</select><button type="button" class="ask-opt" data-ask-teach="1">배우기</button></div>`;
 }
 
@@ -11532,15 +11551,49 @@ async function askSemMatch(words){
     return { word:w, cands:c.slice(0,3) }; });
 }
 // 규칙이 못 채운 칸에만 적용. 확신 큼 → 적용 + 안내 / 애매 → 제안 칩
+/* build 297: 검색 자동 고도화 — ① 못 알아들은 검색 자동 기록(ASK_FAILLOG) ② 비슷한 말로 3번 이상 풀리고 아무도 안 고친 말은 자동으로 🧠 배운 말
+   ③ 매주 화요일 Claude 예약 작업이 window.askExportLog()로 기록을 읽어 규칙 엔진을 고치고 검사까지 함(사용자는 commit · push만). */
+var ASK_FAILLOG = (()=>{ try{ return JSON.parse(localStorage.getItem("kk_ask_faillog_v1")||"[]") || []; }catch(_){ return []; } })();
+var ASK_SEMCNT = (()=>{ try{ return JSON.parse(localStorage.getItem("kk_ask_semcnt_v1")||"{}") || {}; }catch(_){ return {}; } })();
+const ASK_LOG_MAX = 400, ASK_AUTOLEARN_N = 3;
+function askLogSave(entry){
+  try{ localStorage.setItem("kk_ask_faillog_v1", JSON.stringify(ASK_FAILLOG.slice(-ASK_LOG_MAX))); }catch(_){}
+  try{ if(typeof IS_ADMIN!=="undefined" && IS_ADMIN){ if(typeof saveState==="function") saveState(); }
+       else if(entry){ const db = _fbDb(); if(db) db.ref("asklog/"+entry.k.replace(/[.#$\[\]\/]/g,"_").slice(0,200)).set(entry).catch(()=>{}); } }catch(_){}   // 뷰어: 서버 규칙이 허락하면 따로 저장(안 되면 이 기기에만)
+}
+function askLogEvent(text, why, extra){
+  const t = String(text||"").trim(); if(!t) return;
+  const d = fmtDate(new Date()), k = d+"|"+t;
+  let e = ASK_FAILLOG.find(x=> x.k===k);
+  if(!e){ e = { k, t, d, n:0, why:[], who: (typeof IS_ADMIN!=="undefined" && IS_ADMIN) ? "admin" : "viewer", b:(document.querySelector(".build")||{}).textContent||"" }; ASK_FAILLOG.push(e); }
+  e.n++; if(!e.why.includes(why)) e.why.push(why); e.at = new Date().toISOString();
+  Object.keys(extra||{}).forEach(x=>{ if(extra[x]!=null) e[x] = extra[x]; });
+  if(ASK_FAILLOG.length > ASK_LOG_MAX) ASK_FAILLOG.splice(0, ASK_FAILLOG.length - ASK_LOG_MAX);
+  askLogSave(e);
+}
+async function askLogPull(){   // 관리자: 뷰어가 서버에 남긴 기록 합치기
+  try{ const db = _fbDb(); if(!db) return 0; const sn = await db.ref("asklog").limitToLast(ASK_LOG_MAX).get(); const v = sn && sn.val(); if(!v) return 0; let n = 0;
+    Object.values(v).forEach(e=>{ if(!e || !e.k) return; const cur = ASK_FAILLOG.find(x=> x.k===e.k); if(!cur){ ASK_FAILLOG.push(e); n++; } else if((e.at||"") > (cur.at||"")) Object.assign(cur, e); });
+    ASK_FAILLOG.sort((a,b)=> (a.at||"").localeCompare(b.at||"")); if(n) askLogSave(null); return n; }catch(_){ return 0; } }
+// 예약 작업이 읽는 창구
+window.askExportLog = async function(){ await askLogPull(); return JSON.stringify({ build:(document.querySelector(".build")||{}).textContent||"", at:new Date().toISOString(), last:askLastDataDate(), log:ASK_FAILLOG, learn:ASK_LEARN, semcnt:ASK_SEMCNT }); };
+// 비슷한 말로 풀린 말 세기 → 3번 이상이고 고친 적 없으면 배운 말로
+function askSemCount(pairs){
+  const promoted = [];
+  (pairs||[]).forEach(x=>{ const c = ASK_SEMCNT[x.word] || { set:x.set, n:0 }; if(JSON.stringify(c.set)!==JSON.stringify(x.set)){ c.set = x.set; c.n = 0; } c.n++; ASK_SEMCNT[x.word] = c;
+    if(c.n >= ASK_AUTOLEARN_N && !ASK_LEARN[x.word]){ if(askLearnSet(x.word, x.set)){ ASK_LEARN[x.word].auto = true; promoted.push(`'${x.word}' = ${x.label}`); } } });
+  try{ localStorage.setItem("kk_ask_semcnt_v1", JSON.stringify(ASK_SEMCNT)); }catch(_){}
+  return promoted;
+}
 async function askSemApply(P){
-  const out = { applied:[], suggest:[] };
+  const out = { applied:[], suggest:[], pairs:[] };
   if(!P.leftovers || !P.leftovers.length || !ASK_SEM.on) return out;
   const ok = await askSemEnsure(()=>{ const b = document.getElementById("askResult"); const st = b && b.querySelector(".ask-semload"); if(st) st.textContent = askSemStatus(); });
   if(!ok) return out;
   const res = await askSemMatch(P.leftovers);
   res.forEach(r=>{ const [a, b] = r.cands; if(!a) return;
     const key = Object.keys(a.it.set)[0], taken = P.slots[key]!=null;
-    if(!taken && a.score >= ASK_SEM_AUTO && (!b || a.score - b.score >= ASK_SEM_GAP)){ Object.assign(P.slots, a.it.set); out.applied.push(`🔎 비슷한 말 '${r.word}' ≈ ${a.it.label} (${(a.score*100).toFixed(0)}%)`); }
+    if(!taken && a.score >= ASK_SEM_AUTO && (!b || a.score - b.score >= ASK_SEM_GAP)){ Object.assign(P.slots, a.it.set); out.pairs.push({ word:r.word, set:a.it.set, label:a.it.label }); out.applied.push(`🔎 비슷한 말 '${r.word}' ≈ ${a.it.label} (${(a.score*100).toFixed(0)}%)`); }
     else if(a.score >= ASK_SEM_SUGGEST) out.suggest.push({ word:r.word, cands:r.cands.filter(c=> c.score >= ASK_SEM_SUGGEST) }); });
   if(out.applied.length && P.slots.metric) P.ask = (P.ask||[]).filter(x=> !/무엇을 볼까요/.test(x.q));
   return out;
@@ -11609,6 +11662,7 @@ async function askLLMInterpret(text){
   try{ const C = JSON.parse(localStorage.getItem("kk_ask_llmcache_v1")||"{}"); C[text] = slots; const ks = Object.keys(C); if(ks.length > 200) delete C[ks[0]]; localStorage.setItem("kk_ask_llmcache_v1", JSON.stringify(C)); }catch(_){}
   ASK_STATE.leftovers = [];
   const inp = document.getElementById("askInput"); if(inp) inp.value = text;
+  askLogEvent(text, "ai", { ai: askSlotsText(slots) }); ASK_STATE.typed = text;
   askShow(slots, [`🤖 AI 해석: ${askSlotsLabel(slots)} — 틀렸으면 아래 칩으로 고쳐 주세요`], [], text);
   return slots;
 }
@@ -11619,12 +11673,14 @@ async function askRender(text){
   if(!t){ box.hidden = true; box.innerHTML = ""; return; }
   const cached = askLLMCached(t);   // build 284: 전에 AI가 해석한 문장은 바로
   if(cached){ ASK_STATE.leftovers = []; ASK_STATE.sem = null; askShow(Object.assign({}, cached), ["🤖 전에 AI가 해석한 문장 — 바로 적용 (틀렸으면 칩으로 고치기)"], [], t); return; }
-  ASK_STATE.prevForRerun = ASK_STATE.slots;   // 같은 질문을 다시 돌릴 때(비슷한 말 켜기) 이어서 묻기로 보지 않게
+  ASK_STATE.prevForRerun = ASK_STATE.slots; ASK_STATE.typed = t; ASK_STATE.lastSemWords = [];   // build 297: 사용자가 쓴 글(기록용)   // 같은 질문을 다시 돌릴 때(비슷한 말 켜기) 이어서 묻기로 보지 않게
   const P = askParseSlots(t, ASK_STATE.slots);
   ASK_STATE.leftovers = P.leftovers || []; ASK_STATE.learnNote = null; ASK_STATE.sem = null;
   if(ASK_STATE.leftovers.length && ASK_SEM.on){   // build 284: 🔎 비슷한 말
     if(ASK_SEM.state!=="ready"){ box.hidden = false; box.innerHTML = `<div class="ask-note ask-semload">${escHtml(askSemStatus() || "🔎 비슷한 말 찾는 중…")}</div>`; }
-    try{ const r = await askSemApply(P); P.notes.push(...r.applied); ASK_STATE.sem = r; }catch(_){}
+    try{ const r = await askSemApply(P); P.notes.push(...r.applied); ASK_STATE.sem = r;
+      if(r.pairs.length){ ASK_STATE.lastSemWords = r.pairs.map(x=> x.word); askLogEvent(t, "sem", { sem: r.pairs.map(x=> x.word+"="+x.label) });
+        const up = askSemCount(r.pairs); if(up.length) P.notes.push(`🧠 자주 쓰여 배운 말로 올림: ${up.join(", ")}`); } }catch(_){}
   }
   if(P.slots.product && P.slots.stores){ try{ await mixFetchStoreDetail(askDates(askFinalize(P.slots))); }catch(_){} }   // build 293: 매장별 상품 자료 받기
   askShow(P.slots, P.notes, P.ask, t);
@@ -11638,6 +11694,8 @@ function askAIBox(){
   return h;
 }
 function askApply(set){   // 칩: 지금 칸에 덮어쓰고 다시
+  if(ASK_STATE.typed){ askLogEvent(ASK_STATE.typed, "corrected", { fix:set, lo:(ASK_STATE.leftovers||[]).slice(0,5) });
+    (ASK_STATE.lastSemWords||[]).forEach(w=>{ if(ASK_SEMCNT[w]) ASK_SEMCNT[w].n = 0; }); try{ localStorage.setItem("kk_ask_semcnt_v1", JSON.stringify(ASK_SEMCNT)); }catch(_){} }
   const learned = askLearnFrom(set);   // build 283: 못 알아들은 말이 있었으면 이 칩을 그 말의 뜻으로 배움
   const s = Object.assign({}, ASK_STATE.slots || {}, set);
   if(set.stores) delete s.allStores; if(set.from){ delete s.cmpPrev; if(!set.cmp) delete s.cmp; } if(set.cmp===null) delete s.cmp; if(set.top===null){ delete s.top; delete s.order; }
@@ -11650,6 +11708,7 @@ function askShow(slots, notes, asks, text){
   const optBtns = opts => opts.map(o=>`<button type="button" class="ask-opt" data-ask-set="${escHtml(JSON.stringify(o.set))}">${escHtml(o.label)}</button>`).join("");
   if(blocking.length){   // 되묻기 — 답(칩)을 누르면 그 칸을 채워 다시 실행
     ASK_STATE.slots = slots;
+    if(text && text===ASK_STATE.typed) askLogEvent(text, "block", { q: blocking.map(a=> a.q).join(" / "), lo:(ASK_STATE.leftovers||[]).slice(0,5) });
     box.innerHTML = `<div class="ask-res-hd"><div class="ask-title">🤔 조금만 더 알려 주세요</div><button type="button" class="ask-x" data-ask-close title="닫기">✕</button></div>
       ${blocking.map(a=>`<div class="ask-qbox"><div class="ask-q">${escHtml(a.q)}</div><div class="ask-opts">${optBtns(a.opts)}</div></div>`).join("")}
       ${askAIBox()}
@@ -11690,6 +11749,7 @@ function askShow(slots, notes, asks, text){
     <span class="ask-rl">나눠 보기</span>${["store","cat","month","day"].concat(q.hours||q.metric==="sales"?["hour","wd"]:[]).map(k=> chip(ASK_BY_LABEL[k], {by:k}, q.by===k)).join("")}
     <span class="ask-rl">더</span>${chip(q.cmp?"비교 끄기":"전월 대비", q.cmp?{cmp:null, cmpPrev:false}:{cmpPrev:true}, false)}${chip(q.top?"전부 보기":"상위 5", q.top?{top:null}:{top:5, order:"desc"}, false)}${q.stores?chip("전 매장으로", {stores:null, allStores:true}, false):""}</div>`);
   // 자료가 없으면 자료 있는 달 제안
+  if(text && text===ASK_STATE.typed){ if(!rows.length) askLogEvent(text, "empty", { m:q.metric, f:q.from, to:q.to }); if((ASK_STATE.leftovers||[]).length) askLogEvent(text, "leftover", { lo:ASK_STATE.leftovers.slice(0,5) }); }   // build 297
   if(!rows.length){ const ms = askDataMonths(q.metric).slice(-4).reverse();
     if(ms.length) refine.unshift(`<div class="ask-qbox"><div class="ask-q">이 조건엔 자료가 없습니다. 자료가 있는 달로 볼까요?</div><div class="ask-opts">${ms.map(m=> chip(`${+m.slice(5)}월`, { from:`${m}-01`, to:askMonthEnd(m) }, false)).join("")}</div></div>`); }
   const understood = q.used.length ? q.used.map(x=>`<span class="ask-chip">${escHtml(x)}</span>`).join("") : `<span class="ask-sub">조건 없음 — 기본값으로 봤습니다</span>`;
@@ -11727,7 +11787,8 @@ function askWire(){
     const ex = e.target.closest("[data-ask]"); if(ex){ e.preventDefault(); ASK_STATE.slots = null; inp.value = ex.getAttribute("data-ask"); run(); return; }   // 예시 = 새 질문
     const st = e.target.closest("[data-ask-set]"); if(st){ try{ askApply(JSON.parse(st.getAttribute("data-ask-set"))); }catch(_){} return; }
     if(e.target.closest("[data-ask-close]")){ document.getElementById("askResult").hidden = true; ASK_STATE.slots = null; }
-    if(e.target.closest("[data-ask-learnlist]")){ askLearnListRender(); return; }
+    if(e.target.closest("[data-ask-learnlist]")){ askLearnListRender(); if(typeof IS_ADMIN!=="undefined" && IS_ADMIN) askLogPull().then(n=>{ if(n) askLearnListRender(); }); return; }
+    if(e.target.closest("[data-ask-logclear]")){ if(confirm("못 알아들은 검색 기록을 지울까요?")){ ASK_FAILLOG.length = 0; askLogSave(null); try{ const db = _fbDb(); if(db && IS_ADMIN) db.ref("asklog").remove().catch(()=>{}); }catch(_){} askLearnListRender(); } return; }
     if(e.target.closest("[data-ask-sem-on]")){ ASK_SEM.on = true; try{ localStorage.setItem("kk_ask_sem","1"); }catch(_){} ASK_STATE.slots = ASK_STATE.prevForRerun || null; askRender(inp.value); return; }   // build 284
     if(e.target.closest("[data-ask-sem-off]")){ ASK_SEM.on = false; try{ localStorage.setItem("kk_ask_sem","0"); }catch(_){} askLearnListRender(); return; }
     if(e.target.closest("[data-ask-llm]")){ askLLMInterpret(inp.value); return; }
@@ -26182,11 +26243,11 @@ const IMPROVE_PROPOSALS = [
   { id:"P261109-01", date:"2026-11-09", area:"점검", title:"카테고리 매출 '원본과 몇 원 다름' 오류 — 반올림 차이는 정상 처리",
     why:"검수 알림 '오류 5' 중 3건이 10/18 −10원 · 10/28 +7원 · 11/2 +7원 차이(1.5억 · 8.9천만 · 8.9천만원 중). 하루 매장×카테고리 칸이 약 250~280개라 칸마다 원 단위 반올림만 해도 ±10원 안팎이 생김 — 최근 35일 중 33일이 0이 아니고(최대 10원), 기준 5원을 넘는 날만 '오류'로 뜸. 진짜 문제(파일 덜 올라감)는 수천~수백만원 단위라 진짜 오류가 묻힘.",
     what:"auditSales ①의 기준을 5원 → '칸 수 × 0.5원'(약 130원, 최소 5원)으로 바꿈. 기준 안의 차이는 오류 대신 '정상' 줄 툴팁에 'N원 반올림 차이'로만 표시.",
-    risk:"낮음 — 알림 기준만 바뀜, 계산 · 자료 변경 없음. 130원 미만의 진짜 누락은 못 잡음(실제 한 건 최소 금액보다 작음).", done:"" },
+    risk:"낮음 — 알림 기준만 바뀜, 계산 · 자료 변경 없음. 130원 미만의 진짜 누락은 못 잡음(실제 한 건 최소 금액보다 작음).", done:"build 297" },
   { id:"P261109-02", date:"2026-11-09", area:"점검", title:"센터 재고 '엑셀 합계 ≠ 센터 칸 합' 오류 — 이제 엑셀 합계에 진천이 들어감",
     why:"11/4 · 11/5 · 11/6 매일 '오류(11개 카테고리 다름)'. 11/6 자료로 계산하면 엑셀 '합계' 열은 진천센터를 포함한 값과 20개 중 19개 카테고리가 맞음(XLE 73 = 진천 73, 데드우드 90 = 진천 90, XLD 176 = 다른 센터 48 + 진천 128). 진천 제외로 맞는 건 생산재고 1개뿐(9). 사이트는 '진천 제외'로만 대조해 매일 거짓 오류.",
     what:"auditCenter ①에서 카테고리마다 '진천 포함' 또는 '진천 제외' 합 중 하나와 맞으면 정상. 둘 다 안 맞을 때만 오류로 보여 주고 툴팁에 두 합을 함께 표시.",
-    risk:"낮음 — 알림 기준만 바뀜, 재고 계산 · 자료 변경 없음.", done:"" },
+    risk:"낮음 — 알림 기준만 바뀜, 재고 계산 · 자료 변경 없음.", done:"build 297" },
 ];
 var IMPROVE_DECISIONS; if(!IMPROVE_DECISIONS || typeof IMPROVE_DECISIONS!=="object") IMPROVE_DECISIONS = {};
 var IMPROVE_REQUESTS; if(!Array.isArray(IMPROVE_REQUESTS)) IMPROVE_REQUESTS = [];
