@@ -1896,7 +1896,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 298 · 2026-11-11</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 299 · 2026-11-11</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -9097,6 +9097,13 @@ function storeNameTag(s){
   if(p.open && t < p.open)  return `<span style="font-size:11.5px;color:var(--muted2);border:1px solid var(--line-soft);border-radius:99px;padding:0 5px;margin-left:4px;" title="${p.open} 오픈 예정">미오픈</span>`;
   return "";
 }
+// build 299: 목표매출 표의 매장 이름 옆 폐점·오픈 표시(평택점 11/01 폐점이 01 요약 표에 안 보였음)
+function goalsStoreLabelHtml(r){
+  const b = r && r.stateBadge;
+  if(!b) return escHtml(r.label);
+  const off = /^폐점/.test(b);
+  return escHtml(r.label) + `<span style="font-size:11.5px;color:${off?'var(--red)':'var(--muted2)'};border:1px solid ${off?'rgba(239,68,68,.45)':'var(--line-soft)'};border-radius:99px;padding:0 5px;margin-left:4px;white-space:nowrap;">${escHtml(b)}</span>`;
+}
 function storeStateBadge(s, ym){
   const a = storeActiveDays(s, ym);
   const p = storeProfile(s);
@@ -10972,13 +10979,13 @@ function goalsIncentiveTableHtml(ctx, rows2){
     let sep = "";
     if(!sepDone && r.pct>=65 && danger && safe){ sepDone = true; sep = `<tr class="g-inc-sep"><td colspan="6" style="text-align:center;font-size:12.5px;color:var(--red);font-weight:700;">▲ 위 ${danger}곳 위험군(달성률 65% 미만) · 아래 ${safe}곳</td></tr>`; }
     const tip = `${r.label} · 달성률 ${r.pct.toFixed(1)}% (${tier.label})\n실적 ${Math.round(r.actual).toLocaleString()}원 ÷ 목표(일할) ${Math.round(r.proratedTarget).toLocaleString()}원\n월 목표 전체 ${Math.round(r.target).toLocaleString()}원 · 인센티브 구간 ${band.label}`;
-    return sep + `<tr data-tip="${escHtml(tip)}">
-      <td>${escHtml(r.label)}</td>
+    return sep + `<tr data-tip="${escHtml(tip + (r.stateBadge ? `\n${r.stateBadge} — 목표는 영업일(${r.activeDays}/${r.monthDays}일)만큼만 인정` : ""))}">
+      <td>${goalsStoreLabelHtml(r)}</td>
       <td class="tgt-col"><span class="num" style="color:var(--amber)">${Math.round(r.target).toLocaleString()}</span></td>
       <td class="tgt-col" style="font-size:12.5px;color:var(--muted2);"><span class="num">${Math.round(r.proratedTarget).toLocaleString()}</span></td>
       <td class="g-act"><span class="num">${Math.round(r.actual).toLocaleString()}</span><div class="g-actbar"><i style="width:${(Math.min(120,r.pct)/1.2).toFixed(1)}%;background:${bc}"></i><b></b></div></td>
       <td class="total-col" style="${goalsHeatBg((r.pct/100)/1.2)}"><span class="num">${r.pct.toFixed(1)}%</span></td>
-      <td class="g-band"><span class="g-store-badge ${band.cls}" style="font-size:12px;padding:2px 7px;">${escHtml(band.label)}</span></td>
+      <td class="g-band">${/^폐점/.test(r.stateBadge||"") ? `<span style="font-size:12px;color:var(--muted2);">폐점 — 구간 판정 없음</span>` : `<span class="g-store-badge ${band.cls}" style="font-size:12px;padding:2px 7px;">${escHtml(band.label)}</span>`}</td>
     </tr>`;
   }).join("");
   const tF = rows2.reduce((a,r)=>a+r.target,0), tP = rows2.reduce((a,r)=>a+r.proratedTarget,0), tA = rows2.reduce((a,r)=>a+r.actual,0);
@@ -11914,7 +11921,7 @@ function goalsRender01(ctx){
     const w = Math.min(100, r.pct/scaleMax*100);
     const title = `${r.label} · 달성률 ${r.pct.toFixed(1)}% (${goalsTier(r.pct).label}) · 실적 ${Math.round(r.actual).toLocaleString()}원 / 목표(일할) ${Math.round(r.proratedTarget).toLocaleString()}원`;
     return `<div class="g-rank-row" title="${escHtml(title)}"><span class="g-rank-num">${r.rank}</span>
-          <span class="g-rank-name">${escHtml(r.label)}</span>
+          <span class="g-rank-name">${goalsStoreLabelHtml(r)}</span>
           <div class="g-rank-bar"><div class="fill" style="width:${w.toFixed(1)}%;background:${tierColor(r.pct)}"></div>
             <div class="ref" style="left:${(65/scaleMax*100).toFixed(1)}%"></div><div class="ref r100" style="left:${(100/scaleMax*100).toFixed(1)}%"></div></div>
           <span class="g-rank-pct" style="color:${tierColor(r.pct)}">${r.pct.toFixed(1)}%</span></div>`;
@@ -11972,7 +11979,7 @@ function goalsRender04(ctx){
     Object.keys(r.storeCat).forEach(c=>{ const p = pctOf(c); if(p>top.pct) top = {cat:c, pct:p}; });
     const st = r.diag ? r.diag.strength : null, op = r.diag ? r.diag.opportunity : null;
     return `<tr>
-      <td>${escHtml(r.label)}</td>
+      <td>${goalsStoreLabelHtml(r)}</td>
       <td>${escHtml(top.cat)}</td>
       <td style="${goalsHeatAmber(top.pct/80)}"><span class="num">${top.pct.toFixed(1)}%</span></td>
       <td>${st?escHtml(st.cat):'-'}</td>
@@ -12474,7 +12481,7 @@ function goalsRender07(ctx){
   const hdr = ctx.months.map(m=> m===ctx.curMonth
     ? `<th>${ctx.mLbl(m)}<br>(~${m.slice(5,7)}/${ctx.elapsedDays})</th>`
     : `<th>${ctx.mLbl(m)}</th>`).join("");
-  const body = ctx.rows.map(r=>`<tr><td>${escHtml(r.label)}</td>${
+  const body = ctx.rows.map(r=>`<tr><td>${goalsStoreLabelHtml(r)}</td>${
       ctx.months.map(m=>{ const p = pctMap[r.store][m];
         if(p==null) return `<td title="${m} 데이터 없음"><span class="num" style="color:var(--muted2)">결측</span></td>`;
         return `<td style="${goalsHeatBg((p/100)/1.2)};cursor:help" title="${escHtml(cellTip(r.label, m, ptMap[r.store][m]))}"><span class="num">${p.toFixed(1)}%</span></td>`; }).join("")
@@ -12882,7 +12889,7 @@ function goalsRender08Body(ctx, opts){
     const r = d.r;
     const top = (opts && opts.solutions) ? opts.solutions[r.store] : null;
     return `<tr class="g11-pickrow" data-open-g11="${escHtml(r.store)}" title="누르면 ${escHtml(r.label)} 매장 분석">
-      <td><b>${escHtml(r.label)}</b></td>
+      <td><b>${goalsStoreLabelHtml(r)}</b></td>
       <td style="${goalsHeatBg((r.pct/100)/1.2)}"><span class="num">${r.pct.toFixed(1)}%</span></td>
       <td><span class="num ${d.trend!=null&&d.trend<0?'neg':'pos'}">${d.trend!=null?(d.trend>0?"+":"")+d.trend.toFixed(1)+"%":"-"}</span></td>
       <td><span class="num">${d.t||"-"}</span></td>
