@@ -1896,7 +1896,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 301 · 2026-11-11</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 302 · 2026-11-11</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -5424,7 +5424,7 @@ function renderSalesMonthlyCore(){
     return `<th class="kk-msort${cls?" "+cls:""}${on?" on":""}" data-msort="${key}" title="누르면 ${on&&kkMonSort.dir>0?"작은":"큰"} 순으로 줄 세우기">${lab}${ar}</th>`; };
   let A = storeSel + `<table${(monthlyCatOn()||kkMonSort.col)?' class="kk-keep"':''}><thead><tr><th class="kk-msort" data-msort="" title="누르면 기본 순서(${monthlyCatOn()?"마지막 달 "+escHtml(selectedMonthlyCat)+" 매출 큰 순":"매출 큰 순"})">매장</th>${months.map(m=>msTh(m, mlabel(m))).join("")}${msTh("__acc__","누적","total-col")}</tr></thead><tbody>`;
   rowsStores.forEach(s=>{
-    A += `<tr><td>${s}</td>${months.map(m=>{const v=storeMonth[m][s]||0;return `<td><span class="num">${v?Math.round(v).toLocaleString():''}</span>${v?cellDeltas(m,v,(mm)=>storeMonth[mm][s]||0,s):''}</td>`;}).join("")}<td class="total-col kk-acc" data-tip="${escHtml(kkAccTip(s, mm=>storeMonth[mm][s]||0))}"><span class="num">${Math.round(storeGrand(s)).toLocaleString()}</span></td></tr>`;
+    A += `<tr><td>${s}${storeNameTag(s)}</td>${months.map(m=>{const v=storeMonth[m][s]||0;const sb=storeStateBadge(s,m);const sbTag=(sb&&sb!=="폐점"&&sb!=="미오픈")?`<div style="font-size:11px;color:${/^폐점/.test(sb)?'var(--red)':'var(--muted2)'};">${escHtml(sb)}</div>`:'';return `<td><span class="num">${v?Math.round(v).toLocaleString():''}</span>${v?cellDeltas(m,v,(mm)=>storeMonth[mm][s]||0,s):''}${sbTag}</td>`;}).join("")}<td class="total-col kk-acc" data-tip="${escHtml(kkAccTip(s, mm=>storeMonth[mm][s]||0))}"><span class="num">${Math.round(storeGrand(s)).toLocaleString()}</span></td></tr>`;
   });
   A += `</tbody><tfoot><tr><td>합계</td>${months.map(m=>{const v=monthGrand(m);return `<td><span class="num">${Math.round(v).toLocaleString()}</span>${cellDeltas(m,v,(mm)=>monthGrand(mm))}</td>`;}).join("")}<td class="total-col kk-acc" data-tip="${escHtml(kkAccTip("합계("+(selectedMonthlyStore==="__all__"?"전체 매장":selectedMonthlyStore)+")", mm=>monthGrand(mm)))}"><span class="num">${Math.round(months.reduce((a,m)=>a+monthGrand(m),0)).toLocaleString()}</span></td></tr></tfoot></table>`;
   // build 289: 킹고프리(온라인) 줄 — 매장 매출에 이미 들어 있으므로 위 합계에 다시 더하지 않고 따로 보여 준다(전체 매출일 때만)
