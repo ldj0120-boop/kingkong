@@ -1896,7 +1896,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 299 · 2026-11-11</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 300 · 2026-11-11</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -5986,10 +5986,17 @@ function salesOutlierCheck(newTotal, excludeDate){
 function findSalesHistoryOutliers(){
   if(SALES_HISTORY.length < 3) return [];
   const totals = SALES_HISTORY.map(h=>({date:h.date, total:salesGrandTotal(h.byStoreCat)}));
-  return totals.filter(t=>{
-    const chk = salesOutlierCheck(t.total, t.date);
-    return chk && t.total>0;
-  }).map(t=>({...t, ...salesOutlierCheck(t.total, t.date)}));
+  // build 300: 속도 — 날짜마다 salesOutlierCheck()가 전체 날짜 합계를 다시 계산(날짜 313개 × 313개 × 2번)하던 것을
+  //   위에서 한 번 구한 합계(totals)로 같은 판정을 한다. 판정 규칙(같은 날짜 제외 · 0 제외 · 2개 미만이면 판단 안 함 · 중앙값의 2.5배)은 그대로.
+  const chk = t=>{
+    const others = totals.filter(o=>o.date!==t.date).map(o=>o.total).filter(v=>v>0);
+    if(others.length < 2) return null;
+    const base = median(others);
+    if(base <= 0) return null;
+    const ratio = t.total / base;
+    return (ratio >= 2.5) ? { base, ratio } : null;
+  };
+  return totals.filter(t=> chk(t) && t.total>0).map(t=>({...t, ...chk(t)}));
 }
 // 매출 탭 상단 "기준일" 드롭다운에서 고른 스냅샷 (없으면 가장 최근 스냅샷)
 function currentSalesSnapshot(){
@@ -26668,6 +26675,39 @@ window.addEventListener("load", kkSortSchedule);
 // 화면을 그리는 주요 함수 뒤에도 한 번 더(숨긴 서브탭에 미리 그려 둔 표 · 칸만 바뀐 표까지)
 ["afterChange","renderGoals","selectGoalsSub","selectTab","renderSalesAgg","g11Rerender","mixRerender"].forEach(fn=>{ try{ const f = window[fn]; if(typeof f!=="function" || f._kkSort) return;
   const w = function(){ const r = f.apply(this, arguments); kkSortSchedule(); return r; }; w._kkSort = true; window[fn] = w; }catch(_){} });
+/* ================= build 300: 속도 — 한 번 그리는 동안 같은 계산을 반복하지 않기 =================
+   측정(라이브 사이트, 실제 자료 313일): 목표매출 탭 한 번 그릴 때 monthStoreTotals()가 약 3,600번,
+   goalsDailySeries()가 약 1,500번 불렸다(같은 달을 매장마다 · 카드마다 다시 계산). 이것이 탭 전환 2~10초,
+   클라우드 · 승현 실시간 수신 때 화면이 1~2초씩 멈추던 주된 원인.
+   → 결과를 "지금 그리는 작업 하나" 동안만 기억한다(queueMicrotask로 작업이 끝나면 바로 비움).
+     · 자료가 바뀌는 업로드 · 클라우드 수신 · 저장은 항상 다른 작업이라 이전 값을 쓸 일이 없다.
+     · 같은 작업 안에서 자료를 바꾸는 경우를 대비해 applyStateObject · saveState에서도 비운다.
+     · 돌려줄 때는 복사본을 준다(받은 쪽이 고쳐도 기억한 값은 그대로).
+   계산식은 한 줄도 바꾸지 않음 — 화면 HTML · goalsBuildContext 결과가 바뀌기 전과 같음을 실제 자료로 확인. */
+(function(){
+  let C = null;
+  const bag = ()=>{ if(!C){ C = new Map(); queueMicrotask(()=>{ C = null; }); } return C; };
+  const drop = ()=>{ C = null; };
+  window.kkCalcCacheClear = drop;
+  try{
+    const _mst = monthStoreTotals;
+    monthStoreTotals = function(month, maxDay){
+      const c = bag(), k = "mst|"+month+"|"+(maxDay==null ? "" : maxDay);
+      let r = c.get(k); if(!r){ r = _mst(month, maxDay); c.set(k, r); }
+      return { map: Object.assign({}, r.map), total: r.total, source: r.source };
+    };
+  }catch(e){ console.warn("build 300 mst", e); }
+  try{
+    const _gds = goalsDailySeries;
+    goalsDailySeries = function(ym){
+      const c = bag(), k = "gds|"+ym;
+      let r = c.get(k); if(!r){ r = _gds(ym); c.set(k, r); }
+      return Object.assign({}, r, { series: Object.assign({}, r.series) });
+    };
+  }catch(e){ console.warn("build 300 gds", e); }
+  try{ const _aso = applyStateObject; applyStateObject = function(){ drop(); try{ return _aso.apply(this, arguments); }finally{ drop(); } }; }catch(e){ console.warn("build 300 aso", e); }
+  try{ const _ss = saveState; saveState = function(){ drop(); return _ss.apply(this, arguments); }; }catch(e){ console.warn("build 300 ss", e); }
+})();
 </script>
 </body>
 </html>
