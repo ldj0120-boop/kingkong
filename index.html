@@ -1900,7 +1900,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 311 · 2026-11-12</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 312 · 2026-11-12</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -11706,7 +11706,8 @@ function askClUrlOk(){ return !!(ASK_CL_CFG && /^https:\/\/[^\s]+$/.test(ASK_CL_
 // build 310: 중계 서버(Worker) 없이 — 이 PC 브라우저에만 API 키를 저장하고 Anthropic API를 바로 부름(서버 상태 · GitHub에는 안 들어감)
 function askClKey(){ try{ return localStorage.getItem("kk_askcl_key")||""; }catch(_){ return ""; } }
 const ASK_CL_MODELS = { fast:"claude-haiku-4-5", deep:"claude-sonnet-4-5" };
-function askClReady(){ return askClUrlOk() || /^sk-ant-/.test(askClKey()); }
+function askClProv(){ const k = askClKey(); return /^sk-ant-/.test(k) ? "claude" : /^AIza/.test(k) ? "gemini" : ""; }   // build 311: Gemini 무료 키도
+function askClReady(){ return askClUrlOk() || !!askClProv(); }
 function askClMode(){ return askClUrlOk() ? "worker" : askClKey() ? "direct" : ""; }
 function askClAuto(){ try{ return localStorage.getItem("kk_askcl_auto")!=="0"; }catch(_){ return true; } }
 function askClCode(){ try{ return localStorage.getItem("kk_askcl_code")||""; }catch(_){ return ""; } }
@@ -11770,9 +11771,51 @@ async function askClHeaders(){
   const c = askClCode(); if(c) h["x-kk-code"] = c;
   return h;
 }
+// build 311: Google Gemini 무료 키(AIza…) — Claude 형식(messages · tools · tool_use)을 Gemini 형식으로 바꿔 부르고 답을 다시 Claude 형식으로(질문 흐름 · 도구는 그대로)
+const ASK_GEM_MODELS = ["gemini-flash-latest", "gemini-2.5-flash"];   // 앞 모델이 없으면(404) 다음 모델
+let _askGemModel = null;
+function askGemSchema(sc){ if(!sc || typeof sc!=="object") return sc; const o = {};
+  Object.keys(sc).forEach(k=>{ if(k==="cache_control") return; const v = sc[k];
+    if(k==="type") o.type = String(v).toUpperCase(); else if(k==="properties"){ o.properties = {}; Object.keys(v).forEach(p=> o.properties[p] = askGemSchema(v[p])); }
+    else if(k==="items") o.items = askGemSchema(v); else o[k] = v; });
+  if(o.enum && o.type!=="STRING") delete o.enum; return o; }
+function askGemRequest(body){
+  const names = {}; const contents = [];
+  body.messages.forEach(m=>{
+    if(typeof m.content==="string"){ contents.push({ role: m.role==="assistant" ? "model" : "user", parts:[{ text:m.content }] }); return; }
+    if(m.role==="assistant"){ contents.push({ role:"model", parts: m.content.map(c=>{ if(c.type==="tool_use") names[c.id] = c.name; return c._g ? c._g : c.type==="tool_use" ? { functionCall:{ name:c.name, args:c.input||{} } } : { text:c.text||"" }; }) }); return; }
+    contents.push({ role:"user", parts: m.content.map(c=> c.type==="tool_result" ? { functionResponse:{ name: names[c.tool_use_id] || "site_query", response:{ result: (()=>{ try{ return JSON.parse(c.content); }catch(_){ return c.content; } })() } } } : { text:c.text||String(c.content||"") }) });
+  });
+  return { systemInstruction:{ parts:(body.system||[]).map(x=>({ text: x.text })) }, contents,
+    tools:[{ functionDeclarations:(body.tools||[]).map(t=>({ name:t.name, description:t.description, parameters: askGemSchema(t.input_schema) })) }],
+    generationConfig:{ temperature:0, maxOutputTokens: body.max_tokens || 400, thinkingConfig:{ thinkingBudget:0 } } };
+}
+function askGemToClaude(j, model){
+  const cand = (j && j.candidates && j.candidates[0]) || {}; const parts = (cand.content && cand.content.parts) || []; let n = 0;
+  const content = parts.filter(p=> !p.thought).map(p=> p.functionCall ? { type:"tool_use", id:"g"+Date.now().toString(36)+(n++), name:p.functionCall.name, input:p.functionCall.args||{}, _g:p } : { type:"text", text:p.text||"", _g:p });
+  return { model, stop_reason: content.some(c=> c.type==="tool_use") ? "tool_use" : "end_turn", content, usage: j && j.usageMetadata };
+}
+async function askGemPost(body){
+  const req = askGemRequest(body); const tryModels = _askGemModel ? [_askGemModel] : ASK_GEM_MODELS;
+  let last = null;
+  for(const model of tryModels){
+    for(let attempt=0; attempt<2; attempt++){
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method:"POST", headers:{ "content-type":"application/json", "x-goog-api-key": askClKey() }, body: JSON.stringify(req) });
+      let j = null; try{ j = await r.json(); }catch(_){}
+      if(r.ok){ _askGemModel = model; return askGemToClaude(j, model); }
+      const msg = (j && j.error && j.error.message) || ("HTTP "+r.status);
+      if(r.status===400 && /thinking/i.test(msg) && req.generationConfig.thinkingConfig){ delete req.generationConfig.thinkingConfig; continue; }   // 생각 끄기를 못 하는 모델
+      last = Object.assign(new Error(msg), { status: r.status===403 || (r.status===400 && /API key/i.test(msg)) ? 401 : r.status });
+      break;
+    }
+    if(last && last.status!==404) throw last;
+  }
+  throw last || new Error("Gemini 연결 실패");
+}
 async function askClPost(body){
   if(typeof window.__askClMock==="function") return await window.__askClMock(body);
   let r;
+  if(!askClUrlOk() && askClProv()==="gemini") return await askGemPost(body);   // build 311
   if(!askClUrlOk() && askClKey()){   // build 310: 직접 연결(이 PC)
     const b = { model: ASK_CL_MODELS[body.tier==="deep"?"deep":"fast"], max_tokens: body.max_tokens, system: body.system, tools: body.tools, messages: body.messages, temperature: 0 };
     r = await fetch("https://api.anthropic.com/v1/messages", { method:"POST", headers:{ "content-type":"application/json", "x-api-key": askClKey(), "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" }, body: JSON.stringify(b) });
@@ -11801,7 +11844,7 @@ function askClStatus(msg){ const box = document.getElementById("askResult"); if(
   if(!st){ box.innerHTML = `<div class="ask-cl-card ask-cl-load-wrap"><div class="ask-cl-hd">🤖 Claude</div><div class="ask-note ask-cl-load"></div></div>`; st = box.querySelector(".ask-cl-load"); } st.textContent = msg; }
 function askClCardHtml(r, opts){
   const tools = (r.tools||[]).map((t,i)=> t.slots ? `<button type="button" class="ask-opt${i+1===r.show?" on":""}" data-ask-cl-show="${i}">📊 ${escHtml((t.title||t.name).slice(0,40))}</button>` : `<span class="ask-chip">${escHtml(t.name)}${t.error?" ✗":""}</span>`).join("");
-  return `<div class="ask-cl-card"><div class="ask-cl-hd">🤖 Claude <span class="ask-sub">${escHtml(r.model||"")}${r.ms?` · ${(r.ms/1000).toFixed(1)}초`:""}${opts&&opts.cached?" · 저장된 답(같은 질문 · 같은 자료 날)":""}</span><button type="button" class="ask-x" data-ask-close title="닫기">✕</button></div>
+  return `<div class="ask-cl-card"><div class="ask-cl-hd">🤖 ${/^gemini/.test(r.model||"")?"Gemini":"Claude"} <span class="ask-sub">${escHtml(r.model||"")}${r.ms?` · ${(r.ms/1000).toFixed(1)}초`:""}${opts&&opts.cached?" · 저장된 답(같은 질문 · 같은 자료 날)":""}</span><button type="button" class="ask-x" data-ask-close title="닫기">✕</button></div>
     <div class="ask-cl-ans">${escHtml(r.answer||"").replace(/\n/g,"<br>")}</div>
     ${tools?`<div class="ask-cl-tools"><span class="ask-rl">본 자료</span>${tools}</div>`:""}
     ${(r.followups||[]).length?`<div class="ask-cl-tools"><span class="ask-rl">이어서</span>${r.followups.map(f=>`<button type="button" class="ask-opt" data-ask-cl-q="${escHtml(f)}">${escHtml(f)}</button>`).join("")}</div>`:""}
@@ -11855,7 +11898,7 @@ async function askClaude(text, opts){
     }
   }catch(e){
     ASK_CL.busy = false;
-    const st = e && e.status; const msg = st===401 && askClMode()==="direct" ? "API 키가 맞지 않습니다 — 🧠 패널에서 키를 다시 저장해 주세요" : st===401 ? "Claude 연결 권한이 없습니다 — 뷰어는 팀 코드를 넣어 주세요(관리자는 로그인 상태 확인)" : st===400 && /credit|balance/i.test(String(e && e.message)) ? "Claude 계정 잔액(크레딧)이 없습니다 — Claude Platform › Billing에서 충전해 주세요" : st===429 ? "오늘 Claude 질문 한도를 다 썼습니다 — 규칙 검색은 그대로 됩니다" : `Claude 연결 실패: ${String(e && e.message || e).slice(0,120)}`;
+    const st = e && e.status; const msg = st===401 && askClMode()==="direct" ? "API 키가 맞지 않습니다 — 🧠 패널에서 키를 다시 저장해 주세요" : st===401 ? "Claude 연결 권한이 없습니다 — 뷰어는 팀 코드를 넣어 주세요(관리자는 로그인 상태 확인)" : st===400 && /credit|balance/i.test(String(e && e.message)) ? "Claude 계정 잔액(크레딧)이 없습니다 — Claude Platform › Billing에서 충전해 주세요" : st===429 && askClProv()==="gemini" && !askClUrlOk() ? "Gemini 무료 한도(분당/하루 횟수)를 넘었습니다 — 1분쯤 뒤에 다시 해 주세요(규칙 검색은 그대로)" : st===429 ? "오늘 Claude 질문 한도를 다 썼습니다 — 규칙 검색은 그대로 됩니다" : `Claude 연결 실패: ${String(e && e.message || e).slice(0,120)}`;
     askLogEvent(t, "claude", { err: msg.slice(0,80) });
     box.hidden = false; box.innerHTML = askClSetupHtml(msg + " — 아래는 규칙 검색 결과");
     try{ const P = askParseSlots(t, null); const keep = box.innerHTML; ASK_STATE.leftovers = []; askClShowQuiet(P.slots, P.notes, t); box.querySelectorAll(".ask-res-hd .ask-x").forEach(x=> x.remove()); box.insertAdjacentHTML("afterbegin", keep); }catch(_){}
@@ -11873,8 +11916,8 @@ async function askClaude(text, opts){
 function askClPanelHtml(){
   const adm = typeof IS_ADMIN!=="undefined" && IS_ADMIN;
   const mode = askClMode();
-  return `<div class="ask-teach"><span class="ask-rl">🤖 Claude 연결</span>${mode==="worker"?`<b>켜짐(중계 서버)</b>`:mode==="direct"?`<b>켜짐(이 PC 직접)</b>`:`<span class="ask-sub">꺼짐</span>`}
-    <span class="ask-rl">이 PC API 키</span><input id="askClKeyIn" type="password" autocomplete="off" style="width:200px" placeholder="${askClKey()?"저장됨 (sk-ant-…"+escHtml(askClKey().slice(-4))+")":"sk-ant-… (Claude Platform에서 만든 키)"}"><button type="button" class="ask-opt" data-ask-cl-key="1">키 저장</button>${askClKey()?`<b class="ask-sub">저장됨 (…${escHtml(askClKey().slice(-4))})</b><button type="button" class="ask-opt" data-ask-cl-keydel="1">키 지우기</button>`:""}<span class="ask-sub">이 브라우저에만 저장 · 서버 · 다른 PC로 안 감</span></div>
+  return `<div class="ask-teach"><span class="ask-rl">🤖 Claude 연결</span>${mode==="worker"?`<b>켜짐(중계 서버)</b>`:mode==="direct"?`<b>켜짐(${askClProv()==="gemini"?"Gemini 무료":"Claude"} · 이 PC)</b>`:`<span class="ask-sub">꺼짐</span>`}
+    <span class="ask-rl">이 PC API 키</span><input id="askClKeyIn" type="password" autocomplete="off" style="width:200px" placeholder="AIza…(Gemini 무료 키 · aistudio.google.com) 또는 sk-ant-…(Claude)"><button type="button" class="ask-opt" data-ask-cl-key="1">키 저장</button>${askClKey()?`<b class="ask-sub">저장됨 (…${escHtml(askClKey().slice(-4))})</b><button type="button" class="ask-opt" data-ask-cl-keydel="1">키 지우기</button>`:""}<span class="ask-sub">이 브라우저에만 저장 · 서버 · 다른 PC로 안 감</span></div>
   <div class="ask-teach"><span class="ask-rl">중계 서버</span>
     ${adm?`<input id="askClUrl" style="width:260px" placeholder="https://…workers.dev" value="${escHtml(ASK_CL_CFG.url||"")}"><button type="button" class="ask-opt" data-ask-cl-url="1">저장</button>`:`<input id="askClCodeIn" type="password" style="width:120px" placeholder="팀 코드" value=""><button type="button" class="ask-opt" data-ask-cl-code="1">${askClCode()?"코드 바꾸기":"코드 저장"}</button>`}
     <label class="ask-sub"><input type="checkbox" id="askClAuto" ${askClAuto()?"checked":""}> 못 알아들은 말 · 분석 질문은 자동으로 Claude</label>
@@ -12016,7 +12059,7 @@ function askWire(){
     const clq = e.target.closest("[data-ask-cl-q]"); if(clq){ inp.value = clq.getAttribute("data-ask-cl-q"); askClaude(inp.value); return; }
     const cls = e.target.closest("[data-ask-cl-show]"); if(cls && ASK_CL.last){ askClRender(Object.assign({}, ASK_CL.last, { show:+cls.getAttribute("data-ask-cl-show")+1 })); return; }
     if(e.target.closest("[data-ask-cl-url]")){ const u = ((document.getElementById("askClUrl")||{}).value||"").trim(); if(u && !/^https:\/\/[^\s]+$/.test(u)){ alert("https:// 로 시작하는 주소를 넣어 주세요"); return; } askClSaveCfg(Object.assign({}, ASK_CL_CFG, { url:u })); askHistRender(); askLearnListRender(); return; }
-    if(e.target.closest("[data-ask-cl-key]")){ const k = ((document.getElementById("askClKeyIn")||{}).value||"").trim(); if(!/^sk-ant-[\w-]{20,}$/.test(k)){ alert("sk-ant- 로 시작하는 API 키를 붙여넣어 주세요"); return; } try{ localStorage.setItem("kk_askcl_key", k); }catch(_){} askHistRender(); askLearnListRender(); return; }   // build 310
+    if(e.target.closest("[data-ask-cl-key]")){ const k = ((document.getElementById("askClKeyIn")||{}).value||"").trim(); if(!/^sk-ant-[\w-]{20,}$/.test(k) && !/^AIza[\w-]{30,}$/.test(k)){ alert("AIza…(Gemini) 또는 sk-ant-…(Claude)로 시작하는 API 키를 붙여넣어 주세요"); return; } try{ localStorage.setItem("kk_askcl_key", k); }catch(_){} askHistRender(); askLearnListRender(); return; }   // build 310
     if(e.target.closest("[data-ask-cl-keydel]")){ try{ localStorage.removeItem("kk_askcl_key"); }catch(_){} askHistRender(); askLearnListRender(); return; }
     if(e.target.closest("[data-ask-cl-code]")){ const c = ((document.getElementById("askClCodeIn")||{}).value||"").trim(); try{ if(c) localStorage.setItem("kk_askcl_code", c); }catch(_){} if(c && inp.value) askClaude(inp.value, { fresh:true }); else askLearnListRender(); return; }
     if(e.target.id==="askClAuto"){ try{ localStorage.setItem("kk_askcl_auto", e.target.checked ? "1" : "0"); }catch(_){} return; }
