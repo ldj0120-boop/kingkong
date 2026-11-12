@@ -1888,7 +1888,7 @@
   .ask-cl-card{border:1px solid var(--info, #3b6fd8);border-radius:10px;padding:10px 12px;margin:0 0 10px;background:color-mix(in srgb, var(--info, #3b6fd8) 6%, transparent);}
   .ask-cl-hd{display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:6px;} .ask-cl-hd .ask-x{margin-left:auto;}
   .ask-cl-ans{font-size:15px;line-height:1.55;margin:2px 0 8px;} .ask-cl-tools{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0;}
-  .ask-cl-btn{white-space:nowrap;}
+  .ask-cl-btn{white-space:nowrap;} .ask-secret{-webkit-text-security:disc;}   /* build 313: 키 칸은 비밀번호 칸이 아니라 글자만 가림(자동 채우기 막기) */
   .ask-ai-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0;}
   .ask-learn-tbl td{padding:4px 8px;} .ask-teach{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;}
   .ask-teach input,.ask-teach select{font-size:13px;padding:4px 8px;border:1px solid var(--line);border-radius:8px;background:transparent;color:inherit;}
@@ -1900,7 +1900,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 312 · 2026-11-12</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 313 · 2026-11-12</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -11706,7 +11706,7 @@ function askClUrlOk(){ return !!(ASK_CL_CFG && /^https:\/\/[^\s]+$/.test(ASK_CL_
 // build 310: 중계 서버(Worker) 없이 — 이 PC 브라우저에만 API 키를 저장하고 Anthropic API를 바로 부름(서버 상태 · GitHub에는 안 들어감)
 function askClKey(){ try{ return localStorage.getItem("kk_askcl_key")||""; }catch(_){ return ""; } }
 const ASK_CL_MODELS = { fast:"claude-haiku-4-5", deep:"claude-sonnet-4-5" };
-function askClProv(){ const k = askClKey(); return /^sk-ant-/.test(k) ? "claude" : /^AIza/.test(k) ? "gemini" : ""; }   // build 311: Gemini 무료 키도
+function askClProv(){ const k = askClKey(); return /^sk-ant-/.test(k) ? "claude" : /^(AIza|AQ\.)/.test(k) ? "gemini" : ""; }   // build 313: 새 형식 Gemini 키 AQ.…   // build 311: Gemini 무료 키도
 function askClReady(){ return askClUrlOk() || !!askClProv(); }
 function askClMode(){ return askClUrlOk() ? "worker" : askClKey() ? "direct" : ""; }
 function askClAuto(){ try{ return localStorage.getItem("kk_askcl_auto")!=="0"; }catch(_){ return true; } }
@@ -11862,7 +11862,7 @@ function askClRender(r, opts){
 function askClShowQuiet(slots, notes, text){ const keep = ASK_STATE.typed; ASK_STATE.typed = "\u0000"; try{ askShow(Object.assign({}, slots||{}), notes||[], [], text); }finally{ ASK_STATE.typed = keep; } }
 function askClSetupHtml(msg){
   return `<div class="ask-cl-card"><div class="ask-cl-hd">🤖 Claude <button type="button" class="ask-x" data-ask-close title="닫기">✕</button></div><div class="ask-note">${escHtml(msg)}</div>
-    ${(typeof IS_ADMIN!=="undefined" && IS_ADMIN) ? "" : `<div class="ask-teach"><span class="ask-rl">팀 코드</span><input id="askClCodeIn" type="password" style="width:140px" placeholder="관리자에게 받은 코드"><button type="button" class="ask-opt" data-ask-cl-code="1">저장</button></div>`}</div>`;
+    ${(typeof IS_ADMIN!=="undefined" && IS_ADMIN) ? "" : `<div class="ask-teach"><span class="ask-rl">팀 코드</span><input id="askClCodeIn" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" class="ask-secret" style="width:140px" placeholder="관리자에게 받은 코드"><button type="button" class="ask-opt" data-ask-cl-code="1">저장</button></div>`}</div>`;
 }
 async function askClaude(text, opts){
   const t = String(text||"").trim(); const box = document.getElementById("askResult"); if(!t || !box) return null;
@@ -11917,9 +11917,9 @@ function askClPanelHtml(){
   const adm = typeof IS_ADMIN!=="undefined" && IS_ADMIN;
   const mode = askClMode();
   return `<div class="ask-teach"><span class="ask-rl">🤖 Claude 연결</span>${mode==="worker"?`<b>켜짐(중계 서버)</b>`:mode==="direct"?`<b>켜짐(${askClProv()==="gemini"?"Gemini 무료":"Claude"} · 이 PC)</b>`:`<span class="ask-sub">꺼짐</span>`}
-    <span class="ask-rl">이 PC API 키</span><input id="askClKeyIn" type="password" autocomplete="off" style="width:200px" placeholder="AIza…(Gemini 무료 키 · aistudio.google.com) 또는 sk-ant-…(Claude)"><button type="button" class="ask-opt" data-ask-cl-key="1">키 저장</button>${askClKey()?`<b class="ask-sub">저장됨 (…${escHtml(askClKey().slice(-4))})</b><button type="button" class="ask-opt" data-ask-cl-keydel="1">키 지우기</button>`:""}<span class="ask-sub">이 브라우저에만 저장 · 서버 · 다른 PC로 안 감</span></div>
+    <span class="ask-rl">이 PC API 키</span><input id="askClKeyIn" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" class="ask-secret" style="width:200px" placeholder="Gemini 키(AIza… / AQ.…) 또는 sk-ant-…(Claude)"><button type="button" class="ask-opt" data-ask-cl-key="1">키 저장</button>${askClKey()?`<b class="ask-sub">저장됨 (…${escHtml(askClKey().slice(-4))})</b><button type="button" class="ask-opt" data-ask-cl-keydel="1">키 지우기</button>`:""}<span class="ask-sub">이 브라우저에만 저장 · 서버 · 다른 PC로 안 감</span></div>
   <div class="ask-teach"><span class="ask-rl">중계 서버</span>
-    ${adm?`<input id="askClUrl" style="width:260px" placeholder="https://…workers.dev" value="${escHtml(ASK_CL_CFG.url||"")}"><button type="button" class="ask-opt" data-ask-cl-url="1">저장</button>`:`<input id="askClCodeIn" type="password" style="width:120px" placeholder="팀 코드" value=""><button type="button" class="ask-opt" data-ask-cl-code="1">${askClCode()?"코드 바꾸기":"코드 저장"}</button>`}
+    ${adm?`<input id="askClUrl" style="width:260px" placeholder="https://…workers.dev" value="${escHtml(ASK_CL_CFG.url||"")}"><button type="button" class="ask-opt" data-ask-cl-url="1">저장</button>`:`<input id="askClCodeIn" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" class="ask-secret" style="width:120px" placeholder="팀 코드" value=""><button type="button" class="ask-opt" data-ask-cl-code="1">${askClCode()?"코드 바꾸기":"코드 저장"}</button>`}
     <label class="ask-sub"><input type="checkbox" id="askClAuto" ${askClAuto()?"checked":""}> 못 알아들은 말 · 분석 질문은 자동으로 Claude</label>
     ${ASK_CL.calls?`<span class="ask-sub">이번 창에서 ${ASK_CL.calls}번 호출</span>`:""}</div>`;
 }
@@ -12059,7 +12059,7 @@ function askWire(){
     const clq = e.target.closest("[data-ask-cl-q]"); if(clq){ inp.value = clq.getAttribute("data-ask-cl-q"); askClaude(inp.value); return; }
     const cls = e.target.closest("[data-ask-cl-show]"); if(cls && ASK_CL.last){ askClRender(Object.assign({}, ASK_CL.last, { show:+cls.getAttribute("data-ask-cl-show")+1 })); return; }
     if(e.target.closest("[data-ask-cl-url]")){ const u = ((document.getElementById("askClUrl")||{}).value||"").trim(); if(u && !/^https:\/\/[^\s]+$/.test(u)){ alert("https:// 로 시작하는 주소를 넣어 주세요"); return; } askClSaveCfg(Object.assign({}, ASK_CL_CFG, { url:u })); askHistRender(); askLearnListRender(); return; }
-    if(e.target.closest("[data-ask-cl-key]")){ const k = ((document.getElementById("askClKeyIn")||{}).value||"").trim(); if(!/^sk-ant-[\w-]{20,}$/.test(k) && !/^AIza[\w-]{30,}$/.test(k)){ alert("AIza…(Gemini) 또는 sk-ant-…(Claude)로 시작하는 API 키를 붙여넣어 주세요"); return; } try{ localStorage.setItem("kk_askcl_key", k); }catch(_){} askHistRender(); askLearnListRender(); return; }   // build 310
+    if(e.target.closest("[data-ask-cl-key]")){ const k = ((document.getElementById("askClKeyIn")||{}).value||"").replace(/\s+/g,""); if(!/^sk-ant-[\w-]{20,}$/.test(k) && !/^AIza[\w-]{30,}$/.test(k) && !/^AQ\.[\w.-]{20,}$/.test(k)){ alert("Gemini 키(AIza… 또는 AQ.…) 또는 Claude 키(sk-ant-…)를 붙여넣어 주세요 — 브라우저가 저장된 비밀번호를 자동으로 채웠다면 지우고 키를 붙여넣어 주세요"); return; } try{ localStorage.setItem("kk_askcl_key", k); }catch(_){} askHistRender(); askLearnListRender(); return; }   // build 310
     if(e.target.closest("[data-ask-cl-keydel]")){ try{ localStorage.removeItem("kk_askcl_key"); }catch(_){} askHistRender(); askLearnListRender(); return; }
     if(e.target.closest("[data-ask-cl-code]")){ const c = ((document.getElementById("askClCodeIn")||{}).value||"").trim(); try{ if(c) localStorage.setItem("kk_askcl_code", c); }catch(_){} if(c && inp.value) askClaude(inp.value, { fresh:true }); else askLearnListRender(); return; }
     if(e.target.id==="askClAuto"){ try{ localStorage.setItem("kk_askcl_auto", e.target.checked ? "1" : "0"); }catch(_){} return; }
