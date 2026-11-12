@@ -1896,7 +1896,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 304 · 2026-11-12</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 306 · 2026-11-12</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -19042,6 +19042,7 @@ function fiDispText(rows, meta){
       out.push(`■ 상차 ${d}(${fiDispWeekday(d)}) ${ap||""} ${tm}`.replace(/\s+/g," ").trim()); }
     by[k].forEach((r,i)=>{
       out.push(`${i+1}. ${fiCenterName(r.fc)||r.fc} → ${r.dest||"(도착지 미정)"} / ${r.pallets||"?"}PLT`);
+      { const ld = fiLoadOf(r); if(ld) out.push(`   적재물 ${ld}`); }   // build 305
       if(fiIsDw(r)){   // build 196 · 220 FC파손
         out.push(`   입차코드 ${r.bidcode||"?"} · ${r.group||""}`);
         out.push(`   상차지 ${r.addr || "(주소 확인 필요)"}`);
@@ -19051,7 +19052,7 @@ function fiDispText(rows, meta){
         out.push(`   입차코드 ${r.bidcode||"?"}${r.lot?` · LOT ${r.lot}`:""}`);
         out.push(`   상차지 ${r.addr || "(주소 확인 필요)"}`);
         out.push(`   담당 ${r.person || "(담당자 확인 필요)"} ${r.phone || "(연락처 확인 필요)"}`);
-        { const nt = r.remark!=null && r.remark!=="" ? r.remark : (r.opNote||""); if(nt) out.push(`   비고 ${nt}`); }
+        { const nt = fiRemarkOf(r); if(nt) out.push(`   비고 ${nt}`); }
       } else
       out.push(`   입차코드 ${r.bidcode||"?"} · Group ${fiNumShow(r)||"?"} (${r.group||""})`);
     });
@@ -19617,7 +19618,7 @@ function fiDispSave(){
   const e = { id:_fiDisp.id, at:_fiDisp.at, updatedAt:Date.now(), note:_fiDisp.note, matchInfo:_fiDisp.matchInfo,
     rows:_fiDisp.rows.map(r=>({ bidDate:r.bidDate, bidcode:r.bidcode, group:r.group, number:r.number, numFull:r.numFull||"", pallets:r.pallets, outboundDate:r.outboundDate,
       outboundAmPm:r.outboundAmPm, outTime:r.outTime||"", typeSub:r.typeSub||"", dw:!!r.dw, dwLot:r.dwLot||"", fc:r.fc, dest:r.dest, type:r.type, memo:r.memo||"", co:fiCoOf(r), skip:!!r.skip, sms:!!r.sms,
-      lot:r.lot||"", addr:r.addr||"", person:r.person||"", phone:r.phone||"", opNote:r.opNote||"", remark:r.remark||"", palOk:!!r.palOk, srcLine:r.srcLine||"",
+      lot:r.lot||"", addr:r.addr||"", person:r.person||"", phone:r.phone||"", opNote:r.opNote||"", remark:r.remark||"", load:r.load||"", heavyNote:r.heavyNote||"", palOk:!!r.palOk, srcLine:r.srcLine||"",
       eos:!!r.eos, src:r.src||null, srcs:r.srcs||null, histPlt:r.histPlt==null?null:r.histPlt, wdBad:r.wdBad||null, dirFilled:r.dirFilled||null, onlyIn:r.onlyIn||null, missingIn:r.missingIn||null, warn:r.warn||[], center:r.center||"", hbNo:r.hbNo||"", bidNo:r.bidNo||"", bidNoManual:!!r.bidNoManual })),   // build 270
     srcs:_fiDisp.srcs||null, answers:_fiDisp.answers||null };
   FI_DISPATCH_HISTORY = fiMergeHistory([e], FI_DISPATCH_HISTORY.filter(h=>h.id!==e.id));
@@ -19702,21 +19703,16 @@ function fiDispSheetRows(rows){
     PLT: r.pallets==null||r.pallets==="" ? "" : +r.pallets,
     출고일시: `${r.outboundDate||""} ${r.outboundAmPm||""} ${r.outTime||""}`.replace(/\s+/g," ").trim(),   // build 196: "오전 11시"
     FC: fiCenterName(r.fc)||r.fc, 주소:r.addr||"", 담당자:r.person||"", 연락처:r.phone||"", 도착지:r.dest||"", 카테: /^XLD$/i.test(String(r.type||"")) ? "기저귀/분유" : (r.typeSub||r.type||""),   // build 198: XLD → 기저귀/분유(사용자 배차표와 같음)
+    적재물: fiLoadOf(r),   // build 305
     비고: fiRemarkOf(r)
   }));
 }
-const FI_DISP_HDR = ["NO","낙찰일","입차CODE","낙찰NO","Group Number","PLT수량","출고일시","FC","도착지","카테.","비고"];
-const FI_DISP_KEYS = ["NO","낙찰일","입차CODE","낙찰NO","GroupNumber","PLT","출고일시","FC","도착지","카테","비고"];
-const FI_DISP_WIDTH = [12,13,14,18,15,9,17,10,14,8,24];
-// build 135: 임박식품 행이 있으면 FC 옆에 상차지 주소 · 담당자 · 연락처 열, 비고(운영 특이사항) 넓게
-function fiDispCols(rows){
-  if(!(rows||[]).some(r=> r.type==="임박")){
-    if((rows||[]).some(r=> fiIsDw(r))){ const w = FI_DISP_WIDTH.slice(); w[w.length-1] = 46; return { hdr:FI_DISP_HDR.concat(["연락처"]), keys:FI_DISP_KEYS.concat(["연락처"]), width:w.concat([60]) }; }   // build 196: 데드우드 — 비고 = 상차지 주소, 오른쪽 연락처
-    return { hdr:FI_DISP_HDR, keys:FI_DISP_KEYS, width:FI_DISP_WIDTH };
-  }
-  // build 149: 기존 배차표와 같은 열 순서(… FC | 도착지 | 카테. | 비고) 그대로 두고, 상차지 주소 · 담당자 · 연락처는 비고 오른쪽에 붙인다(복사·붙여넣기 그대로)
-  const width = FI_DISP_WIDTH.slice(); width[width.length-1] = 34;
-  return { hdr: FI_DISP_HDR.concat(["상차지 주소","담당자","연락처"]), keys: FI_DISP_KEYS.concat(["주소","담당자","연락처"]), width: width.concat([46,16,15]) };
+// build 305: 출고요청서 양식 통일 — 정기 · 임박 · 데드우드 · FC파손 모두 같은 15열(적재물 = 쌀 · 물 등 중량물, 비고와 분리)
+const FI_DISP_HDR = ["NO","낙찰일","입차CODE","낙찰NO","Group Number","PLT수량","출고일시","FC","도착지","카테.","적재물","비고","상차지 주소","담당자","연락처"];
+const FI_DISP_KEYS = ["NO","낙찰일","입차CODE","낙찰NO","GroupNumber","PLT","출고일시","FC","도착지","카테","적재물","비고","주소","담당자","연락처"];
+const FI_DISP_WIDTH = [12,13,14,18,15,9,17,10,14,8,24,26,46,12,18];
+function fiDispCols(rows){   // build 305: 종류와 상관없이 같은 열(빈 칸은 빈칸)
+  return { hdr:FI_DISP_HDR, keys:FI_DISP_KEYS, width:FI_DISP_WIDTH };
 }
 function fiDispRender(){
   const wrap = document.getElementById("fiDispResult");
@@ -19748,15 +19744,25 @@ function fiDispRender(){
 }
 // build 165: 출고요청서 비고 기본값 — XLS "물/탄산수", XLG·XLD(XLGD) "센터 최우선 입차가능" (직접 쓴 비고가 있으면 그대로)
 // build 198 (사용자 지정): 최우선 입차는 XLG 계열(XLG · XLGD · XLGE · XLGH)만. XLD = 기저귀/분유 — 최우선 입차 아님(비고 빈칸, 카테 "기저귀/분유")
-const FI_REMARK_DEFAULT = { XLS:"물/탄산수", XLG:"센터 최우선 입차가능", XLD:"" };
-function fiRemarkOf(r){   // build 304: 임박 중량물(쌀·물) 문구를 비고 앞에
-  const b = fiRemarkBase(r), h = r && r.heavyNote; if(!h || String(b||"").includes(h)) return b;
-  return b ? h + " / " + b : h;
+// build 305: XLS "물/탄산수"는 적재물 칸으로 옮김(비고에서 뺌)
+const FI_REMARK_DEFAULT = { XLS:"", XLG:"센터 최우선 입차가능", XLD:"" };
+// build 305: 적재물 — 직접 쓴 값 > 임박 쌀·물(낙찰파일 원본 기준) > XLS 물/탄산수
+function fiLoadOf(r){
+  if(!r) return "";
+  if(r.load!=null && String(r.load).trim()!=="") return String(r.load).trim();
+  if(r.heavyNote) return String(r.heavyNote).replace(/^중량물\s*/,"");
+  if(/^XLS/i.test(String(r.type||""))) return "물/탄산수";
+  return "";
+}
+function fiRemarkOf(r){
+  const nt = fiRemarkBase(r); if(!nt) return nt;
+  const ld = fiLoadOf(r);   // 예전 기록에 비고로 남은 "물/탄산수" · 중량물 문구는 적재물과 겹치면 뺌
+  return String(nt).split(/\s+\/\s+/).filter(x=> x && x!==ld && !/^중량물\s/.test(x) && !(/^XLS/i.test(String(r.type||"")) && x==="물/탄산수")).join(" / ");
 }
 function fiRemarkBase(r){
   if(r.remark!=null && String(r.remark).trim()!=="") return r.remark;
   if(r.type==="임박") return r.opNote||"";
-  if(fiIsDw(r)) return r.addr||"";   // build 196: 데드우드 비고 = 상차지 주소(사용자 최종본과 같음)
+  if(fiIsDw(r)) return "";   // build 305: 데드우드 · FC파손 상차지 주소는 '상차지 주소' 칸으로(비고 빈칸)
   const t = String(r.type||"").toUpperCase();
   if(/^XLD/.test(t)) return "";   // build 198: XLD(기저귀/분유)는 최우선 입차 아님
   return FI_REMARK_DEFAULT[t] || (/^XLG/.test(t) ? FI_REMARK_DEFAULT.XLG : (r.opNote||""));
@@ -19766,8 +19772,9 @@ function fiDispEosSubRow(r, i){
   if(fiIsDw(r)){   // build 220
     const g = (k, v, w, ph)=>`<input class="fi-dinp" data-fd-i="${i}" data-fd-k="${k}" value="${escHtml(v==null?"":v)}" placeholder="${ph}" style="width:${w}px;${v?"":"border-color:var(--red,#C8232F)"}">`;
     return `<tr class="fi-eosinfo" style="${r.skip?"opacity:.45":""}"><td></td><td colspan="12" style="padding:0 6px 10px;font-size:13.5px;white-space:nowrap">
-      <span class="fi-mut">상차지</span> ${g("addr", r.addr, 420, "상차지 주소(비고 칸에 들어감)")}
-      <span class="fi-mut">연락처</span> ${g("phone", r.phone, 260, "센터명 번호 / 번호")}</td></tr>`;
+      <span class="fi-mut">상차지</span> ${g("addr", r.addr, 420, "상차지 주소")}
+      <span class="fi-mut">연락처</span> ${g("phone", r.phone, 260, "센터명 번호 / 번호")}
+      <span class="fi-mut">적재물</span> <input class="fi-dinp" data-fd-i="${i}" data-fd-k="load" value="${escHtml(fiLoadOf(r))}" placeholder="쌀 · 물 등(없으면 비움)" style="width:200px"></td></tr>`;
   }
   if(r.type!=="임박") return "";
   const f = (k, v, w, ph)=>`<input class="fi-dinp" data-fd-i="${i}" data-fd-k="${k}" value="${escHtml(v==null?"":v)}" placeholder="${ph}" style="width:${w}px;${v?"":"border-color:var(--red,#C8232F)"}">`;
@@ -19776,7 +19783,8 @@ function fiDispEosSubRow(r, i){
     <span class="fi-mut">상차지</span> ${f("addr", r.addr, 360, "상차지 주소(필수)")}
     <span class="fi-mut">담당자</span> ${f("person", r.person, 120, "담당자(필수)")}
     <span class="fi-mut">연락처</span> ${f("phone", r.phone, 120, "연락처(필수)")}
-    <span class="fi-mut">비고</span> ${r.heavyNote ? `<b style="color:var(--red,#C8232F)" title="낙찰파일 원본 기준(1 로케이션 = 1PLT, 쌀/물 수량 50% 이상 = 전용). 출고요청서 비고 앞에 자동으로 들어감">⚖ ${escHtml(r.heavyNote)}</b> / ` : ""}<input class="fi-dinp" data-fd-i="${i}" data-fd-k="remark" value="${escHtml(nt)}" placeholder="운영 특이사항(없으면 비움)" style="width:320px"></td></tr>`;
+    <span class="fi-mut" title="낙찰파일 원본 기준 자동(1 로케이션 = 1PLT, 쌀/물 수량 50% 이상 = 전용). 고치면 그 값으로">적재물</span> <input class="fi-dinp" data-fd-i="${i}" data-fd-k="load" value="${escHtml(fiLoadOf(r))}" placeholder="쌀 · 물(없으면 비움)" style="width:230px;${fiLoadOf(r)?"color:var(--red,#C8232F);font-weight:700":""}">
+    <span class="fi-mut">비고</span> <input class="fi-dinp" data-fd-i="${i}" data-fd-k="remark" value="${escHtml(nt)}" placeholder="운영 특이사항(없으면 비움)" style="width:320px"></td></tr>`;
 }
 // build 117: 미리보기·문구만 따로 다시 그림 — 표의 칸(PLT 등)을 고치는 즉시 반영(입력 중인 칸 포커스 유지)
 function fiDispRenderOut(){ const el=document.getElementById("fiDispOut"); if(el && _fiDisp) el.innerHTML = fiDispOutHtml(_fiDisp); try{ fiComboRender(); }catch(_){} try{ const vb = document.getElementById("fiVerifyBox"); if(vb && _fiDisp){ const t = document.createElement("div"); t.innerHTML = fiVerifyHtml(_fiDisp); if(t.firstElementChild) vb.replaceWith(t.firstElementChild); } }catch(_){} }   // build 227
@@ -19845,7 +19853,7 @@ function fiComboTextAll(C){
 function fiComboTableHtml(C, rs){
   const cols = fiDispCols(rs);
   return `<div class="fi-xprev"><table><thead><tr><th style="width:28px"></th>${cols.hdr.map(x=>`<th>${escHtml(x)}</th>`).join("")}</tr></thead><tbody>
-    ${fiDispSheetRows(rs).map((o,i)=>`<tr><td style="padding:0 2px"><button class="act fi-mini fi-del" style="padding:1px 6px" data-combo-del="${C.own.get(rs[i])}|${escHtml(fiComboRowKey(rs[i]))}" title="합본 화면에서 이 행 빼기 (기록은 그대로)">✕</button></td>${cols.keys.map(k=>`<td${/^(주소|비고)$/.test(k)?' style="text-align:left;white-space:normal;min-width:180px"':""}>${escHtml(o[k]==null?"":o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+    ${fiDispSheetRows(rs).map((o,i)=>`<tr><td style="padding:0 2px"><button class="act fi-mini fi-del" style="padding:1px 6px" data-combo-del="${C.own.get(rs[i])}|${escHtml(fiComboRowKey(rs[i]))}" title="합본 화면에서 이 행 빼기 (기록은 그대로)">✕</button></td>${cols.keys.map(k=>`<td${/^(주소|비고|적재물)$/.test(k)?' style="text-align:left;white-space:normal;min-width:180px"':""}>${escHtml(o[k]==null?"":o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 function fiComboRender(){
   const el = document.getElementById("fiDispCombo"); if(!el) return;
@@ -19929,7 +19937,7 @@ async function fiComboWorkbook(C){
           if(k==="NO") v = { formula:"ROW()-3", result: row-3 };   // build 276: 자동 넘버링 — 행을 넣거나 빼도 1,2,3…
           if(k==="낙찰일" && /^\d{4}-\d{2}-\d{2}$/.test(v||"")){ const [y,m,d]=v.split("-").map(Number); v = new Date(Date.UTC(y,m-1,d)); cell.numFmt="yyyy-mm-dd"; }
           cell.value = v===""||v==null ? null : v;
-          cell.font = { name:"맑은 고딕", size:11 }; cell.alignment = /^(주소|비고)$/.test(k) ? { horizontal:"left", vertical:"middle", wrapText:true } : { horizontal:"center", vertical:"middle" }; cell.border = border;
+          cell.font = { name:"맑은 고딕", size:11 }; cell.alignment = /^(주소|비고|적재물)$/.test(k) ? { horizontal:"left", vertical:"middle", wrapText:true } : { horizontal:"center", vertical:"middle" }; cell.border = border;
         });
         row++;
       });
@@ -19945,7 +19953,7 @@ const FI_IMG_FONT = '"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo","Noto
 function fiReqImageCanvas(g){
   const COLS = fiDispCols(g.rows), rs = fiDispSheetRows(g.rows);
   const title = fiComboTitleCell(COLS, g).result;
-  const S = 2, PAD = 9, WRAP = /^(주소|비고)$/, WRAPMAX = 330;
+  const S = 2, PAD = 9, WRAP = /^(주소|비고|적재물)$/, WRAPMAX = 330;
   const cv = document.createElement("canvas"), cx = cv.getContext("2d");
   const txt = v=> v==null ? "" : String(v);
   const fBody = `14px ${FI_IMG_FONT}`, fHead = `bold 13px ${FI_IMG_FONT}`, fTitle = `bold 18px ${FI_IMG_FONT}`, fLeg = `13px ${FI_IMG_FONT}`;
@@ -20066,7 +20074,7 @@ function fiDispOutHtml(d){
     const rs = g.rows;
     h += `<div class="fi-mut" style="margin:8px 0 4px"><b style="color:var(--text)">■ ${escHtml(fiComboDateLabel(g.date))} 출고</b> ${rs.length}건 · ${rs.reduce((s,r)=>s+(+r.pallets||0),0)}PLT</div>
     <div class="fi-xprev"><table><thead><tr>${fiDispCols(rs).hdr.map(x=>`<th>${escHtml(x)}</th>`).join("")}</tr></thead><tbody>
-    ${fiDispSheetRows(rs).map(o=>`<tr>${fiDispCols(rs).keys.map(k=>`<td${/^(주소|비고)$/.test(k)?' style="text-align:left;white-space:normal;min-width:180px"':""}>${escHtml(o[k]==null?"":o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+    ${fiDispSheetRows(rs).map(o=>`<tr>${fiDispCols(rs).keys.map(k=>`<td${/^(주소|비고|적재물)$/.test(k)?' style="text-align:left;white-space:normal;min-width:180px"':""}>${escHtml(o[k]==null?"":o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   });
   h += `<div id="fiDispImgs"></div>`;   // build 241
   h += `<div class="fi-sec-t">물류업체 전달 문구 <button class="act primary fi-mini" id="fiDispCopy">복사</button> <span id="fiDispCopyMsg" class="fi-mut"></span></div>
@@ -20148,7 +20156,7 @@ async function fiDispWorkbook(groups){
         if(k==="NO") v = { formula:"ROW()-3", result: ri+1 };   // build 276: 자동 넘버링
         if(k==="낙찰일" && /^\d{4}-\d{2}-\d{2}$/.test(v||"")){ const [y,m,d]=v.split("-").map(Number); v = new Date(Date.UTC(y,m-1,d)); cell.numFmt="yyyy-mm-dd"; }
         cell.value = v===""||v==null ? null : v;
-        cell.font = { name:"맑은 고딕", size:11 }; cell.alignment = /^(주소|비고)$/.test(k) ? { horizontal:"left", vertical:"middle", wrapText:true } : { horizontal:"center", vertical:"middle" }; cell.border = border;
+        cell.font = { name:"맑은 고딕", size:11 }; cell.alignment = /^(주소|비고|적재물)$/.test(k) ? { horizontal:"left", vertical:"middle", wrapText:true } : { horizontal:"center", vertical:"middle" }; cell.border = border;
       });
     });
     ws.views = [{ state:"frozen", ySplit:3 }];
@@ -23642,11 +23650,21 @@ function eosRateOf(cate2, cate3, cate4){
   return { r:0, miss:true };
 }
 function eosYYMMDD(s){ const d = String(s||"").replace(/\D/g,""); return d.length===8 ? d : d.length===6 ? "20"+d : ""; }   // build 211: 파일명 날짜 YYYYMMDD
-// build 304: 중량물(쌀 · 물) — 낙찰 원본 행(19열: Grouping|No.|FC|…|cate4[8]|로케이션[10]|…|상품명[14]|수량[15])에서 LOT|FC별 집계
-//   1 로케이션 = 1PLT. 그 PLT 수량의 50% 이상이 쌀/물이면 "전용", 아니면 "혼적". 무게는 상품명 kg·g·L·ml × 입수로 추정.
-function eosHeavyKind(c3, c4){ const a = String(c4||"").replace(/\s/g,""), b = String(c3||"").replace(/\s/g,"");
+// build 306: 중량물(적재물) — 쌀 · 물 · 음료 · 액체세제(가루 · 캡슐 · 시트 세제 제외)
+//   낙찰 원본 행(19열: Grouping|No.|FC|…|cate3[7]|cate4[8]|cate5[9]|로케이션[10]|…|상품명[14]|수량[15])에서 LOT|FC별 집계
+//   1 로케이션 = 1PLT. 그 PLT 수량 중 중량물이 50% 이상 = 단독, 20~50% = 혼적, 20% 미만은 안 셈.
+//   단독 + 혼적이 5PLT 이상인 센터만 적재물에 표기. 무게는 상품명 kg·g·L·ml × 입수로 추정.
+const EOS_HEAVY_MIN_PLT = 5, EOS_HEAVY_SOLO = 0.5, EOS_HEAVY_MIX = 0.2, EOS_HEAVY_V = 2;
+function eosHeavyKind(c3, c4, c5, name){
+  const a = String(c4||"").replace(/\s/g,""), b = String(c3||"").replace(/\s/g,""), e = String(c5||"").replace(/\s/g,""), n = String(name||"");
   if(/^쌀/.test(a) || /^(백미|현미|찹쌀)/.test(a)) return "쌀";
-  if(/생수|탄산수/.test(a) || (/생수/.test(b) && /^물$/.test(a))) return "물"; return ""; }
+  if(/생수|탄산수/.test(a)) return "물";
+  if(/^생수\/?음료/.test(b) || /^음료/.test(a)) return "음료";
+  if(/^세제/.test(b) || /세제|섬유유연제/.test(a)){
+    if(/가루|분말|파우더|캡슐|시트|타블렛|정제|고체|비누/.test(e+" "+n)) return "";
+    return "세제"; }
+  return "";
+}
 function eosItemKg(name){
   const n = String(name||""), m = /(\d+(?:\.\d+)?)\s*(kg|g|ml|l)(?![a-z])/i.exec(n); if(!m) return 0;
   const u = m[2].toLowerCase(); let w = +m[1] * (u==="kg"||u==="l" ? 1 : 0.001);
@@ -23656,25 +23674,26 @@ function eosItemKg(name){
 function eosHeavyOf(rows){
   const loc = new Map();
   rows.forEach(r=>{ const lot = eosT(r[1]).toUpperCase(), fc = eosT(r[2]).toUpperCase(), l = eosT(r[10]); if(!lot || !fc) return;
-    const key = lot+"|"+fc+"|"+(l||"?"), q = +r[15]||0, kd = eosHeavyKind(r[7], r[8]);
-    const o = loc.get(key) || { lot, fc, tot:0, h:{} }; o.tot += q;
-    if(kd){ const x = o.h[kd] || (o.h[kd] = { q:0, kg:0 }); x.q += q; x.kg += q * eosItemKg(r[14]); }
+    const key = lot+"|"+fc+"|"+(l||"?"), q = +r[15]||0, kd = eosHeavyKind(r[7], r[8], r[9], r[14]);
+    const o = loc.get(key) || { lot, fc, tot:0, hq:0, kg:0, k:{} }; o.tot += q;
+    if(kd){ o.hq += q; o.kg += q * eosItemKg(r[14]); o.k[kd] = (o.k[kd]||0) + q; }
     loc.set(key, o); });
   const out = {};
-  loc.forEach(o=>{ Object.entries(o.h).forEach(([kd, x])=>{ if(!(x.q>0)) return;
-    const f = out[o.lot+"|"+o.fc] || (out[o.lot+"|"+o.fc] = {}); const y = f[kd] || (f[kd] = { plt:0, mix:0, q:0, kg:0 });
-    if(x.q >= o.tot*0.5) y.plt++; else y.mix++; y.q += x.q; y.kg += x.kg; }); });
-  Object.values(out).forEach(f=> Object.values(f).forEach(y=>{ y.kg = Math.round(y.kg); }));
+  loc.forEach(o=>{ if(!(o.hq>0) || !(o.tot>0)) return; const sh = o.hq / o.tot; if(sh < EOS_HEAVY_MIX) return;
+    const f = out[o.lot+"|"+o.fc] || (out[o.lot+"|"+o.fc] = { v:EOS_HEAVY_V, plt:0, mix:0, kg:0, k:{} });
+    if(sh >= EOS_HEAVY_SOLO) f.plt++; else f.mix++; f.kg += o.kg; Object.entries(o.k).forEach(([kd,q])=> f.k[kd] = (f.k[kd]||0) + q); });
+  Object.values(out).forEach(f=>{ f.kg = Math.round(f.kg); });
   return out;
 }
-// 비고 문구: "쌀 13PLT(혼적 2) · 물 1PLT 약 8.3톤". 전용 PLT가 없고 100kg 미만인 종류는 뺌
+// 적재물 문구: "쌀·음료 15PLT(단독 13·혼적 2) 약 8.1톤" — 단독 + 혼적 5PLT 미만이면 빈칸
 function eosHeavyNote(f){
-  if(!f) return ""; const parts = []; let kg = 0;
-  ["쌀","물"].forEach(kd=>{ const y = f[kd]; if(!y || (!y.plt && y.kg<100)) return; kg += y.kg;
-    parts.push(y.plt ? `${kd} ${y.plt}PLT${y.mix ? `(혼적 ${y.mix})` : ""}` : `${kd} 혼적 ${y.mix}PLT`); });
-  if(!parts.length) return "";
-  const w = kg>=1000 ? `약 ${(kg/1000).toFixed(1)}톤` : kg>0 ? `약 ${Math.max(10, Math.round(kg/10)*10)}kg` : "";
-  return "중량물 " + parts.join(" · ") + (w ? " " + w : "");
+  if(!f || f.v!==EOS_HEAVY_V) return "";
+  const n = (f.plt||0) + (f.mix||0); if(n < EOS_HEAVY_MIN_PLT) return "";
+  const ks = Object.entries(f.k||{}), hq = ks.reduce((t,x)=> t+x[1], 0);   // 중량물 수량의 10% 미만 종류는 이름에서 뺌
+  const kinds = ks.filter(x=> x[1] >= hq*0.1).sort((a,b)=> b[1]-a[1]).map(x=> x[0]==="세제" ? "액체세제" : x[0]).join("·");
+  const sp = [f.plt ? `단독 ${f.plt}` : "", f.mix ? `혼적 ${f.mix}` : ""].filter(Boolean).join("·");
+  const kg = f.kg||0, w = kg>=1000 ? ` 약 ${(kg/1000).toFixed(1)}톤` : kg>0 ? ` 약 ${Math.max(10, Math.round(kg/10)*10)}kg` : "";
+  return `${kinds} ${n}PLT(${sp})${w}`;
 }
 // LOT 하나 → 낙찰파일 내용
 function eosBuildLot(D, lot, date6){
@@ -23843,7 +23862,7 @@ async function eosGenerate(){
     EOS_HISTORY = [{ id, at:new Date(id).toLocaleString("ko-KR"), date:date6, lots:ok, srcName:_eosFile.name,
       files: files.map(({b})=>({ lot:b.lot, name:b.name, outName:b.outName, plt:b.plt, rows:b.rows, qty:b.qty, shop:Math.round(b.shop), whole:Math.round(b.whole), sales:Math.round(b.sales) })),
       eos: [].concat(...files.map(({b})=> (b.eosOnly||b.eos||[]).map(r=>[eosT(r[0]).toUpperCase(), eosT(r[1]).toUpperCase(), eosT(r[2]), +r[3]||0]))),
-      heavy: (()=>{ try{ return eosHeavyOf([].concat(...files.map(({b})=> b.src||[]))); }catch(_){ return {}; } })() }].concat(EOS_HISTORY);   // build 304: 중량물(쌀·물) LOT|FC별   // build 134: 배차 요청서 대조용 EOS 표
+      heavyV: EOS_HEAVY_V, heavy: (()=>{ try{ return eosHeavyOf([].concat(...files.map(({b})=> b.src||[]))); }catch(_){ return {}; } })() }].concat(EOS_HISTORY);   // build 304: 중량물(쌀·물) LOT|FC별   // build 134: 배차 요청서 대조용 EOS 표
     EOS_HISTORY.slice(40).forEach(h=> (h.files||[]).forEach(f=>{ try{ idbSet(`eos_file_${h.id}_${f.lot}`, null).catch(()=>{}); }catch(_){} }));
     eosPersist();
     say(`✓ 낙찰파일 생성 (LOT ${ok.join(", ")}) — ${files.reduce((s,x)=>s+x.b.plt,0)}PLT · ${files.reduce((s,x)=>s+x.b.rows,0).toLocaleString()}행 (${_eosCur.sec}초)`);
@@ -24369,7 +24388,7 @@ async function eosHeavyFromFiles(h){
       XLSX.utils.sheet_to_json(ws, { header:1, range:"A3:S100000", raw:true, defval:null }).forEach(v=>{ if(v && v[1]!=null) rows.push(v); });
     }catch(_){}
   }
-  if(rows.length){ h.heavy = eosHeavyOf(rows); try{ eosPersist(); }catch(_){} }
+  if(rows.length){ h.heavy = eosHeavyOf(rows); h.heavyV = EOS_HEAVY_V; try{ eosPersist(); }catch(_){} }
 }
 // ④ 임박식품 낙찰파일 기록에서 EOS 표(LOT | FC | 센터 | Pallet) 찾기 — 같은 날짜(YYMMDD)·LOT 우선
 async function eosDispHistTable(date, lots){
@@ -24398,7 +24417,7 @@ async function eosDispHistTable(date, lots){
       }
     }
     if(tbl && tbl.length){
-      if(!h.heavy) await eosHeavyFromFiles(h);   // build 304: 예전 기록은 저장된 낙찰파일 원본 시트로 계산
+      if(!h.heavy || h.heavyV!==EOS_HEAVY_V) await eosHeavyFromFiles(h);   // build 304: 예전 기록은 저장된 낙찰파일 원본 시트로 계산
       const plt = (h.files||[]).reduce((s,f)=> s + (+f.plt||0), 0);
       return { h, tbl, plt };
     }
@@ -26032,7 +26051,7 @@ function fiLedgerHeader(ws){
 // build 135: 원장 시트에 "상차지 주소 · 담당자 · 연락처" 머리글 열 찾기(없으면 마지막 머리글 오른쪽에 만든다)
 function fiLedgerEosCols(ws, hdr){
   if(ws._eosCols) return ws._eosCols;
-  const names = ["상차지 주소","담당자","연락처"];
+  const names = ["적재물","상차지 주소","담당자","연락처"];   // build 305: 적재물 추가
   const row = ws.getRow(hdr.row); const found = {};
   for(let c=1;c<=40;c++){ const t = String(_fiCellVal(row.getCell(c).value)||"").trim(); if(names.includes(t)) found[t] = c; if(t==="주소" && !found["상차지 주소"]) found["상차지 주소"] = c; }
   let last = Math.max(...Object.values(hdr.map), ...Object.values(found), 0);
@@ -26041,7 +26060,7 @@ function fiLedgerEosCols(ws, hdr){
     if(found[n]) return found[n];
     const c = ++last; const cell = row.getCell(c); cell.value = n; cell.style = _fiStyleCopy(ref.style);
     if(ref.fill) cell.fill = JSON.parse(JSON.stringify(ref.fill));
-    ws.getColumn(c).width = [46,16,15][i];
+    ws.getColumn(c).width = [24,46,16,15][i];
     return c;
   });
   return ws._eosCols;
@@ -26099,7 +26118,7 @@ function fiLedgerWhere(w){
 // 배차 요청 행 → 원장 행
 function fiLedgerRowFrom(r){
   return { co:fiCoOf(r), bidDate:r.bidDate||"", bidcode:r.bidcode||"", group:r.group||"", number:r.number||"", numFull:r.numFull||"", pallets:(r.pallets==null||r.pallets==="")?null:+r.pallets, outboundDate:r.outboundDate||"",
-    outboundAmPm:r.outboundAmPm||"", fc:r.fc||"", dest:r.dest||"", type:r.type||"", remark:fiRemarkOf(r), addr:r.addr||"", person:r.person||"", phone:r.phone||"", addedAt:new Date().toISOString() };
+    outboundAmPm:r.outboundAmPm||"", fc:r.fc||"", dest:r.dest||"", type:r.type||"", remark:fiRemarkOf(r), load:fiLoadOf(r), addr:r.addr||"", person:r.person||"", phone:r.phone||"", addedAt:new Date().toISOString() };
 }
 async function fiLedgerAdd(rows){
   await fiLedgerLoad();
@@ -26171,7 +26190,7 @@ async function fiLedgerBuild(co){
       "NO":"", "낙찰일": (/^\d{4}-\d{2}-\d{2}$/.test(r.bidDate) ? (()=>{ const [yy,mm,dd]=r.bidDate.split("-").map(Number); return new Date(Date.UTC(yy,mm-1,dd)); })() : r.bidDate),
       "입차CODE": r.bidcode, "낙찰NO": fiBidNoOf(r),
       "Group Number": r.numFull ? r.numFull : /^\d+$/.test(String(r.number)) ? +r.number : r.number, "PLT수량": r.pallets==null||r.pallets==="" ? null : +r.pallets,
-      "출고일시": `${r.outboundDate||""} ${r.outboundAmPm||""}`.trim(), "FC": fiCenterName(r.fc)||r.fc, "도착지": r.dest||"", "카테.": r.type||"", "비고": r.remark||""
+      "출고일시": `${r.outboundDate||""} ${r.outboundAmPm||""}`.trim(), "FC": fiCenterName(r.fc)||r.fc, "도착지": r.dest||"", "카테.": r.type||"", "비고": (r.load!=null || /^XLS/i.test(String(r.type||""))) ? fiRemarkOf({ remark:r.remark||"", type:r.type, load:r.load }) : (r.remark||"")
     };
     Object.entries(hdr.map).forEach(([k,c])=>{
       const cell = ws.getRow(at).getCell(c);
@@ -26180,11 +26199,11 @@ async function fiLedgerBuild(co){
       if(k==="낙찰일" && vals[k] instanceof Date && !cell.numFmt) cell.numFmt = "yyyy-mm-dd";
       const v = vals[k]; cell.value = (v===""||v==null) ? null : v;
     });
-    if(r.type==="임박"){   // build 135
+    { const ld = r.load!=null ? r.load : (/^XLS/i.test(String(r.type||"")) ? "물/탄산수" : "");   // build 305: 모든 종류 같은 열(적재물 · 상차지 주소 · 담당자 · 연락처)
       const ex = fiLedgerEosCols(ws, hdr);
-      [r.addr, r.person, r.phone].forEach((v,i)=>{ const cell = ws.getRow(at).getCell(ex[i]);
+      [ld, r.addr, r.person, r.phone].forEach((v,i)=>{ const cell = ws.getRow(at).getCell(ex[i]);
         const ref = ws.getRow(at).getCell(hdr.map["비고"] || hdr.map["FC"]); cell.style = _fiStyleCopy(ref.style);
-        if(i===0) cell.alignment = { horizontal:"left", vertical:"middle", wrapText:true };
+        if(i<=1) cell.alignment = { horizontal:"left", vertical:"middle", wrapText:true };
         cell.value = v || null; });
     }
     n++;
