@@ -1896,7 +1896,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 303 · 2026-11-11</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 304 · 2026-11-12</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -19749,7 +19749,11 @@ function fiDispRender(){
 // build 165: 출고요청서 비고 기본값 — XLS "물/탄산수", XLG·XLD(XLGD) "센터 최우선 입차가능" (직접 쓴 비고가 있으면 그대로)
 // build 198 (사용자 지정): 최우선 입차는 XLG 계열(XLG · XLGD · XLGE · XLGH)만. XLD = 기저귀/분유 — 최우선 입차 아님(비고 빈칸, 카테 "기저귀/분유")
 const FI_REMARK_DEFAULT = { XLS:"물/탄산수", XLG:"센터 최우선 입차가능", XLD:"" };
-function fiRemarkOf(r){
+function fiRemarkOf(r){   // build 304: 임박 중량물(쌀·물) 문구를 비고 앞에
+  const b = fiRemarkBase(r), h = r && r.heavyNote; if(!h || String(b||"").includes(h)) return b;
+  return b ? h + " / " + b : h;
+}
+function fiRemarkBase(r){
   if(r.remark!=null && String(r.remark).trim()!=="") return r.remark;
   if(r.type==="임박") return r.opNote||"";
   if(fiIsDw(r)) return r.addr||"";   // build 196: 데드우드 비고 = 상차지 주소(사용자 최종본과 같음)
@@ -19772,7 +19776,7 @@ function fiDispEosSubRow(r, i){
     <span class="fi-mut">상차지</span> ${f("addr", r.addr, 360, "상차지 주소(필수)")}
     <span class="fi-mut">담당자</span> ${f("person", r.person, 120, "담당자(필수)")}
     <span class="fi-mut">연락처</span> ${f("phone", r.phone, 120, "연락처(필수)")}
-    <span class="fi-mut">비고</span> <input class="fi-dinp" data-fd-i="${i}" data-fd-k="remark" value="${escHtml(nt)}" placeholder="운영 특이사항(없으면 비움)" style="width:320px"></td></tr>`;
+    <span class="fi-mut">비고</span> ${r.heavyNote ? `<b style="color:var(--red,#C8232F)" title="낙찰파일 원본 기준(1 로케이션 = 1PLT, 쌀/물 수량 50% 이상 = 전용). 출고요청서 비고 앞에 자동으로 들어감">⚖ ${escHtml(r.heavyNote)}</b> / ` : ""}<input class="fi-dinp" data-fd-i="${i}" data-fd-k="remark" value="${escHtml(nt)}" placeholder="운영 특이사항(없으면 비움)" style="width:320px"></td></tr>`;
 }
 // build 117: 미리보기·문구만 따로 다시 그림 — 표의 칸(PLT 등)을 고치는 즉시 반영(입력 중인 칸 포커스 유지)
 function fiDispRenderOut(){ const el=document.getElementById("fiDispOut"); if(el && _fiDisp) el.innerHTML = fiDispOutHtml(_fiDisp); try{ fiComboRender(); }catch(_){} try{ const vb = document.getElementById("fiVerifyBox"); if(vb && _fiDisp){ const t = document.createElement("div"); t.innerHTML = fiVerifyHtml(_fiDisp); if(t.firstElementChild) vb.replaceWith(t.firstElementChild); } }catch(_){} }   // build 227
@@ -23638,6 +23642,40 @@ function eosRateOf(cate2, cate3, cate4){
   return { r:0, miss:true };
 }
 function eosYYMMDD(s){ const d = String(s||"").replace(/\D/g,""); return d.length===8 ? d : d.length===6 ? "20"+d : ""; }   // build 211: 파일명 날짜 YYYYMMDD
+// build 304: 중량물(쌀 · 물) — 낙찰 원본 행(19열: Grouping|No.|FC|…|cate4[8]|로케이션[10]|…|상품명[14]|수량[15])에서 LOT|FC별 집계
+//   1 로케이션 = 1PLT. 그 PLT 수량의 50% 이상이 쌀/물이면 "전용", 아니면 "혼적". 무게는 상품명 kg·g·L·ml × 입수로 추정.
+function eosHeavyKind(c3, c4){ const a = String(c4||"").replace(/\s/g,""), b = String(c3||"").replace(/\s/g,"");
+  if(/^쌀/.test(a) || /^(백미|현미|찹쌀)/.test(a)) return "쌀";
+  if(/생수|탄산수/.test(a) || (/생수/.test(b) && /^물$/.test(a))) return "물"; return ""; }
+function eosItemKg(name){
+  const n = String(name||""), m = /(\d+(?:\.\d+)?)\s*(kg|g|ml|l)(?![a-z])/i.exec(n); if(!m) return 0;
+  const u = m[2].toLowerCase(); let w = +m[1] * (u==="kg"||u==="l" ? 1 : 0.001);
+  const rest = n.slice(m.index + m[0].length), c = /(?:[x×*]\s*)?(\d+)\s*(?:개입|개|병|팩|입|ea)(?![가-힣])/i.exec(rest) || /[x×*]\s*(\d+)/i.exec(n);
+  const k = c ? +c[1] : 1; return w * (k>0 && k<=200 ? k : 1);
+}
+function eosHeavyOf(rows){
+  const loc = new Map();
+  rows.forEach(r=>{ const lot = eosT(r[1]).toUpperCase(), fc = eosT(r[2]).toUpperCase(), l = eosT(r[10]); if(!lot || !fc) return;
+    const key = lot+"|"+fc+"|"+(l||"?"), q = +r[15]||0, kd = eosHeavyKind(r[7], r[8]);
+    const o = loc.get(key) || { lot, fc, tot:0, h:{} }; o.tot += q;
+    if(kd){ const x = o.h[kd] || (o.h[kd] = { q:0, kg:0 }); x.q += q; x.kg += q * eosItemKg(r[14]); }
+    loc.set(key, o); });
+  const out = {};
+  loc.forEach(o=>{ Object.entries(o.h).forEach(([kd, x])=>{ if(!(x.q>0)) return;
+    const f = out[o.lot+"|"+o.fc] || (out[o.lot+"|"+o.fc] = {}); const y = f[kd] || (f[kd] = { plt:0, mix:0, q:0, kg:0 });
+    if(x.q >= o.tot*0.5) y.plt++; else y.mix++; y.q += x.q; y.kg += x.kg; }); });
+  Object.values(out).forEach(f=> Object.values(f).forEach(y=>{ y.kg = Math.round(y.kg); }));
+  return out;
+}
+// 비고 문구: "쌀 13PLT(혼적 2) · 물 1PLT 약 8.3톤". 전용 PLT가 없고 100kg 미만인 종류는 뺌
+function eosHeavyNote(f){
+  if(!f) return ""; const parts = []; let kg = 0;
+  ["쌀","물"].forEach(kd=>{ const y = f[kd]; if(!y || (!y.plt && y.kg<100)) return; kg += y.kg;
+    parts.push(y.plt ? `${kd} ${y.plt}PLT${y.mix ? `(혼적 ${y.mix})` : ""}` : `${kd} 혼적 ${y.mix}PLT`); });
+  if(!parts.length) return "";
+  const w = kg>=1000 ? `약 ${(kg/1000).toFixed(1)}톤` : kg>0 ? `약 ${Math.max(10, Math.round(kg/10)*10)}kg` : "";
+  return "중량물 " + parts.join(" · ") + (w ? " " + w : "");
+}
 // LOT 하나 → 낙찰파일 내용
 function eosBuildLot(D, lot, date6){
   const src = D.rows.filter(r=> eosT(r[1]).toUpperCase()===lot);
@@ -23804,7 +23842,8 @@ async function eosGenerate(){
     _eosCur = { id, date6, files, notFound, srcName:_eosFile.name, eosFromSheet:D.eosFromSheet, colMapped:!!D.colMapped, sec:((Date.now()-t0)/1000).toFixed(1) };
     EOS_HISTORY = [{ id, at:new Date(id).toLocaleString("ko-KR"), date:date6, lots:ok, srcName:_eosFile.name,
       files: files.map(({b})=>({ lot:b.lot, name:b.name, outName:b.outName, plt:b.plt, rows:b.rows, qty:b.qty, shop:Math.round(b.shop), whole:Math.round(b.whole), sales:Math.round(b.sales) })),
-      eos: [].concat(...files.map(({b})=> (b.eosOnly||b.eos||[]).map(r=>[eosT(r[0]).toUpperCase(), eosT(r[1]).toUpperCase(), eosT(r[2]), +r[3]||0]))) }].concat(EOS_HISTORY);   // build 134: 배차 요청서 대조용 EOS 표
+      eos: [].concat(...files.map(({b})=> (b.eosOnly||b.eos||[]).map(r=>[eosT(r[0]).toUpperCase(), eosT(r[1]).toUpperCase(), eosT(r[2]), +r[3]||0]))),
+      heavy: (()=>{ try{ return eosHeavyOf([].concat(...files.map(({b})=> b.src||[]))); }catch(_){ return {}; } })() }].concat(EOS_HISTORY);   // build 304: 중량물(쌀·물) LOT|FC별   // build 134: 배차 요청서 대조용 EOS 표
     EOS_HISTORY.slice(40).forEach(h=> (h.files||[]).forEach(f=>{ try{ idbSet(`eos_file_${h.id}_${f.lot}`, null).catch(()=>{}); }catch(_){} }));
     eosPersist();
     say(`✓ 낙찰파일 생성 (LOT ${ok.join(", ")}) — ${files.reduce((s,x)=>s+x.b.plt,0)}PLT · ${files.reduce((s,x)=>s+x.b.rows,0).toLocaleString()}행 (${_eosCur.sec}초)`);
@@ -24321,6 +24360,17 @@ function eosDispParseText(text){
   });
   return rows;
 }
+// build 304: 기록에 중량물이 없으면 저장된 낙찰파일 "원본" 시트(A~P)로 계산해 기록에 넣음
+async function eosHeavyFromFiles(h){
+  const rows = [];
+  for(const f of (h.files||[])){
+    try{ const o = await idbGet(`eos_file_${h.id}_${f.lot}`); if(!o || !o.data || typeof XLSX==="undefined") continue;
+      const wb = XLSX.read(o.data, { type:"array", sheets:["원본"] }); const ws = wb.Sheets["원본"]; if(!ws) continue;
+      XLSX.utils.sheet_to_json(ws, { header:1, range:"A3:S100000", raw:true, defval:null }).forEach(v=>{ if(v && v[1]!=null) rows.push(v); });
+    }catch(_){}
+  }
+  if(rows.length){ h.heavy = eosHeavyOf(rows); try{ eosPersist(); }catch(_){} }
+}
 // ④ 임박식품 낙찰파일 기록에서 EOS 표(LOT | FC | 센터 | Pallet) 찾기 — 같은 날짜(YYMMDD)·LOT 우선
 async function eosDispHistTable(date, lots){
   const ymd6 = String(date||"").replace(/-/g,"").slice(2);
@@ -24348,6 +24398,7 @@ async function eosDispHistTable(date, lots){
       }
     }
     if(tbl && tbl.length){
+      if(!h.heavy) await eosHeavyFromFiles(h);   // build 304: 예전 기록은 저장된 낙찰파일 원본 시트로 계산
       const plt = (h.files||[]).reduce((s,f)=> s + (+f.plt||0), 0);
       return { h, tbl, plt };
     }
@@ -24439,6 +24490,9 @@ async function eosDispFinish(rows, text, fromImage){
   } else {
     rows.forEach(r=>{ if(fromImage) r.warn.push("PLT·FC 글자인식 — 메일과 대조(같은 PC에서 ② 낙찰파일 생성기 · 임박식품을 먼저 만들면 자동 보정)"); });
   }
+  // build 304: 쌀 · 물이 있는 센터 → 비고 앞에 "중량물 쌀 nPLT … 약 n톤" (센터 기억에는 넣지 않음)
+  rows.forEach(r=>{ const hv = hist && hist.h && hist.h.heavy; const f = hv && hv[(r.lot||"")+"|"+String(r.fc||"").replace(/_/g,"").toUpperCase()];
+    r.heavyNote = eosHeavyNote(f); r.heavy = f || null; });
   // build 135: 상차지 주소 · 담당자 · 연락처 · 비고 — 글은 기억, 이미지는 기억한 값으로 채움, 없으면 경고
   rows.forEach(r=>{
     if(r.remark == null) r.remark = r.opNote || "";
@@ -26288,6 +26342,14 @@ const IMPROVE_PROPOSALS = [
     why:"11/4 · 11/5 · 11/6 매일 '오류(11개 카테고리 다름)'. 11/6 자료로 계산하면 엑셀 '합계' 열은 진천센터를 포함한 값과 20개 중 19개 카테고리가 맞음(XLE 73 = 진천 73, 데드우드 90 = 진천 90, XLD 176 = 다른 센터 48 + 진천 128). 진천 제외로 맞는 건 생산재고 1개뿐(9). 사이트는 '진천 제외'로만 대조해 매일 거짓 오류.",
     what:"auditCenter ①에서 카테고리마다 '진천 포함' 또는 '진천 제외' 합 중 하나와 맞으면 정상. 둘 다 안 맞을 때만 오류로 보여 주고 툴팁에 두 합을 함께 표시.",
     risk:"낮음 — 알림 기준만 바뀜, 재고 계산 · 자료 변경 없음.", done:"build 297" },
+  { id:"P261111-01", date:"2026-11-11", area:"물어보기", title:"물어보기 — '킹고프리'를 알아듣고 매장별 · 날짜별 킹고프리 판매내역 보여 주기",
+    why:"11/11 요청 '킹고프리 매출에 대해 매장별 상세 판매내역을 보고 싶은데 인식을 못함'. 실패 기록: '킹고프리 매출 상세내역'(9번) · '킹고프리 매출 카테고리별' 모두 빈 결과. askParse가 '킹고프리'를 말없이 버리고 전체 매출 카테고리별로 바꿔 답함. 자료는 이미 있음(kgOfDate: 매장별 [금액, 건수]) — 10월 1,881만원 · 56건 · 12일, 11월 944만원 · 13건(용인 366만 · 이천 228만 · 인천 109만 …).",
+    what:"'킹고프리 · 킹고 · 온라인 주문 · KINGGOFREE'를 새 지표로 인식 → 기간 안 킹고프리 금액 · 건수를 매장별(기본) / 날짜별 / 매장×날짜 표로 답함. 매장 · 기간 · 상위 N 등 기존 조건 그대로 적용, 자료 없는 날은 '킹고프리 기록 없음'으로 표시. 카테고리별은 자료가 매장 단위라 '카테고리별은 없음'이라고 안내.",
+    risk:"낮음 — 물어보기 해석만 추가, 자료 · 다른 화면 변경 없음. '온라인'이 다른 뜻(온라인 분석 등)으로 쓰이면 잘못 잡을 수 있음." },
+  { id:"P261111-02", date:"2026-11-11", area:"점검", title:"킹고프리 주문이 며칠째 0건이면 검수 알림 + 11/2~11/4 빈칸 표시",
+    why:"10/29~11/1은 매일 7~10개 매장에 킹고프리 주문이 있었는데, 11/2~11/4는 킹고프리 칸 자체가 없고(그 전 파일로 저장돼 다시 안 읽음) 11/5~11/11은 7일 연속 0건(매장별 매출 파일은 매일 올라옴). 실제 주문이 없었던 건지, 매출현황 파일에 회원명 · 메모 열이 빠져 못 찾는 건지 사이트에서 알 수 없음 → 11월 킹고프리 카드가 944만 · 1일로 작게 보임.",
+    what:"auditStoreData에 '킹고프리 3일 연속 0건(직전 14일 중 주문 있는 날 ≥3일일 때)' 경고 추가 — 툴팁에 날짜별 상태(칸 없음 / 0건 / N건)와 '매출현황 파일에 회원명(KINGGOFREE) · 메모 열이 있는지 확인' 안내. 월 카드의 일수 옆에 '기록 없는 날 N일' 표시.",
+    risk:"낮음 — 알림 · 표시만 추가, 매출 계산 변경 없음. 실제로 주문이 없는 기간엔 거짓 경고가 날 수 있음(하루 1번 '확인됨'으로 끌 수 있게)." },
 ];
 var IMPROVE_DECISIONS; if(!IMPROVE_DECISIONS || typeof IMPROVE_DECISIONS!=="object") IMPROVE_DECISIONS = {};
 var IMPROVE_REQUESTS; if(!Array.isArray(IMPROVE_REQUESTS)) IMPROVE_REQUESTS = [];
