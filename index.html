@@ -1900,7 +1900,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 314 · 2026-11-12</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 315 · 2026-11-12</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -9007,7 +9007,7 @@ const STORE_PROFILE = {
   "광주점":      { fresh:F_ALL, close:"2026-08-23" },   // 2026-08-23 영업 종결
   "기흥점":      { fresh:F_ALL },
   "김포점":      { fresh:F_ALL },
-  "김해점":      { fresh:F_ALL },
+  "김해점":      { fresh:F_ALL, freshDirect:{ from:null, until:"2026-11-11", src:"배민 칠곡센터" } },   // build 315: 배민 칠곡센터 직출지 11/11까지(11/12~ 청주점)
   "동김해점":    { fresh:F_ALL, open:"2026-10-08" },   // build 262: 2026-10-08 오픈 — 매출은 김해점 POS3으로 찍힘(SALES_POS_SPLIT)
   "남양주점":    { fresh:F_ALL },
   "대소점":      { fresh:{chilled:false, frozen:false, ambient:false} },
@@ -9022,7 +9022,7 @@ const STORE_PROFILE = {
   "인천점":      { fresh:F_ALL, freshDirect:{ from:"2026-10-19", src:"쿠팡 인천37센터" } },   // build 270: 쿠팡 신선센터 직출지(인천37센터 → 인천점)
   "제주점":      { fresh:F_ALL },
   "천안점":      { fresh:{chilled:false, frozen:true,  ambient:true} },
-  "청주점":      { fresh:F_ALL, freshStop:"2026-10-19" },   // build 270: 2026-10-19(월)부터 신선식품 운영 중지
+  "청주점":      { fresh:F_ALL, freshStop:"2026-10-19", freshResume:"2026-11-12", freshDirect:{ from:"2026-11-12", src:"배민 칠곡센터" } },   // build 270: 10/19 신선 중지 → build 315: 11/12(목) 신선 재개 + 배민 칠곡센터 직출지(김해점 → 청주점, 최승호 과장 메일)
   "충주점":      { fresh:{chilled:false, frozen:true,  ambient:true} },
   "평택점":      { fresh:{chilled:true,  frozen:false, ambient:true}, close:"2026-11-01" },   // build 288: 2026-11-01까지 영업 후 폐점(사용자 확인 11/4)
   "동탄점":      { fresh:{chilled:false, frozen:false, ambient:false} }, // 구 "기흥 패션관" — 가구·패션 위주라 식품 미취급, 기흥점과는 독립 집계(build 57)
@@ -9044,25 +9044,39 @@ function storeGroupLabel(s){
    안중점·청주점 신선식품 운영 중지. freshStop = 중지 시작일(그날부터 신선 공급·매대 없음), freshDirect = 신선센터 직출지 지정.
    ym을 주면 그 달 기준(중지 달 이후 = 중지), 안 주면 오늘 기준. */
 const FRESH_OPS_NOTICE = { date:"2026-10-19", src:"최승호 과장 메일 — 쿠팡 신선센터 직출지 및 신선식품 운영 매장 변경" };
+// build 315: 2026-11-12(목) 최승호 과장 메일 — 배민 칠곡센터 직출지 김해점 → 청주점, 청주점 신선식품 운영 재개
+const FRESH_OPS_NOTICE2 = { date:"2026-11-12", src:"최승호 과장 메일(11/12) — 배민 칠곡센터 직출지 김해점 → 청주점 · 청주점 신선식품 운영 재개" };
+function freshResumeDate(s){ return storeProfile(s).freshResume || null; }
+function freshNoticeOf(s){ return (freshResumeDate(s) || (storeProfile(s).freshDirect||{}).src==="배민 칠곡센터") ? FRESH_OPS_NOTICE2 : FRESH_OPS_NOTICE; }
+// 재개한 달(그 달 재개일 이전은 중지): 계획 비율 = 재개일부터 말일까지 일수 비례
+function freshResumedIn(s, ym){ const r = freshResumeDate(s); return !!(r && ym === r.slice(0,7)); }
 function _kkToday(){ const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
 function freshStopDate(s){ return storeProfile(s).freshStop || null; }
-function freshStopped(s, ym){ const st = freshStopDate(s); if(!st) return false; return ym ? ym >= st.slice(0,7) : _kkToday() >= st; }
+function freshStopped(s, ym){ const st = freshStopDate(s); if(!st) return false; const rs = freshResumeDate(s);
+  if(ym) return ym >= st.slice(0,7) && !(rs && ym >= rs.slice(0,7));
+  const t = _kkToday(); return t >= st && !(rs && t >= rs); }
 // 그 달 신선 공급계획 중 살아 있는 비율(중지 달은 중지 전날까지 일수 비례, 이후 달은 0)
 function freshPlanFactor(members, ym){
   const ms = (members && members.length) ? members : [];
   if(!ms.length || !ym) return 1;
   const fs = ms.map(m=>{ const st = freshStopDate(m); if(!st) return 1; const sm = st.slice(0,7);
+    const rs = freshResumeDate(m), rm = rs ? rs.slice(0,7) : null;
+    if(rm && ym > rm) return 1;
+    if(rm && ym === rm) return rm === sm ? 1 : (goalsDaysInMonth(ym) - (+rs.slice(8,10)) + 1) / goalsDaysInMonth(ym);
     if(ym < sm) return 1; if(ym > sm) return 0; return Math.max(0, (+st.slice(8,10) - 1)) / goalsDaysInMonth(ym); });
   return Math.max(...fs);
 }
-function freshDirectInfo(s){ return storeProfile(s).freshDirect || null; }
+// build 315: 기간(from~until) 안일 때만 직출지(김해점 배민 칠곡 ~11/11 → 청주점 11/12~)
+function freshDirectInfo(s){ const d = storeProfile(s).freshDirect; if(!d) return null; const t = _kkToday();
+  if(d.from && t < d.from) return null; if(d.until && t > d.until) return null; return d; }
 // build 270: 표 칸용 짧은 신선 표시(긴 문구는 말풍선)
 function storeFreshShort(s){
   const m = storeGroupMembers(s)[0]; const f = storeProfile(m).fresh; if(!f) return "-";
   if(freshStopped(m)){ const st = freshStopDate(m); return `중지 ${+st.slice(5,7)}/${+st.slice(8,10)}~`; }
   const on = [f.chilled&&"냉장", f.frozen&&"냉동", f.ambient&&"상온"].filter(Boolean);
   const dx = freshDirectInfo(m);
-  return (on.length===3 ? "전체" : on.length ? on.join("·") : "미취급") + (dx ? " · 직출지" : "");
+  const rs = freshResumeDate(m), rsOn = rs && _kkToday() >= rs && _kkToday().slice(0,7) === rs.slice(0,7);
+  return (on.length===3 ? "전체" : on.length ? on.join("·") : "미취급") + (rsOn ? ` · 재개 ${+rs.slice(5,7)}/${+rs.slice(8,10)}~` : "") + (dx ? " · 직출지" : "");
 }
 function storeHandlesFresh(s, ym){
   return storeGroupMembers(s).some(m=>{ const f=storeProfile(m).fresh; return !!(f && (f.chilled || f.frozen)) && !freshStopped(m, ym); });
@@ -9071,11 +9085,12 @@ function storeFreshLabel(s){
   const parts = storeGroupMembers(s).map(m=>{
     const f = storeProfile(m).fresh;
     if(!f) return null;
-    const dx = freshDirectInfo(m), dxTxt = dx ? ` · 신선 직출지(${dx.src} → ${m}, ${+dx.from.slice(5,7)}/${+dx.from.slice(8,10)}~)` : "";
+    const dx = freshDirectInfo(m), dxTxt = dx ? ` · 신선 직출지(${dx.src} → ${m}${dx.from?`, ${+dx.from.slice(5,7)}/${+dx.from.slice(8,10)}~`:""})` : "";
+    const rs = freshResumeDate(m), rsTxt = rs && _kkToday() >= rs ? ` · 신선 운영 재개(${+rs.slice(5,7)}/${+rs.slice(8,10)}~)` : "";
     if(freshStopped(m)){ const st = freshStopDate(m); return `신선 운영 중지(${+st.slice(5,7)}/${+st.slice(8,10)}~) — 냉장·냉동 미운영${f.ambient?" · 상온 운영":""}`; }
     const on  = [f.chilled&&"냉장", f.frozen&&"냉동", f.ambient&&"상온"].filter(Boolean);
     const off = [!f.chilled&&"냉장", !f.frozen&&"냉동", !f.ambient&&"상온"].filter(Boolean);
-    if(!off.length) return "식품 전 카테고리 운영(냉장·냉동·상온)" + dxTxt;
+    if(!off.length) return "식품 전 카테고리 운영(냉장·냉동·상온)" + rsTxt + dxTxt;
     if(!on.length)  return "식품 미운영 매장 — 냉장·냉동·상온 전부 미취급";
     return `식품 일부 운영 — 운영 ${on.join("·")} / 미취급 ${off.join("·")}` + dxTxt;
   }).filter(Boolean);
@@ -9798,13 +9813,15 @@ function goalsSupplyDetail(ctx, month){
     }
     // build 270: 신선 운영 중지 매장(안중·청주 10/19~)은 신선 계획을 중지 전날까지 일수 비례로 줄이고(이후 달 0), 중지 뒤엔 더 보낼 PLT 없음
     const ffac = freshPlanFactor(r.members && r.members.length ? r.members : [r.store], m);
-    const fStopNow = ffac<1 && (!isOngoing || elapsed >= Math.round(ffac*dim)+1);
+    const rsM = (r.members && r.members.length ? r.members : [r.store]).find(x=> freshResumedIn(x, m));
+    const rsDay = rsM ? +freshResumeDate(rsM).slice(8,10) : 0;   // build 315: 재개 달 — 재개일 전은 닫힘, 계획 페이스는 재개일부터
+    const fStopNow = rsM ? (isOngoing && elapsed < rsDay) : (ffac<1 && (!isOngoing || elapsed >= Math.round(ffac*dim)+1));
     const cats = Object.keys(plan.plt).map(pc=>{
       const fresh = pc==="신선";
-      const planPLTFull = plan.plt[pc] * (fresh ? ffac : 1), planPLT = fresh && ffac<1 ? Math.min(planPLTFull, plan.plt[pc]*prorate) : planPLTFull*prorate;
+      const planPLTFull = plan.plt[pc] * (fresh ? ffac : 1), planPLT = fresh && ffac<1 ? (rsM ? plan.plt[pc]*Math.max(0, prorate - (rsDay-1)/dim) : Math.min(planPLTFull, plan.plt[pc]*prorate)) : planPLTFull*prorate;
       const actualPLT = pltInfo.byCat[pc] || 0;
       return { cat:pc, planPLTFull, planPLT, planRevFull: plan.target[pc] * (fresh ? ffac : 1),
-               planOrig: plan.plt[pc], freshStop: fresh && ffac<1 ? { factor:ffac, closed:fStopNow } : null,
+               planOrig: plan.plt[pc], freshStop: fresh && ffac<1 ? { factor:ffac, closed:fStopNow, resume: rsM ? freshResumeDate(rsM) : null } : null,
                actualPLT, matched: !!SUPPLY_PLAN_CAT_MATCH[pc],
                pltPct: planPLTFull>0 ? actualPLT/planPLTFull*100 : null };   // build 99: 공급 도달율 = 월 계획 전체 대비(경과일 비례 X)
     });
@@ -13440,8 +13457,9 @@ function goalsRender10Body(ctx){
       .sort((a,b)=> b.need-a.need);
     const t = D.catTotals.find(c=>c.cat===pc)||{};
     const full = D.rows.filter(x=>x.cats).reduce((a,x)=>{ const c=x.cats.find(y=>y.cat===pc); return a+(c?c.planPLTFull:0); },0);
-    const stopped = D.rows.filter(x=>x.cats).map(x=>{ const c = x.cats.find(y=>y.cat===pc); return c && c.freshStop ? x.label : null; }).filter(Boolean);
-    return { pc, list, stopped, parts: t.parts, needSum: list.reduce((a,v)=>a+v.need,0), act: t.actualPLT||0, full, pace: t.planPLT>0 ? (t.actualPLT||0)/t.planPLT*100 : null };
+    const stopped = D.rows.filter(x=>x.cats).map(x=>{ const c = x.cats.find(y=>y.cat===pc); return c && c.freshStop && !c.freshStop.resume ? x.label : null; }).filter(Boolean);
+    const resumed = D.rows.filter(x=>x.cats).map(x=>{ const c = x.cats.find(y=>y.cat===pc); return c && c.freshStop && c.freshStop.resume ? x.label : null; }).filter(Boolean);
+    return { pc, list, stopped, resumed, parts: t.parts, needSum: list.reduce((a,v)=>a+v.need,0), act: t.actualPLT||0, full, pace: t.planPLT>0 ? (t.actualPLT||0)/t.planPLT*100 : null };
   }).sort((a,b)=> b.needSum-a.needSum);
   const alChip = v=>{ const cls = v.pace==null ? "" : v.pace<50 ? "r" : v.pace<80 ? "y" : "";
     return `<span class="al-chip ${cls}" title="${escHtml(`${v.label} · 목표 ${fmt1(v.full)} / 현재 ${fmt1(v.act)} PLT → ${fmt1(v.need)} PLT 더 필요`+(v.pace!=null&&D.isOngoing?` (경과일 기준 ${v.pace.toFixed(0)}%)`:""))}">${escHtml(v.label.replace(/점$/,""))} <span class="al-qt">${fmt1(v.act)}/${fmt1(v.full)}</span> <b>−${fmt1(v.need)}</b></span>`; };
@@ -13456,7 +13474,7 @@ function goalsRender10Body(ctx){
         <td class="n">${fmt1(r.full)}</td><td class="n" data-tip="${escHtml(r.parts?`${r.pc} ${cm} 공급 ${fmt1(r.act)} PLT\n본사↔센터 병합 ${Math.round(r.parts.merged)} (${SHIP_MERGE_LABEL[shipMergePolicy]||shipMergePolicy}) + 센터 직출 ${Math.round(r.parts.direct)} + 가전센터 ${Math.round(r.parts.appliance)} + 신선 ${Math.round(r.parts.fresh)}${r.parts.lotte?` + 롯데 ${Math.round(r.parts.lotte)}`:""}`:"")}"><b>${fmt1(r.act)}</b></td>
         <td class="n" style="font-weight:700;color:${paceCol(r.pace)}">${r.full>0?(r.act/r.full*100).toFixed(0)+'%':'-'}</td>
         <td class="n">${r.list.length}곳</td><td class="n"><b>${fmt1(r.needSum)}</b></td>
-        <td class="chips">${r.list.length ? r.list.map(alChip).join("") : '<span style="color:var(--green)">모든 매장 목표 달성</span>'}${r.stopped&&r.stopped.length?`<div class="pq-sub" style="margin-top:4px" data-tip="${escHtml(`${FRESH_OPS_NOTICE.src} (${FRESH_OPS_NOTICE.date}~)\n중지 매장의 신선 목표는 중지 전날까지 일수 비례로 줄이고, 중지 뒤에는 배정하지 않습니다.`)}">신선 운영 중지 — ${escHtml(r.stopped.map(v=>v.replace(/점$/,"")).join("·"))} (${+FRESH_OPS_NOTICE.date.slice(5,7)}/${+FRESH_OPS_NOTICE.date.slice(8,10)}~) · 배정 제외</div>`:""}</td></tr>`).join("")}</tbody>
+        <td class="chips">${r.list.length ? r.list.map(alChip).join("") : '<span style="color:var(--green)">모든 매장 목표 달성</span>'}${r.stopped&&r.stopped.length?`<div class="pq-sub" style="margin-top:4px" data-tip="${escHtml(`${FRESH_OPS_NOTICE.src} (${FRESH_OPS_NOTICE.date}~)\n중지 매장의 신선 목표는 중지 전날까지 일수 비례로 줄이고, 중지 뒤에는 배정하지 않습니다.`)}">신선 운영 중지 — ${escHtml(r.stopped.map(v=>v.replace(/점$/,"")).join("·"))} (${+FRESH_OPS_NOTICE.date.slice(5,7)}/${+FRESH_OPS_NOTICE.date.slice(8,10)}~) · 배정 제외</div>`:""}${r.resumed&&r.resumed.length?`<div class="pq-sub" style="margin-top:4px" data-tip="${escHtml(`${FRESH_OPS_NOTICE2.src}\n재개 달 신선 목표는 재개일부터 말일까지 일수 비례입니다.`)}">신선 운영 재개 — ${escHtml(r.resumed.map(v=>v.replace(/점$/,"")).join("·"))} (${+FRESH_OPS_NOTICE2.date.slice(5,7)}/${+FRESH_OPS_NOTICE2.date.slice(8,10)}~) · 배민 칠곡센터 직출지</div>`:""}</td></tr>`).join("")}</tbody>
       <tfoot><tr><td>합계</td>${(()=>{ const F=alRows.reduce((a,r)=>a+r.full,0), A=alRows.reduce((a,r)=>a+r.act,0), P=alRows.reduce((a,r)=>a+(((D.catTotals.find(c=>c.cat===r.pc)||{}).planPLT)||0),0);
           return `<td class="n">${fmt1(F)}</td><td class="n"><b>${fmt1(A)}</b></td><td class="n" style="font-weight:700;color:${paceCol(P>0?A/P*100:null)}">${F>0?(A/F*100).toFixed(0)+'%':'-'}</td>`; })()}<td class="n">${new Set(alRows.flatMap(r=>r.list.map(v=>v.label))).size}곳</td><td class="n"><b>${fmt1(alRows.reduce((a,r)=>a+r.needSum,0))}</b></td><td></td></tr>
       ${_outSum>0?`<tr><td>계획 외 <span class="pq-sub">참고</span></td><td class="n">-</td><td class="n">${fmt1(_outSum)}</td><td class="n">-</td><td></td><td></td><td class="chips" style="color:var(--muted2)">${escHtml(_outE.map(([c,v])=>c+' '+Math.round(v)).join(' · '))} — 목표 없음 · 달성률 미반영</td></tr>`:""}</tfoot>
@@ -14105,12 +14123,20 @@ function g11Solutions(r, ctx, env){
       why: `${+st.slice(5,7)}/${+st.slice(8,10)}부터 신선 운영 중지 · ${mL(pm)} 신선 매출 ${g11Eok(lost)}${pTot>0?` (매출의 ${(lost/pTot*100).toFixed(0)}%)`:""} 빠짐${alt.length?` · 대체 후보 ${alt.map(x=>`${x.g} PLT당 ${g11Eok(x.u.own)}(전사 ${(x.u.ratio*100).toFixed(0)}%)`).join(", ")}`:""}`,
       tip: `${FRESH_OPS_NOTICE.src}\n중지 매장은 신선 공급계획을 중지 전날까지 일수 비례로 줄이고 이후 배정하지 않습니다.` });
   }
+  const rsM2 = mem.find(s=> freshResumedIn(s, m) && _kkToday() >= freshResumeDate(s));
+  if(rsM2){   // build 315: 신선 운영 재개
+    const rs = freshResumeDate(rsM2); const c = sdRow && sdRow.cats ? sdRow.cats.find(y=> y.cat==="신선") : null;
+    items.push({ urgent:true, kind:"신선", fill:null,
+      title: `신선 운영 재개 — 냉장·냉동 매대 복구`,
+      why: `${+rs.slice(5,7)}/${+rs.slice(8,10)}부터 신선 재개${c?` · ${mL(m)} 신선 ${g11F1(c.actualPLT)} / 목표 ${g11F1(c.planPLTFull)} PLT(재개일부터 일수 비례)`:""} · 냉장 공간 · 진열 인력 확보`,
+      tip: FRESH_OPS_NOTICE2.src });
+  }
   const dxM = mem.find(s=> freshDirectInfo(s));
   if(dxM){
     const dx = freshDirectInfo(dxM); const c = sdRow && sdRow.cats ? sdRow.cats.find(y=> y.cat==="신선") : null;
     add({ kind:"신선", gain:0, title:`신선 직출 입고 준비 — ${dx.src}`,
-      why:`${+dx.from.slice(5,7)}/${+dx.from.slice(8,10)}부터 신선 직출지${c?` · ${mL(m)} 신선 ${g11F1(c.actualPLT)} / 목표 ${g11F1(c.planPLTFull)} PLT`:""} · 하차 인력 · 냉장 공간 확보`,
-      tip: FRESH_OPS_NOTICE.src }, "신선식품");
+      why:`${dx.from?`${+dx.from.slice(5,7)}/${+dx.from.slice(8,10)}부터 `:""}신선 직출지${c?` · ${mL(m)} 신선 ${g11F1(c.actualPLT)} / 목표 ${g11F1(c.planPLTFull)} PLT`:""} · 하차 인력 · 냉장 공간 확보`,
+      tip: freshNoticeOf(dxM).src }, "신선식품");
   }
   // ② 공급계획 대비 부족(03 재고·공급 · 배정 도우미와 같은 값)
   if(sdRow && sdRow.cats){
@@ -14516,7 +14542,7 @@ function goalsRender11Body(ctx){
         : p<0.5 && r>0 ? '<span class="g11-mute">이월 재고 판매</span>'
         : ratio==null ? dash : ratio>=125 ? '<span style="color:var(--green)">잘 팔림 → 공급 확대</span>' : ratio<=75 ? '<span style="color:var(--amber)">덜 팔림 → 진열 점검</span>' : '<span class="g11-mute">전사 수준</span>';
       const split = o.parts.length>1 ? ` <span class="g11-mute" style="font-size:12.5px">(${o.parts.map(x=>`${G11_PLAN_LABEL[x.pc]||x.pc} ${f1(x.a)}/${f1(x.f)}`).join(" · ")})</span>` : "";
-      const tip = `${g}${o.parts.length?` · 계획 ${o.parts.map(x=>`${x.pc} 목표 ${f1(x.f)} · 공급 ${f1(x.a)}`).join(" / ")}`:""}${o.stop?` · ${FRESH_OPS_NOTICE.date}부터 신선 운영 중지 — 목표는 중지 전날까지 일수 비례`:""} · 전체 공급 ${f1(p)} PLT · 매출 ${won(r)}원${convTip(g, r)}`;
+      const tip = `${g}${o.parts.length?` · 계획 ${o.parts.map(x=>`${x.pc} 목표 ${f1(x.f)} · 공급 ${f1(x.a)}`).join(" / ")}`:""}${o.stop?(o.stop.resume?` · ${o.stop.resume}부터 신선 운영 재개 — 목표는 재개일부터 일수 비례`:` · ${FRESH_OPS_NOTICE.date}부터 신선 운영 중지 — 목표는 중지 전날까지 일수 비례`):""} · 전체 공급 ${f1(p)} PLT · 매출 ${won(r)}원${convTip(g, r)}`;
       return `<tr title="${h(tip)}"><td>${h(g)}${split}</td>
         <td><span class="num">${o.plan>0?f1(o.plan):(o.hasPlan?"0":"-")}</span></td>
         <td><span class="num">${act?f1(act):"-"}</span></td>
