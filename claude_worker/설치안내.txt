@@ -1,0 +1,40 @@
+킹콩 사이트 🤖 Claude 연결 — 처음 한 번 설정 (약 10분)
+
+[1] Anthropic API 키 만들기
+  1. https://console.anthropic.com 로그인 → Settings > Billing 에서 결제 카드 등록
+  2. Settings > Limits 에서 월 사용 한도 정하기(예: 5만 원 상당) — 넘으면 자동으로 멈춤
+  3. API Keys > Create Key → 이름 "kingkong-site" → 키 복사(sk-ant-… · 한 번만 보임)
+
+[2] Cloudflare Worker 만들기 (무료)
+  1. https://dash.cloudflare.com 가입/로그인 → 왼쪽 'Workers & Pages' → Create → 'Hello World' Worker 만들기
+     이름: kingkong-claude → Deploy
+  2. 'Edit code' → 원래 코드를 지우고 이 폴더의 worker.js 내용을 통째로 붙여넣기 → Deploy
+  3. Worker 화면 → Settings → Variables and Secrets → Add
+       ANTHROPIC_API_KEY  (Secret)  ← [1]에서 복사한 키
+       TEAM_CODE          (Secret)  ← 뷰어(팀원)용 코드, 아무 글자나 (예: kk-2026-팀)
+       FIREBASE_API_KEY   (Text)    ← AIzaSyAPqGIaY53VoISx3s1QjSDeTWa2kUnEbgM (사이트에 이미 공개된 값)
+       ADMIN_EMAILS       (Text)    ← 관리자 로그인 이메일(쉼표로 여러 개)
+     (선택) MODEL_FAST / MODEL_DEEP — 비우면 claude-haiku-4-5 / claude-sonnet-4-5
+     → Deploy
+  4. (선택, 하루 한도) Storage & Databases > KV → Create 'kk_usage' → Worker Settings > Bindings > KV namespace
+     변수 이름 USAGE 로 연결. DAILY_LIMIT(Text) = 사람당 하루 질문 수(기본 150)
+  5. Worker 주소 복사: https://kingkong-claude.<계정>.workers.dev
+     브라우저로 그 주소를 열어 {"ok":true,…,"key":true} 가 보이면 성공
+
+[3] 사이트에 주소 넣기 (관리자 PC, 로그인 상태)
+  물어보기 줄 '🧠 배운 말' → '🤖 Claude 연결' 칸에 Worker 주소 → 저장
+  → 서버 상태로 저장돼 뷰어 화면에도 🤖 Claude 버튼이 생김
+
+[4] 팀원(뷰어)
+  처음 한 번 '🧠 배운 말' → 팀 코드 입력 → 저장 (이 기기에 기억)
+
+쓰는 법
+  · 쉬운 질문(기흥점 10월 매출)은 지금처럼 규칙 검색 — 무료 · 즉시
+  · 모르는 말이 있거나 '왜 · 원인 · 분석 · 비교해 · 추천' 질문 → 자동으로 Claude (끄기: 🧠 패널 체크 해제)
+  · 결과 아래 '🤖 Claude에게 더 묻기' / 입력칸 옆 '🤖 Claude' 버튼으로 언제든
+  · 같은 질문 · 같은 자료 날이면 저장된 답(무료 · 0초)
+
+안전
+  · API 키는 Worker에만 있음(사이트 코드 · GitHub에 없음)
+  · Claude에게 가는 것 = 질문 + 사이트가 계산한 집계 표(필요한 것만). 원본 파일은 안 감
+  · 키가 새면: Anthropic Console에서 그 키 삭제 → 새 키를 Worker에 다시 넣기
