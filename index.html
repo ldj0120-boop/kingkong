@@ -1900,7 +1900,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 310 · 2026-11-12</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 311 · 2026-11-12</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -20399,7 +20399,7 @@ function fiDispMonthGroups(){
 /* build 125: 아리바 비딩 요약본 생성기 (일반 리퀴 / 바이나우)
    원본(RAW 시트) → 요약본: 종합(피벗) · Sheet3|Sheet2(피벗) · Sheet1 · PLT CATE · RAW · ★리퀴 요약 (2)|BUY
    레이아웃·서식은 사용자 요약본에서 뽑은 템플릿(LIQSUM_TPL: 스타일·열너비·머리글·수식)을 그대로 쓴다. */
-var _lsTcol = 0;   // build 301: 마지막 요약본 T열(PLT CATE) 채운 LOT 수
+var _lsTcol = 0;   // build 311: 마지막 요약본 T~AC(PLT CATE) 채운 LOT 수
 var LIQSUM_FC = {GEW3:"금왕3",YEO2:"여주2",GOY3:"고양3",GYS2:"경산2",SIH3:"시흥3",INC43:"인천43",CHA3:"천안3"};
 var LIQSUM_CAT = [["주방",["주방","주방용품"]],["가전",["가전디지털"]],["생활",["생활용품"]],["가구",["가구/홈인테리어"]],["식품",["식품","로켓프레시"]],
   ["의류",["패션의류"]],["패션잡화",["패션잡화"]],["뷰티",["뷰티"]],["기타-J",["완구/취미","반려/애완용품","도서/음반","문구/사무용품","스포츠/레저용품","자동차용품","출산/유아"]]];
@@ -20781,6 +20781,9 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
     //   + 카테고리별 금액: 금액이 있는 모든 칸 = 금액 ⏎ (비중 n%) (CATE4 m%) — 칸 크기는 그대로, 글씨를 칸에 맞춤
     var LY = lsSlimLayout(SP), SLIM = !!LY, CAT0 = SLIM?LY.cat0:0, LASTC = SLIM?LY.last:0;
     var CM = SLIM ? lsSlimColMap(SP, LASTC) : null;   // 옛 열 → 새 열 (지운 열은 없음)
+    // build 311: 일반 리퀴는 T~AC에 PLT CATE 10칸 → 그 자리(새 열 19 이상)에 오던 오른쪽 자료를 10칸 오른쪽으로
+    var TSHIFT = SLIM && A.kind!=="buy";
+    if(TSHIFT) CM.forEach(function(v,k){ if(v>=19) CM.set(k, Math.min(16383, v+10)); });
     var keepC=function(c){ return !SLIM || CM.has(c); }, NC=function(c){ return SLIM ? CM.get(c) : c; };
     // build 285 (사용자 요청): 오른쪽 자료(파일명 Sample · 카테고리 금액별 점유율 · 킹콩 요율표 · 낙찰가 기록용 · 유형표)는 유지 — 카테고리 칸이 글이라 그 칸을 읽는 수식은 "(" 앞 금액만
     var catNew={}; if(SLIM) for(var cj=CAT0;cj<=LASTC;cj++) catNew[lsCol(CM.get(cj))]=1;
@@ -20810,13 +20813,14 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
         if(tl){ var st0=labStyle.map[d.s]!=null?labStyle.map[d.s]:d.s; put(r,NC(c),'<c r="'+lsCol(NC(c))+(r+1)+'" s="'+st0+'" t="s"><v>'+sst2.rich(tl.text, tl.runs)+'</v></c>'); return; }
         put(r,NC(c),lsCell(lsCol(NC(c))+(r+1),v,d.s,sst2)); });
     });
-    // build 301: T열 = PLT CATE R~AA(주방 · 가전 · 생활용품 · 가구 · 식품 · 의류 · 패션잡화 · 뷰티 · 기타-J · 합계) 10칸 값을 탭으로 이어 한 칸에 — 복사해 붙여넣기용
-    //   일반 리퀴만(바이나우는 T열이 BUY NOW 요율 칸). 같은 LOT의 PLT CATE 행(i+2)을 TEXTJOIN으로 읽음 · 비어 있는 칸에만 씀(오른쪽 V~ 자료 위치 그대로)
-    if(A.kind!=="buy"){ var TC=19, tSt=0, pv=function(x){ x=+x||0; return Number.isInteger(x)?String(x):String(+x.toPrecision(15)); };
-      var tFree=function(r){ var m=rows.get(r), c=m&&m.get(TC); return !c || !/<v>|<f>/.test(c); };   // 빈 칸(서식만 있는 칸)에만 씀
-      [[2,"PLT CATE 붙여넣기용 (R~AA)"],[3,"주방⇥가전⇥생활용품⇥가구⇥식품⇥의류⇥패션잡화⇥뷰티⇥기타-J⇥합계"]].forEach(function(h){ if(tFree(h[0])) put(h[0],TC,lsCell("T"+(h[0]+1),h[1],0,sst2)); });
-      A.rows.forEach(function(R,i){ var r=4+i; if(!tFree(r)) return; var pr=i+2, vals=R.cats.concat([R.cats.reduce(function(a,b){ return a+b; },0)]);
-        put(r,TC,lsCell("T"+(r+1),{f:"_xlfn.TEXTJOIN(CHAR(9),FALSE,'PLT CATE'!R"+pr+":AA"+pr+")",v:vals.map(pv).join("\t")},tSt,sst2)); });
+    // build 311: T~AC = PLT CATE R~AA 10칸(주방 · 가전 · 생활용품 · 가구 · 식품 · 의류 · 패션잡화 · 뷰티 · 기타-J · 합계) — 숫자 값 그대로(수식 아님 → 다른 파일에 바로 복사 · 붙여넣기)
+    //   일반 리퀴만(바이나우는 T가 표 안). 오른쪽 자료(파일명 Sample ~ 유형표)는 위 CM에서 10칸 오른쪽으로 밀어 둠(V → AF), 총합계 줄은 SUM
+    if(TSHIFT){ var PCN=["주방","가전","생활용품","가구","식품","의류","패션잡화","뷰티","기타-J","합계"];
+      put(2,19,lsCell("T3","PLT CATE (R~AA) 복사용",0,sst2));
+      PCN.forEach(function(h,j){ put(3,19+j,lsCell(lsCol(19+j)+"4",h,0,sst2)); });
+      A.rows.forEach(function(R,i){ var r=4+i, vals=R.cats.concat([R.cats.reduce(function(a,b){ return a+b; },0)]);
+        vals.forEach(function(v,j){ put(r,19+j,lsCell(lsCol(19+j)+(r+1),Math.round((+v||0)*100)/100,0,sst2)); }); });
+      PCN.forEach(function(h,j){ var c=lsCol(19+j); put(newTot0,19+j,lsCell(c+(newTot0+1),{f:"SUM("+c+"5:"+c+newLast1+")",v:A.rows.reduce(function(s,R){ return s+(j<9?(+R.cats[j]||0):R.cats.reduce(function(a,b){ return a+b; },0)); },0)},0,sst2)); });
       _lsTcol = A.rows.length; }
     SP.absolute.forEach(function(c){ if(!SLIM && c[0]<newTot0 && keepC(c[1])) put(c[0],c[1],lsCell(lsCol(c[1])+(c[0]+1),val(c[3],c[4],false),c[2],sst2)); });
     SP.footer.forEach(function(c){ if(SLIM && (c[0]!==0 || !keepC(c[1]))) return; var r=newTot0+c[0], v=val(c[3],c[4],true);
@@ -20829,6 +20833,8 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
       for(var k=c[0];k<=Math.min(c[1],LASTC);k++){ if(!CM.has(k)) continue; var fl=c[4]||0; if(fl&0x700) fl&=~0x701; fl&=~0x1000;
         var w=c[2]; if(k>=CAT0 && k<=LASTC && catFit.w[k-CAT0]) w=Math.round(catFit.w[k-CAT0]*256);   // 카테고리 칸: 글이 들어가게 최대 +20%
         sCols.push([NC(k),NC(k),w,c[3],fl]); } }); }
+    if(TSHIFT){ var sc2=[]; sCols.forEach(function(c){ if(c[1]<19 || c[0]>28) sc2.push(c); else { if(c[0]<19) sc2.push([c[0],18,c[2],c[3],c[4]]); if(c[1]>28) sc2.push([29,c[1],c[2],c[3],c[4]]); } });
+      for(var tk=19;tk<=28;tk++) sc2.push([tk,tk,14*256,0,0x2]); sCols=sc2.sort(function(a,b){ return a[0]-b[0]; }); }   // T~AC 너비 14
     var cf=(SLIM?[]:(SP.cf||[])).map(function(b){ var rf=b.ref[0]; return '<conditionalFormatting sqref="'+lsCol(rf[2])+'5:'+lsCol(rf[3])+newLast1+'">'+b.rules.map(function(ru){ return '<cfRule type="expression" dxfId="'+ru[1]+'" priority="'+ru[2]+'"><formula>'+lsX(ru[3])+'</formula></cfRule>'; }).join("")+'</conditionalFormatting>'; }).join("");
     var pane=lsPane(SP.pane);
     if(SLIM) pane="";   // build 285: 틀 고정 없음
