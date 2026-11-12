@@ -1900,7 +1900,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 308 · 2026-11-12</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 309 · 2026-11-12</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -11016,7 +11016,7 @@ function goalsIncentiveTableHtml(ctx, rows2){
    로 나눠, 사이트에 이미 있는 값(매출 파일 · 출고 · 승현 공급액/폐기/인건비 · 운영계획)으로 바로 계산한다. AI 아님 — 못 알아들은 말은 화면에 그대로 알려 준다. */
 const ASK_WD_NAME = ["일","월","화","수","목","금","토"];
 const ASK_CATS = [ [/대형\s*가전|XLK/i,"가전"], [/XLB/i,"가전"], [/가전/,"가전"], [/신선/,"신선식품"], [/상온|XLE/i,"XLE"], [/대형\s*가구|XLW|가구/i,"대형가구"],
-  [/생수|탄산수|XLS/i,"생수/탄산수"], [/XLA/i,"XLA"], [/XLC/i,"XLC"], [/XLG/i,"XLG"], [/사입/,"사입"], [/새상품/,"새상품"], [/임박/,"임박"], [/FC\s*파손|FC|파손/i,"FC파손"], [/데드우드/,"데드우드"], [/기저귀|분유|XLD/i,"기저귀_분유"] ];
+  [/생수|탄산수|XLS/i,"생수/탄산수"], [/XLA/i,"XLA"], [/XLC/i,"XLC"], [/XLG/i,"XLG"], [/사입/,"사입"], [/새상품/,"새상품"], [/임박/,"임박"], [/FC\s*파손|FC|파손/i,"FC파손"], [/데드우드/,"데드우드"], [/기저귀|분유|XLD/i,"기저귀_분유"], [/킹고\s*프리|KINGGO\s*FREE|킹고|온라인\s*(매출|주문)?/i,"킹고프리"] ];   // build 309: 킹고프리(온라인) = 카테고리 '킹고프리'(build 289)
 const ASK_PLT_CATS = { "가전":["XLB","대형가전"], "FC파손":["FC파손","FC","혼합"] };
 const ASK_STOCK_IDX = { "XLA":[0], "가전":[1,9], "XLC":[2], "XLE":[3], "XLG":[4], "임박":[5], "대형가구":[8], "데드우드":[11], "사입":[12], "FC파손":[14], "생수/탄산수":[17] };
 const SUPPLY_CODE_GROUP = { XLA:"XLA", XLB:"가전", XLK:"가전", XLC:"XLC", XLE:"XLE", XLW:"대형가구", "대형가구":"대형가구", XLG:"XLG", XLS:"생수/탄산수", XLD:"기저귀_분유", "임박":"임박", "데드우드":"데드우드" };   // build 287: 임박 · 데드우드 코드도 묶음으로(전엔 기타)
@@ -11332,6 +11332,7 @@ function askFinalize(slots){
   const s = Object.assign({}, slots||{}); const last = askLastDataDate();
   const q = { text: askSlotsText(s), metric: s.metric || "sales", metricGuessed: !s.metric, stores: s.stores && s.stores.length ? s.stores.slice() : null, allStores: !!s.allStores, cat: s.cat || null,
     from: s.from || null, to: s.to || null, wd: s.wd || null, hours: s.hours || null, by: s.by || null, top: s.top || null, order: s.order || "desc", cmp: s.cmp || null, notes:[], used:[], periodGuessed:false, dates: s.dates && s.dates.length ? s.dates.slice() : null, product: s.product || null };
+  if(!q.from && !s.trend && s.by==="month" && !["waste","labor","stock"].includes(q.metric)){ q.from = `${last.slice(0,4)}-01-01`; q.to = last; q.notes.push(`'월별'이라 올해 전체(${q.from}~${q.to})로 봤습니다`); q.periodGuessed = true; }   // build 309: 월별인데 기간이 없으면 이번 달 한 줄만 나오던 것
   if(!q.from && s.trend && !["waste","labor","stock"].includes(q.metric)){ q.from = `${last.slice(0,4)}-01-01`; q.to = last; q.notes.push(`'추이'라 올해 전체(${q.from}~${q.to})로 봤습니다`); q.periodGuessed = true; }   // build 283
   if(!q.from){
     if(q.metric==="waste" || q.metric==="labor"){ const C = COST_LIVE && COST_LIVE[q.metric]; const ks = C ? Object.keys(C).sort() : []; const ym = ks.length ? ks[ks.length-1] : last.slice(0,7); q.from = `${ym}-01`; q.to = askMonthEnd(ym); q.notes.push(`기간을 안 적어 자료가 있는 가장 최근 달(${ym})로 봤습니다`); }
