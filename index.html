@@ -1900,7 +1900,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 313 · 2026-11-12</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 314 · 2026-11-12</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -11033,11 +11033,11 @@ function askStoreList(){ return (STORES||[]).filter(s=> !/센터|서비스솔루
    askParseSlots(글, 앞 질문 칸) → { slots(직접 말한 칸), used, notes, ask(되물을 것), followUp }
    askFinalize(slots) → 실행용 q(기본값 채움 · 안내 문구)  ·  칩을 누르면 slots만 바꿔 다시 실행 */
 const ASK_METRICS = [ [/폐기/,"waste"], [/인건비|급여/,"labor"], [/전환율|전환/,"conv"], [/공급\s*(액|금액|가액)|입고\s*(액|금액)|공급가/,"supplyAmt"], [/달성/,"achieve"],
-  [/목표/,"target"], [/재고/,"stock"], [/객단가/,"avgTicket"], [/건수|객수|영수증|손님\s*수/,"count"], [/공급|출고|PLT|파레트|팔레트|입고/i,"plt"], [/매출|금액|판매|실적|얼마/,"sales"] ];
+  [/목표/,"target"], [/재고/,"stock"], [/객단가/,"avgTicket"], [/건수|객수|영수증|손님\s*수/,"count"], [/^(?!.*(금액|매출|얼마)).*(수량|판매량)/,"count"], /* build 314: '수량'만 → 수량 · '금액과 수량' → 매출(수량은 칸에) */ [/공급|출고|PLT|파레트|팔레트|입고/i,"plt"], [/매출|금액|판매|실적|얼마/,"sales"] ];
 const ASK_METRIC_LABEL = { sales:"매출", supplyAmt:"공급액", plt:"공급 PLT", conv:"전환율", target:"목표매출", achieve:"달성률", waste:"폐기비용", labor:"인건비", stock:"매장재고", count:"매출 건수", avgTicket:"객단가" };
 const ASK_METRIC_WORDS = { "매출":"sales", "공급액":"supplyAmt", "폐기":"waste", "폐기비용":"waste", "인건비":"labor", "전환율":"conv", "달성률":"achieve", "목표":"target", "재고":"stock", "객단가":"avgTicket", "건수":"count", "공급":"plt", "출고":"plt" };
 const ASK_BY_LABEL = { store:"매장별", cat:"카테고리별", month:"월별", day:"일별", hour:"시간대별", wd:"요일별", none:"합계만" };
-const ASK_STOP = new Set(["매장","전체","전매장","매장별","점포별","카테고리","카테고리별","알려줘","알려","보여줘","얼마","얼마야","금액","총액","합계","월별","일별","주말","평일","오늘","어제",
+const ASK_STOP = new Set(["수량","판매량","판매수량","판매금액","금액과","수량과","매장","전체","전매장","매장별","점포별","카테고리","카테고리별","알려줘","알려","보여줘","얼마","얼마야","금액","총액","합계","월별","일별","주말","평일","오늘","어제",
   "이번","지난","지난주","이번주","최근","올해","누적","시간대","시간대별","요일별","전사","모든","분류별","품목별","날짜별","일자별","비교","대비","상위","하위","가장","그럼","그러면","그리고","이번엔","그건","그거",
   "오전","오후","매주","매일","카테","공급","출고","매출","판매","실적","얼마나","주세요","해줘","보여","전월","작년","총","달","월달","별로"]);
 let ASK_STATE = { slots:null, text:"" };
@@ -11127,6 +11127,8 @@ function askProductFind(word){
   const w = String(word||"").replace(/\s+/g,""); if(w.length < 2) return { names:[], fuzzy:false };
   const I = askProductIndex(); const norm = n => n.replace(/\s+/g,"");
   if(I.memo && I.memo.has(w)) return I.memo.get(w);   // build 308: 같은 말은 바로
+  const base = w.replace(/(기기|제품|상품|용품|종류|계열|모델|류|들)$/,"");   // build 314: '휴대폰기기' → '휴대폰'
+  if(base !== w && base.length >= 2){ const rb = askProductFind(base); if(rb.names.length){ if(I.memo) I.memo.set(w, rb); return rb; } }
   const NN = I.norm || I.names.map(norm);
   let hit = I.names.filter((n,i)=> NN[i].includes(w));
   let fuzzy = false;
@@ -11159,6 +11161,10 @@ function askProductRun(q, res){
   res.title = `${q.stores ? q.stores.join("·")+" · " : ""}🛒 ${q.product.q}${nm.length>1?` (${nm.length}개 상품)`:""} · ${per} · ${qty?"판매 수량":"매출"}`;
   res.basis = [`상품 매출 = 카테고리별 매출 파일에서 날마다 저장한 상위 상품(전 매장: 그날 10만 원 이상 상위 150개${q.stores?" · 매장별: 5만 원 이상 상위 25개":""}) — 적게 팔린 날은 빠져 실제보다 작을 수 있음`, `자료 있는 날 ${days}일 중 이 상품이 잡힌 날 ${hitDays}일`];
   if(noDetail) q.notes.push(`매장별 상품 자료가 아직 없는 날 ${noDetail}일 — 잠시 뒤 다시 찾으면 받아 옵니다`);
+  if(!hitDays){ let lastAll = null, lastSt = null;   // build 314: 이 기간엔 상위 상품 자료에 없으면 마지막으로 잡힌 날 안내
+    Object.keys(SALES_MIX||{}).sort().forEach(d=>{ const M = SALES_MIX[d]; if(!M) return; if((M.p||[]).some(x=> names.has(x[0]))) lastAll = d;
+      if(M.sp) Object.keys(M.sp).forEach(st=>{ if((M.sp[st]||[]).some(x=> names.has(x[0]))) lastSt = [d, st]; }); });
+    q.notes.push(`이 기간엔 상위 상품 자료(하루 10만 원 이상 상위 150개)에 안 잡혔습니다${lastAll||lastSt?` — 마지막으로 잡힌 날: ${[lastAll?lastAll+"(전 매장)":null, lastSt?lastSt[0]+" "+lastSt[1]:null].filter(Boolean).join(" · ")}`:""}`); }
   q.notes.push(`${q.product.fuzzy?`'${q.product.q}' 비슷한 이름으로 찾음: `:"찾은 상품: "}${nm.slice(0,5).join(" · ")}${nm.length>5?` 외 ${nm.length-5}개`:""}`);
   res.jump = "goals:04"; res.productNames = nm;
   return res;
@@ -11187,7 +11193,7 @@ function askPeriodFrom(t, last){
   else if(/어제/.test(t)){ P.from = P.to = askAddDays(fmtDate(new Date()), -1); }
   else if(/이번\s*주/.test(t)){ const k = (new Date(last+"T00:00:00").getDay()+6)%7; P.from = askAddDays(last, -k); P.to = last; }
   else if(/지난\s*주|저번\s*주|전주/.test(t)){ const k = (new Date(last+"T00:00:00").getDay()+6)%7; P.to = askAddDays(last, -k-1); P.from = askAddDays(P.to, -6); }
-  else if((r = t.match(/(?:최근|지난|요)\s*(\d+)\s*(일|주|개월|달)/) || (r0 => r0 ? [r0[0], r0[1], r0[2]] : null)(t.match(/(\d+)\s*(일|주|개월|달)\s*(?:간|동안|치)/)))){ const n = +r[1]; P.to = last; if(r[2]==="일") P.from = askAddDays(last, -(n-1)); else if(r[2]==="주") P.from = askAddDays(last, -(n*7-1)); else P.from = fmtDate(new Date(+last.slice(0,4), +last.slice(5,7)-n, 1)); }
+  else if((r = t.match(/(?:최근|지난|요)\s*(\d+)\s*(일|주|개월|달)/) || (r0 => r0 ? [r0[0], r0[1], r0[2]] : null)(t.match(/(\d+)\s*(일|주|개월|달)\s*(?:간|동안|치)/)) || (r0 => r0 ? [r0[0], r0[1], r0[2]] : null)(t.match(/(?<![\d.])(\d{1,2})\s*(개월|주)(?!\s*(?:전|후|뒤|차|째))/)))){ /* build 314: '3개월' · '2주'만 써도 최근 */ const n = +r[1]; P.to = last; if(r[2]==="일") P.from = askAddDays(last, -(n-1)); else if(r[2]==="주") P.from = askAddDays(last, -(n*7-1)); else P.from = fmtDate(new Date(+last.slice(0,4), +last.slice(5,7)-n, 1)); }
   else if(/올해|누적|연간|금년/.test(t)){ P.from = `${cy}-01-01`; P.to = last; }
   return P.from ? P : null;
 }
@@ -11772,8 +11778,8 @@ async function askClHeaders(){
   return h;
 }
 // build 311: Google Gemini 무료 키(AIza…) — Claude 형식(messages · tools · tool_use)을 Gemini 형식으로 바꿔 부르고 답을 다시 Claude 형식으로(질문 흐름 · 도구는 그대로)
-const ASK_GEM_MODELS = ["gemini-flash-latest", "gemini-2.5-flash"];   // 앞 모델이 없으면(404) 다음 모델
-let _askGemModel = null;
+const ASK_GEM_MODELS = { fast:["gemini-flash-lite-latest", "gemini-2.5-flash-lite", "gemini-flash-latest", "gemini-2.5-flash"], deep:["gemini-flash-latest", "gemini-2.5-flash"] };   // build 314: 보통 질문은 가장 빠른 lite 먼저 · 없으면(404) 다음
+let _askGemModel = {}; const _askGemBad = new Set();
 function askGemSchema(sc){ if(!sc || typeof sc!=="object") return sc; const o = {};
   Object.keys(sc).forEach(k=>{ if(k==="cache_control") return; const v = sc[k];
     if(k==="type") o.type = String(v).toUpperCase(); else if(k==="properties"){ o.properties = {}; Object.keys(v).forEach(p=> o.properties[p] = askGemSchema(v[p])); }
@@ -11796,13 +11802,14 @@ function askGemToClaude(j, model){
   return { model, stop_reason: content.some(c=> c.type==="tool_use") ? "tool_use" : "end_turn", content, usage: j && j.usageMetadata };
 }
 async function askGemPost(body){
-  const req = askGemRequest(body); const tryModels = _askGemModel ? [_askGemModel] : ASK_GEM_MODELS;
+  const req = askGemRequest(body); const tier = body.tier==="deep" ? "deep" : "fast"; const tryModels = _askGemModel[tier] ? [_askGemModel[tier]] : ASK_GEM_MODELS[tier].filter(m=> !_askGemBad.has(m));
   let last = null;
   for(const model of tryModels){
     for(let attempt=0; attempt<2; attempt++){
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method:"POST", headers:{ "content-type":"application/json", "x-goog-api-key": askClKey() }, body: JSON.stringify(req) });
+      const r = await askClFetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method:"POST", headers:{ "content-type":"application/json", "x-goog-api-key": askClKey() }, body: JSON.stringify(req) });
       let j = null; try{ j = await r.json(); }catch(_){}
-      if(r.ok){ _askGemModel = model; return askGemToClaude(j, model); }
+      if(r.ok){ _askGemModel[tier] = model; return askGemToClaude(j, model); }
+      if(r.status===404) _askGemBad.add(model);
       const msg = (j && j.error && j.error.message) || ("HTTP "+r.status);
       if(r.status===400 && /thinking/i.test(msg) && req.generationConfig.thinkingConfig){ delete req.generationConfig.thinkingConfig; continue; }   // 생각 끄기를 못 하는 모델
       last = Object.assign(new Error(msg), { status: r.status===403 || (r.status===400 && /API key/i.test(msg)) ? 401 : r.status });
@@ -11812,14 +11819,21 @@ async function askGemPost(body){
   }
   throw last || new Error("Gemini 연결 실패");
 }
+// build 314: 한 번 부를 때 25초 넘으면 멈춤(멈춘 채 '읽는 중'만 보이던 것)
+const ASK_CL_TIMEOUT = 25000;
+async function askClFetch(url, init){ const ac = new AbortController(); const lim = window.__askClTimeout || ASK_CL_TIMEOUT; const tm = setTimeout(()=> ac.abort(), lim);
+  try{ return await fetch(url, Object.assign({}, init, { signal: ac.signal })); }
+  catch(e){ if(e && e.name==="AbortError"){ const x = new Error(`${Math.round(lim/1000)}초 안에 답이 없어 멈췄습니다`); x.status = 408; throw x; } throw e; }
+  finally{ clearTimeout(tm); } }
+function askClName(){ return !askClUrlOk() && askClProv()==="gemini" ? "Gemini" : "Claude"; }
 async function askClPost(body){
   if(typeof window.__askClMock==="function") return await window.__askClMock(body);
   let r;
   if(!askClUrlOk() && askClProv()==="gemini") return await askGemPost(body);   // build 311
   if(!askClUrlOk() && askClKey()){   // build 310: 직접 연결(이 PC)
     const b = { model: ASK_CL_MODELS[body.tier==="deep"?"deep":"fast"], max_tokens: body.max_tokens, system: body.system, tools: body.tools, messages: body.messages, temperature: 0 };
-    r = await fetch("https://api.anthropic.com/v1/messages", { method:"POST", headers:{ "content-type":"application/json", "x-api-key": askClKey(), "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" }, body: JSON.stringify(b) });
-  } else r = await fetch(ASK_CL_CFG.url, { method:"POST", headers: await askClHeaders(), body: JSON.stringify(body) });
+    r = await askClFetch("https://api.anthropic.com/v1/messages", { method:"POST", headers:{ "content-type":"application/json", "x-api-key": askClKey(), "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" }, body: JSON.stringify(b) });
+  } else r = await askClFetch(ASK_CL_CFG.url, { method:"POST", headers: await askClHeaders(), body: JSON.stringify(body) });
   let j = null; try{ j = await r.json(); }catch(_){}
   if(!r.ok){ const msg = (j && (j.error && (j.error.message || j.error))) || ("HTTP "+r.status); const e = new Error(String(msg)); e.status = r.status; throw e; }
   return j;
@@ -11841,7 +11855,9 @@ function askClCacheKey(text){ return String(text).trim()+"|"+askLastDataDate(); 
 function askClCacheGet(text){ try{ const C = JSON.parse(localStorage.getItem("kk_askcl_cache_v1")||"{}"); return C[askClCacheKey(text)] || null; }catch(_){ return null; } }
 function askClCachePut(text, v){ try{ const C = JSON.parse(localStorage.getItem("kk_askcl_cache_v1")||"{}"); C[askClCacheKey(text)] = v; const ks = Object.keys(C); if(ks.length > 150) delete C[ks[0]]; localStorage.setItem("kk_askcl_cache_v1", JSON.stringify(C)); }catch(_){} }
 function askClStatus(msg){ const box = document.getElementById("askResult"); if(!box) return; box.hidden = false; let st = box.querySelector(".ask-cl-load");
-  if(!st){ box.innerHTML = `<div class="ask-cl-card ask-cl-load-wrap"><div class="ask-cl-hd">🤖 Claude</div><div class="ask-note ask-cl-load"></div></div>`; st = box.querySelector(".ask-cl-load"); } st.textContent = msg; }
+  if(!st){ const h = `<div class="ask-cl-card ask-cl-load-wrap"><div class="ask-cl-hd">🤖 ${askClName()} <span class="ask-sub ask-cl-sec"></span></div><div class="ask-note ask-cl-load"></div>${box.querySelector(".ask-res-hd")?`<div class="ask-sub">아래는 먼저 찾은 결과 — AI 답이 오면 바뀝니다</div>`:""}</div>`;
+    if(ASK_CL.keepRule && box.querySelector(".ask-res-hd")) box.insertAdjacentHTML("afterbegin", h); else box.innerHTML = h; st = box.querySelector(".ask-cl-load"); }
+  st.textContent = msg; }
 function askClCardHtml(r, opts){
   const tools = (r.tools||[]).map((t,i)=> t.slots ? `<button type="button" class="ask-opt${i+1===r.show?" on":""}" data-ask-cl-show="${i}">📊 ${escHtml((t.title||t.name).slice(0,40))}</button>` : `<span class="ask-chip">${escHtml(t.name)}${t.error?" ✗":""}</span>`).join("");
   return `<div class="ask-cl-card"><div class="ask-cl-hd">🤖 ${/^gemini/.test(r.model||"")?"Gemini":"Claude"} <span class="ask-sub">${escHtml(r.model||"")}${r.ms?` · ${(r.ms/1000).toFixed(1)}초`:""}${opts&&opts.cached?" · 저장된 답(같은 질문 · 같은 자료 날)":""}</span><button type="button" class="ask-x" data-ask-close title="닫기">✕</button></div>
@@ -11877,7 +11893,8 @@ async function askClaude(text, opts){
   messages.push({ role:"user", content:t });
   const used = []; let final = null, model = "";
   try{
-    askClStatus(`🤖 Claude가 질문을 읽는 중…${tier==="deep"?" (분석 질문 — 조금 더 걸림)":""}`);
+    askClStatus(`🤖 ${askClName()}가 질문을 읽는 중…${tier==="deep"?" (분석 질문 — 조금 더 걸림)":""}`);
+    clearInterval(ASK_CL.tick); ASK_CL.tick = setInterval(()=>{ const el = document.querySelector("#askResult .ask-cl-sec"); if(el) el.textContent = `${((Date.now()-t0)/1000).toFixed(0)}초`; }, 500);
     for(let turn=0; turn<8; turn++){
       const resp = await askClPost({ tier, system:sys, tools, messages, max_tokens: tier==="deep" ? 900 : 400 }); ASK_CL.calls++;   // build 308: 답 길이 제한(토큰 · 속도)
       model = resp.model || model; const content = resp.content || [];
@@ -11897,14 +11914,14 @@ async function askClaude(text, opts){
       if(turn===7) final = { answer:"도구를 너무 많이 불러 멈췄습니다 — 질문을 나눠 주세요", show:0, followups:[] };
     }
   }catch(e){
-    ASK_CL.busy = false;
-    const st = e && e.status; const msg = st===401 && askClMode()==="direct" ? "API 키가 맞지 않습니다 — 🧠 패널에서 키를 다시 저장해 주세요" : st===401 ? "Claude 연결 권한이 없습니다 — 뷰어는 팀 코드를 넣어 주세요(관리자는 로그인 상태 확인)" : st===400 && /credit|balance/i.test(String(e && e.message)) ? "Claude 계정 잔액(크레딧)이 없습니다 — Claude Platform › Billing에서 충전해 주세요" : st===429 && askClProv()==="gemini" && !askClUrlOk() ? "Gemini 무료 한도(분당/하루 횟수)를 넘었습니다 — 1분쯤 뒤에 다시 해 주세요(규칙 검색은 그대로)" : st===429 ? "오늘 Claude 질문 한도를 다 썼습니다 — 규칙 검색은 그대로 됩니다" : `Claude 연결 실패: ${String(e && e.message || e).slice(0,120)}`;
+    ASK_CL.busy = false; clearInterval(ASK_CL.tick); ASK_CL.keepRule = false;
+    const st = e && e.status; const msg = st===401 && askClMode()==="direct" ? "API 키가 맞지 않습니다 — 🧠 패널에서 키를 다시 저장해 주세요" : st===401 ? "Claude 연결 권한이 없습니다 — 뷰어는 팀 코드를 넣어 주세요(관리자는 로그인 상태 확인)" : st===400 && /credit|balance/i.test(String(e && e.message)) ? "Claude 계정 잔액(크레딧)이 없습니다 — Claude Platform › Billing에서 충전해 주세요" : st===408 ? `${askClName()} 답이 늦어 멈췄습니다(${ASK_CL_TIMEOUT/1000}초) — 아래는 규칙 검색 결과` : st===429 && askClProv()==="gemini" && !askClUrlOk() ? "Gemini 무료 한도(분당/하루 횟수)를 넘었습니다 — 1분쯤 뒤에 다시 해 주세요(규칙 검색은 그대로)" : st===429 ? "오늘 Claude 질문 한도를 다 썼습니다 — 규칙 검색은 그대로 됩니다" : `Claude 연결 실패: ${String(e && e.message || e).slice(0,120)}`;
     askLogEvent(t, "claude", { err: msg.slice(0,80) });
     box.hidden = false; box.innerHTML = askClSetupHtml(msg + " — 아래는 규칙 검색 결과");
     try{ const P = askParseSlots(t, null); const keep = box.innerHTML; ASK_STATE.leftovers = []; askClShowQuiet(P.slots, P.notes, t); box.querySelectorAll(".ask-res-hd .ask-x").forEach(x=> x.remove()); box.insertAdjacentHTML("afterbegin", keep); }catch(_){}
     return null;
   }
-  ASK_CL.busy = false;
+  ASK_CL.busy = false; clearInterval(ASK_CL.tick); ASK_CL.keepRule = false;
   const r = Object.assign({ q:t, model, tier, ms: Date.now()-t0, tools:used }, final);
   ASK_CL.hist.push({ q:t, a:r.answer }); if(ASK_CL.hist.length > ASK_CL_MAXTURN) ASK_CL.hist.shift();
   const main = used[(r.show||0)-1] || used.find(x=> x.slots);
@@ -11941,6 +11958,7 @@ async function askRender(text){
   if(askClReady() && askClAuto() && (ASK_CL_AUTO_RE.test(t) || (ASK_STATE.leftovers||[]).length || (P.ask||[]).some(a=> a.block))){   // build 307: 못 알아들은 말 · 분석 질문 → Claude
     if((ASK_STATE.leftovers||[]).length) askLogEvent(t, "leftover", { lo:ASK_STATE.leftovers.slice(0,5) });
     else if((P.ask||[]).some(a=> a.block)) askLogEvent(t, "block", { q:(P.ask||[]).filter(a=> a.block).map(a=> a.q).join(" / ") });
+    if(!(P.ask||[]).some(a=> a.block) && !askClCacheGet(t)){ ASK_STATE.leftovers = []; askClShowQuiet(P.slots, P.notes, t); ASK_CL.keepRule = true; }   // build 314: 규칙 결과 먼저(바로) · AI 답은 오면 바꿈
     await askClaude(t); return; }
   if(P.slots.product && P.slots.stores){ try{ await mixFetchStoreDetail(askDates(askFinalize(P.slots))); }catch(_){} }   // build 293: 매장별 상품 자료 받기
   askShow(P.slots, P.notes, P.ask, t);
