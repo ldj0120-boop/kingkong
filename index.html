@@ -1915,7 +1915,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 323 · 2026-11-13</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 324 · 2026-11-13</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -2386,6 +2386,11 @@
         <div class="p-hd">
           <span class="store-name">06 통합 배차 대장</span>
           <span class="meta" data-tip="자료: 배차 앱(Supabase) 통합 대장 · 구글시트(킹콩_쿠팡배차내역 · 고객배송 · 경산2)는 매일 9시 · 17시 자동 반영 · 채널: 킹콩 내부물류 / 쿠팡 / 고객 직배송">쿠팡 · 킹콩 내부물류 · 고객 직배송 · 구글시트 9시 · 17시 반영 · <a href="/kingkong-dispatch/#ledger" target="_blank" rel="noopener">배차 앱 새 창 ↗</a></span>
+        </div>
+        <!-- build 324: 배차 앱 설치 링크(본사 · 진천센터 · 콜드체인센터 · 더한물류 · 전 매장) — 같은 칸에서 [앱 설치 링크]로 바꿔 봄 -->
+        <div class="kkd-sw" role="tablist" aria-label="배차 보기" style="display:flex;gap:8px;flex-wrap:wrap;padding:10px 18px 0">
+          <button type="button" class="act primary" data-kkd="ledger" role="tab" aria-selected="true">통합 배차 대장</button>
+          <button type="button" class="act" data-kkd="links" role="tab" aria-selected="false" title="본사 · 센터 · 더한물류 · 각 매장 앱 주소 — 복사해서 카톡으로 보내면 링크만 눌러 설치">앱 설치 링크 (센터 · 매장 · 더한물류)</button>
         </div>
         <iframe id="kkDispatchFrame" title="통합 배차 대장" data-src="/kingkong-dispatch/?embed=ledger" loading="lazy" style="width:100%;height:calc(100vh - 170px);min-height:760px;border:0;border-radius:18px;background:#fff;display:block"></iframe>
       </div>
@@ -14110,6 +14115,9 @@ function selectGoalsSub(key){
   if(key==="11" && typeof g11Rerender==="function") g11Rerender();   // build 103: 06 매장 분석은 열 때 그린다
   if(key==="12") renderConv();   // build 287: 05 판매에 따른 전환율은 열 때 그린다
   if(key==="13"){ const f = document.getElementById("kkDispatchFrame"); if(f && !f.getAttribute("src")) f.setAttribute("src", f.getAttribute("data-src")); }   // build 294: 열 때 한 번만 불러옴
+  if(key==="13" && !window.__kkdSw){ window.__kkdSw = 1; document.querySelectorAll("[data-kkd]").forEach(b => b.addEventListener("click", () => {   // build 324: 대장 ↔ 앱 설치 링크
+    const f = document.getElementById("kkDispatchFrame"), k = b.getAttribute("data-kkd"); if(!f) return; f.setAttribute("src", "/kingkong-dispatch/?embed=" + k);
+    document.querySelectorAll("[data-kkd]").forEach(x => { const on = x === b; x.classList.toggle("primary", on); x.setAttribute("aria-selected", String(on)); }); })); }
   if(key==="10") aggRenderAll();   // build 185: 옛 재고/공급 탭 내용(추이 · PLT 종합 · 원본 표)
 }
 let _goalsSubWired = false;
