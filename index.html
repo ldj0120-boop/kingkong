@@ -1709,6 +1709,7 @@
   #askEx .kk-more{cursor:pointer;}
   .up-how{cursor:help;opacity:.6;}
   #trendMeta{cursor:help;opacity:.6;}
+.kk-audit .g-fc-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.kk-audit-hid .audit-list,.kk-audit-hid>details{display:none}
 </style>
 <style id="bentoTheme">
   /* ===== build 237: 사이트 전체 벤토(시안 4) — 밝은 회색 바탕 · 흰 둥근 칸 · 굵은 글씨 · 늘어남 빨강 / 줄어듦 파랑 ===== */
@@ -2061,6 +2062,9 @@
         </span>
         <label for="salesDailyStore" style="font-family:'Gothic A1';font-size:13px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;">매장</label>
         <select id="salesDailyStore" style="max-width:220px;"></select>
+        <!-- build 321: 일별 매출 칸에서도 카테고리 고르기(월별 카드 · 매장×월 표와 같은 값) -->
+        <label for="salesDailyCat" style="font-family:'Gothic A1';font-size:13px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;">카테고리</label>
+        <select id="salesDailyCat" class="kk-cat-sel" style="max-width:240px;" title="전체 매출 또는 카테고리 하나 — 일별 막대 · 월별 막대 · 매장 × 월 표가 같이 바뀝니다"></select>
         <label for="salesDateSelect" style="font-family:'Gothic A1';font-size:13px;letter-spacing:.08em;color:var(--muted2);margin-left:10px;" data-tip="아래 '매출 종합'(전일 · 전주 · 전월 대비)과 다른 카드의 기준이 되는 날짜 — 월을 바꾸면 그 달 마지막 자료일로 맞춰집니다">기준일</label>
         <select id="salesDateSelect" style="max-width:150px;"></select>
         <label for="salesViewModeSelect" style="font-family:'Gothic A1';font-size:13px;letter-spacing:.08em;color:var(--muted2);">표시 기준</label>
@@ -2089,7 +2093,7 @@
         <select id="salesMonTotStore" style="max-width:220px;"></select>
         <!-- build 275: 카테고리 고르기 — 전체 매출 / 카테고리 하나. 위 막대와 아래 '매장 × 월 매출' 표가 같이 바뀜(옛 '카테고리별 매장 순위' 카드 합침) -->
         <label for="salesMonTotCat" style="font-family:'Gothic A1';font-size:13px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;margin-left:6px;">카테고리</label>
-        <select id="salesMonTotCat" style="max-width:240px;" title="전체 매출 또는 카테고리 하나 — 위 일별 매출 막대 · 이 카드 월별 막대 · 매장 × 월 표가 같이 바뀝니다"></select>
+        <select id="salesMonTotCat" class="kk-cat-sel" style="max-width:240px;" title="전체 매출 또는 카테고리 하나 — 위 일별 매출 막대 · 이 카드 월별 막대 · 매장 × 월 표가 같이 바뀝니다"></select>
       </div>
       <div id="salesMonTotWrap" style="padding:12px 18px 6px;"></div>
       <div style="padding:0 18px;"><span class="meta" id="salesMonthlyMeta" style="font-size:12px;"></span></div>
@@ -5387,11 +5391,19 @@ function renderSalesMonTotCat(){
   const cats = Object.keys(tot).filter(c=>tot[c]>0).sort((a,b)=>tot[b]-tot[a]);
   if(monthlyCatOn() && !cats.includes(selectedMonthlyCat)) selectedMonthlyCat = "__all__";
   const eok = v => (v/1e8).toFixed(1) + "억";
-  sel.innerHTML = `<option value="__all__">전체 매출</option>` +
+  kkCatOptsHtml = `<option value="__all__">전체 매출</option>` +
     cats.map((c,i)=>`<option value="${escHtml(c)}">${escHtml(c)} (${i+1}위 · ${eok(tot[c])})</option>`).join("");
-  sel.value = selectedMonthlyCat;
-  sel.onchange = ()=>{ selectedMonthlyCat = sel.value; try{ localStorage.setItem("kk_mon_cat_v1", selectedMonthlyCat); }catch(_){}
-    renderSalesMonthTotals(); try{ renderSalesMonthly(); }catch(_){} try{ renderSalesDaily(); }catch(_){} };   // build 320: 일별 매출도 같은 카테고리
+  kkSyncCatSels();
+}
+// build 321: 카테고리 고르기 칸 여러 곳(일별 · 월별 · 매장×월) — 같은 값 하나(selectedMonthlyCat)
+let kkCatOptsHtml = `<option value="__all__">전체 매출</option>`;
+function kkSyncCatSels(){
+  document.querySelectorAll("select.kk-cat-sel").forEach(sel=>{
+    if(sel.dataset.opts !== kkCatOptsHtml){ sel.innerHTML = kkCatOptsHtml; sel.dataset.opts = kkCatOptsHtml; }
+    sel.value = selectedMonthlyCat;
+    sel.onchange = ()=>{ selectedMonthlyCat = sel.value; try{ localStorage.setItem("kk_mon_cat_v1", selectedMonthlyCat); }catch(_){}
+      kkSyncCatSels(); renderSalesMonthTotals(); try{ renderSalesMonthly(); }catch(_){} try{ renderSalesDaily(); }catch(_){} };
+  });
 }
 let kkMonSort = { col:null, dir:1 };   // build 277: 매장 × 월 표 머리글 정렬(이 화면에서만)
 function renderSalesMonthly(){ renderSalesMonthlyCore(); try{ renderKgSummary(); }catch(e){ console.warn("build 289 킹고프리 종합", e); } }
@@ -5464,7 +5476,7 @@ function renderSalesMonthlyCore(){
     return out;
   };
   // build 256: 매장 고르기는 카드 위 '매장'(#salesMonTotStore) 하나로 — 막대와 표가 같이 바뀜
-  const storeSel = `<div style="padding:14px 4px 6px;font-family:'Gothic A1';font-size:13.5px;letter-spacing:.06em;color:var(--muted2);">매장 × 월 매출 · ${selectedMonthlyStore==="__all__"?"전체 매장":escHtml(selectedMonthlyStore)} · <b style="color:var(--text);">${escHtml(monthlyCatLabel())}</b>${monthlyCatOn()?` (카테고리 매출 파일 실매출액 · ${+months[months.length-1].slice(5)}월 ${escHtml(selectedMonthlyCat)} 매출 큰 매장 순)`:""}</div>
+  const storeSel = `<div style="padding:14px 4px 6px;font-family:'Gothic A1';font-size:13.5px;letter-spacing:.06em;color:var(--muted2);">매장 × 월 매출 · ${selectedMonthlyStore==="__all__"?"전체 매장":escHtml(selectedMonthlyStore)} · <select id="salesMonthlyCat" class="kk-cat-sel" style="max-width:240px;font-weight:700;" title="전체 매출 또는 카테고리 하나 — 위 막대들과 같이 바뀝니다"></select>${monthlyCatOn()?` (카테고리 매출 파일 실매출액 · ${+months[months.length-1].slice(5)}월 ${escHtml(selectedMonthlyCat)} 매출 큰 매장 순)`:""}</div>
     <div style="padding:0 4px 10px;">
       <span style="font-size:12.5px;color:var(--muted2);">각 칸 아래 전월 대비(있으면 작년 동기 대비)${Object.keys(partialDay).map(m=>` · 진행 중인 ${+m.slice(5)}월(${partialDay[m]}일까지)은 전월·작년 <b>같은 기간(1~${partialDay[m]}일)</b>과 비교`).join("")}</span>
     </div>`;
@@ -5600,7 +5612,7 @@ function renderSalesMonthlyCore(){
       (anySuspect?`<br><span style="color:var(--red);">→ 누적본이 섞였으면, 그 달은 마지막 날짜 1개만 올리거나 알려주세요. 하루치/누적본 처리 방식을 바꿔드립니다.</span>`:'') +
       `</div>`;
   }
-  wrap.innerHTML = A + C + B + diag;
+  wrap.innerHTML = A + C + B + diag; try{ kkSyncCatSels(); }catch(_){}   // build 321
   wrap.querySelectorAll("th[data-msort]").forEach(th=> th.addEventListener("click", ()=>{
     const k = th.getAttribute("data-msort") || null;
     kkMonSort = !k ? { col:null, dir:1 } : (kkMonSort.col===k ? { col:k, dir:-kkMonSort.dir } : { col:k, dir:1 });
@@ -11092,26 +11104,40 @@ function goalsIncentiveTableHtml(ctx, rows2){
   if(!rows2 || !rows2.length) return `<p class="g-note-p">목표가 등록된 대상 매장이 없습니다.</p>`;
   const danger = rows2.filter(r=>r.pct<65).length, safe = rows2.length - danger;
   let sepDone = false;
+  // build 321: 매장별 예상 총매출(월말) — 01 '예상 총매출'(goalsForecast) 남은 기간 배율을 매장 실적에 곱함(계산 한 곳).
+  //  남은 영업일 비율만큼만(폐점 · 중간 오픈 반영). 진행 중인 달에서만 보임.
+  const fc = (ctx.forecast && ctx.elapsedDays < ctx.daysInMonth && ctx.forecast.actual > 0) ? ctx.forecast : null;
+  const fcRate = fc ? fc.forecastRest / fc.actual : 0;
+  const fcOf = r => { if(!fc) return 0;
+    const all = storeActiveDays(r.store, ctx.curMonth), el = storeActiveDays(r.store, ctx.curMonth, ctx.elapsedDays);
+    const remDays = Math.max(0, all.days - el.days), remAll = ctx.daysInMonth - ctx.elapsedDays;
+    const elShare = el.days>0 ? ctx.elapsedDays/el.days : 0;   // 영업일 짧으면 하루 실적 기준으로 맞춤
+    return r.actual + (remAll>0 ? r.actual*fcRate*(remDays/remAll)*elShare : 0); };
+  const fcTh = fc ? `<th>예상 총매출<br><span style="font-weight:400;color:var(--muted2);font-size:11.5px;">(월말 · 월 목표 대비)</span></th>` : "";
+  const fcTd = r => { if(!fc) return ""; const v = fcOf(r), q = r.target>0 ? v/r.target*100 : 0;
+    const qc = q>=100?"var(--green)":q>=80?"var(--amber)":"var(--red)";
+    return `<td data-tip="${escHtml(`${r.label} 예상 총매출 ${Math.round(v).toLocaleString()}원 = 실적 + 남은 ${ctx.daysInMonth-ctx.elapsedDays}일 예상(전사 예상 총매출과 같은 요일·공휴일·공급 배율, 남은 영업일만)\n월 목표 ${Math.round(r.target).toLocaleString()}원의 ${q.toFixed(1)}%`)}"><span class="num">${Math.round(v).toLocaleString()}</span><div style="font-size:11.5px;color:${qc};">${r.target>0?q.toFixed(1)+"%":"-"}</div></td>`; };
   const body2 = rows2.map(r=>{
     const band = goalsIncentiveBand(r.dev);
     const tier = goalsTier(r.pct);
     const bc = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--info)":tier.cls==="g-tier-warn"?"var(--amber)":"var(--red)";
     let sep = "";
-    if(!sepDone && r.pct>=65 && danger && safe){ sepDone = true; sep = `<tr class="g-inc-sep"><td colspan="6" style="text-align:center;font-size:12.5px;color:var(--red);font-weight:700;">▲ 위 ${danger}곳 위험군(달성률 65% 미만) · 아래 ${safe}곳</td></tr>`; }
+    if(!sepDone && r.pct>=65 && danger && safe){ sepDone = true; sep = `<tr class="g-inc-sep"><td colspan="${fc?7:6}" style="text-align:center;font-size:12.5px;color:var(--red);font-weight:700;">▲ 위 ${danger}곳 위험군(달성률 65% 미만) · 아래 ${safe}곳</td></tr>`; }
     const tip = `${r.label} · 달성률 ${r.pct.toFixed(1)}% (${tier.label})\n실적 ${Math.round(r.actual).toLocaleString()}원 ÷ 목표(일할) ${Math.round(r.proratedTarget).toLocaleString()}원\n월 목표 전체 ${Math.round(r.target).toLocaleString()}원 · 인센티브 구간 ${band.label}`;
     return sep + `<tr data-tip="${escHtml(tip + (r.stateBadge ? `\n${r.stateBadge} — 목표는 영업일(${r.activeDays}/${r.monthDays}일)만큼만 인정` : ""))}">
       <td>${goalsStoreLabelHtml(r)}</td>
       <td class="tgt-col"><span class="num" style="color:var(--amber)">${Math.round(r.target).toLocaleString()}</span></td>
       <td class="tgt-col" style="font-size:12.5px;color:var(--muted2);"><span class="num">${Math.round(r.proratedTarget).toLocaleString()}</span></td>
       <td class="g-act"><span class="num">${Math.round(r.actual).toLocaleString()}</span><div class="g-actbar"><i style="width:${(Math.min(120,r.pct)/1.2).toFixed(1)}%;background:${bc}"></i><b></b></div></td>
+      ${fcTd(r)}
       <td class="total-col" style="${goalsHeatBg((r.pct/100)/1.2)}"><span class="num">${r.pct.toFixed(1)}%</span></td>
       <td class="g-band">${/^폐점/.test(r.stateBadge||"") ? `<span style="font-size:12px;color:var(--muted2);">폐점 — 구간 판정 없음</span>` : `<span class="g-store-badge ${band.cls}" style="font-size:12px;padding:2px 7px;">${escHtml(band.label)}</span>`}</td>
     </tr>`;
   }).join("");
   const tF = rows2.reduce((a,r)=>a+r.target,0), tP = rows2.reduce((a,r)=>a+r.proratedTarget,0), tA = rows2.reduce((a,r)=>a+r.actual,0);
-  return `<div class="tblbox" id="goalsIncTbl"><table class="g-tbl"><thead><tr><th>매장</th><th class="tgt-col">월 목표매출<br><span style="font-weight:400;color:var(--muted2);font-size:11.5px;">(그 달 전체)</span></th><th class="tgt-col">목표(일할)<br><span style="font-weight:400;color:var(--muted2);font-size:11.5px;">(${ctx.elapsedDays}/${ctx.daysInMonth}일 환산)</span></th><th>실적<br><span style="font-weight:400;color:var(--muted2);font-size:11.5px;">(막대 = 달성률 · 세로선 100%)</span></th><th class="total-col">달성률</th><th>인센티브 구간</th></tr></thead>
+  return `<div class="tblbox" id="goalsIncTbl"><table class="g-tbl"><thead><tr><th>매장</th><th class="tgt-col">월 목표매출<br><span style="font-weight:400;color:var(--muted2);font-size:11.5px;">(그 달 전체)</span></th><th class="tgt-col">목표(일할)<br><span style="font-weight:400;color:var(--muted2);font-size:11.5px;">(${ctx.elapsedDays}/${ctx.daysInMonth}일 환산)</span></th><th>실적<br><span style="font-weight:400;color:var(--muted2);font-size:11.5px;">(막대 = 달성률 · 세로선 100%)</span></th>${fcTh}<th class="total-col">달성률</th><th>인센티브 구간</th></tr></thead>
     <tbody>${body2}</tbody>
-    <tfoot><tr><td>합계</td><td class="tgt-col"><span class="num" style="color:var(--amber)">${Math.round(tF).toLocaleString()}</span></td><td class="tgt-col" style="font-size:12.5px;color:var(--muted2);"><span class="num">${Math.round(tP).toLocaleString()}</span></td><td><span class="num">${Math.round(tA).toLocaleString()}</span></td><td class="total-col"><span class="num">${tP>0?(tA/tP*100).toFixed(1):'0.0'}%</span></td><td></td></tr></tfoot>
+    <tfoot><tr><td>합계</td><td class="tgt-col"><span class="num" style="color:var(--amber)">${Math.round(tF).toLocaleString()}</span></td><td class="tgt-col" style="font-size:12.5px;color:var(--muted2);"><span class="num">${Math.round(tP).toLocaleString()}</span></td><td><span class="num">${Math.round(tA).toLocaleString()}</span></td>${fc?(()=>{ const tFc = rows2.reduce((a,r)=>a+fcOf(r),0); return `<td><span class="num">${Math.round(tFc).toLocaleString()}</span><div style="font-size:11.5px;color:var(--muted2);">${tF>0?(tFc/tF*100).toFixed(1)+"%":"-"}</div></td>`; })():""}<td class="total-col"><span class="num">${tP>0?(tA/tP*100).toFixed(1):'0.0'}%</span></td><td></td></tr></tfoot>
     </table></div>`;
 }
 // build 256: 다른 메뉴로 옮긴 자료의 '바로 가기' 링크(data-jump="sales:카드id" 또는 "goals:서브탭키")
@@ -12609,9 +12635,11 @@ function salesAuditHtml(ctx){
       <td><span class="num" style="color:${cl}">${d>=0?'+':''}${Math.round(d).toLocaleString()}</span></td>
       <td><span class="num" style="color:${cl}">${rel.toFixed(2)}%</span></td></tr>`;
   }).join("");
-  return `<div class="g-fc-card" style="border-color:${hd.c};background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,0));">
+  const auHid = (()=>{ try{ return localStorage.getItem("kk_audit_hide_v1")==="1"; }catch(_){ return false; } })();   // build 321: 숨김
+  return `<div class="g-fc-card kk-audit${auHid?' kk-audit-hid':''}" style="border-color:${hd.c};background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,0));">
     <div class="g-fc-hd" style="color:${hd.c};">매출 집계 자동 검증 <span class="g-fc-grade" style="color:${hd.c};border-color:${hd.c};">${hd.t}</span>
-      <span style="font-size:13px;color:var(--muted2);font-family:'Inter',sans-serif;">집계 기간 ${escHtml(ctx.scopeLabel)}</span></div>
+      <span style="font-size:13px;color:var(--muted2);font-family:'Inter',sans-serif;">집계 기간 ${escHtml(ctx.scopeLabel)}</span>
+      <button type="button" class="kk-audit-tg" style="margin-left:auto;font-size:12.5px;padding:3px 10px;border:1px solid var(--line,#ccd);border-radius:12px;background:transparent;color:var(--muted2);cursor:pointer;" onclick="const c=this.closest('.kk-audit');const h=c.classList.toggle('kk-audit-hid');this.textContent=h?'▸ 펼치기':'▾ 숨기기';try{localStorage.setItem('kk_audit_hide_v1',h?'1':'0')}catch(_){}">${auHid?'▸ 펼치기':'▾ 숨기기'}</button></div>
     <div class="audit-list">${rows}</div>
     <details class="g-store-more" style="margin-top:8px;">
       <summary>월별 두 소스 대조 (매장별 매출 ↔ 카테고리별 매출)</summary>
@@ -15055,6 +15083,29 @@ function mixJudge(a, b, nA, nB){
   else { tag = "소폭 감소"; cls = "small"; }
   return { amtA, amtB, d, pct: amtA>0 ? (amtB/amtA-1)*100 : null, skuA, skuB, perA, perB, ds, dp, tag, cls };
 }
+// build 322: 분류 하나의 그날 매출(전 매장 또는 매장 하나) · 날짜 짧게
+var MIX_LAST_R = null;
+function mixMd(d){ return `${+d.slice(5,7)}/${+d.slice(8,10)}`; }
+function mixCatDay(d, cat, store){
+  const m = SALES_MIX[d]; if(!m) return 0; let t = 0;
+  const src = store ? ((m.s||{})[store]||{}) : (m.c||{});
+  Object.keys(src).forEach(k=>{ if(k.split(" > ")[0]===cat) t += +src[k][0]||0; });
+  return t;
+}
+function mixCatDailyHtml(cat, R){
+  if(!R || !R.P) return "";
+  const st = R.store || "", WD = "일월화수목금토";
+  const vA = R.P.A.map(d=>mixCatDay(d,cat,st)), avgA = vA.length ? vA.reduce((a,v)=>a+v,0)/vA.length : 0;
+  const man = v=> `${v<0?"−":(v>0?"+":"")}${Math.abs(Math.round(v/10000)).toLocaleString()}만`;
+  const won = v=> `${Math.round(v/10000).toLocaleString()}만`;
+  const col = v=> v<0 ? "color:var(--down)" : v>0 ? "color:var(--up)" : "";
+  const rows = (dates)=>{ const all = dates.slice().sort(); return all.slice().reverse().map(d=>{ const v = mixCatDay(d,cat,st), i = all.indexOf(d), pv = i>0 ? mixCatDay(all[i-1],cat,st) : null, df = v-avgA, pc = avgA>0 ? (v/avgA-1)*100 : null;
+      return `<tr><td>${mixMd(d)} (${WD[new Date(d+"T00:00:00").getDay()]})</td><td class="r">${won(v)}</td><td class="r" style="${col(df)}"><b>${man(df)}</b></td><td class="r" style="${pc==null?"":col(pc)}">${pc==null?"-":(pc>=0?"+":"")+pc.toFixed(0)+"%"}</td><td class="r" style="${pv==null?"":col(v-pv)}">${pv==null?"-":man(v-pv)}</td></tr>`; }).join(""); };
+  const head = `<thead><tr><th>날짜</th><th>그날 매출</th><th>전 평균 대비</th><th>%</th><th>전날 대비</th></tr></thead>`;
+  return `<div style="padding:6px 4px 10px;"><div class="mix-per" style="margin:0 0 4px;"><b>${escHtml(cat)}</b> 일별 증감${st?` · ${escHtml(st)}`:" · 전 매장"} — 비교 기준 = 전 기간(${R.P.A.length?`${mixMd(R.P.A[0])}~${mixMd(R.P.A[R.P.A.length-1])}`:"-"}) 하루 평균 <b>${won(avgA)}원</b></div>
+    <div class="tblbox"><table class="g-tbl mix-tbl">${head}<tbody>${rows(R.P.B)}</tbody></table></div>
+    <details class="g-store-more" style="margin-top:6px;"><summary>전 기간 일별 보기 (${R.P.A.length}일)</summary><div class="tblbox"><table class="g-tbl mix-tbl">${head}<tbody>${rows(R.P.A)}</tbody></table></div></details></div>`;
+}
 function mixAnalyze(){
   const ui = mixUi(); let P = mixPeriods(ui.unit, ui.base, ui.end, ui); if(!P || !P.A.length || !P.B.length) return P ? { P, empty:true } : null;
   const store = (ui.store && STORES.includes(ui.store)) ? ui.store : "";
@@ -15415,11 +15466,15 @@ function mixPanelHtml(){
   // build 257: 표마다 합계 줄(표에 나온 분류 합) + 전체 분류 합계
   const sumFoot = (list, label, cols)=>{ const a = list.reduce((x,r)=>x+(r.amtA||0),0), b = list.reduce((x,r)=>x+(r.amtB||0),0), p = a>0 ? (b/a-1)*100 : null;
     return `<tr><td><b>${label}</b></td><td class="r"><b>${won(a)}</b></td><td class="r"><b>${won(b)}</b></td><td class="r" style="${col(b-a)}"><b>${man(b-a)}</b></td><td class="r" style="${p==null?"":col(p)}">${p==null?"-":pcs(p)}</td>${"<td></td>".repeat(cols)}</tr>`; };
-  const catTbl = list=> `<div class="tblbox"><table class="g-tbl mix-tbl"><thead><tr><th>분류 (누르면 세부)</th><th>전</th><th>지금</th><th>하루 차이</th><th>%</th><th>팔린 품목 수</th><th>품목당 매출</th><th>원인</th></tr></thead><tbody>${list.map(r=>
+  // build 322: 전 · 지금 기간을 머리글에 바로 표시(기준 시점 모호 → 날짜로)
+  MIX_LAST_R = R;
+  const rng = a=> !a || !a.length ? "-" : (a.length===1 ? mixMd(a[0]) : `${mixMd(a[0])}~${mixMd(a[a.length-1])}`) + ` · ${a.length}일`;
+  const thS = t=> `<br><span style="font-weight:400;color:var(--muted2);font-size:11.5px;">${t}</span>`;
+  const catTbl = list=> `<div class="tblbox"><table class="g-tbl mix-tbl"><thead><tr><th>분류 (누르면 세부 · 일별)</th><th>전${thS(rng(R.P.A))}</th><th>지금${thS(rng(R.P.B))}</th><th>하루 차이${thS("지금 − 전 · 하루 평균")}</th><th>%${thS("전 대비")}</th><th>팔린 품목 수</th><th>품목당 매출</th><th>원인</th></tr></thead><tbody>${list.map(r=>
       `<tr class="mix-c1" data-mix-c1="${escHtml(r.cat)}">${catRow(r).replace(/^<tr[^>]*>/,"").replace(/<\/tr>$/,"")}</tr>` + r.subs.filter(x=>Math.abs(x.d)>=5000).slice(0,12).map(x=>catRow(x,true).replace('<tr class="mix-sub">', `<tr class="mix-sub" data-mix-of="${escHtml(r.cat)}" hidden>`)).join("")).join("")}</tbody>
       <tfoot>${sumFoot(list, `이 표 ${list.length}개 분류 합계`, 3)}${list.length < R.cats.length ? sumFoot(R.cats, `전체 ${R.cats.length}개 분류 합계`, 3) : ""}</tfoot></table></div>`;
   const dn = R.cats.filter(r=>r.d<0), upc = R.cats.filter(r=>r.d>0);
-  const catHtml = `<div class="mix-h">분류별 변화 <span>· 원인: <b class="mix-j sku">품목 수 부족</b> = 품목당 매출은 그대로인데 가짓수가 줄어듦(공급·진열) · <b class="mix-j per">품목당 판매 부진</b> = 가짓수는 그대로인데 덜 팔림(가격·진열·임박)</span></div>
+  const catHtml = `<div class="mix-per" style="margin:2px 0 6px;">기준: <b>지금 ${escHtml(rng(R.P.B))}</b> 하루 평균 vs <b>전 ${escHtml(rng(R.P.A))}</b> 하루 평균 (${escHtml(R.P.al.split(" (")[0])})</div><div class="mix-h">분류별 변화 <span>· 원인: <b class="mix-j sku">품목 수 부족</b> = 품목당 매출은 그대로인데 가짓수가 줄어듦(공급·진열) · <b class="mix-j per">품목당 판매 부진</b> = 가짓수는 그대로인데 덜 팔림(가격·진열·임박)</span></div>
     ${catTbl(dn.slice(0,10).concat(upc.slice(-0).sort((x,y)=>y.d-x.d).slice(0,4)))}
     ${dn.length>10 ? `<details class="g-store-more"><summary>나머지 분류 ${dn.length-10}개</summary>${catTbl(dn.slice(10))}</details>` : ""}`;
   const flag = r=> [r.stop?'<span class="mix-f stop">판매 끊김</span>':"", r.daily?'<span class="mix-f daily">매일 팔리던 상품</span>':"", r.season?'<span class="mix-f sea">계절</span>':"", r.isNew?'<span class="mix-f new">새 상품</span>':"", r.bulk?'<span class="mix-f" title="상품명이 분류 이름인 묶음 코드 — 코드가 바뀌면 끊기거나 새로 생긴 것처럼 보입니다">묶음 코드</span>':""].join("");
@@ -15489,7 +15544,13 @@ function wireMixPanel(){
       if(tr){ if(!tr.classList.contains("open")) tr.click(); const dt = tr.closest("details"); if(dt) dt.open = true; tr.scrollIntoView({behavior:"smooth", block:"center"}); tr.classList.add("bx-flash"); setTimeout(()=>tr.classList.remove("bx-flash"), 1600); } return; }
     if(b.dataset.mixPick!=null){ mixUiSet({ store:b.dataset.mixPick }); mixRerender(); const w = document.getElementById("mixWrap"); if(w && w.scrollIntoView) w.scrollIntoView({behavior:"smooth", block:"start"}); return; }
     if(b.dataset.mixC1!=null){ const k = b.dataset.mixC1; const open = !b.classList.contains("open"); b.classList.toggle("open", open);
-      document.querySelectorAll(`tr[data-mix-of]`).forEach(tr=>{ if(tr.getAttribute("data-mix-of")===k) tr.hidden = !open; }); return; }
+      document.querySelectorAll(`tr[data-mix-of]`).forEach(tr=>{ if(tr.getAttribute("data-mix-of")===k) tr.hidden = !open; });
+      // build 322: 세부 아래에 그 분류 일별 증감 표
+      let dr = [...b.parentNode.querySelectorAll("tr[data-mix-daily]")].find(x=>x.getAttribute("data-mix-daily")===k);
+      if(open && !dr){ let last = b; while(last.nextElementSibling && last.nextElementSibling.getAttribute("data-mix-of")===k) last = last.nextElementSibling;
+        dr = document.createElement("tr"); dr.setAttribute("data-mix-daily", k); dr.className = "mix-sub mix-daily";
+        dr.innerHTML = `<td colspan="${b.children.length}">${mixCatDailyHtml(k, MIX_LAST_R)}</td>`; last.after(dr); }
+      if(dr) dr.hidden = !open; return; }
     if(b.dataset.mixPreset){ const all = Object.keys(SALES_MIX).sort(), last = all[all.length-1]||"", y = last.slice(0,4);
       if(b.dataset.mixPreset==="h1") mixUiSet({ aFrom:`${y}-01-01`, aTo:`${y}-06-30`, bFrom:`${y}-09-01`, bTo:last });
       else { const m0 = last.slice(0,8)+"01", pm = _mixShift(m0,-1); mixUiSet({ aFrom: pm.slice(0,8)+"01", aTo: pm, bFrom: m0, bTo: last }); }
