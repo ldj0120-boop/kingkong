@@ -1900,7 +1900,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 316 · 2026-11-12</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 317 · 2026-11-13</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -1991,6 +1991,9 @@
             <button class="act primary" id="pltAuthGo" type="submit">로그인</button>
             <span id="pltAuthMsg" class="meta" style="font-size:13px;"></span>
           </form>
+          <div class="tool-divider"></div>
+          <span class="tool-cap">매장 · 규칙 표 <small style="color:var(--muted2)">(코드 수정 없이 바꿈)</small></span>
+          <div class="tool-row"><button class="act" id="kkSetOpen" type="button" title="build 317: 매장 오픈 · 폐점 · 신선 중지/재개 · 냉장/냉동/상온, 출고요청서 중량물(적재물) 기준을 여기서 바꾸면 모든 화면 · 모든 사람에게 반영됩니다">매장 · 규칙 표 열기</button></div>
           <div class="tool-divider"></div>
           <span class="tool-cap">초기화</span>
           <div class="tool-row">
@@ -9028,6 +9031,21 @@ const STORE_PROFILE = {
   "평택점":      { fresh:{chilled:true,  frozen:false, ambient:true}, close:"2026-11-01" },   // build 288: 2026-11-01까지 영업 후 폐점(사용자 확인 11/4)
   "동탄점":      { fresh:{chilled:false, frozen:false, ambient:false} }, // 구 "기흥 패션관" — 가구·패션 위주라 식품 미취급, 기흥점과는 독립 집계(build 57)
 };
+// build 317: 매장 · 규칙 표 — ⚙ 설정 › '매장 · 규칙 표'에서 고친 값(코드 기본값과 다른 것만)을 덮어씀.
+//   저장 위치 = 이 브라우저(localStorage kk_settings_v1) + 서버(Firebase ledger/_settings) → 모든 PC · 뷰어 같은 값.
+const KK_SET_LS = "kk_settings_v1";
+const KK_SET_RAW = (()=>{ try{ return localStorage.getItem(KK_SET_LS) || ""; }catch(_){ return ""; } })();
+const KK_SET = (()=>{ try{ return JSON.parse(KK_SET_RAW || "null") || {}; }catch(_){ return {}; } })();
+const KK_SP_KEYS = ["open","close","freshStop","freshResume"];
+const STORE_PROFILE_BASE = JSON.parse(JSON.stringify(STORE_PROFILE));
+(function kkApplyStoreSet(){
+  const o = KK_SET.stores || {};
+  Object.keys(o).forEach(s=>{ const v = o[s]; if(!v || typeof v!=="object") return;
+    const p = STORE_PROFILE[s] || (STORE_PROFILE[s] = { fresh:Object.assign({}, F_ALL) });
+    KK_SP_KEYS.forEach(k=>{ if(k in v){ if(v[k]) p[k] = String(v[k]); else delete p[k]; } });
+    if(v.fresh) p.fresh = { chilled:!!v.fresh.chilled, frozen:!!v.fresh.frozen, ambient:!!v.fresh.ambient };
+  });
+})();
 // 냉장·냉동 취급 여부로 판단할 "신선식품" 성격의 매출 카테고리
 const FRESH_CATS = ["신선식품"];
 function storeProfile(s){ return STORE_PROFILE[s] || {}; }
@@ -24035,7 +24053,10 @@ function eosYYMMDD(s){ const d = String(s||"").replace(/\D/g,""); return d.lengt
 //   낙찰 원본 행(19열: Grouping|No.|FC|…|cate3[7]|cate4[8]|cate5[9]|로케이션[10]|…|상품명[14]|수량[15])에서 LOT|FC별 집계
 //   1 로케이션 = 1PLT. 그 PLT 수량 중 중량물이 50% 이상 = 단독, 20~50% = 혼적, 20% 미만은 안 셈.
 //   단독 + 혼적이 5PLT 이상인 센터만 적재물에 표기. 무게는 상품명 kg·g·L·ml × 입수로 추정.
-const EOS_HEAVY_MIN_PLT = 5, EOS_HEAVY_SOLO = 0.5, EOS_HEAVY_MIX = 0.2, EOS_HEAVY_V = 2;
+let EOS_HEAVY_MIN_PLT = 5, EOS_HEAVY_SOLO = 0.5, EOS_HEAVY_MIX = 0.2; const EOS_HEAVY_V = 2;
+const EOS_HEAVY_BASE = { heavyMinPlt:5, heavySolo:50, heavyMix:20 };   // build 317: ⚙ 설정 › 매장 · 규칙 표에서 바꿀 수 있음
+(function(){ const r = (typeof KK_SET!=="undefined" && KK_SET.rules) || {};
+  if(+r.heavyMinPlt>0) EOS_HEAVY_MIN_PLT = +r.heavyMinPlt; if(+r.heavySolo>0) EOS_HEAVY_SOLO = +r.heavySolo/100; if(+r.heavyMix>0) EOS_HEAVY_MIX = +r.heavyMix/100; })();
 function eosHeavyKind(c3, c4, c5, name){
   const a = String(c4||"").replace(/\s/g,""), b = String(c3||"").replace(/\s/g,""), e = String(c5||"").replace(/\s/g,""), n = String(name||"");
   if(/^쌀/.test(a) || /^(백미|현미|찹쌀)/.test(a)) return "쌀";
@@ -26922,6 +26943,77 @@ function upFreshRender(info, late){
   const tog = ()=>{ const f = !p.classList.contains("fold"); set(f); try{ localStorage.setItem("up_fold_v1", f ? "1" : "0"); }catch(_){} };
   hd.addEventListener("click", tog); hd.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); tog(); } });
 })();
+/* ================= build 317: 매장 · 규칙 표 =================
+   매장 오픈/폐점/신선 중지·재개/냉장·냉동·상온 + 출고요청서 중량물 기준을 화면에서 고침.
+   코드 기본값(STORE_PROFILE_BASE · EOS_HEAVY_BASE)과 다른 것만 저장 → 나중에 코드가 바뀌어도 꼬이지 않음.
+   저장 = localStorage + Firebase ledger/_settings(관리자만 쓰기). 다른 PC는 값이 바뀌면 1번 새로고침. */
+function kkSetDiff(rows, rules){
+  const stores = {};
+  rows.forEach(r=>{ const b = STORE_PROFILE_BASE[r.name], d = {};
+    KK_SP_KEYS.forEach(k=>{ const bv = (b && b[k]) || "", v = r[k] || ""; if(v!==bv) d[k] = v; });
+    const bf = (b && b.fresh) || F_ALL; if(!b || ["chilled","frozen","ambient"].some(k=> !!bf[k] !== !!r.fresh[k])) d.fresh = r.fresh;
+    if(Object.keys(d).length) stores[r.name] = d; });
+  const ru = {}; Object.keys(EOS_HEAVY_BASE).forEach(k=>{ if(+rules[k]>0 && +rules[k]!==EOS_HEAVY_BASE[k]) ru[k] = +rules[k]; });
+  return { stores, rules:ru };
+}
+function kkSetSaveLocal(o){ const t = JSON.stringify({ stores:o.stores||{}, rules:o.rules||{} }); try{ localStorage.setItem(KK_SET_LS, t); return t; }catch(_){ return null; } }
+function kkSetSame(a, b){ try{ return JSON.stringify(JSON.parse(a||"{}"))===JSON.stringify(JSON.parse(b||"{}")); }catch(_){ return false; } }
+(function kkSetCloudWatch(){
+  let tries = 0;
+  const t = setInterval(()=>{
+    const db = _fbDb(); if(!db){ if(++tries > 60) clearInterval(t); return; } clearInterval(t);
+    db.ref("ledger/_settings").on("value", snap=>{
+      const v = snap.val(); if(!v || document.getElementById("kkSetBox")) return;
+      const local = kkSetSaveLocal(v); if(local==null) return;
+      if(!kkSetSame(local, KK_SET_RAW || "{}")){
+        let n = 0; try{ n = +(sessionStorage.getItem("kk_set_reload")||0); sessionStorage.setItem("kk_set_reload", n+1); }catch(_){}
+        if(n < 2){ showNotice("⚙ 매장 · 규칙 표가 바뀌었습니다 — 화면을 새로 고칩니다."); setTimeout(()=> location.reload(), 1500); }
+      } else { try{ sessionStorage.removeItem("kk_set_reload"); }catch(_){} }
+    }, ()=>{});
+  }, 1000);
+})();
+function kkSetOpen(){
+  if(document.getElementById("kkSetBox")) return;
+  const names = Object.keys(STORE_PROFILE).sort((a,b)=> a.localeCompare(b,"ko"));
+  const inp = (k,v,w)=> `<input data-k="${k}" type="date" value="${escHtml(v||"")}" style="width:${w||128}px;background:var(--ink);border:1px solid var(--line);border-radius:5px;color:var(--text);padding:2px 4px;font-size:12.5px">`;
+  const row = (s)=>{ const p = STORE_PROFILE[s] || { fresh:F_ALL }, f = p.fresh || F_ALL, b = STORE_PROFILE_BASE[s];
+    const chg = !b || JSON.stringify(kkSetDiff([kkRowOf(s,p)], {}).stores[s]||null)!=="null";
+    return `<tr data-s="${escHtml(s)}"><td style="text-align:left;white-space:nowrap">${escHtml(s)}${chg?' <span style="color:var(--amber,#f59e0b);font-size:11px" title="코드 기본값과 다름(이 표에서 바꾼 값)">●</span>':''}</td>
+      <td>${inp("open",p.open)}</td><td>${inp("close",p.close)}</td><td>${inp("freshStop",p.freshStop)}</td><td>${inp("freshResume",p.freshResume)}</td>
+      ${["chilled","frozen","ambient"].map(k=>`<td><input type="checkbox" data-f="${k}" ${f[k]?"checked":""}></td>`).join("")}
+      <td style="text-align:left;font-size:11.5px;color:var(--muted2)">${p.freshDirect?escHtml((p.freshDirect.src||"")+" 직출"+(p.freshDirect.from?" "+p.freshDirect.from.slice(5)+"~":"")+(p.freshDirect.until?" ~"+p.freshDirect.until.slice(5):"")):""}</td></tr>`; };
+  const R = { heavyMinPlt: EOS_HEAVY_MIN_PLT, heavySolo: Math.round(EOS_HEAVY_SOLO*100), heavyMix: Math.round(EOS_HEAVY_MIX*100) };
+  const num = (k,lab,unit)=> `<label style="margin-right:14px">${lab} <input data-r="${k}" type="number" min="1" value="${R[k]}" style="width:60px;background:var(--ink);border:1px solid var(--line);border-radius:5px;color:var(--text);padding:2px 4px"> ${unit} <small style="color:var(--muted2)">(기본 ${EOS_HEAVY_BASE[k]})</small></label>`;
+  const box = document.createElement("div"); box.id = "kkSetBox";
+  box.style.cssText = "position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center";
+  box.innerHTML = `<div style="background:var(--panel,#111827);color:var(--text);border:1px solid var(--line);border-radius:10px;max-width:1000px;width:96vw;max-height:90vh;overflow:auto;padding:14px 16px;font-size:13.5px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><b style="font-size:16px">⚙ 매장 · 규칙 표</b><span style="color:var(--muted2);font-size:12.5px">여기만 고치면 목표매출 · 매출 · 재고 · 출고요청서 · 알림에 전부 반영. 저장하면 모든 사람 화면이 1번 새로 고침.</span><button type="button" class="act" data-kx style="margin-left:auto">✕</button></div>
+    <table class="kk-set-t" style="border-collapse:collapse;width:100%;text-align:center"><thead><tr style="color:var(--muted2);font-size:12px"><th style="text-align:left">매장</th><th>오픈</th><th>폐점(마지막 영업일)</th><th>신선 중지</th><th>신선 재개</th><th>냉장</th><th>냉동</th><th>상온</th><th style="text-align:left">직출(코드)</th></tr></thead>
+    <tbody>${names.map(row).join("")}</tbody></table>
+    <div style="margin:8px 0 12px"><input id="kkSetNew" placeholder="새 매장 이름" style="width:150px;background:var(--ink);border:1px solid var(--line);border-radius:5px;color:var(--text);padding:3px 6px"> <button type="button" class="act" data-kadd>+ 매장 추가</button> <small style="color:var(--muted2)">목표 · 매출 이름과 똑같이 써야 연결됨</small></div>
+    <div style="border-top:1px solid var(--line);padding-top:10px"><b>출고요청서 · 적재물(중량물: 쌀 · 물 · 음료 · 액체세제)</b><div style="margin-top:6px">${num("heavyMinPlt","센터 표기 기준","PLT 이상")}${num("heavySolo","단독 PLT","% 이상")}${num("heavyMix","혼적 PLT","% 이상")}</div></div>
+    <div style="display:flex;gap:8px;margin-top:14px;align-items:center"><button type="button" class="act primary" data-ksave>저장 · 모두에게 반영</button><button type="button" class="act" data-kreset title="이 표에서 바꾼 값을 모두 지우고 코드 기본값으로">기본값으로</button><span id="kkSetMsg" style="color:var(--muted2);font-size:12.5px"></span></div></div>`;
+  document.body.appendChild(box);
+  const close = ()=> box.remove();
+  const collect = ()=>{ const rows = [...box.querySelectorAll("tbody tr")].map(tr=>{ const r = { name:tr.dataset.s, fresh:{} };
+      tr.querySelectorAll("[data-k]").forEach(i=> r[i.dataset.k] = i.value || ""); tr.querySelectorAll("[data-f]").forEach(i=> r.fresh[i.dataset.f] = i.checked); return r; });
+    const rules = {}; box.querySelectorAll("[data-r]").forEach(i=> rules[i.dataset.r] = +i.value); return kkSetDiff(rows, rules); };
+  const put = async (o)=>{ const m = box.querySelector("#kkSetMsg");
+    if(typeof IS_ADMIN==="undefined" || !IS_ADMIN){ m.textContent = "관리자 로그인 때만 저장됩니다."; return; }
+    const loc = kkSetSaveLocal(o); let cloud = false;
+    try{ const db = _fbDb(); if(db){ await db.ref("ledger/_settings").set({ stores:o.stores, rules:o.rules, at:new Date().toISOString() }); cloud = true; } }catch(e){ console.warn("settings", e); }
+    m.textContent = cloud ? "저장됨 — 새로 고칩니다." : (loc ? "이 PC에만 저장됨(서버 저장 실패) — 새로 고칩니다." : "저장 실패");
+    if(loc!=null) setTimeout(()=> location.reload(), 900); };
+  box.addEventListener("click", e=>{
+    if(e.target===box || e.target.closest("[data-kx]")) return close();
+    if(e.target.closest("[data-kadd]")){ const nm = (box.querySelector("#kkSetNew").value||"").trim(); if(!nm) return;
+      if(box.querySelector(`tbody tr[data-s="${CSS.escape(nm)}"]`)) return; box.querySelector("tbody").insertAdjacentHTML("beforeend", row(nm)); box.querySelector("#kkSetNew").value = ""; return; }
+    if(e.target.closest("[data-ksave]")) return put(collect());
+    if(e.target.closest("[data-kreset]")){ if(confirm("이 표에서 바꾼 값을 모두 지우고 코드 기본값으로 돌릴까요?")) put({ stores:{}, rules:{} }); }
+  });
+}
+function kkRowOf(s, p){ return { name:s, open:p.open||"", close:p.close||"", freshStop:p.freshStop||"", freshResume:p.freshResume||"", fresh:Object.assign({chilled:false,frozen:false,ambient:false}, p.fresh||{}) }; }
+document.addEventListener("click", e=>{ if(e.target.closest && e.target.closest("#kkSetOpen")) setTimeout(kkSetOpen, 50); });
 (function setWire(){
   const d = document.getElementById("setDrawer"), dim = document.getElementById("setDim"), ob = document.getElementById("setOpenBtn"), cb = document.getElementById("setCloseBtn");
   if(!d || !ob) return;
