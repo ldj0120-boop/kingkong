@@ -1900,7 +1900,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 317 · 2026-11-13</span></span>
+      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 318 · 2026-11-13</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -3960,6 +3960,28 @@ const KG_CAT = "킹고프리";
 const KG_SEED_B289 = {"2026-10-15":{"김해점":[21560,1,1]},"2026-10-17":{"용인점":[464023,1,6],"수원점":[174384,1,1],"원주점":[9786,1,1],"이천점":[138726,1,2],"김포점":[11858,1,1],"천안점":[150987,1,2],"인천점":[871164,1,4]},"2026-10-19":{"김해점":[27678,1,1]},"2026-10-20":{"김해점":[234850,1,1]},"2026-10-21":{"김해점":[15456,1,1]},"2026-10-22":{"김해점":[28812,1,1]},"2026-10-23":{"수원점":[70056,1,2],"양주점":[214536,1,3],"이천점":[120120,1,1],"김포점":[13167,1,1],"안중점":[58590,1,1],"인천점":[246646,1,1],"경안점":[187338,1,1]},"2026-10-24":{"용인점":[131546,1,2],"이천점":[930672,1,4],"김포점":[10612,1,1],"경안점":[377574,1,1]},"2026-10-26":{"김해점":[173880,1,1]},"2026-10-29":{"용인점":[1367335,1,6],"수원점":[105160,1,1],"양주점":[142758,1,1],"이천점":[-246344,2,2],"김해점":[14900,1,1],"인천점":[23320,1,1],"경안점":[10114,2,2]},"2026-10-30":{"용인점":[2462850,2,7],"수원점":[484036,1,4],"이천점":[1014782,1,3],"김포점":[12320,1,1],"제주점":[169000,1,1],"동탄점":[31878,1,1],"인천점":[1090194,1,3],"경안점":[3228610,1,1],"제주서귀포점":[30322,1,2]},"2026-10-31":{"용인점":[1846781,2,6],"수원점":[267960,2,5],"이천점":[1170974,1,6],"김포점":[38704,1,1],"천안점":[77600,1,1],"김해점":[239400,1,2],"아산점":[34900,1,1],"인천점":[186052,2,6],"남양주점":[76545,1,1],"경안점":[248402,1,2]},"2026-11-01":{"용인점":[3660220,2,7],"수원점":[830214,1,3],"양주점":[539616,1,2],"이천점":[2277850,2,6],"청주점":[227178,1,1],"기흥점":[138600,1,2],"안중점":[804115,1,3],"인천점":[1093759,1,5],"경안점":[-100714,2,2],"동탄점":[-31878,1,1]}};
 function kgIsRow(member, memo){ return String(member==null?"":member).replace(/\s+/g,"").toUpperCase()==="KINGGOFREE" || /^\s*킹고프리/.test(String(memo==null?"":memo)); }
 function kgOfDate(date){ const h = (STORE_SALES_HISTORY||[]).find(x=> x && x.date===date); if(h && h.kg) return h.kg; return KG_SEED_B289[date] || null; }
+// build 318: P261111-02 — 원본 매출현황(2607~)을 훑어 킹고프리를 찾은 마지막 날. 이날까지 kg 기록이 없는 날 = 0건으로 확인됨(분석 2026-11-05, 10/25~28 · 11/2~4 0장)
+const KG_SEED_TO = "2026-11-04";
+// 그날 킹고프리 주문: { st, rows:{매장:[금액, 영수증, 상품수량]} } — st = "nobill"(매장별 매출 파일 없음) · "none"(파일은 있는데 킹고프리 칸이 없음 — 그때 올린 파일에서 안 읽음) · "zero"(0건) · "ok"
+//   카테고리 매출에 '킹고프리' 칸이 있으면 그 금액(= 물어보기 · 월별 표와 같은 값) + 영수증 수는 kg에서. 없으면 kg(매장별 매출에 있는 매장만).
+function kgDay(d, b, ch){
+  if(b===undefined) b = (STORE_SALES_HISTORY||[]).find(x=> x && x.date===d);
+  if(!b || !b.byStore || !Object.keys(b.byStore).length) return { st:"nobill", rows:{} };
+  if(ch===undefined) ch = (SALES_HISTORY||[]).find(x=> x && x.date===d);
+  const kg = kgOfDate(d), rows = {}, bsc = ch && ch.byStoreCat ? ch.byStoreCat : {};
+  const cc = Object.keys(bsc).filter(s=> bsc[s] && bsc[s][KG_CAT]);
+  cc.forEach(s=>{ const c = bsc[s][KG_CAT], v = (kg && kg[s]) || []; rows[s] = [+c.amount||0, +v[1]||0, +v[2]||+c.qty||0]; });
+  if(kg && (!cc.length || b.kg)) Object.keys(kg).forEach(s=>{ if(rows[s]) return; const v = kg[s]||[]; if((+v[0] || +v[1]) && b.byStore[s]!=null) rows[s] = [+v[0]||0, +v[1]||0, +v[2]||0]; });
+  if(Object.keys(rows).length) return { st:"ok", rows };
+  return { st: kg || d <= KG_SEED_TO ? "zero" : "none", rows };
+}
+function kgDayState(d, b, ch){ return kgDay(d, b, ch).st; }
+// 날짜 목록 → "11/2~11/4 · 11/7" (앞 6묶음까지)
+function kgDayRanges(ds){
+  const md = d=> `${+d.slice(5,7)}/${+d.slice(8)}`, nx = d=>{ const t = parseYMD(d); t.setDate(t.getDate()+1); return fmtDate(t); };
+  const g = []; ds.slice().sort().forEach(d=>{ const L = g[g.length-1]; if(L && nx(L[1])===d) L[1] = d; else g.push([d, d]); });
+  return g.slice(0,6).map(([a,b])=> a===b ? md(a) : `${md(a)}~${md(b)}`).join(" · ") + (g.length>6 ? ` 외 ${g.length-6}묶음` : "");
+}
 function kgAmtOf(c){ return c && c[KG_CAT] ? (+c[KG_CAT].amount||0) : 0; }
 function kgStrip(bsc){ const o = {}; Object.keys(bsc||{}).forEach(st=>{ const c = Object.assign({}, bsc[st]); delete c[KG_CAT]; if(Object.keys(c).length) o[st] = c; }); return o; }
 // 카테고리 매출(SALES_HISTORY)에 '킹고프리' 칸을 다시 맞춘다 — 상태를 읽을 때 · 매출 파일을 올릴 때마다(여러 번 돌아도 같은 결과)
@@ -3983,9 +4005,11 @@ function kgApplySales(){
 }
 // 한 달의 킹고프리 매출: { total, n(영수증), days, byStore:{매장:[금액, 영수증]} }
 function kgMonthSummary(month){
-  const o = { total:0, n:0, days:0, byStore:{} };
+  const o = { total:0, n:0, days:0, byStore:{}, zero:[], none:[] };   // build 318: zero · none = 0건 · 기록 없는 날(매장별 매출 파일은 있는 날)
+  const catIdx = new Map((SALES_HISTORY||[]).filter(h=> h && h.date && h.date.slice(0,7)===month).map(h=>[h.date, h]));
   (STORE_SALES_HISTORY||[]).forEach(h=>{
     if(!h || !h.date || h.date.slice(0,7)!==month) return;
+    const ds = kgDayState(h.date, h, catIdx.get(h.date) || null); if(ds==="zero") o.zero.push(h.date); else if(ds==="none") o.none.push(h.date);
     const kg = kgOfDate(h.date); if(!kg) return; let any = false;
     Object.keys(kg).forEach(st=>{ const v = kg[st]||[], a = +v[0]||0; if((!a && !(+v[1])) || !h.byStore || h.byStore[st]==null) return; any = true;
       const b = o.byStore[st] || (o.byStore[st] = [0,0]); b[0] += a; b[1] += +v[1]||0; o.total += a; o.n += +v[1]||0; });
@@ -4594,6 +4618,29 @@ function auditStoreData(out){
 /* build 291: P261104-02 — 매장 매출이 마지막 2일 연속 두 자료(카테고리 실매출액 · 매장별 청구금액) 모두 0/없음이면 알림.
    날짜 = 두 자료 중 하나라도 매출이 있는 날(전 매장 휴무일 STORE_CLOSED_DAYS 제외 — 파일이 통째로 없는 날은 '빠진 날짜' 알림이 따로 잡음).
    대상 = 최근 7일(마지막 날짜 기준) 중 매출이 있던 매장. 폐점일 이후 · 오픈 전 매장 · 센터/가맹 등 매출 매장이 아닌 곳은 뺀다. */
+/* build 318: P261111-02 — 킹고프리(온라인) 주문이 마지막 3일 이상 연속 0건/기록 없음이면 경고(직전 14일(매출 파일 있는 날) 중 주문 있는 날 3일 이상일 때만).
+   날짜 = 매장별 매출(청구금액) 파일이 있는 날(전 매장 휴무일 제외). id에 마지막 날짜가 들어가 날마다 새로 판단. */
+const AUDIT_KG_ZERO = { run:3, look:14, minOk:3 };
+function auditKgZero(out){
+  const closed = d=> typeof STORE_CLOSED_DAYS!=="undefined" && STORE_CLOSED_DAYS[d];
+  const H = (STORE_SALES_HISTORY||[]).filter(h=> h && h.date && /^\d{4}-\d{2}-\d{2}$/.test(h.date) && h.byStore && !closed(h.date) && Object.values(h.byStore).some(v=> +v>0)).sort((a,b)=> a.date<b.date?-1:1);
+  if(H.length < AUDIT_KG_ZERO.run + AUDIT_KG_ZERO.minOk) return;
+  const catIdx = new Map((SALES_HISTORY||[]).filter(h=> h && h.date).map(h=>[h.date, h]));
+  const K = H.map(h=> kgDay(h.date, h, catIdx.get(h.date) || null)), st = K.map(x=> x.st);
+  let i = H.length-1, run = 0; while(i>=0 && st[i]!=="ok"){ run++; i--; }
+  if(run < AUDIT_KG_ZERO.run || i < 0) return;
+  const prev = []; for(let j=i; j>=0 && prev.length < AUDIT_KG_ZERO.look; j--) prev.push(j);
+  const okN = prev.filter(j=> st[j]==="ok").length; if(okN < AUDIT_KG_ZERO.minOk) return;
+  const md = d=> `${+d.slice(5,7)}/${+d.slice(8)}`, L = H[H.length-1].date, ld = H[i].date;
+  let la = 0, ln = 0; Object.values(K[i].rows).forEach(v=>{ la += v[0]; ln += v[1]; });
+  const runI = []; for(let k=i+1; k<H.length; k++) runI.push(k);
+  const nNone = runI.filter(k=> st[k]==="none").length;
+  const lab = { zero:"0건", none:"킹고프리 칸 없음(그때 올린 파일에서 안 읽음)" };
+  const lines = runI.slice(-14).map(k=> `${md(H[k].date)} ${lab[st[k]]}`);
+  if(runI.length > 14) lines.unshift(`… 앞 ${runI.length-14}일 생략`);
+  out.push({ id:`kg-zero-${L}-${run}`, lv:"warn", area:"매장별 매출", msg:`킹고프리(온라인) 주문 ${run}일 연속 없음 (${md(H[i+1].date)}~${md(L)}${nNone?` · 그중 기록 없는 날 ${nNone}일`:""}) — 마지막 ${md(ld)} ${ln}건 ${Math.round(la/10000).toLocaleString()}만원`,
+    tip: lines.concat([`직전 ${prev.length}일(매출 파일 있는 날) 중 킹고프리 주문 있는 날 ${okN}일`, "→ 실제로 주문이 없었는지, 매장별 매출현황 파일에 회원명(KINGGOFREE) · 메모 열이 있는지 확인하세요. 두 열이 없으면 킹고프리를 못 찾습니다.", "'칸 없음'인 날은 그날 매장별 매출현황 파일을 다시 올리면 채워집니다."]).join("\n") });
+}
 function auditStoreZero(out){
   const day = {};
   (SALES_HISTORY||[]).forEach(h=>{ if(!h || !h.date || !h.byStoreCat) return; const o = day[h.date] || (day[h.date] = {});
@@ -4660,7 +4707,7 @@ function auditStoreJump(out){
 }
 function siteAudit(){
   const out = [];
-  [auditSales, auditPosSplit, auditStoreData, auditStoreZero, auditStoreJump, auditCenter, auditShip, auditStock].forEach(f=>{ try{ f(out); }catch(e){ console.warn("검수 오류", f.name, e); out.push({ id:"x-"+f.name, lv:"warn", area:"검수", msg:`검수 중 오류(${f.name}): ${String(e && e.message || e)}` }); } });
+  [auditSales, auditPosSplit, auditStoreData, auditStoreZero, auditStoreJump, auditKgZero, auditCenter, auditShip, auditStock].forEach(f=>{ try{ f(out); }catch(e){ console.warn("검수 오류", f.name, e); out.push({ id:"x-"+f.name, lv:"warn", area:"검수", msg:`검수 중 오류(${f.name}): ${String(e && e.message || e)}` }); } });
   return out;
 }
 function renderAuditBar(){
@@ -5349,7 +5396,7 @@ function renderKgSummary(){
   const won = v=> Math.round(v||0).toLocaleString();
   const ml = m=> m.slice(2).replace("-","/");
   const share = m=>{ const t = (monthStoreTotals(m)||{}).total||0; return t ? (S[m].total/t*100) : 0; };
-  let h = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">${months.map(m=>`<div class="kg-chip" style="border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-width:150px;" data-tip="${escHtml(`${m} 킹고프리 ${won(S[m].total)}원 · ${S[m].n}건 · ${S[m].days}일\n전체 매출 ${won((monthStoreTotals(m)||{}).total)}원의 ${share(m).toFixed(2)}%\n매장 매출에 이미 포함(합계에 다시 더하지 않음)`)}"><div style="font-size:12.5px;color:var(--muted2);">${+m.slice(5)}월 킹고프리</div><div style="font-size:18px;font-weight:700;"><span class="num">${won(S[m].total)}</span>원</div><div style="font-size:12px;color:var(--muted2);">${S[m].n}건 · 전체의 ${share(m).toFixed(1)}%</div></div>`).join("")}</div>`;
+  let h = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">${months.map(m=>`<div class="kg-chip" style="border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-width:150px;" data-tip="${escHtml(`${m} 킹고프리 ${won(S[m].total)}원 · ${S[m].n}건 · 주문 있는 날 ${S[m].days}일${S[m].zero.length?` · 0건 ${S[m].zero.length}일(${kgDayRanges(S[m].zero)})`:""}${S[m].none.length?` · 기록 없는 날 ${S[m].none.length}일(${kgDayRanges(S[m].none)})`:""}\n전체 매출 ${won((monthStoreTotals(m)||{}).total)}원의 ${share(m).toFixed(2)}%\n매장 매출에 이미 포함(합계에 다시 더하지 않음)`)}"><div style="font-size:12.5px;color:var(--muted2);">${+m.slice(5)}월 킹고프리</div><div style="font-size:18px;font-weight:700;"><span class="num">${won(S[m].total)}</span>원</div><div style="font-size:12px;color:var(--muted2);">${S[m].n}건 · 주문 ${S[m].days}일 · 전체의 ${share(m).toFixed(1)}%</div>${S[m].zero.length||S[m].none.length?`<div class="kg-days" style="font-size:11.5px;color:var(--muted2);" title="${escHtml((S[m].zero.length?`0건: ${kgDayRanges(S[m].zero)}`:"")+(S[m].none.length?`\n기록 없음: ${kgDayRanges(S[m].none)} — 그때 올린 매출현황 파일에서 킹고프리를 안 읽음`:""))}">${S[m].zero.length?`0건 ${S[m].zero.length}일`:""}${S[m].zero.length&&S[m].none.length?" · ":""}${S[m].none.length?`<b style="color:#c2410c">기록 없는 날 ${S[m].none.length}일</b>`:""}</div>`:""}</div>`).join("")}</div>`;
   h += `<table class="kk-keep kg-sum-tbl"><thead><tr><th>매장</th>${months.map(m=>`<th>${ml(m)}</th>`).join("")}<th class="total-col">누적</th></tr></thead><tbody>`;
   stores.forEach(st=>{ h += `<tr><td>${escHtml(st)}</td>${months.map(m=>{ const v = S[m].byStore[st]; return `<td><span class="num">${v && v[0] ? won(v[0]) : ""}</span>${v && v[1] ? `<div class="mm-delta">${v[1]}건</div>` : ""}</td>`; }).join("")}<td class="total-col"><span class="num">${won(sTot(st))}</span></td></tr>`; });
   h += `</tbody><tfoot><tr><td>킹고프리 합계</td>${months.map(m=>`<td><span class="num">${won(S[m].total)}</span><div class="mm-delta">${S[m].n}건</div></td>`).join("")}<td class="total-col"><span class="num">${won(months.reduce((a,m)=>a+S[m].total,0))}</span></td></tr></tfoot></table>`;
@@ -11072,7 +11119,7 @@ const ASK_METRICS = [ [/폐기/,"waste"], [/인건비|급여/,"labor"], [/전환
   [/목표/,"target"], [/재고/,"stock"], [/객단가/,"avgTicket"], [/건수|객수|영수증|손님\s*수/,"count"], [/^(?!.*(금액|매출|얼마)).*(수량|판매량)/,"count"], /* build 314: '수량'만 → 수량 · '금액과 수량' → 매출(수량은 칸에) */ [/공급|출고|PLT|파레트|팔레트|입고/i,"plt"], [/매출|금액|판매|실적|얼마/,"sales"] ];
 const ASK_METRIC_LABEL = { sales:"매출", supplyAmt:"공급액", plt:"공급 PLT", conv:"전환율", target:"목표매출", achieve:"달성률", waste:"폐기비용", labor:"인건비", stock:"매장재고", count:"매출 건수", avgTicket:"객단가" };
 const ASK_METRIC_WORDS = { "매출":"sales", "공급액":"supplyAmt", "폐기":"waste", "폐기비용":"waste", "인건비":"labor", "전환율":"conv", "달성률":"achieve", "목표":"target", "재고":"stock", "객단가":"avgTicket", "건수":"count", "공급":"plt", "출고":"plt" };
-const ASK_BY_LABEL = { store:"매장별", cat:"카테고리별", month:"월별", day:"일별", hour:"시간대별", wd:"요일별", none:"합계만" };
+const ASK_BY_LABEL = { store:"매장별", cat:"카테고리별", month:"월별", day:"일별", hour:"시간대별", wd:"요일별", none:"합계만", storeDay:"매장×날짜" };   // build 318: storeDay = 킹고프리 상세
 const ASK_STOP = new Set(["수량","판매량","판매수량","판매금액","금액과","수량과","매장","전체","전매장","매장별","점포별","카테고리","카테고리별","알려줘","알려","보여줘","얼마","얼마야","금액","총액","합계","월별","일별","주말","평일","오늘","어제",
   "이번","지난","지난주","이번주","최근","올해","누적","시간대","시간대별","요일별","전사","모든","분류별","품목별","날짜별","일자별","비교","대비","상위","하위","가장","그럼","그러면","그리고","이번엔","그건","그거",
   "오전","오후","매주","매일","카테","공급","출고","매출","판매","실적","얼마나","주세요","해줘","보여","전월","작년","총","달","월달","별로"]);
@@ -11281,12 +11328,13 @@ function askParseSlots(text, prev){
   if(/매장별|점포별/.test(t)) S.by = "store"; else if(/카테고리별|분류별|품목별|카테별|상품별|제품별/.test(t)) S.by = "cat"; else if(/시간대별|시간별/.test(t)) S.by = "hour";
   else if(/요일별/.test(t)) S.by = "wd"; else if(/일별|날짜별|일자별|하루별/.test(t)) S.by = "day"; else if(/월별|달별/.test(t)) S.by = "month";
   if(/추이|흐름|변화|트렌드|추세|동향|그래프|변동/.test(t)) S.trend = true;   // build 283
+  if(S.cat==="킹고프리" && (/상세|내역|명세/.test(t) || (/매장별|점포별/.test(t) && /일별|날짜별|일자별|하루별/.test(t)))) S.by = "storeDay";   // build 318: P261111-01 킹고프리 상세 · 매장별+일별 → 매장 × 날짜
   // 오타 지표(한 글자 차이) — 지표를 못 찾았을 때만
   if(!S.metric){ const ws = raw.match(/[가-힣]{2,}/g) || [];
     for(const w of ws){ if(ASK_STOP.has(w) || askStoreList().some(s=> s.includes(w))) continue; const hit = Object.keys(ASK_METRIC_WORDS).find(k=> k.length>=2 && askLev(w.replace(/(은|는|이|가|을|를|좀)$/,""), k)===1);
       if(hit){ S.metric = ASK_METRIC_WORDS[hit]; notes.push(`'${w}' → ${hit}(으)로 봤습니다`); break; } } }
   // build 283: 배운 말 적용 + 못 알아들은 말 모으기(바로 뒤에 칩을 누르면 그 뜻으로 배움)
-  const leftovers = askLeftovers(raw, R.usedWords);
+  const leftovers = askLeftovers(raw, R.usedWords).filter(w=> !(S.by==="storeDay" && /상세|내역|명세/.test(w)));   // build 318
   // build 293: 모르는 말이 상품 이름이면 상품 검색(매출 구성 자료의 상위 상품)
   const prodWords = new Set();
   leftovers.forEach(w=>{ if(prodWords.size >= 2) return; const f = askProductFind(w); if(!f.names.length) return;
@@ -11399,6 +11447,7 @@ function askFinalize(slots){
     else if(["sales","plt","supplyAmt","stock","conv"].includes(q.metric) && !q.cat && !q.hours) q.by = "cat";
     else q.by = "none";
   }
+  if(q.by==="storeDay" && q.cat!=="킹고프리") q.by = "store";   // build 318: 매장×날짜는 킹고프리만
   // 알아들은 조건 칩
   q.used = [ s.metric ? ASK_METRIC_LABEL[s.metric] : null, q.hours ? `${q.hours[0]}~${q.hours[1]}시` : null, q.wd ? q.wd.map(x=>ASK_WD_NAME[x]).join("·")+"요일" : null,
     q.dates ? q.dates.join(" · ") : s.from ? (q.from===q.to ? q.from : `${q.from}~${q.to}`) : null, q.product ? `🛒 ${q.product.q}` : null, q.stores ? q.stores.join("·") : null, q.cat, s.by ? ASK_BY_LABEL[s.by] : null,
@@ -11492,6 +11541,7 @@ function askRun(q){
   const won = v => Math.round(v||0).toLocaleString();
   const res = { q, unit:"원", rows:[], total:null, basis:[], notes:q.notes, jump:null, extraHead:null };
   if(q.product) return askProductRun(q, res);   // build 293
+  if(q.cat===KG_CAT && ["sales","count","avgTicket"].includes(q.metric) && !q.hours) return askKgRun(q, res);   // build 318: P261111-01
   const per = q.dates ? q.dates.map(d=>d.slice(5)).join("·") : q.from ? (q.from===q.to ? q.from : `${q.from}~${q.to}`) : "";
   const cond = [q.stores ? q.stores.join("·") : (q.allStores||q.by==="store" ? "전 매장" : "전 매장"), q.cat, q.wd ? q.wd.map(x=>ASK_WD_NAME[x]).join("·")+"요일" : null, q.hours ? `${q.hours[0]}~${q.hours[1]}시` : null].filter(Boolean).join(" · ");
   const toRows = (o, f)=> Object.keys(o).map(k=> Object.assign({ k }, f(o[k], k)));
@@ -11544,6 +11594,46 @@ function askRun(q){
       res.unit = "PLT"; res.rows = toRows(out, v=>({ v })); share(); res.title = `${cond} · 매장재고 (${sn.date})`; res.basis = [`매장재고 = 가장 최근 재고 스냅샷 ${sn.date}${/승현/.test(sn.date+(sn.label||""))?"":""}`]; res.jump = "goals:10"; break; }
   }
   sortRows();
+  return res;
+}
+/* build 318: P261111-01 — 킹고프리(온라인) 판매내역: 매장별 매출현황의 킹고프리 영수증(kgOfDate: 매장 → [금액, 영수증, 상품수량])을 그대로.
+   나눠 보기 = 매장별(기본) · 일별 · 월별 · 요일별 · 매장×날짜(상세) · 합계. 카테고리별은 상품 정보가 '외 n건'뿐이라 없음 → 매장×날짜.
+   일별 표에는 0건 · 기록 없는 날도 줄로 보여 줌. */
+function askKgRun(q, res){
+  const won = v=> Math.round(v||0).toLocaleString();
+  if(q.by==="cat"){ q.by = "storeDay"; q.notes.push("킹고프리는 상품 정보가 '외 n건'뿐이라 카테고리로 못 나눕니다 — 매장 × 날짜로 보여 드립니다"); }
+  if(!["store","day","month","wd","storeDay","none"].includes(q.by)) q.by = "store";
+  const by = q.by, bill = new Map((STORE_SALES_HISTORY||[]).map(h=>[h.date, h])), cat = new Map((SALES_HISTORY||[]).map(h=>[h.date, h])), out = {}, miss = { zero:[], none:[], nobill:[] };
+  let days = 0, aT = 0, nT = 0, pT = 0;
+  const keyOf = (s, d)=> by==="store" ? s : by==="day" ? d : by==="month" ? d.slice(0,7) : by==="wd" ? ASK_WD_NAME[new Date(d+"T00:00:00").getDay()]+"요일" : by==="storeDay" ? `${d} · ${s}` : "합계";
+  const last = askLastDataDate();
+  askDates(q).forEach(d=>{
+    if(d > last) return;
+    const b = bill.get(d), K = kgDay(d, b || null, cat.get(d) || null), stt = K.st;
+    if(stt==="nobill"){ miss.nobill.push(d); if(by==="day") out[d] = { v:null, c:0, p:0, miss:"매장별 매출 파일 없음" }; return; }
+    if(stt==="none"){ miss.none.push(d); if(by==="day") out[d] = { v:null, c:0, p:0, miss:"킹고프리 기록 없음" }; return; }
+    days++; let any = false;
+    Object.keys(K.rows).forEach(s=>{ if(!askInStores(q, s)) return; const v = K.rows[s], a = v[0], c = v[1], p = v[2]; any = true;
+      const o = out[keyOf(s, d)] || (out[keyOf(s, d)] = { v:0, c:0, p:0 }); o.v += a; o.c += c; o.p += p; aT += a; nT += c; pT += p; });
+    if(!any){ miss.zero.push(d); if(by==="day") out[d] = { v:0, c:0, p:0, miss:"0건" }; }
+  });
+  const sub = x=> x.miss || `영수증 ${x.c}장 · 상품 ${x.p}개`;
+  if(q.metric==="count"){ res.unit = "건"; res.rows = Object.keys(out).map(k=>({ k, v: out[k].miss && out[k].v==null ? null : out[k].c, sub: out[k].miss || `${won(out[k].v)}원 · 상품 ${out[k].p}개` })); res.total = nT; }
+  else if(q.metric==="avgTicket"){ res.rows = Object.keys(out).map(k=>({ k, v: out[k].c>0 ? out[k].v/out[k].c : null, sub: out[k].miss || `${won(out[k].v)}원 ÷ ${out[k].c}장` })); res.total = nT>0 ? aT/nT : null; }
+  else { res.rows = Object.keys(out).map(k=>({ k, v: out[k].v, sub: sub(out[k]) })); res.total = aT; }
+  if(q.metric!=="avgTicket"){ const t = res.rows.reduce((a,r)=> a + (r.v||0), 0); res.rows.forEach(r=> r.share = t>0 && r.v!=null ? r.v/t*100 : null); }
+  if(by==="day" || by==="month") res.rows.sort((a,b)=> a.k.localeCompare(b.k));
+  else if(by==="storeDay") res.rows.sort((a,b)=> a.k.slice(0,10).localeCompare(b.k.slice(0,10)) || (b.v||0)-(a.v||0));
+  else if(by==="wd") res.rows.sort((a,b)=> "월화수목금토일".indexOf(a.k[0]) - "월화수목금토일".indexOf(b.k[0]));
+  else res.rows.sort((a,b)=> (b.v||0)-(a.v||0));
+  const per = q.dates ? q.dates.map(d=>d.slice(5)).join("·") : q.from===q.to ? q.from : `${q.from}~${q.to}`;
+  res.title = `${q.stores ? q.stores.join("·") : "전 매장"} · ${per} · 킹고프리(온라인) ${q.metric==="count" ? "주문 건수(영수증)" : q.metric==="avgTicket" ? "영수증당 금액" : "매출"}`;
+  res.totalSub = `영수증 ${nT}장 · 상품 ${pT}개 · 주문 있는 날 ${days - miss.zero.length}일`;
+  res.basis = ["킹고프리 = 매장별 매출현황의 회원명 KINGGOFREE · 메모 '킹고프리' 영수증(다음 날 00:01 등록) — 매장 매출에 이미 포함된 온라인 주문", `자료 있는 날 ${days}일`];
+  if(miss.none.length) q.notes.push(`킹고프리 기록 없는 날 ${miss.none.length}일(${kgDayRanges(miss.none)}) — 그때 올린 매출현황 파일에서 킹고프리를 안 읽음`);
+  if(miss.zero.length && by!=="day") q.notes.push(`킹고프리 0건인 날 ${miss.zero.length}일(${kgDayRanges(miss.zero)})`);
+  if(miss.nobill.length && by==="day") q.notes.push(`매장별 매출 파일 없는 날 ${miss.nobill.length}일`);
+  res.jump = "sales:kgSumCard";
   return res;
 }
 function askFmt(v, unit){ if(v==null || !isFinite(v)) return "-"; if(unit==="%") return v.toFixed(1)+"%"; if(unit==="PLT") return (Math.round(v*10)/10).toLocaleString()+" PLT"; if(unit==="건") return Math.round(v).toLocaleString()+"건"; return Math.round(v).toLocaleString()+"원"; }
@@ -12044,7 +12134,7 @@ function askShow(slots, notes, asks, text){
   // 상위/하위
   let rows = res.rows.filter(r=> r.v!=null || r.sub); const allN = rows.length;
   if(q.top){ rows = rows.slice().sort((a,b)=> q.order==="asc" ? (a.v||0)-(b.v||0) : (b.v||0)-(a.v||0)).slice(0, q.top); }
-  const head = q.by==="store" ? "매장" : q.by==="cat" ? "카테고리" : q.by==="day" ? "날짜" : q.by==="month" ? "월" : q.by==="hour" ? "시간대" : q.by==="wd" ? "요일" : "구분";
+  const head = q.by==="store" ? "매장" : q.by==="storeDay" ? "날짜 · 매장" : q.by==="cat" ? "카테고리" : q.by==="day" ? "날짜" : q.by==="month" ? "월" : q.by==="hour" ? "시간대" : q.by==="wd" ? "요일" : "구분";
   const showTbl = rows.length > 1 || (rows.length===1 && rows[0].k!=="합계");
   const tbl = showTbl ? `<div class="tblbox"><table class="g-tbl ask-tbl kk-keep"><thead><tr><th>#</th><th>${head}</th><th>${u==="%"?"비율":q.metric==="avgTicket"?"객단가":"값"}</th>${C?`<th>비교 (${escHtml(q.cmp.from.slice(5))}~${escHtml(q.cmp.to.slice(5))})</th><th>증감</th>`:""}${isRate?"":"<th>비중</th>"}<th>근거</th></tr></thead><tbody>${
     rows.map((r,i)=>{ const b = cmap ? cmap[r.k] : null; return `<tr><td>${i+1}</td><td><b>${escHtml(r.k)}</b></td><td class="num">${askFmt(r.v,u)} <span class="ask-s">${askShort(r.v,u)}</span></td>${C?`<td class="num">${askFmt(b,u)}</td><td class="num ${diffCls(r.v,b)}">${diffTxt(r.v,b)}</td>`:""}${isRate?"":`<td class="num">${r.share!=null?r.share.toFixed(1)+"%":"-"}</td>`}<td class="ask-sub">${escHtml(r.sub||"")}</td></tr>`; }).join("")
@@ -12060,7 +12150,7 @@ function askShow(slots, notes, asks, text){
   if(q.metricGuessed) refine.push(`<div class="ask-qbox"><div class="ask-q">매출로 봤습니다 — 다른 걸 보실 건가요?</div><div class="ask-opts">${["sales","supplyAmt","plt","conv","achieve","waste","labor","stock"].map(k=> chip(ASK_METRIC_LABEL[k], {metric:k}, q.metric===k)).join("")}</div></div>`);
   const per = [["이번 달", { from:`${last.slice(0,7)}-01`, to:last }], ["지난달", { from:`${pm}-01`, to:askMonthEnd(pm) }], ["최근 8주", { from:askAddDays(last,-55), to:last }], ["올해", { from:`${last.slice(0,4)}-01-01`, to:last }]];
   refine.push(`<div class="ask-refine"><span class="ask-rl">기간</span>${per.map(([lb,set])=> chip(lb, set, q.from===set.from && q.to===set.to)).join("")}
-    <span class="ask-rl">나눠 보기</span>${["store","cat","month","day"].concat(q.hours||q.metric==="sales"?["hour","wd"]:[]).map(k=> chip(ASK_BY_LABEL[k], {by:k}, q.by===k)).join("")}
+    <span class="ask-rl">나눠 보기</span>${["store","cat","month","day"].concat(q.cat==="킹고프리"?["storeDay"]:[]).concat(q.hours||q.metric==="sales"?["hour","wd"]:[]).map(k=> chip(ASK_BY_LABEL[k], {by:k}, q.by===k)).join("")}
     <span class="ask-rl">더</span>${chip(q.cmp?"비교 끄기":"전월 대비", q.cmp?{cmp:null, cmpPrev:false}:{cmpPrev:true}, false)}${chip(q.top?"전부 보기":"상위 5", q.top?{top:null}:{top:5, order:"desc"}, false)}${q.stores?chip("전 매장으로", {stores:null, allStores:true}, false):""}</div>`);
   // 자료가 없으면 자료 있는 달 제안
   if(text && text===ASK_STATE.typed){ if(!rows.length) askLogEvent(text, "empty", { m:q.metric, f:q.from, to:q.to }); if((ASK_STATE.leftovers||[]).length) askLogEvent(text, "leftover", { lo:ASK_STATE.leftovers.slice(0,5) }); }   // build 297
@@ -26766,11 +26856,11 @@ const IMPROVE_PROPOSALS = [
   { id:"P261111-01", date:"2026-11-11", area:"물어보기", title:"물어보기 — '킹고프리'를 알아듣고 매장별 · 날짜별 킹고프리 판매내역 보여 주기",
     why:"11/11 요청 '킹고프리 매출에 대해 매장별 상세 판매내역을 보고 싶은데 인식을 못함'. 실패 기록: '킹고프리 매출 상세내역'(9번) · '킹고프리 매출 카테고리별' 모두 빈 결과. askParse가 '킹고프리'를 말없이 버리고 전체 매출 카테고리별로 바꿔 답함. 자료는 이미 있음(kgOfDate: 매장별 [금액, 건수]) — 10월 1,881만원 · 56건 · 12일, 11월 944만원 · 13건(용인 366만 · 이천 228만 · 인천 109만 …).",
     what:"'킹고프리 · 킹고 · 온라인 주문 · KINGGOFREE'를 새 지표로 인식 → 기간 안 킹고프리 금액 · 건수를 매장별(기본) / 날짜별 / 매장×날짜 표로 답함. 매장 · 기간 · 상위 N 등 기존 조건 그대로 적용, 자료 없는 날은 '킹고프리 기록 없음'으로 표시. 카테고리별은 자료가 매장 단위라 '카테고리별은 없음'이라고 안내.",
-    risk:"낮음 — 물어보기 해석만 추가, 자료 · 다른 화면 변경 없음. '온라인'이 다른 뜻(온라인 분석 등)으로 쓰이면 잘못 잡을 수 있음." },
+    risk:"낮음 — 물어보기 해석만 추가, 자료 · 다른 화면 변경 없음. '온라인'이 다른 뜻(온라인 분석 등)으로 쓰이면 잘못 잡을 수 있음.", done:"build 318" },
   { id:"P261111-02", date:"2026-11-11", area:"점검", title:"킹고프리 주문이 며칠째 0건이면 검수 알림 + 11/2~11/4 빈칸 표시",
     why:"10/29~11/1은 매일 7~10개 매장에 킹고프리 주문이 있었는데, 11/2~11/4는 킹고프리 칸 자체가 없고(그 전 파일로 저장돼 다시 안 읽음) 11/5~11/11은 7일 연속 0건(매장별 매출 파일은 매일 올라옴). 실제 주문이 없었던 건지, 매출현황 파일에 회원명 · 메모 열이 빠져 못 찾는 건지 사이트에서 알 수 없음 → 11월 킹고프리 카드가 944만 · 1일로 작게 보임.",
     what:"auditStoreData에 '킹고프리 3일 연속 0건(직전 14일 중 주문 있는 날 ≥3일일 때)' 경고 추가 — 툴팁에 날짜별 상태(칸 없음 / 0건 / N건)와 '매출현황 파일에 회원명(KINGGOFREE) · 메모 열이 있는지 확인' 안내. 월 카드의 일수 옆에 '기록 없는 날 N일' 표시.",
-    risk:"낮음 — 알림 · 표시만 추가, 매출 계산 변경 없음. 실제로 주문이 없는 기간엔 거짓 경고가 날 수 있음(하루 1번 '확인됨'으로 끌 수 있게)." },
+    risk:"낮음 — 알림 · 표시만 추가, 매출 계산 변경 없음. 실제로 주문이 없는 기간엔 거짓 경고가 날 수 있음(하루 1번 '확인됨'으로 끌 수 있게).", done:"build 318" },
 ];
 var IMPROVE_DECISIONS; if(!IMPROVE_DECISIONS || typeof IMPROVE_DECISIONS!=="object") IMPROVE_DECISIONS = {};
 var IMPROVE_REQUESTS; if(!Array.isArray(IMPROVE_REQUESTS)) IMPROVE_REQUESTS = [];
