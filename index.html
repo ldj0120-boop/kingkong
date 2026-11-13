@@ -1360,7 +1360,7 @@
   .up-panel button.act small{font-size:14px;font-weight:600;opacity:.8;}
   #importFolderBtn{background:var(--amber);color:var(--amber-ink);border:0;}
   .up-panel button.act.dropzone{border-width:2px;background:var(--panel2);}
-  .up-panel button.act.dropzone::after{content:"⬇ 누르거나 끌어다 놓기";font-size:13.5px;margin-top:auto;}
+  .up-panel button.act.dropzone::after{content:"⬇";font-size:13.5px;margin-top:auto;}
   .up-panel button.act.dropzone[data-fresh]::after{content:attr(data-fresh);font-family:"Gothic A1",monospace;font-size:14.5px;font-weight:700;border-radius:6px;padding:2px 8px;}
   .up-panel button.act.dropzone.loaded{background:var(--panel2);color:var(--text);border-color:var(--line);border-style:solid;}
   .up-panel button.act.dropzone.loaded:hover{background:var(--raise);border-color:var(--amber);filter:none;}
@@ -1696,6 +1696,19 @@
 
   .g11-ktip td.k b{color:var(--text);}
   tr.g11-minor td{font-size:13px;}
+
+  /* build 319: 글자 줄이기 — 설명은 마우스 말풍선으로 */
+  .tab-tx small{display:none !important;}
+  .stat-c .delta-line .lbl,.stat-c .delta .ref{display:none;}
+  .stat-c .delta-line{margin-top:6px;font-size:14px;}
+  .stat-c .stat-k{letter-spacing:0;font-size:13.5px;}
+  .stat-c .cz-i{margin-left:4px;font-size:11px;opacity:.55;}
+  .nb-one{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .audit-bar summary{display:flex;align-items:center;gap:6px;}
+  #askEx:not(.kk-open) > :nth-child(n+3):not(.kk-more){display:none;}
+  #askEx .kk-more{cursor:pointer;}
+  .up-how{cursor:help;opacity:.6;}
+  #trendMeta{cursor:help;opacity:.6;}
 </style>
 <style id="bentoTheme">
   /* ===== build 237: 사이트 전체 벤토(시안 4) — 밝은 회색 바탕 · 흰 둥근 칸 · 굵은 글씨 · 늘어남 빨강 / 줄어듦 파랑 ===== */
@@ -1899,33 +1912,32 @@
 <div class="wrap">
   <header class="top">
     <div class="brand"><div class="brand-tx">
-      <h1>PLT 출고 관리</h1>
-      <span class="sub">매장 재고 · 출고 · 매출을 한눈에 <span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 318 · 2026-11-13</span></span>
+      <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 319 · 2026-11-13</span></span>
     </div>
     </div>
     <div class="grow"></div>
     <div class="datefield">
-      <label for="basedate">기준일 (재고 스냅샷)</label>
+      <label for="basedate" title="재고 스냅샷 기준 날짜">기준일</label>
       <select id="basedate"></select>
     </div>
     <div class="wmode">
-      <span class="lab">화면 폭</span>
-      <div class="wmode-seg" id="wmodeSeg">
+      <div class="wmode-seg" id="wmodeSeg" title="화면 폭">
         <button data-w="narrow" title="1360px — 한 화면에 집중해서 읽을 때">좁게</button>
         <button data-w="normal" title="1680px — 기본값. 모든 탭에 똑같이 적용됩니다">보통</button>
         <button data-w="wide"   title="화면 전체 — 열이 많은 표를 한 번에 볼 때">넓게</button>
       </div>
     </div>
-    <div class="count-pill"><span class="dot"></span><span class="n" id="totalCount">0</span><span class="lab">건 출고</span></div>
-    <button type="button" id="impBtn" class="act" title="Claude가 점검해서 올린 개선안 — 승인한 것만 반영합니다">💡 개선 제안<span id="impBadge" style="display:none">0</span></button>
-    <button type="button" id="setOpenBtn" class="act set-open admin-only" title="엑셀 내보내기 · 카테고리 지정 · 승현 PLT 로그인 · 초기화">⚙ 설정</button>
+    <div class="count-pill"><span class="dot"></span><span class="n" id="totalCount">0</span><span class="lab">출고</span></div>
+    <button type="button" id="impBtn" class="act" title="개선 제안 — Claude가 점검해서 올린 개선안, 승인한 것만 반영">💡<span id="impBadge" style="display:none">0</span></button>
+    <button type="button" id="setOpenBtn" class="act set-open admin-only" title="설정 — 엑셀 내보내기 · 카테고리 지정 · 승현 PLT 로그인 · 초기화">⚙</button>
   </header>
 
   <!-- build 281: 🔍 물어보기 — 사이트 안 규칙 검색(지표 · 기간 · 요일 · 시간 · 매장 · 카테고리) -->
   <section class="ask-panel" id="askPanel">
     <div class="ask-row">
       <span class="ask-ic">🔍</span>
-      <input id="askInput" type="search" autocomplete="off" placeholder="물어보기 — 예) 매주 월요일 오전 11시 매장별 금액 · 전 매장 10월 폐기비용 · 가전 8월 공급액 총액" aria-label="물어보기">
+      <input id="askInput" type="search" autocomplete="off" placeholder="물어보기" title="예) 매주 월요일 오전 11시 매장별 금액 · 전 매장 10월 폐기비용 · 가전 8월 공급액 총액" aria-label="물어보기">
       <button type="button" id="askGo" class="act">찾기</button>
       <button type="button" id="askCl" class="act ask-cl-btn" hidden title="Claude가 사이트 자료로 답합니다(분석 · 비교 · 원인 질문)">🤖 Claude</button>
     </div>
@@ -1936,8 +1948,8 @@
   <!-- build 231: 자료 올리기(헤더에서 꺼냄) — 카드마다 마지막 자료 날짜 · 접기 -->
   <section class="up-panel admin-only" id="upPanel">
     <div class="up-hd" id="upHd" role="button" tabindex="0" title="눌러서 접기 / 펴기">
-      <h2>📂 자료 올리기</h2><span class="up-sum" id="upSum"></span>
-      <span class="up-how">카드를 누르거나 파일을 카드 위에 끌어다 놓으세요</span><span class="up-tog" id="upTog">접기 ▴</span>
+      <h2>📂 자료</h2><span class="up-sum" id="upSum"></span>
+      <span class="up-how" title="카드를 누르거나 파일을 카드 위에 끌어다 놓으세요">ⓘ</span><span class="up-tog" id="upTog">접기 ▴</span>
     </div>
     <div class="up-body">
       <div class="tool-group uploads">
@@ -2008,8 +2020,8 @@
   </aside>
 
   <!-- build 150: 자료별 마지막 날짜(업로드 누락을 바로 알아보게) + 뷰어 모드 관리자 로그인 버튼 -->
-  <div class="fresh-strip" id="freshStrip"><span class="fs-lab">자료 기준일</span><span class="fs-chips" id="freshChips"></span>
-    <button type="button" id="adminLoginBtn" class="act primary" title="업로드(폴더 통째로 불러오기)는 관리자 모드에서만 보입니다">🔑 관리자 로그인 (업로드하려면)</button></div>
+  <div class="fresh-strip" id="freshStrip"><span class="fs-lab" title="자료별 마지막 날짜">기준일</span><span class="fs-chips" id="freshChips"></span>
+    <button type="button" id="adminLoginBtn" class="act primary" title="업로드(폴더 통째로 불러오기)는 관리자 모드에서만 보입니다">🔑 로그인</button></div>
   <div id="impPanel" class="imp-panel" hidden></div>
   <div id="noticeBar" class="notice-bar" hidden></div>
   <div id="qualityBar" class="notice-bar" style="border-color:var(--red);" hidden></div>
@@ -2023,9 +2035,9 @@
        출고완료" 합산에 여전히 참조하며, 앞으로 실적 0으로만 남아 있어도 무해함) — UI만 제거. 기본
        활성 탭은 '매장별 재고/공급 현황'으로 변경(JS 초기화 블록의 selectTab("agg") 참고). -->
   <div class="tabs" role="tablist">
-    <button class="tab" role="tab" id="tab-sales" aria-selected="false" aria-controls="view-sales"><span class="tab-ic">📊</span><span class="tab-tx"><b>매장별 매출</b><small>매장마다 얼마 팔았나</small></span></button>
-    <button class="tab" role="tab" id="tab-goals" aria-selected="false" aria-controls="view-goals"><span class="tab-ic">🎯</span><span class="tab-tx"><b>목표매출 달성 방안</b><small>목표까지 얼마 남았나 · 재고 · 공급</small></span></button>
-    <button class="tab" role="tab" id="tab-fixed" aria-selected="false" aria-controls="view-fixed"><span class="tab-ic">🚚</span><span class="tab-tx"><b>비딩 · 낙찰 · 출고</b><small>요약본 → 낙찰파일 → 분배 → 배차</small></span></button>
+    <button title="매장별 매출 — 매장마다 얼마 팔았나" class="tab" role="tab" id="tab-sales" aria-selected="false" aria-controls="view-sales"><span class="tab-ic">📊</span><span class="tab-tx"><b>매장별 매출</b></span></button>
+    <button title="목표매출 달성 방안 — 목표까지 얼마 남았나 · 재고 · 공급" class="tab" role="tab" id="tab-goals" aria-selected="false" aria-controls="view-goals"><span class="tab-ic">🎯</span><span class="tab-tx"><b>목표매출 달성</b></span></button>
+    <button title="비딩 · 낙찰 · 출고 — 요약본 → 낙찰파일 → 분배 → 배차" class="tab" role="tab" id="tab-fixed" aria-selected="false" aria-controls="view-fixed"><span class="tab-ic">🚚</span><span class="tab-tx"><b>비딩 · 낙찰 · 출고</b></span></button>
   </div>
 
   <!-- build 185: '매장별 재고/공급 현황' 탭 내용은 목표매출 달성 방안 › 05 재고·공급(PLT)으로 옮김. build 245(P229-07): 빈 탭 · 숨긴 버튼 삭제(selectTab("agg")는 05로 연결) -->
@@ -2183,7 +2195,6 @@
     <!-- 엑셀 리포트(매장별_매출카테고리분석_목표달성방안_v2)의 7개 시트를 그대로 사이트에 옮긴 서브탭.
          시트 번호·제목·컬럼 구성을 엑셀과 1:1로 맞춰서, 엑셀을 따로 열지 않아도 같은 내용을 볼 수 있게 한다. -->
     <div class="gscope" id="goalsScopeBar">
-      <span class="lab">분석 기간</span>
       <select id="goalsScopeMode" title="'해당 월만'은 그 달 하나, '기간 누적'은 고른 개월을 모두 합쳐서 봅니다">
         <option value="month">해당 월만</option>
         <option value="range">기간 누적</option>
@@ -2198,19 +2209,19 @@
          피드백으로 삭제). 남은 탭들은 내부 data-gsub/#gsub-ID/함수명은 그대로 두고(04~10 — 코드 곳곳의
          참조를 건드리지 않기 위해) 화면에 보이는 번호·이름만 01~08로 다시 붙였다. -->
     <div class="gsub-tabs" id="goalsSubTabs" role="tablist">
-      <button class="gsub-tab active" data-gsub="01" role="tab">01 요약</button>
+      <button class="gsub-tab active" data-gsub="01" role="tab" title="01 요약">요약</button>
       <!-- build 233: 옛 "02 카테고리 진단" + "03 전사 카테고리 벤치마크"를 "02 카테고리 분석" 하나로 합침(맨 위에 매출 변화 원인).
            내부 키는 04, 옛 05는 04로 연결. 그 뒤 번호는 03~05로 당김 -->
-      <button class="gsub-tab" data-gsub="04" role="tab">02 카테고리 분석</button>
+      <button class="gsub-tab" data-gsub="04" role="tab" title="02 카테고리 분석">카테고리</button>
       <!-- build 150: 옛 "04 매장별 실행방안"과 "03 전 매장 진단"을 "03 전 매장 진단" 하나로 합침(매장 한 곳 상세는 05 매장 분석).
            내부 키는 그대로 06(합친 탭) · 08(빈 패널, 옛 링크 호환) -->
       <!-- build 270: "03 전 매장 진단"은 매장 분석으로 합침 — 매장을 고르지 않으면 전 매장 진단(유형 · 교차표 · 1순위 솔루션), 고르면 그 매장 -->
-      <button class="gsub-tab" data-gsub="10" role="tab">03 재고·공급 (PLT)</button>
-      <button class="gsub-tab" data-gsub="11" role="tab">04 매장 분석</button>
+      <button class="gsub-tab" data-gsub="10" role="tab" title="03 재고·공급 (PLT)">재고·공급</button>
+      <button class="gsub-tab" data-gsub="11" role="tab" title="04 매장 분석">매장</button>
       <!-- build 287: 판매에 따른 전환율(공급액 대비 매출) — 04 매장 분석의 '카테고리별 공급액'과 따로, 승현 사이트 전환율 화면 배치 -->
-      <button class="gsub-tab" data-gsub="12" role="tab">05 판매에 따른 전환율</button>
+      <button class="gsub-tab" data-gsub="12" role="tab" title="05 판매에 따른 전환율">전환율</button>
       <!-- build 294: 06 통합 배차 대장 — 배차 앱(kingkong-dispatch)의 본사 통합 대장을 그대로 끼워 넣음(계산 · 자료는 배차 앱 한 곳, 여기선 보기만) -->
-      <button class="gsub-tab" data-gsub="13" role="tab">06 통합 배차 대장</button>
+      <button class="gsub-tab" data-gsub="13" role="tab" title="06 통합 배차 대장">배차</button>
     </div>
 
     <div class="gsub-panel" id="gsub-01">
@@ -2279,8 +2290,8 @@
 
     <div class="agg-card trend-card">
       <div class="p-hd">
-        <span class="store-name">공급 · 재고 추이</span>
-        <span class="meta" id="trendMeta">이번주/이번달 공급량 · 전월 동기간 대비</span>
+        <span class="store-name">공급 · 재고</span>
+        <span class="meta" id="trendMeta" title="이번주/이번달 공급량 · 전월 동기간 대비">ⓘ</span>
       </div>
       <div style="padding:10px 18px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <label for="shipScopeSelect3" style="font-family:'Gothic A1';font-size:13px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;">출고 월</label>
@@ -4368,7 +4379,7 @@ function showNotice(msg){
   const _ls = String(msg==null?"":msg).split("\n"), _h = escHtml(_ls[0]);
   noticeBar.innerHTML = _ls.length > 1
     ? `<details style="flex:1;" data-cz-skip><summary style="cursor:pointer">${_h} <span class="cz-i">(${_ls.length-1}줄 더)</span></summary>${_ls.slice(1).map(x=>`<div>${escHtml(x)}</div>`).join("")}</details><button class="x" aria-label="안내 닫기">✕</button>`
-    : `<span style="flex:1;">${_h}</span><button class="x" aria-label="안내 닫기">✕</button>`;
+    : `<span class="nb-one" style="flex:1;" title="${_h}">${_h}</span><button class="x" aria-label="안내 닫기">✕</button>`;
   noticeBar.hidden = false;
   noticeBar.querySelector(".x").onclick = ()=>{ noticeBar.hidden = true; };
 }
@@ -4722,8 +4733,8 @@ function renderAuditBar(){
   const LV = { err:["ab-err","오류"], warn:["ab-warn","확인"], chg:["ab-chg","변동"], ok:["ab-ok","정상"] };
   let wasOpen = false; try{ wasOpen = localStorage.getItem("kk_audit_open")==="1"; }catch(_){}   // build 253: 처음엔 접힘 · 펼친 상태 기억
   bar.className = "audit-bar" + (n("err") ? " err" : (!n("warn") ? " ok" : ""));
-  const pills = [["err","오류"],["warn","확인 필요"],["chg","새 변동"],["ok","정상"]].filter(([k])=> n(k)).map(([k,l])=>`<span class="ab-pill ${LV[k][0]}">${l} ${n(k)}</span>`).join("");
-  bar.innerHTML = `<details${wasOpen ? " open" : ""}><summary><b>🔔 숫자 검수 · 변동 알림</b>${pills || `<span class="ab-pill ab-ok">새 알림 없음</span>`}<span class="fi-mut" style="margin-left:auto" title="카테고리별 매출 · 센터 재고 · 출고 · 매장 재고를 매번 대조합니다. 항목에 마우스를 올리면 근거가 나옵니다.">매출 · 재고 · 출고 자동 대조</span></summary>
+  const pills = [["err","오류"],["warn","확인 필요"],["chg","새 변동"],["ok","정상"]].filter(([k])=> n(k)).map(([k,l])=>`<span class="ab-pill ${LV[k][0]}" title="${l} ${n(k)}건">● ${n(k)}</span>`).join("");
+  bar.innerHTML = `<details${wasOpen ? " open" : ""}><summary><b title="숫자 검수 · 변동 알림">🔔 검수</b>${pills || `<span class="ab-pill ab-ok">새 알림 없음</span>`}<span class="fi-mut" style="margin-left:auto" title="매출 · 재고 · 출고 자동 대조 — 카테고리별 매출 · 센터 재고 · 출고 · 매장 재고를 매번 대조합니다. 항목에 마우스를 올리면 근거가 나옵니다.">ⓘ</span></summary>
     <ul class="audit-list">${show.map(x=>`<li data-tip="${escHtml(x.tip||x.msg)}"><span class="ab-pill ${LV[x.lv][0]}">${LV[x.lv][1]}</span><span class="ab-area">${escHtml(x.area)}</span><span>${escHtml(x.msg)}</span>${x.lv==="chg" ? `<button class="act fi-mini" data-audit-seen="${escHtml(x.id)}">확인</button>` : "<span></span>"}</li>`).join("")}</ul></details>`;
   bar.hidden = false;
   bar.onclick = e=>{ const b = e.target.closest("[data-audit-seen]"); if(!b) return; e.preventDefault(); const s = auditSeen(); s[b.dataset.auditSeen] = Date.now();
@@ -7303,7 +7314,12 @@ function deltaLine(label, cur, prev){
   return `<div class="delta-line"><span class="lbl">${label}</span>${inner}</div>`;
 }
 function statCard(title, value, lines, tip){   // build 249: tip = 마우스를 올리면 뜨는 근거(여러 줄 글)
-  return `<div class="stat"${tip?` data-tip="${escHtml(tip)}"`:""}><div class="stat-k">${title}</div><div class="stat-v">${value}</div>${(lines||[]).join('')}</div>`;
+  // build 319: 글자 줄이기 — 제목은 앞부분만, 비교 줄은 첫 줄 화살표 %만. 나머지는 모두 말풍선으로
+  lines = lines||[];
+  const plain = h=> String(h||"").replace(/<span class="ref">\(([^)]*)\)<\/span>/g," (이전 $1)").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim();
+  const tFull = plain(title), tShort = tFull.split(/\s+·\s+/)[0].replace(/\s*\(.*$/,"").trim() || tFull;
+  const full = [tFull, lines.map(plain).filter(Boolean).join("\n"), tip||""].filter(Boolean).join("\n\n");
+  return `<div class="stat stat-c" data-tip="${escHtml(full)}"><div class="stat-k">${escHtml(tShort)}</div><div class="stat-v">${value}</div>${lines.length?lines[0]:""}</div>`;
 }
 /* ================= build 249: 숫자 근거 말풍선 =================
    data-tip="여러 줄 글" 이 붙은 곳(카드 · 표 머리글 · 칸)에 마우스를 올리면 바로 뜬다(휴대폰은 누르면 뜸).
@@ -10016,9 +10032,8 @@ function renderGoalsScopeBar(){
   document.getElementById("goalsToFld").hidden    = !isRange;
   const ms = goalsScopeMonths();
   const note = document.getElementById("goalsScopeNote");
-  if(note) note.textContent = all.length
-    ? `매출 데이터가 있는 달: ${all[0]} ~ ${all[all.length-1]} (${all.length}개월) · 지금 집계 중인 기간: ${goalsScopeLabel(ms)}`
-    : "매출 데이터가 아직 없습니다.";
+  if(note){ note.textContent = all.length ? `자료 ${all[0].slice(2)}~${all[all.length-1].slice(2)}` : "자료 없음";
+    note.title = all.length ? `매출 데이터가 있는 달: ${all[0]} ~ ${all[all.length-1]} (${all.length}개월) · 지금 집계 중인 기간: ${goalsScopeLabel(ms)}` : "매출 데이터가 아직 없습니다."; note.dataset.czSkip="1"; }
 }
 let _goalsScopeWired = false;
 function wireGoalsScope(){
@@ -27427,6 +27442,13 @@ window.addEventListener("load", kkMarkClosedSoon); setTimeout(kkMarkClosed, 1200
   try{ const _aso = applyStateObject; applyStateObject = function(){ drop(); try{ return _aso.apply(this, arguments); }finally{ drop(); } }; }catch(e){ console.warn("build 300 aso", e); }
   try{ const _ss = saveState; saveState = function(){ drop(); return _ss.apply(this, arguments); }; }catch(e){ console.warn("build 300 ss", e); }
 })();
+</script>
+<script>/* build 319: 물어보기 예시 칩은 2개만 + "+N" */
+(function(){ const fix=()=>{ const r=document.getElementById("askEx"); if(!r) return; const kids=[...r.children].filter(c=>!c.classList.contains("kk-more")); let b=r.querySelector(".kk-more");
+  if(kids.length<=2){ if(b) b.remove(); return; } if(!b){ b=document.createElement("button"); b.type="button"; b.className="kk-more ask-ex"; b.onclick=()=>{ r.classList.toggle("kk-open"); fix(); }; }
+  const t = r.classList.contains("kk-open") ? "접기" : "+"+(kids.length-2); if(b.textContent!==t) b.textContent=t; if(r.lastElementChild!==b) r.appendChild(b); };
+  const go=()=>{ fix(); const r=document.getElementById("askEx"); if(r) new MutationObserver(fix).observe(r,{childList:true}); };
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",go); else go(); })();
 </script>
 </body>
 </html>
