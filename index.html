@@ -1913,7 +1913,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 319 · 2026-11-13</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 320 · 2026-11-13</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -2047,7 +2047,7 @@
          막대에 마우스를 올리면 전일·전주(같은 요일)·전월(같은 날짜) 대비를 툴팁으로 보여준다. -->
     <div class="agg-card" id="salesDailyCard" style="margin-bottom:14px;">
       <div class="p-hd">
-        <span class="store-name">일별 매출 (월별)</span>
+        <span class="store-name" id="salesDailyTitle">일별 매출 · 전체 매출</span>
         <span class="meta" id="salesDailyMeta">막대에 마우스를 올리면 전주 · 전월 · 전년 동기 대비가 표시됩니다</span>
       </div>
       <div style="padding:10px 18px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -2081,7 +2081,7 @@
          매장 고르기 하나로 위 막대와 아래 표가 같이 바뀐다. 카테고리 점유율은 사이트에서 이 표 한 곳에만 둔다. -->
     <div class="agg-card" id="salesMonTotCard">
       <div class="p-hd">
-        <span class="store-name">월별 매출</span>
+        <span class="store-name" id="salesMonTotTitle">월별 매출 · 전체 매출</span>
         <span class="meta" id="salesMonTotMeta">달마다 그 달 전체 매출 합계</span>
       </div>
       <div style="padding:10px 18px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -2089,7 +2089,7 @@
         <select id="salesMonTotStore" style="max-width:220px;"></select>
         <!-- build 275: 카테고리 고르기 — 전체 매출 / 카테고리 하나. 위 막대와 아래 '매장 × 월 매출' 표가 같이 바뀜(옛 '카테고리별 매장 순위' 카드 합침) -->
         <label for="salesMonTotCat" style="font-family:'Gothic A1';font-size:13px;letter-spacing:.08em;color:var(--muted2);text-transform:uppercase;margin-left:6px;">카테고리</label>
-        <select id="salesMonTotCat" style="max-width:240px;" title="전체 매출 또는 카테고리 하나 — 위 월별 막대와 아래 매장 × 월 매출 표가 같이 바뀝니다"></select>
+        <select id="salesMonTotCat" style="max-width:240px;" title="전체 매출 또는 카테고리 하나 — 위 일별 매출 막대 · 이 카드 월별 막대 · 매장 × 월 표가 같이 바뀝니다"></select>
       </div>
       <div id="salesMonTotWrap" style="padding:12px 18px 6px;"></div>
       <div style="padding:0 18px;"><span class="meta" id="salesMonthlyMeta" style="font-size:12px;"></span></div>
@@ -5391,7 +5391,7 @@ function renderSalesMonTotCat(){
     cats.map((c,i)=>`<option value="${escHtml(c)}">${escHtml(c)} (${i+1}위 · ${eok(tot[c])})</option>`).join("");
   sel.value = selectedMonthlyCat;
   sel.onchange = ()=>{ selectedMonthlyCat = sel.value; try{ localStorage.setItem("kk_mon_cat_v1", selectedMonthlyCat); }catch(_){}
-    renderSalesMonthTotals(); try{ renderSalesMonthly(); }catch(_){} };
+    renderSalesMonthTotals(); try{ renderSalesMonthly(); }catch(_){} try{ renderSalesDaily(); }catch(_){} };   // build 320: 일별 매출도 같은 카테고리
 }
 let kkMonSort = { col:null, dir:1 };   // build 277: 매장 × 월 표 머리글 정렬(이 화면에서만)
 function renderSalesMonthly(){ renderSalesMonthlyCore(); try{ renderKgSummary(); }catch(e){ console.warn("build 289 킹고프리 종합", e); } }
@@ -5712,6 +5712,7 @@ ${r.prevFull!=null ? `전월(${prevOf(r.month)}) 전체: ${won(r.prevFull)}` : '
     const full = rs.filter(r=>!r.partial && r.total>0);   // 월평균은 다 끝난 달만(진행 중인 달 빼고)
     return `<span>${y}년 합계 <b>${won(t)}</b> (${rs.length}개월${full.length?` · 다 끝난 ${full.length}개월 월평균 ${won(full.reduce((a,r)=>a+r.total,0)/full.length)}`:''})</span>`; }).join("");
   const top = rows.filter(r=>!r.partial && r.total>0).sort((a,b)=>b.total-a.total)[0];
+  { const t = document.getElementById("salesMonTotTitle"); if(t) t.textContent = `월별 매출 · ${monthlyCatLabel()}`; }
   if(meta) meta.textContent = `${stLabel} · 달마다 그 달 전체 매출 합계(진행 중인 달은 마지막 자료일까지) · 줄을 누르면 그 달로 이동`;
   wrap.innerHTML = `
     <div class="sd-sum">${yearSum}${top?`<span>최고 달 <b>${top.month.replace('-','년 ')}월 ${won(top.total)}</b></span>`:''}</div>
@@ -5756,7 +5757,8 @@ function renderSalesDaily(){
   if(R){ from = R.from; to = R.to; }
   else { const [yy, mm] = selectedDailyMonth.split('-').map(Number); from = `${selectedDailyMonth}-01`; to = ymd(new Date(yy, mm, 0)); }
   const spanMonths = Array.from(new Set((()=>{ const a=[]; for(let d=from; d<=to; d=addD(d,1)) a.push(d.slice(0,7)); return a; })()));
-  const mt = {}; spanMonths.forEach(m=>{ const mp = monthStoreTotals(m).map || {}; Object.keys(mp).forEach(s=> mt[s] = (mt[s]||0) + (mp[s]||0)); });
+  const catOn = monthlyCatOn(), catNm = selectedMonthlyCat;   // build 320: 월별 매출 카드에서 고른 카테고리
+  const mt = {}; spanMonths.forEach(m=>{ const mp = monthStoreTotalsCat(m).map || {}; Object.keys(mp).forEach(s=> mt[s] = (mt[s]||0) + (mp[s]||0)); });
   const stores = STORES.filter(s=>(mt[s]||0)>0).sort((a,b)=>(mt[b]||0)-(mt[a]||0));
   if(selectedDailyStore!=="__all__" && !stores.includes(selectedDailyStore)) selectedDailyStore = "__all__";
   ssel.innerHTML = `<option value="__all__"${selectedDailyStore==="__all__"?' selected':''}>전 매장 합계</option>` +
@@ -5766,7 +5768,13 @@ function renderSalesDaily(){
   const key = selectedDailyStore==="__all__" ? ALL_STORES_KEY : selectedDailyStore;
   // 날짜 → 매출(같은 날을 여러 번 묻기 때문에 이 그림 안에서만 기억)
   const memo = new Map();
-  const valOf = dstr => { if(!dstr || !dateSet.has(dstr)) return null; if(!memo.has(dstr)) memo.set(dstr, storeDayBill(key, dstr)||0); return memo.get(dstr); };
+  // build 320: 카테고리를 고르면 카테고리 매출 파일(SALES_HISTORY)의 그 날 그 카테고리 실매출액
+  const catByDate = new Map();
+  if(catOn) SALES_HISTORY.forEach(h=>{ if(h && h.date){ if(!catByDate.has(h.date)) catByDate.set(h.date, []); catByDate.get(h.date).push(h); } });
+  const catDay = dstr => { const mg = mergeByStoreCat(catByDate.get(dstr)); let t = 0;
+    Object.keys(mg).forEach(st=>{ if(selectedDailyStore!=="__all__" && st!==selectedDailyStore) return; const v = mg[st][catNm]; if(v && v.amount) t += v.amount; }); return t; };
+  const valOf = dstr => { if(!dstr) return null; if(catOn ? !catByDate.has(dstr) : !dateSet.has(dstr)) return null;
+    if(!memo.has(dstr)) memo.set(dstr, catOn ? catDay(dstr) : (storeDayBill(key, dstr)||0)); return memo.get(dstr); };
   const wd = ["일","월","화","수","목","금","토"];
   // 전월 = 전월에서 같은 요일이면서 날짜가 가장 가까운 날(build 244) · 전년 동기 = 52주(364일) 전 같은 요일
   const prevMonthSameDow = dstr => {
@@ -5791,8 +5799,9 @@ function renderSalesDaily(){
   const best = days.filter(x=>x.val!=null).sort((a,b)=>b.val-a.val)[0];
   const md = x => `${x.m}/${x.d}`;
   const rngLbl = R ? `${from.replace(/-/g,'.')} ~ ${to.replace(/-/g,'.')} (${days.length}일)` : `${+from.slice(0,4)}년 ${+from.slice(5,7)}월`;
-  const stLbl = selectedDailyStore==="__all__"?"전 매장 합계":selectedDailyStore;
-  if(meta) meta.textContent = `${rngLbl} · ${stLbl} · 막대에 마우스를 올리면 전주 · 전월 · 전년 동기 대비`;
+  const stLbl = (selectedDailyStore==="__all__"?"전 매장 합계":selectedDailyStore) + (catOn ? ` · ${catNm}` : "");
+  { const t = document.getElementById("salesDailyTitle"); if(t) t.textContent = `일별 매출 · ${monthlyCatLabel()}`; }
+  if(meta) meta.textContent = `${rngLbl} · ${stLbl} · ${catOn?"카테고리는 아래 '월별 매출'에서 고름 · ":""}막대에 마우스를 올리면 전주 · 전월 · 전년 동기 대비`;
 
   // 기간 합계의 동기간 비교 — 이번 기간에 매출이 있는 날만 짝을 지어 더한다(비교 기간도 같은 날 수)
   const sumCmp = CMP.map((c,ci)=>{ let cur = 0, prev = 0, n = 0, miss = 0;
@@ -5811,14 +5820,14 @@ function renderSalesDaily(){
     return `<div class="${cls(x)}" ${x.hol?`title="${escHtml(x.hol)}"`:''}>${show ? (x.d===1 || i===0 ? `<b>${x.m}/</b>${x.d}` : x.d) : ''}${show && every===1 ? `<span class="dw">${wd[x.dow]}</span>` : ''}</div>`; }).join("");
   wrap.innerHTML = `
     <div class="sd-sum">
-      <span class="sd-sum-tot" tabindex="0">${R?"기간":"월"} 합계 <b>${won(total)}</b> <i class="sd-cmp-ic" aria-hidden="true">ⓘ</i></span>
+      <span class="sd-sum-tot" tabindex="0">${R?"기간":"월"} ${catOn?escHtml(catNm)+" ":""}합계 <b>${won(total)}</b> <i class="sd-cmp-ic" aria-hidden="true">ⓘ</i></span>
       <span>매출 있는 날 <b>${vals.length}일</b></span>
       <span>일평균 <b>${vals.length?won(total/vals.length):'-'}</b></span>
       ${best?`<span>최고 <b>${md(best)}(${wd[best.dow]}) ${won(best.val)}</b></span>`:''}
     </div>
     <div class="sd-chart${dense?' dense':''}">${cols}</div>
     <div class="sd-axis${every>1?' sparse':''}">${axis}</div>
-    <div class="sd-legend">${dense?'기간이 길어 막대 위 숫자는 숨겼습니다(마우스를 올리면 금액) · ':'막대 위 숫자 단위: 만원 · '}빨강=일요일·공휴일 · 파랑=토요일 · 점선=데이터 없음 · 테두리=기간 최고 매출일 · 합계에 마우스를 올리면 기간 전체를 전주 · 전월 · 전년 동기간과 비교</div>`;
+    <div class="sd-legend">${dense?'기간이 길어 막대 위 숫자는 숨겼습니다(마우스를 올리면 금액) · ':'막대 위 숫자 단위: 만원 · '}${catOn?`금액=카테고리 매출 파일 ${escHtml(catNm)} 실매출액 · `:''}빨강=일요일·공휴일 · 파랑=토요일 · 점선=데이터 없음 · 테두리=기간 최고 매출일 · 합계에 마우스를 올리면 기간 전체를 전주 · 전월 · 전년 동기간과 비교</div>`;
 
   let tip = document.getElementById("salesDailyTip");
   if(!tip){ tip = document.createElement("div"); tip.id = "salesDailyTip"; tip.className = "sd-tip"; document.body.appendChild(tip); }
