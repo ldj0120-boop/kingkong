@@ -1934,7 +1934,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 330 · 2026-11-16</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 332 · 2026-11-16</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -18132,7 +18132,21 @@ function fiParseWorkbook(wb){
 }
 function fiRate(r){ const k=(r.CATE2||"")+(r.CATE3||"")+(r.CATE4||""); return FI_REF.rate[k]; }
 // 낙찰파일 데이터 계산 (엑셀 만들기 전 단계 — 테스트·요약에 공용)
+// build 332: 낙찰파일 상품명(DESCRIPTION) 정리 — 셀 안 줄바꿈(Alt+Enter)·탭·숨은 공백(NBSP·전각·폭없는 공백)·제어문자 때문에 전산 업로드 실패 → 한 줄, 공백 1칸, 앞뒤 공백 없음
+function bidDesc(v){
+  if(typeof v!=="string") return v;
+  return v.replace(/_x000[DdAa]_/g," ").replace(/[\r\n\t\v\f\u0085\u2028\u2029]+/g," ")
+    .replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000\u3164]/g," ")
+    .replace(/[\u0000-\u001F\u007F\u00AD\u200B-\u200F\u2060-\u2064\uFEFF]/g,"")
+    .replace(/ {2,}/g," ").trim();
+}
+function bidCleanRow(r, k){
+  if(r==null || k==null) return r; const v = r[k]; if(typeof v!=="string") return r;
+  const c = bidDesc(v); if(c===v) return r;
+  const o = Array.isArray(r) ? r.slice() : Object.assign({}, r); o[k] = c; return o;
+}
 function fiBuild(fileName, rows){
+  rows = rows.map(r=> bidCleanRow(r, "DESCRIPTION"));
   const type = fiDetectType(fileName, rows);
   const date = fiDetectDate(fileName);
   const missingRate = {};
@@ -21787,7 +21801,7 @@ async function liqReadSheetJs(buf, lots){
 function liqBuild(rows, lots, date){
   const missingRate = {}, guessRate = {};
   const order = new Map(lots.map((l,i)=>[l,i]));
-  const src = rows.map((r,i)=>({ r, i })).sort((a,b)=> (a.r["NO."]<b.r["NO."]?-1:a.r["NO."]>b.r["NO."]?1:a.i-b.i)).map(x=>x.r);
+  const src = rows.map((r,i)=>({ r, i })).sort((a,b)=> (a.r["NO."]<b.r["NO."]?-1:a.r["NO."]>b.r["NO."]?1:a.i-b.i)).map(x=> bidCleanRow(x.r, "DESCRIPTION"));
   const raw = src.map(r=>{
     const q = +r.QUANTITY || 0, unit = +r["Unit_Sales_Price (VAT X)"] || 0;
     const shop = unit * (String(r.isdutyfree||"").trim().toUpperCase()==="Y" ? 1.0 : 1.1);
@@ -23019,7 +23033,7 @@ function fdBuildBid(D, lots, date8, pltOver){
   const m = D.m;
   const parts = lots.map(no=> fdLotInfo(D, no, pltOver && pltOver[no]!=null ? pltOver[no] : null));
   const set = new Set(lots);
-  const src = D.rows.filter(r=> set.has(fdT(r[m.no]).toUpperCase()));   // 원본 순서 그대로
+  const src = D.rows.filter(r=> set.has(fdT(r[m.no]).toUpperCase())).map(r=> bidCleanRow(r, m.desc));   // 원본 순서 그대로 (build 332: 상품명 줄바꿈·숨은 공백 정리)
   const fcRows = D.fcTbl ? fdSortFcRows(D.fcTbl.rows.filter(x=> set.has(x.no)), lots) : [].concat(...parts.map(p=> p.fcList.map(fc=>({ no:p.no, fc, qty:null }))));
   // RAW 열: 원본 본 표에서 Grouping · Groupnm · 판매단가 · 판매가 빼고 + 매장판매가 · 매장판매가 총액 · 도매가 · 도매판매가 총액
   const drop = new Set([m.grouping, m.groupnm, m.unit, m.sales].filter(x=> x!=null));
@@ -24113,7 +24127,7 @@ function dwBuildBid(D, lots, date8, pltOver){
   const parts = lots.map(no=> dwLotInfo(D, no, pltOver && pltOver[no]!=null ? pltOver[no] : null));
   const all = fdLotList(D).map(no=> lots.includes(no) ? parts[lots.indexOf(no)] : dwLotInfo(D, no));
   const set = new Set(lots);
-  const src = D.rows.filter(r=> set.has(fdT(r[m.no]).toUpperCase()));   // 원본 순서 그대로
+  const src = D.rows.filter(r=> set.has(fdT(r[m.no]).toUpperCase())).map(r=> bidCleanRow(r, m.desc));   // 원본 순서 그대로 (build 332: 상품명 줄바꿈·숨은 공백 정리)
   // raw 열: 원본 본 표에서 VENDOR_NAME · 판매단가 · 판매가 빼고 + 매장판매가 · 매장판매가 총액 · 도매가 · 도매판매가 총액 (예시 낙찰파일과 같음)
   const drop = new Set([m.vendor, m.unit, m.sales, m.groupnm].filter(x=> x!=null));   // build 194: Groupnm(C열)도 뺌 — 2025 배포본의 GROUPING은 예시대로 남김
   const pick = []; for(let c=D.j0;c<=D.j1;c++) if(!drop.has(c)) pick.push(c);
@@ -24528,7 +24542,7 @@ function eosHeavyNote(f){
 }
 // LOT 하나 → 낙찰파일 내용
 function eosBuildLot(D, lot, date6){
-  const src = D.rows.filter(r=> eosT(r[1]).toUpperCase()===lot);
+  const src = D.rows.filter(r=> eosT(r[1]).toUpperCase()===lot).map(r=> bidCleanRow(r, 14));   // build 332: 상품명 정리
   const eos = D.eos.filter(r=> eosT(r[0]).toUpperCase()===lot);
   const missingRate = {}, guessRate = {};
   const raw = src.map(r=>{
