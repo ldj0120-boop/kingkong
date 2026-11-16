@@ -615,7 +615,7 @@
   .lp-kpi b{font-size:17px;display:block;margin:2px 0;}
   .px-tbl .px-grp th{font-size:13px;text-align:center;border-bottom:1px solid var(--line,#444);}
   .px-tbl .px-g1{color:#1F5AE6;} .px-tbl .px-g2{color:#0B7A3B;} .px-tbl .px-g3{color:#8F5E00;} .px-tbl .px-g4{color:#8E44AD;}
-  .px-g,.fi-tbl td.px-g{color:#0B7A3B !important;font-weight:700;} .px-b,.fi-tbl td.px-b{color:#1F5AE6 !important;font-weight:700;}
+  .px-g,.fi-tbl td.px-g{color:#A3141E !important;font-weight:700;} .px-b,.fi-tbl td.px-b{color:#173FA6 !important;font-weight:700;}
   .px-y,.fi-tbl td.px-y{color:#8F5E00 !important;font-weight:700;} .px-r,.fi-tbl td.px-r{color:#C8232F !important;font-weight:700;}
   .fi-tbl td.px-gap{color:#8F5E00 !important;}
   .px-src>summary{cursor:pointer;padding:12px 18px;font-size:14.5px;color:var(--muted2,#999);}
@@ -833,8 +833,8 @@
   .g-store-badge{font-family:"Gothic A1";font-size:13.5px;padding:3px 10px;border-radius:20px;white-space:nowrap;}
   .g-store-body{font-size:13.5px;color:var(--muted);line-height:1.7;}
   .g-tier-great .g-store-badge{background:var(--green-dim);color:var(--green);}
-  .g-tier-good .g-store-badge{background:var(--info-dim);color:var(--info);}
-  .g-tier-warn .g-store-badge{background:var(--amber-dim);color:var(--amber);}
+  .g-tier-good .g-store-badge{background:var(--good2-dim,var(--info-dim));color:var(--good2,var(--info));}
+  .g-tier-warn .g-store-badge{background:var(--bad2-dim,var(--amber-dim));color:var(--bad2,var(--amber));}
   .g-tier-bad .g-store-badge{background:var(--red-dim);color:var(--red);}
   .g-store-rank{font-family:"Gothic A1";font-size:12.5px;color:var(--muted2);font-weight:400;margin-left:6px;}
   .g-store-cat{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--line-soft);}
@@ -1141,7 +1141,7 @@
   #fiLedgerBox .fl-fold-hint{display:none;font-size:13px;color:var(--muted2);margin-left:8px;}
   #fiLedgerBox.fl-fold .fl-fold-hint, #fiLedgerBox.fl-empty .fl-fold-hint{display:inline;}
   #fiLedgerBox.fl-empty .p-hd{cursor:pointer;}
-  table.pq-tbl td.p.s-g{color:#0B7A3B;} table.pq-tbl td.p.s-b{color:#1F5AE6;} table.pq-tbl td.p.s-y{color:#8F5E00;} table.pq-tbl td.p.s-r{color:#C8232F;}
+  table.pq-tbl td.p.s-g{color:#A3141E;} table.pq-tbl td.p.s-b{color:#1F5AE6;} table.pq-tbl td.p.s-y{color:#8F5E00;} table.pq-tbl td.p.s-r{color:#173FA6;}
   table.pq-tbl td.pq-out, table.pq-tbl th.pq-out{font-family:"Gothic A1";font-size:14px;color:var(--muted2);text-align:right;padding:7px 12px;border-left:2px solid var(--line);}
   table.pq-tbl tbody tr{border-bottom:1px solid var(--line-soft);}
   table.pq-tbl tbody tr:hover td{box-shadow:inset 0 0 0 999px rgba(255,255,255,.04);}
@@ -1176,11 +1176,11 @@
   .pq-tbl .pq-n .pq-t{font-family:"Gothic A1";font-size:13.5px;color:var(--muted2);}
   .pq-tbl .pq-n .pq-ar{font-size:12px;color:var(--muted2);margin:0 5px;opacity:.7;}
   .pq-tbl .pq-p{font-size:13.5px;font-weight:700;}
-  .pq-tbl .s-g b, .pq-tbl .s-g .pq-p{color:#0B7A3B;}
+  .pq-tbl .s-g b, .pq-tbl .s-g .pq-p{color:#A3141E;}
   .pq-tbl .s-b b, .pq-tbl .s-b .pq-p{color:#1F5AE6;}
   .pq-tbl .s-y b, .pq-tbl .s-y .pq-p{color:#8F5E00;}
   .pq-tbl .s-r b, .pq-tbl .s-r .pq-p{color:#C8232F;}
-  .pq-sw.s-g{background:#0B7A3B;} .pq-sw.s-b{background:#1F5AE6;} .pq-sw.s-y{background:#8F5E00;} .pq-sw.s-r{background:#C8232F;}
+  .pq-sw.s-g{background:#A3141E;} .pq-sw.s-b{background:#1F5AE6;} .pq-sw.s-y{background:#8F5E00;} .pq-sw.s-r{background:#173FA6;}
   .pq-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.018);}
   .pt-tbl td, .pt-tbl th{text-align:right;padding:7px 12px;font-family:"Gothic A1";font-size:14px;}
   .pt-tbl td:first-child, .pt-tbl th:first-child{text-align:left;font-family:inherit;font-size:14.5px;}
@@ -1489,8 +1489,8 @@
     --ink:#EDEFF3; --panel:#FAFBFC; --panel2:#F0F2F5; --raise:#E6E9EE; --line:#D5DAE2; --line-soft:#E3E7ED;
     --text:#111318; --muted:#3F4354; --muted2:#5A5E70; --pale:#111318;
     --amber:#3B3FD8; --amber-ink:#FFFFFF; --amber-dim:#ECECFF;
-    --green:#C8232F; --green-dim:#FFE9EA; --red:#1F5AE6; --red-dim:#E6EEFF; --info:#1F5AE6; --info-dim:#E6EEFF;
-    --up:#C8232F; --down:#1F5AE6; --up-dim:#FFE9EA; --down-dim:#E6EEFF;
+    --green:#A3141E; --green-dim:#FBE6E7; --red:#173FA6; --red-dim:#E4EBFA; --info:#1F5AE6; --info-dim:#E6EEFF;
+    --up:#A3141E; --down:#173FA6; --up-dim:#FBE6E7; --down-dim:#E4EBFA;
     font-family:"Gothic A1","Inter","Malgun Gothic",sans-serif; color:var(--text);
   }
   #gsub-04 .agg-card{background:var(--bg);border:0;border-radius:32px;padding:22px clamp(12px,2vw,28px) 28px;color:var(--text);}
@@ -1737,9 +1737,10 @@
     --line:#D5DAE2; --line-soft:#E3E7ED;
     --text:#111318; --muted:#3F4354; --muted2:#5A5E70; --pale:#22252E;
     --amber:#3B3FD8; --amber-ink:#FFFFFF; --amber-dim:#ECECFF;
-    --green:#0B7A3B; --green-dim:#E3F6EA; --red:#C8232F; --red-dim:#FFE9EA;
+    --green:#A3141E; --green-dim:#FBE6E7; --red:#173FA6; --red-dim:#E4EBFA;   /* build 328: 양호·상승 = 짙은 빨강 · 하락·위기 = 짙은 파랑 */
     --info:#1F5AE6; --info-dim:#E6EEFF;
-    --up:#C8232F; --up-dim:#FFE9EA; --down:#1F5AE6; --down-dim:#E6EEFF;
+    --up:#A3141E; --up-dim:#FBE6E7; --down:#173FA6; --down-dim:#E4EBFA;
+    --good2:#C8323C; --good2-dim:#FDEDEE; --bad2:#3E62C4; --bad2-dim:#E9EFFB;
     --zebra:#F3F5F8; --foot:#E8EBF0; --bg:#DDE2E9;
     --r:28px;
   }
@@ -1933,7 +1934,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 327 · 2026-11-16</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 328 · 2026-11-16</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -5560,7 +5561,7 @@ function renderSalesMonthlyCore(){
         const body2 = rows2.map(r=>{
           const band = goalsIncentiveBand(r.dev);
           const tier = goalsTier(r.pct);
-          const bc = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--info)":tier.cls==="g-tier-warn"?"var(--amber)":"var(--red)";
+          const bc = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--good2)":tier.cls==="g-tier-warn"?"var(--bad2)":"var(--red)";
           return `<tr>
             <td title="${escHtml(r.label)}">${escHtml(r.label)}</td>
             <td class="tgt-col"><span class="num" style="color:var(--amber)">${Math.round(r.target).toLocaleString()}</span></td>
@@ -5576,7 +5577,7 @@ function renderSalesMonthlyCore(){
         // build 244: 표 아래 따로 있던 달성률 막대 목록은 실적 칸 안의 막대로 합침(같은 내용 두 번 → 한 곳)
         const rankList2 = false ? `<div class="g-rank-list">${ctx.rows.map(r=>{
             const tier = goalsTier(r.pct);
-            const c = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--info)":tier.cls==="g-tier-warn"?"var(--amber)":"var(--red)";
+            const c = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--good2)":tier.cls==="g-tier-warn"?"var(--bad2)":"var(--red)";
             return `<div class="g-rank-row" title="${escHtml(r.label)} · 달성률 ${r.pct.toFixed(1)}%"><span class="g-rank-num">${r.rank}</span>
               <span class="g-rank-name">${escHtml(r.label)}</span>
               <div class="mini-bar" style="flex:1;"><div class="mini-bar-fill" style="width:${Math.min(100,r.pct).toFixed(1)}%;background:${c}"></div></div>
@@ -7050,7 +7051,7 @@ function salesGoalHeroCard(s, pc, snaps, lines){
   if(full>0){
     const pct = cum!=null ? cum/full*100 : null;
     const remain = full - (cum||0);
-    const col = pct==null ? "var(--muted2)" : pct>=100 ? "var(--green)" : pct>=80 ? "var(--info)" : pct>=60 ? "var(--amber)" : "var(--red)";
+    const col = pct==null ? "var(--muted2)" : pct>=100 ? "var(--green)" : pct>=80 ? "var(--good2)" : pct>=60 ? "var(--bad2)" : "var(--red)";
     top = `<div class="stat-k">${escHtml(name)} · ${mo}월 목표매출 (월 전체)</div>
       <div class="stat-v">${won(full)}<span style="font-size:.5em;margin-left:3px">원</span></div>
       <div style="margin:10px 0 4px;display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">
@@ -10455,7 +10456,7 @@ let GOALS_DRILL = {};
 // build 96: 매장 바로가기 바 — 매장명 버튼(달성률 색)을 누르면 그 매장 카드로 스크롤 + 잠깐 강조. 화면 위에 붙어 따라다님(sticky).
 function goalsStoreNavHtml(rows, scopeId){
   if(!rows || !rows.length) return "";
-  const col = p => p>=100 ? "var(--green)" : p>=80 ? "var(--info)" : p>=65 ? "var(--amber)" : "var(--red)";
+  const col = p => p>=100 ? "var(--green)" : p>=80 ? "var(--good2)" : p>=65 ? "var(--bad2)" : "var(--red)";
   const sorted = rows.slice().sort((a,b)=> String(a.label||a.store).localeCompare(String(b.label||b.store), "ko"));
   return `<div class="g-store-nav-wrap"><div class="g-store-nav" data-nav-scope="${scopeId}">
     <span class="g-store-nav-t">매장 바로가기</span>
@@ -10619,7 +10620,7 @@ function goalsMonthStripHtml(hist, curMonth, store){
   const short = v => v>=1e8 ? (v/1e8).toFixed(2)+"억" : Math.round(v/1e4).toLocaleString()+"만";
   const cells = hist.points.map(p=>{
     const tier = goalsTier(p.pct);
-    const color = tier.cls==="g-tier-great" ? "var(--green)" : tier.cls==="g-tier-good" ? "var(--info)" : tier.cls==="g-tier-warn" ? "var(--amber)" : "var(--red)";
+    const color = tier.cls==="g-tier-great" ? "var(--green)" : tier.cls==="g-tier-good" ? "var(--good2)" : tier.cls==="g-tier-warn" ? "var(--bad2)" : "var(--red)";
     const h = Math.max(4, Math.min(100, p.pct));
     const isCur = p.month===curMonth;
     const gap = (typeof GOALS_SALES_GAPS!=="undefined" && GOALS_SALES_GAPS) ? GOALS_SALES_GAPS[p.month] : null; // build 67
@@ -10689,8 +10690,8 @@ function goalsDiagMemo(r){
 function goalsHeatBg(t){
   if(t==null || isNaN(t)) return "";
   t = Math.max(0, Math.min(1, t));
-  if(t < 0.5) return `background:rgba(239,111,111,${((0.5-t)*2*0.40).toFixed(3)});`;
-  return             `background:rgba(51,199,132,${((t-0.5)*2*0.40).toFixed(3)});`;
+  if(t < 0.5) return `background:rgba(23,63,166,${((0.5-t)*2*0.32).toFixed(3)});`;
+  return             `background:rgba(163,20,30,${((t-0.5)*2*0.28).toFixed(3)});`;
 }
 function goalsHeatAmber(t){
   if(t==null || isNaN(t)) return "";
@@ -10750,7 +10751,7 @@ function goalsNarrative(r, ctx){
     }
     const t = r.target*(st.days/st.dim);
     const pct = t>0 ? actual/t*100 : null;
-    const col = pct==null ? "var(--muted2)" : pct>=100 ? "var(--green)" : pct>=80 ? "var(--info)" : pct>=60 ? "var(--amber)" : "var(--red)";
+    const col = pct==null ? "var(--muted2)" : pct>=100 ? "var(--green)" : pct>=80 ? "var(--good2)" : pct>=60 ? "var(--bad2)" : "var(--red)";
     return `<div class="g-r3${isCur?' cur':''}">
       <div class="r3-m">${+m.slice(5)}월${isCur?' <span>진행중</span>':''}</div>
       <div class="r3-v">${won(actual)}<small>원</small></div>
@@ -11169,7 +11170,7 @@ function goalsIncentiveTableHtml(ctx, rows2){
   const body2 = rows2.map(r=>{
     const band = goalsIncentiveBand(r.dev);
     const tier = goalsTier(r.pct);
-    const bc = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--info)":tier.cls==="g-tier-warn"?"var(--amber)":"var(--red)";
+    const bc = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--good2)":tier.cls==="g-tier-warn"?"var(--bad2)":"var(--red)";
     let sep = "";
     if(!sepDone && r.pct>=65 && danger && safe){ sepDone = true; sep = `<tr class="g-inc-sep"><td colspan="${fc?7:6}" style="text-align:center;font-size:12.5px;color:var(--red);font-weight:700;">▲ 위 ${danger}곳 위험군(달성률 65% 미만) · 아래 ${safe}곳</td></tr>`; }
     const tip = `${r.label} · 달성률 ${r.pct.toFixed(1)}% (${tier.label})\n실적 ${Math.round(r.actual).toLocaleString()}원 ÷ 목표(일할) ${Math.round(r.proratedTarget).toLocaleString()}원\n월 목표 전체 ${Math.round(r.target).toLocaleString()}원 · 인센티브 구간 ${band.label}`;
@@ -12423,7 +12424,7 @@ function goalsRender01(ctx){
   const maxPct = ctx.rows.reduce((a,r)=>Math.max(a,r.pct),0);
   const scaleMax = Math.min(150, Math.max(100, Math.ceil(maxPct/10)*10));   // 100% 넘는 매장도 막대 길이가 구분되게
   const tierColor = pct=>{ const t=goalsTier(pct).cls;
-    return t==="g-tier-great"?"var(--green)":t==="g-tier-good"?"var(--info)":t==="g-tier-warn"?"var(--amber)":"var(--red)"; };
+    return t==="g-tier-great"?"var(--green)":t==="g-tier-good"?"var(--good2)":t==="g-tier-warn"?"var(--bad2)":"var(--red)"; };
   const rankRowHtml = r=>{
     const w = Math.min(100, r.pct/scaleMax*100);
     const title = `${r.label} · 달성률 ${r.pct.toFixed(1)}% (${goalsTier(r.pct).label}) · 실적 ${Math.round(r.actual).toLocaleString()}원 / 목표(일할) ${Math.round(r.proratedTarget).toLocaleString()}원`;
@@ -12861,7 +12862,7 @@ function goalsRender05(ctx){
 /* build 150: 04 전 매장 진단 맨 위 — 달성률 그룹별 매장 버튼(누르면 06 매장 분석에서 그 매장만) */
 function goalsTierCompactHtml(ctx){
   const cm = ctx.mLbl(ctx.curMonth);
-  const col = p => p>=100 ? "var(--green)" : p>=80 ? "var(--info)" : p>=65 ? "var(--amber)" : "var(--red)";
+  const col = p => p>=100 ? "var(--green)" : p>=80 ? "var(--good2)" : p>=65 ? "var(--bad2)" : "var(--red)";
   const tiers = [
     {key:"t1", title:"① 최우선 대응 (65% 미만)", test:r=>r.pct<65},
     {key:"t2", title:"② 개선 필요 (65~80%)",     test:r=>r.pct>=65 && r.pct<80},
@@ -12900,7 +12901,7 @@ function goalsStoreCardHtml(r, ctx, opts){
   const won = v => Math.round(v).toLocaleString();
       const tier = goalsTier(r.pct);
   const band = goalsIncentiveBand(r.dev);
-  const gaugeColor = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--info)":tier.cls==="g-tier-warn"?"var(--amber)":"var(--red)";
+  const gaugeColor = tier.cls==="g-tier-great"?"var(--green)":tier.cls==="g-tier-good"?"var(--good2)":tier.cls==="g-tier-warn"?"var(--bad2)":"var(--red)";
   const cumTxt = (r.cum && !r.cum.gap)
     ? `${won(r.cum.actualCum)} / ${won(r.cum.targetCum)}원 (${r.cum.pct.toFixed(1)}%)`
     : `결측으로 산출 제외`;
@@ -13470,7 +13471,7 @@ function goalsRender10(ctx){
 function goalsRender10Body(ctx){
   const won = v => Math.round(v).toLocaleString();
   const eok = v => (v/1e8).toFixed(2)+"억";
-  const pctColor = p => p==null ? "var(--muted2)" : p>=100 ? "var(--green)" : p>=80 ? "var(--info)" : p>=60 ? "var(--amber)" : "var(--red)";
+  const pctColor = p => p==null ? "var(--muted2)" : p>=100 ? "var(--green)" : p>=80 ? "var(--good2)" : p>=60 ? "var(--bad2)" : "var(--red)";
   const pctTxt = p => p==null ? "-" : `${p.toFixed(1)}%`;
   const D = goalsSupplyDetail(ctx, goalsPlanMonth);
   const cm = ctx.mLbl(D.month);
@@ -13598,7 +13599,7 @@ function goalsRender10Body(ctx){
   const planCats = Object.keys(SUPPLY_PLAN_PARAMS);
   const catSub = pc => { const r = (SUPPLY_PLAN_CAT_MATCH[pc]||[]).join("·"); return r && r!==pc ? r : ""; };
   const fmt1 = v => (Math.round(v*10)/10).toLocaleString(undefined,{maximumFractionDigits:1});
-  const paceCol = p => p==null ? "var(--muted2)" : p>=100 ? "var(--green)" : p>=80 ? "var(--info)" : p>=60 ? "var(--amber)" : "var(--red)";
+  const paceCol = p => p==null ? "var(--muted2)" : p>=100 ? "var(--green)" : p>=80 ? "var(--good2)" : p>=60 ? "var(--bad2)" : "var(--red)";
   // build 75: 가독성 — 막대·4색 글자 제거. 숫자는 한 색, 상태는 칸 배경 2가지(부족=연한 빨강, 초과=연한 파랑)만.
   // build 78: 한 칸에 숫자 3개를 겹쳐 쓰던 방식 → 카테고리마다 [목표 | 실제 | 달성] 3칸으로 나눠 세로줄이 맞게(엑셀처럼).
   //   색은 "달성" 칸 글자에만(경과일 기준 페이스 4단계). 카테고리 묶음은 배경을 번갈아 구분.
@@ -14662,7 +14663,7 @@ function goalsRender11Body(ctx){
   const won = v => Math.round(v||0).toLocaleString();
   const eok = v => (Math.abs(v||0)>=1e8 ? ((v||0)/1e8).toFixed(2)+"억" : Math.round((v||0)/1e4).toLocaleString()+"만");
   const f1 = v => (Math.round((v||0)*10)/10).toLocaleString(undefined,{maximumFractionDigits:1});
-  const pctColor = p => p==null ? "var(--muted2)" : p>=100 ? "var(--green)" : p>=80 ? "var(--info)" : p>=60 ? "var(--amber)" : "var(--red)";
+  const pctColor = p => p==null ? "var(--muted2)" : p>=100 ? "var(--green)" : p>=80 ? "var(--good2)" : p>=60 ? "var(--bad2)" : "var(--red)";
   const mL = m => `${+m.slice(5)}월`;
   const mLY = m => `${m.slice(2,4)}.${m.slice(5)}`;
   const { mode, sel } = g11Selected();
@@ -14892,7 +14893,7 @@ function goalsRender11Body(ctx){
     const groups = Array.from(new Set([...Object.keys(G), ...Object.keys(selPltG), ...Object.keys(selSalesG)])).filter(g=> (G[g]&&G[g].hasPlan) || (selPltG[g]||0)>=0.5 || (selSalesG[g]||0)>0);
     const minor = groups.filter(g=> !(G[g]&&G[g].hasPlan) && !((selPltG[g]||0)>=0.5) && (selSalesG[g]||0) < sTot*0.01);
     const main = groups.filter(g=> !minor.includes(g)).sort((a,b)=> (selSalesG[b]||0)-(selSalesG[a]||0) || (selPltG[b]||0)-(selPltG[a]||0));
-    const stCls = pace => pace==null ? null : pace>=100 ? "var(--green)" : pace>=80 ? "var(--info)" : pace>=50 ? "var(--amber)" : "var(--red)";
+    const stCls = pace => pace==null ? null : pace>=100 ? "var(--green)" : pace>=80 ? "var(--good2)" : pace>=50 ? "var(--bad2)" : "var(--red)";
     const dash = '<span class="g11-mute">-</span>';
     // build 281: 공급액(승현 전산작업 · 신선 = PLT × 계획 단가) 대비 매출 전환율 — 카테고리 줄에 마우스를 올리면
     const saG = g11SupplyAmtG(sel, D), caG = g11SupplyAmtG(null, D);
