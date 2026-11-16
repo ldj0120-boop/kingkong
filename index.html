@@ -1934,7 +1934,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 329 · 2026-11-16</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 330 · 2026-11-16</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -26466,17 +26466,20 @@ function bamGrpLetter(rows, lot){   // 정기: RAW GROUPING(XLC …) 다수결 �
 }
 function bamRows(kind){
   const out = [], push = (o)=> out.push(o);
-  const res = (lot, d8)=> bidResGet(kind, lot, d8) || {};
+  const res0 = (lot, d8)=> bidResGet(kind, lot, d8) || {};
+  // build 330: 금액 = 메일 · 붙여넣기 값 → 없으면 ① 요약본 마지막 시트(요약)의 MIN Bid Amount. (+vat) 없으면 ×1.1
+  const res = (lot, d8)=>{ const r = Object.assign({}, res0(lot, d8)); if(r.amt==null){ const m = bamSumAmt(kind, lot); if(m!=null){ r.amt = m; r.src = "요약본"; } }
+    if(r.amt!=null && r.amtVat==null){ r.amtVat = Math.round(r.amt*1.1); r.vatCalc = true; } return r; };
   const codeOf = (lot, d8)=>{ const r = res(lot, d8); if(r.code) return { v:r.code, guess:false, src:r.src||"" }; const g = bidCodeGuess(kind, lot, d8); return { v:g, guess:!!g, src:"" }; };
   if(kind==="liq" && _liqCur){ const b = _liqCur.b, d8 = String(b.date||"");
     b.perLot.forEach(x=>{ const r = res(x.lot, d8), L = bamGrpLetter(b.raw, x.lot);
-      push({ key:bidResKey("liq", x.lot, d8), lot:x.lot, d8, code:codeOf(x.lot, d8), center:x.name || fiCenterName(x.fc), amt:r.amt, amtVat:r.amtVat, no:x.lot, plt: L ? `${L}-${x.plt}` : String(x.plt), cat:"리퀴", fcK:_fiHbFc(x.fc), first:true, warnPlt: !L }); }); }
+      push({ key:bidResKey("liq", x.lot, d8), lot:x.lot, d8, code:codeOf(x.lot, d8), center:x.name || fiCenterName(x.fc), amt:r.amt, amtVat:r.amtVat, amtSrc:r.src||"", no:x.lot, plt: L ? `${L}-${x.plt}` : String(x.plt), cat:"리퀴", fcK:_fiHbFc(x.fc), first:true, warnPlt: !L }); }); }
   if(kind==="eos" && _eosCur && _eosCur.files[0]){ const B = _eosCur.files[0].b, d8 = bidD8(_eosCur.date6);
     (B.parts || [B]).forEach(p=>{ const r = res(p.lot, d8); let first = true;
-      (p.eosOnly||[]).forEach(e=>{ const fc = eosT(e[1]).toUpperCase(), c = eosT(e[2]); push({ key:bidResKey("eos", p.lot, d8), lot:p.lot, d8, code:codeOf(p.lot, d8), center: esIsCenter(c) ? kkFcKo(c).replace(/\s+/g,"") : (esIsCenter(fc) ? kkFcKo(fc) : (c||fc)), amt: first ? r.amt : null, amtVat: first ? r.amtVat : null, no:p.lot, plt:String(+e[3]||0), cat:"임박", fcK:_fiHbFc(fc), first }); first = false; });
-      (p.others||[]).forEach(x=>{ const L = String(x.g||"").replace(/^XL/i,""); push({ key:bidResKey("eos", p.lot, d8), lot:p.lot, d8, code:codeOf(p.lot, d8), center:x.name || kkFcKo(x.fc), amt:first ? r.amt : null, amtVat:first ? r.amtVat : null, no:x.g, plt:`${L}-${x.plt}`, cat:"임박"+x.g, fcK:_fiHbFc(x.fc), first }); first = false; }); }); }
+      (p.eosOnly||[]).forEach(e=>{ const fc = eosT(e[1]).toUpperCase(), c = eosT(e[2]); push({ key:bidResKey("eos", p.lot, d8), lot:p.lot, d8, code:codeOf(p.lot, d8), center: esIsCenter(c) ? kkFcKo(c).replace(/\s+/g,"") : (esIsCenter(fc) ? kkFcKo(fc) : (c||fc)), amt: first ? r.amt : null, amtVat: first ? r.amtVat : null, amtSrc: first ? (r.src||"") : "", no:p.lot, plt:String(+e[3]||0), cat:"임박", fcK:_fiHbFc(fc), first }); first = false; });
+      (p.others||[]).forEach(x=>{ const L = String(x.g||"").replace(/^XL/i,""); push({ key:bidResKey("eos", p.lot, d8), lot:p.lot, d8, code:codeOf(p.lot, d8), center:x.name || kkFcKo(x.fc), amt:first ? r.amt : null, amtVat:first ? r.amtVat : null, amtSrc: first ? (r.src||"") : "", no:x.g, plt:`${L}-${x.plt}`, cat:"임박"+x.g, fcK:_fiHbFc(x.fc), first }); first = false; }); }); }
   if((kind==="fd" && _fdCur) || (kind==="dw" && _dwCur)){ const C = kind==="fd" ? _fdCur : _dwCur, d8 = String(C.date8||"");
-    C.b.parts.forEach(p=>{ const r = res(p.no, d8); push({ key:bidResKey(kind, p.no, d8), lot:p.no, d8, code:codeOf(p.no, d8), center: kind==="dw" ? (p.centerText||"") : "", amt:r.amt, amtVat:r.amtVat, no:p.no, plt: p.plt==null ? "" : String(p.plt), cat: kind==="dw" ? "데드우드" : "FC파손", fcK:"", first:true }); }); }
+    C.b.parts.forEach(p=>{ const r = res(p.no, d8); push({ key:bidResKey(kind, p.no, d8), lot:p.no, d8, code:codeOf(p.no, d8), center: kind==="dw" ? (p.centerText||"") : "", amt:r.amt, amtVat:r.amtVat, amtSrc:r.src||"", no:p.no, plt: p.plt==null ? "" : String(p.plt), cat: kind==="dw" ? "데드우드" : "FC파손", fcK:"", first:true }); }); }
   // 이미 낙찰금액 종합에 있는 줄(연결한 파일 기준): 정기 = NO.(LOT) · 그 외 = 입금코드 + (센터 또는 NO.)
   const H = (typeof FI_HB!=="undefined" && FI_HB && FI_HB.rows) ? FI_HB.rows : null;
   out.forEach(o=>{ o.have = !!H && H.some(x=>{
@@ -26486,23 +26489,57 @@ function bamRows(kind){
     return !x.no || String(x.no).toUpperCase()===String(o.no).toUpperCase(); }); });
   return out;
 }
-function bamTsv(rows){ return rows.map(o=> [bidDash(o.d8), o.code.v||"", o.center||"", o.amt==null?"":o.amt, o.amtVat==null?"":o.amtVat, o.no||"", o.plt||"", o.cat||"", "", ""].join("\t")).join("\n"); }
+function bamSumAmt(kind, lot){   // build 330: ① 요약본(마지막 시트 요약) MIN Bid Amount
+  const L = String(lot||"").toUpperCase(), n = v=>{ const x = typeof v==="number" ? v : +String(v==null?"":v).replace(/[^\d.]/g,""); return x>0 ? Math.round(x) : null; };
+  try{ if(kind==="liq" && typeof _lsCur!=="undefined" && _lsCur && _lsCur.rows){ const o = _lsCur.rows.find(x=> String(x.no).toUpperCase()===L); if(o) return n(o.min); } }catch(_){}
+  try{ if(kind==="eos" && typeof _esCur!=="undefined" && _esCur && _esCur.lots){ const o = _esCur.lots.find(x=> String(x.no).toUpperCase()===L); if(o && o.min!=null) return n(o.min); } }catch(_){}
+  return null;
+}
+const bamRowArr = o=> [bidDash(o.d8), o.code.v||"", o.center||"", o.amt==null?"":o.amt, o.amtVat==null?"":o.amtVat, o.no||"", o.plt||"", o.cat||"", "", ""];
+function bamClipHtml(rows){   // 엑셀에 붙이면 칸 · 숫자 그대로(입금코드 · PLT는 글자로)
+  const td = (v, i)=> (i===3||i===4) && v!=="" ? `<td style="mso-number-format:'\#\,\#\#0'">${v}</td>` : (i===1||i===5||i===6) ? `<td style="mso-number-format:'\@'">${escHtml(v)}</td>` : `<td>${escHtml(v)}</td>`;
+  return `<html><head><meta charset="utf-8"></head><body><table>${rows.map(o=> `<tr>${bamRowArr(o).map(td).join("")}</tr>`).join("")}</table></body></html>`;
+}
+// 엑셀에서 복사한 줄 → LOT(NO.) 또는 입금코드로 찾아 금액 · 입금코드 기록
+function bamApplyPaste(kind, text){
+  const R = bamRows(kind); if(!R.length) return { n:0, miss:0 };
+  const byLot = {}, byCode = {}; R.forEach(o=>{ if(!o.first) return; byLot[String(o.lot).toUpperCase()] = byLot[String(o.lot).toUpperCase()] || o; byLot[String(o.no).toUpperCase()] = byLot[String(o.no).toUpperCase()] || o; if(o.code.v) byCode[o.code.v.toUpperCase()] = byCode[o.code.v.toUpperCase()] || o; });
+  const num = v=> /^[\d,.\s₩]+$/.test(v) && /\d/.test(v) ? Math.round(+v.replace(/[^\d.]/g,"")) : null;
+  let n = 0, miss = 0;
+  String(text||"").split(/\r?\n/).forEach(line=>{ const c = line.split("\t").map(x=> String(x).replace(/[\s\u00a0]+/g," ").trim()); if(!c.join("")) return;
+    let o = null; c.forEach(x=>{ if(!o) o = byLot[x.toUpperCase()]; }); if(!o) c.forEach(x=>{ if(!o) o = byCode[x.toUpperCase()]; });
+    if(!o){ miss++; return; }
+    const code = (c.find(x=> /^AF[A-Z0-9]{6,}$/i.test(x))||"").toUpperCase();
+    let amt = null, vat = null;
+    if(/^20\d{2}[-.\/]\d{1,2}[-.\/]\d{1,2}$/.test(c[0]) && c.length>=5){ amt = num(c[3]); vat = num(c[4]); }   // 종합 시트 줄(낙찰일자 | 입금코드 | 센터 | -vat | +vat …)
+    else { const ns = c.map(num).filter(v=> v!=null && v>=1000); amt = ns[0]==null ? null : ns[0]; vat = ns[1]!=null && amt && Math.abs(ns[1]/amt-1.1)<0.01 ? ns[1] : null; }
+    const put = {}; if(code) put.code = code; if(amt!=null){ put.amt = amt; put.amtVat = vat!=null ? vat : Math.round(amt*1.1); }
+    if(!Object.keys(put).length){ miss++; return; }
+    put.src = "붙여넣기"; bidResPut(kind, o.lot, o.d8, put); n++; });
+  return { n, miss };
+}
+function bamTsv(rows){ return rows.map(o=> bamRowArr(o).join("\t")).join("\n"); }
 function bamHtml(kind){
   let R; try{ R = bamRows(kind); }catch(e){ console.warn("bamRows", e); return ""; }
   if(!R.length) return "";
   const newR = R.filter(o=> !o.have), guess = R.filter(o=> o.code.guess).length, noCode = R.filter(o=> !o.code.v).length, noAmt = R.filter(o=> o.first && o.amt==null).length, noL = R.filter(o=> o.warnPlt).length;
   const hb = (typeof FI_HB!=="undefined" && FI_HB && FI_HB.rows);
-  const inp = (o, f, w, v)=> o.first ? `<input class="fi-dinp bam-inp" data-bam-key="${escHtml(o.key)}" data-bam-f="${f}" value="${escHtml(v==null?"":v)}" style="width:${w}px">` : `<span class="fi-mut">${escHtml(v==null?"":v)}</span>`;
+  const inp = (o, f, w, v)=> { const t = v==null || v==="" ? "" : (f==="code" ? String(v) : Number(v).toLocaleString("ko-KR")); return o.first ? escHtml(t) : `<span class="fi-mut">${escHtml(t)}</span>`; };   // build 330: 칸 입력 없앰 → 줄 붙여넣기
+  const srcTag = o=> o.first && o.amtSrc ? ` <span class="fi-mut" style="font-size:12px">${escHtml(o.amtSrc)}</span>` : "";
   return `<div class="bam-box" data-bam-kind="${escHtml(kind)}" style="margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:8px 10px">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>📒 2026_쿠팡 낙찰금액 "종합"에 붙여넣을 줄</b>
       <button class="act primary fi-mini" data-bam-copy="${escHtml(kind)}">📋 ${hb ? `새 줄 ${newR.length}개` : `${R.length}줄`} 복사</button>
       <span class="fi-mut">엑셀 종합 시트 맨 아래 빈 줄의 <b>B열(낙찰일자)</b>을 누르고 붙여넣기 · 출고지 · 배차일은 배차 때</span> <span class="bam-msg fi-mut"></span></div>
-    <div class="fi-mut" style="margin:4px 0">${[guess ? `⚠ 입금코드 ${guess}줄은 규칙으로 만든 <b>예상</b> — 입찰 결과 메일을 ② 칸에 놓거나 직접 고치면 확정` : "", noCode ? `⚠ 입금코드 없음 ${noCode}줄(FC파손은 메일 값만)` : "", noAmt ? `⚠ 금액 없음 ${noAmt}줄 — 메일을 놓거나 표에 입력` : "", noL ? `⚠ PLT 분류 글자(A/B/C…)를 원본 GROUPING에서 못 찾은 줄 ${noL}개` : "", hb ? `낙찰금액 파일(${escHtml(FI_HB.name)}) 대조: 이미 있음 ${R.length-newR.length}줄 → 복사에서 뺌` : "낙찰금액 파일을 ⑤에서 연결하면 이미 있는 줄은 빼고 복사합니다"].filter(Boolean).join(" · ")}</div>
+    <textarea class="bam-paste" data-bam-kind="${escHtml(kind)}" rows="2" placeholder="엑셀에서 줄을 복사해 여기에 Ctrl+V — LOT(NO.) · 입금코드로 줄을 찾아 금액 · 입금코드를 채웁니다 (요약본 줄 · 종합 시트 줄 · 메일 표 모두 됨)" style="width:100%;margin:6px 0 2px;background:var(--ink);color:var(--text);border:1px dashed var(--line);border-radius:6px;padding:6px 8px;font-size:14px;resize:vertical"></textarea>
+    <div class="fi-mut" style="margin:4px 0">${[guess ? `⚠ 입금코드 ${guess}줄은 규칙으로 만든 <b>예상</b> — 입찰 결과 메일을 ② 칸에 놓거나 직접 고치면 확정` : "", noCode ? `⚠ 입금코드 없음 ${noCode}줄(FC파손은 메일 값만)` : "", noAmt ? `⚠ 금액 없음 ${noAmt}줄 — ① 요약본을 올리거나 메일 · 엑셀 줄을 아래에 붙여넣기` : "", noL ? `⚠ PLT 분류 글자(A/B/C…)를 원본 GROUPING에서 못 찾은 줄 ${noL}개` : "", hb ? `낙찰금액 파일(${escHtml(FI_HB.name)}) 대조: 이미 있음 ${R.length-newR.length}줄 → 복사에서 뺌` : "낙찰금액 파일을 ⑤에서 연결하면 이미 있는 줄은 빼고 복사합니다"].filter(Boolean).join(" · ")}</div>
     <div style="overflow-x:auto"><table class="fi-tbl"><thead><tr>${BAM_HDR.map(h=> `<th>${escHtml(h)}</th>`).join("")}<th></th></tr></thead><tbody>
-    ${R.map(o=> `<tr style="${o.have?"opacity:.45":""}"><td>${escHtml(bidDash(o.d8))}</td><td>${inp(o,"code",104,o.code.v)}${o.code.guess && o.first ? ` <span style="color:var(--amber);font-size:13px">예상</span>` : ""}</td><td>${escHtml(o.center||"")}</td><td class="n">${inp(o,"amt",92,o.amt)}</td><td class="n">${inp(o,"amtVat",92,o.amtVat)}</td><td>${escHtml(o.no||"")}</td><td>${escHtml(o.plt||"")}</td><td>${escHtml(o.cat||"")}</td><td></td><td></td><td>${o.have ? `<span class="fi-mut" style="font-size:13px">이미 있음</span>` : ""}</td></tr>`).join("")}
+    ${R.map(o=> `<tr style="${o.have?"opacity:.45":""}"><td>${escHtml(bidDash(o.d8))}</td><td>${inp(o,"code",104,o.code.v)}${o.code.guess && o.first ? ` <span style="color:var(--amber);font-size:13px">예상</span>` : ""}</td><td>${escHtml(o.center||"")}</td><td class="n">${inp(o,"amt",92,o.amt)}${srcTag(o)}</td><td class="n">${inp(o,"amtVat",92,o.amtVat)}</td><td>${escHtml(o.no||"")}</td><td>${escHtml(o.plt||"")}</td><td>${escHtml(o.cat||"")}</td><td></td><td></td><td>${o.have ? `<span class="fi-mut" style="font-size:13px">이미 있음</span>` : ""}</td></tr>`).join("")}
     </tbody></table></div></div>`;
 }
 function bamRefresh(kind){ const el = document.querySelector(`.bam-box[data-bam-kind="${kind}"]`); if(!el) return; const t = document.createElement("div"); t.innerHTML = bamHtml(kind); if(t.firstElementChild) el.replaceWith(t.firstElementChild); }
+document.addEventListener("paste", e=>{ const t = e.target; if(!t || !t.classList || !t.classList.contains("bam-paste")) return; e.preventDefault();
+  const kind = t.dataset.bamKind, txt = (e.clipboardData || window.clipboardData).getData("text") || "", r = bamApplyPaste(kind, txt);
+  bamRefresh(kind); const m = document.querySelector(`.bam-box[data-bam-kind="${kind}"] .bam-msg`); if(m) m.textContent = r.n ? `✓ 붙여넣기 ${r.n}줄 반영${r.miss ? ` · 못 찾은 줄 ${r.miss}개(LOT · 입금코드 없음)` : ""}` : `⚠ 붙여넣은 줄에서 LOT(NO.) · 입금코드를 찾지 못했습니다`; });
 document.addEventListener("change", e=>{ const t = e.target; if(!t || !t.classList || !t.classList.contains("bam-inp")) return;
   const [kind, lot, d8] = t.dataset.bamKey.split("|"), f = t.dataset.bamF; let v = String(t.value||"").trim();
   if(f!=="code"){ v = v==="" ? null : (+v.replace(/[^\d.]/g,"") || null); } else v = v.toUpperCase();
@@ -26512,7 +26549,8 @@ document.addEventListener("click", async e=>{ const b = e.target.closest && e.ta
   const msg = b.parentElement && b.parentElement.querySelector(".bam-msg");
   if(!use.length){ if(msg) msg.textContent = "복사할 새 줄이 없습니다(모두 낙찰금액에 있음)"; return; }
   const tsv = bamTsv(use); let ok = false;
-  try{ await navigator.clipboard.writeText(tsv); ok = true; }catch(_){ try{ const ta = document.createElement("textarea"); ta.value = tsv; document.body.appendChild(ta); ta.select(); ok = document.execCommand("copy"); ta.remove(); }catch(_){} }
+  try{ if(window.ClipboardItem && navigator.clipboard.write){ await navigator.clipboard.write([new ClipboardItem({ "text/plain": new Blob([tsv], { type:"text/plain" }), "text/html": new Blob([bamClipHtml(use)], { type:"text/html" }) })]); ok = true; } }catch(_){}
+  if(!ok) try{ await navigator.clipboard.writeText(tsv); ok = true; }catch(_){ try{ const ta = document.createElement("textarea"); ta.value = tsv; document.body.appendChild(ta); ta.select(); ok = document.execCommand("copy"); ta.remove(); }catch(_){} }
   window._bamLastCopy = tsv;
   if(msg) msg.textContent = ok ? `✓ ${use.length}줄 복사됨 — 엑셀 B열에 붙여넣기` : "복사 실패 — 표를 직접 선택해 복사해 주세요"; });
 
