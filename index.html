@@ -1934,7 +1934,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 328 · 2026-11-16</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 329 · 2026-11-16</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -11203,6 +11203,17 @@ const ASK_CATS = [ [/대형\s*가전|XLK/i,"가전"], [/XLB/i,"가전"], [/가�
 const ASK_PLT_CATS = { "가전":["XLB","대형가전"], "FC파손":["FC파손","FC","혼합"] };
 const ASK_STOCK_IDX = { "XLA":[0], "가전":[1,9], "XLC":[2], "XLE":[3], "XLG":[4], "임박":[5], "대형가구":[8], "데드우드":[11], "사입":[12], "FC파손":[14], "생수/탄산수":[17] };
 const SUPPLY_CODE_GROUP = { XLA:"XLA", XLB:"가전", XLK:"가전", XLC:"XLC", XLE:"XLE", XLW:"대형가구", "대형가구":"대형가구", XLG:"XLG", XLS:"생수/탄산수", XLD:"기저귀_분유", "임박":"임박", "데드우드":"데드우드" };   // build 287: 임박 · 데드우드 코드도 묶음으로(전엔 기타)
+// build 329: 공급액 묶음 = 상품 카테고리(CATE2) 우선 — 승현과 같은 기준(사용자 지정 2026-11-16).
+//   어느 로트(코드)로 들어왔든 가전 상품이면 '가전', 가구 상품이면 '대형가구'. 표에 없는 CATE2는 로트 코드 묶음(SUPPLY_CODE_GROUP) 그대로.
+//   이 표를 바꾸면 다음 승현 받기 때 전부 다시 받음(SUPPLY_AMT.c2v).
+const SUPPLY_CATE2_GROUP = { "가전디지털":"가전", "가구/홈인테리어":"대형가구" };
+const SUPPLY_C2V = Object.keys(SUPPLY_CATE2_GROUP).sort().map(k=> k+">"+SUPPLY_CATE2_GROUP[k]).join(",");
+// 코드 한 칸 x = [금액, 수량, {CATE2: 금액}] → cb(묶음, 금액). 묶음 null = 코드 미확인
+function supplyAmtSplit(code, x, cb){
+  let rest = +x[0] || 0; const c2 = x[2];
+  if(c2) Object.keys(c2).forEach(k=>{ const g = SUPPLY_CATE2_GROUP[k], v = +c2[k] || 0; if(!g || !v) return; cb(g, v); rest -= v; });
+  if(Math.abs(rest) >= 0.5) cb(SUPPLY_CODE_GROUP[code] || null, rest);
+}
 const ASK_EXAMPLES = ["매주 월요일 오전 11시 매장별 금액", "전 매장 10월 폐기비용", "가전 8월 공급액 총액", "이번 달 매장별 달성률", "용인점 지난달 카테고리별 매출", "XLC 9월 매장별 전환율", "주말 14~16시 매출", "9월 매장별 인건비"];
 
 function askYm(d){ return fmtDate(d).slice(0,7); }
@@ -11606,7 +11617,7 @@ function askSupplyAmt(q){
   const S = (typeof SUPPLY_AMT!=="undefined" && SUPPLY_AMT && SUPPLY_AMT.d) ? SUPPLY_AMT : null;
   const keyOf = (s, g, d)=> q.by==="store" ? s : q.by==="cat" ? g : q.by==="day" ? d : q.by==="month" ? d.slice(0,7) : q.by==="wd" ? ASK_WD_NAME[new Date(d+"T00:00:00").getDay()]+"요일" : "합계";
   if(S){ askDates(q).forEach(d=>{ const x = S.d[d]; if(!x) return; days++;
-    Object.keys(x).forEach(s=>{ if(!askInStores(q, s)) return; Object.keys(x[s]).forEach(code=>{ const g = SUPPLY_CODE_GROUP[code] || "기타(코드 미확인)"; if(q.cat && g !== q.cat) return; add(keyOf(s, g, d), x[s][code][0]); }); }); });
+    Object.keys(x).forEach(s=>{ if(!askInStores(q, s)) return; Object.keys(x[s]).forEach(code=> supplyAmtSplit(code, x[s][code], (g0, v)=>{ const g = g0 || "기타(코드 미확인)"; if(q.cat && g !== q.cat) return; add(keyOf(s, g, d), v); }));  }); });
     basis.push(`공급액 = 승현 사이트 1번 전산작업 입고금액(매장판매가 총액) · ${S.first||"?"}~${S.last||"?"} · ${S.at ? new Date(S.at).toLocaleString("ko-KR") : ""} 받음`); }
   else q.notes.push("승현 공급액(전산작업)을 아직 안 받았습니다 — 관리자 승현 로그인 후 자동으로 받습니다");
   if((!q.cat || q.cat==="신선식품") && !q.wd && q.by!=="day"){
@@ -12318,7 +12329,7 @@ setTimeout(()=>{ try{ askWire(); }catch(_){} }, 0);
    SUPPLY_AMT = { at, first, last, d:{날짜:{매장:{코드:[금액, 수량]}}}, unmatched } · 하루에 한 번은 전부, 그 사이엔 최근 10일만 다시 받음 */
 var SUPPLY_AMT = null;
 async function pltSupplyAmtFetch(){
-  const sb = pltLiveClient, full = !SUPPLY_AMT || !SUPPLY_AMT.fullAt || (Date.now() - new Date(SUPPLY_AMT.fullAt).getTime()) > 20*36e5;
+  const sb = pltLiveClient, full = !SUPPLY_AMT || !SUPPLY_AMT.fullAt || SUPPLY_AMT.c2v !== SUPPLY_C2V || (Date.now() - new Date(SUPPLY_AMT.fullAt).getTime()) > 20*36e5;
   const from = full ? "2000-01-01" : askAddDays(SUPPLY_AMT.last || "2000-01-01", -10);
   const rows = [];
   for(let off=0; off<5000; off+=40){
@@ -12334,9 +12345,10 @@ function supplyAmtApply(res){
   res.rows.forEach(r=>{ const date = String(r.date||"").slice(0,10); if(!date) return; const day = d[date] = {};
     (r.items_agg||[]).forEach(it=>{ const st = opsStoreName(it.store); if(STORES.indexOf(st) < 0){ unm.add(String(it.store)); return; }
       const code = String(it.code || "미확인"); const o = day[st] || (day[st] = {}); const x = o[code] || (o[code] = [0,0]);
-      x[0] += Number(it.amount)||0; x[1] += Number(it.qty)||0; }); });
+      x[0] += Number(it.amount)||0; x[1] += Number(it.qty)||0;
+      const c2 = String(it.cate2||"").trim(); if(SUPPLY_CATE2_GROUP[c2]){ const cm = x[2] || (x[2] = {}); cm[c2] = (cm[c2]||0) + (Number(it.amount)||0); } }); });   // build 329
   const ks = Object.keys(d).sort();
-  SUPPLY_AMT = { at:new Date().toISOString(), fullAt: res.full ? new Date().toISOString() : (base.fullAt||null), first:ks[0]||null, last:ks[ks.length-1]||null, d, unmatched:[...unm] };
+  SUPPLY_AMT = { at:new Date().toISOString(), fullAt: res.full ? new Date().toISOString() : (base.fullAt||null), c2v: res.full ? SUPPLY_C2V : (base.c2v||null), first:ks[0]||null, last:ks[ks.length-1]||null, d, unmatched:[...unm] };
   return { days: res.rows.length, first: SUPPLY_AMT.first, last: SUPPLY_AMT.last };
 }
 
@@ -13952,7 +13964,7 @@ function convData(){
   const A = {}, AF = {}, SL = {}, lastSup = {}, lastSal = {};
   const put = (o, m, s, g, v)=>{ const M = o[m] || (o[m] = {}); const X = M[s] || (M[s] = {}); X[g] = (X[g]||0) + v; };
   if(S) Object.keys(S.d).forEach(d=>{ const m = d.slice(0,7); if(!lastSup[m] || d > lastSup[m]) lastSup[m] = d;
-    const x = S.d[d]; Object.keys(x).forEach(s=> Object.keys(x[s]).forEach(code=>{ const v = +x[s][code][0] || 0; if(v) put(A, m, s, convGroupOfCode(code), v); })); });
+    const x = S.d[d]; Object.keys(x).forEach(s=> Object.keys(x[s]).forEach(code=> supplyAmtSplit(code, x[s][code], (g, v)=>{ if(v) put(A, m, s, g || "코드 미확인", v); }))); });   // build 329: CATE2 우선
   // 신선 = 입고 PLT × 그 달 계획 단가(askSupplyAmt와 같음)
   Object.keys(FRESH_M||{}).forEach(m=>{ const P = planParamsOf(m)["신선"]; const price = P ? +P.price || 0 : 0; if(!price) return;
     const F = FRESH_M[m] || {}; Object.keys(F).forEach(s=>{ const plt = +((F[s]||{})["신선식품"]) || 0; if(plt) put(AF, m, s, "신선식품", plt*price); }); });
