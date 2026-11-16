@@ -1590,6 +1590,24 @@
   li.g11-sol .w{font-size:13.5px;color:var(--muted2);line-height:1.45;}
   li.g11-sol .g{font-family:"Gothic A1";font-weight:700;font-size:15px;color:var(--up);white-space:nowrap;text-align:right;}
   .g11-dn{color:var(--down);}
+  /* build 327: 데이터 신뢰도 · 관리 누락 */
+  .g11-trust{border:1px solid var(--line);border-left:4px solid var(--muted2);border-radius:10px;background:var(--panel2);padding:10px 12px;margin:4px 0 12px;}
+  .g11-trust.bad{border-left-color:var(--red);} .g11-trust.ok{border-left-color:var(--green);}
+  .g11-trust-hd{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:15px;}
+  .g11-trust ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:5px;font-size:14px;line-height:1.45;}
+  .g11-trust ul .g11-mute{font-size:12.5px;}
+  .g11-tok{display:inline-block;background:var(--green-dim);color:var(--green);border:1px solid var(--green);border-radius:999px;padding:1px 9px;font-size:13px;font-weight:700;}
+  .g11-tok.sm{font-size:12px;padding:0 7px;}
+  .g11-owner{display:inline-block;font-size:12px;font-weight:700;border-radius:6px;padding:0 6px;margin-right:6px;border:1px solid var(--amber);color:var(--amber);white-space:nowrap;}
+  .g11-owner.hq{border-color:var(--info);color:var(--info);}
+  .g11-limit{border:1px dashed var(--amber);background:var(--amber-dim);color:var(--text);border-radius:10px;padding:9px 12px;margin:0 0 12px;font-size:14px;line-height:1.55;}
+  .g11-tsum{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin:6px 0 8px;}
+  .g11-tcard{display:flex;flex-direction:column;gap:3px;text-align:left;padding:12px 14px;border:1px solid var(--line);border-left:4px solid var(--green);border-radius:12px;background:var(--panel2);color:var(--text);cursor:pointer;font:inherit;}
+  .g11-tcard.bad{border-left-color:var(--red);} .g11-tcard.act{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset;}
+  .g11-tcard .l{font-size:15px;font-weight:800;} .g11-tcard .v{font-size:24px;font-weight:700;} .g11-tcard .s{font-size:12.5px;color:var(--muted2);line-height:1.45;}
+  .g11-tchips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;}
+  .g11-tchip{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:3px 11px;font:inherit;font-size:13px;color:var(--text);cursor:pointer;}
+  .g11-tchip.act{background:var(--amber);color:var(--amber-ink);border-color:var(--amber);}
   td.g11-topsol{font-size:13.5px;white-space:normal;min-width:220px;max-width:340px;line-height:1.45;}
   .g11-gain{font-family:"Gothic A1";font-weight:700;color:var(--up);white-space:nowrap;}
   tr.g11-pickrow{cursor:pointer;}
@@ -1915,7 +1933,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 326 · 2026-11-16</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 327 · 2026-11-16</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -13379,7 +13397,9 @@ function goalsRender08Body(ctx, opts){
   const rowsHtml = D.stores.map(d=>{
     const r = d.r;
     const top = (opts && opts.solutions) ? opts.solutions[r.store] : null;
-    return `<tr class="g11-pickrow" data-open-g11="${escHtml(r.store)}" title="누르면 ${escHtml(r.label)} 매장 분석">
+    const tr = (opts && opts.trust) ? opts.trust[r.store] : null;   // build 327
+    const trAttr = (opts && opts.trust) ? ` data-g11-trust="${tr ? (tr.ok ? "ok" : tr.keys.join(" ")) : ""}"${G11_TF && !(tr && (G11_TF==="ok" ? tr.ok : tr.keys.includes(G11_TF))) ? " hidden" : ""}` : "";
+    return `<tr class="g11-pickrow" data-open-g11="${escHtml(r.store)}"${trAttr} title="누르면 ${escHtml(r.label)} 매장 분석">
       <td><b>${goalsStoreLabelHtml(r)}</b></td>
       <td style="${goalsHeatBg((r.pct/100)/1.2)}"><span class="num">${r.pct.toFixed(1)}%</span></td>
       <td><span class="num ${d.trend!=null&&d.trend<0?'neg':'pos'}">${d.trend!=null?(d.trend>0?"+":"")+d.trend.toFixed(1)+"%":"-"}</span></td>
@@ -13391,14 +13411,16 @@ function goalsRender08Body(ctx, opts){
       <td style="white-space:nowrap" title="${escHtml(r.freshLabel||"")}">${escHtml(storeFreshShort(r.store))}</td>
       ${COST_LIVE ? (cc=>`<td style="white-space:nowrap"${cc.tip?` data-tip="${escHtml(cc.tip)}"`:""}><span class="num">${cc.html}</span></td>`)(costPctCell(r.members && r.members.length ? r.members : [r.store])) : ""}
       <td>${d.tags.length?(tp=>d.tags.map(t=>`<span class="g-chip ${t==="공급기아"?"good":"warn"}" style="cursor:help" title="${escHtml(tp[t]||t)}">${t}</span>`).join(""))(diagTagTips(d, ctx, D)):'<span class="g-chip">정상</span>'}</td>
+      ${opts && opts.trust ? `<td style="white-space:nowrap">${g11TrustCellHtml(tr)}</td>` : ""}
       ${opts && opts.solutions ? `<td class="g11-topsol">${top ? `<span data-tip="${escHtml(top.why||"")}">${escHtml(top.title)}</span>${top.fill?` <span class="g11-dn" style="white-space:nowrap">메울 ${g11Eok(top.fill)}</span>`:""}${top.gain>0?` <span class="g11-gain">+${(top.gain/1e4>=1e4?(top.gain/1e8).toFixed(1)+"억":Math.round(top.gain/1e4).toLocaleString()+"만")}</span>`:""}` : '<span class="g11-mute">-</span>'}</td>` : ""}
     </tr>`;
   }).join("");
   const storeTbl = `
     <div class="g-tbl-title">매장별 공급 × 매출 교차표 (${ctx.mLbl(cur)} 기준)</div>
+    ${opts && opts.trust ? `<div class="g-tbl-sub g11-tf-note" style="color:var(--amber)">${G11_TF?"필터 적용 중 (칩 '전체'를 누르면 해제)":""}</div>` : ""}
     <div class="g-tbl-sub">줄을 누르면 그 매장 분석(솔루션 · 카테고리 · 월별)이 열립니다. 월별 공급 PLT는 03 재고·공급(PLT) › 월별 추이. <b>매출/PLT</b> = 그 달 매출 ÷ (출고 PLT − 매출 0 카테고리 PLT). 받은 물건을 얼마나 돈으로 바꿨는지를 봅니다. 전사 중앙값 ${D.medPerPlt?won(D.medPerPlt)+"원":"-"} · 물량 중앙값 ${D.medPlt||"-"}PLT.</div>
     <div class="tblbox"><table class="g-tbl">
-      <thead><tr><th>매장</th><th>달성률</th><th>추세</th><th>${ctx.mLbl(cur)} PLT</th><th>무매출%</th><th>매출/PLT<br>(백만)</th><th>재고PLT</th><th>야적</th><th>신선</th>${COST_LIVE?`<th data-tip="승현 사이트 인건비(월 1회) · 폐기비용(수거일 기준)을 이 사이트 그 달 매출(매일 업로드)로 나눈 값. 자료가 있는 가장 최근 달 — 칸에 마우스를 올리면 달 · 금액">인건비 · 폐기<br>(매출 대비)</th>`:""}<th>판정</th>${opts && opts.solutions?`<th>1순위 솔루션 <span style="font-weight:400;font-size:11.5px">(추정 효과/월)</span></th>`:""}</tr></thead>
+      <thead><tr><th>매장</th><th>달성률</th><th>추세</th><th>${ctx.mLbl(cur)} PLT</th><th>무매출%</th><th>매출/PLT<br>(백만)</th><th>재고PLT</th><th>야적</th><th>신선</th>${COST_LIVE?`<th data-tip="승현 사이트 인건비(월 1회) · 폐기비용(수거일 기준)을 이 사이트 그 달 매출(매일 업로드)로 나눈 값. 자료가 있는 가장 최근 달 — 칸에 마우스를 올리면 달 · 금액">인건비 · 폐기<br>(매출 대비)</th>`:""}<th>판정</th>${opts && opts.trust?`<th data-tip="입고 확인 · 해체 보고 · 본사 비용(폐기·인건비) 데이터 상태 — 위 카드와 같은 기준">관리 데이터</th>`:""}${opts && opts.solutions?`<th>1순위 솔루션 <span style="font-weight:400;font-size:11.5px">(추정 효과/월)</span></th>`:""}</tr></thead>
       <tbody>${rowsHtml}</tbody>${(()=>{   // build 78: 합계·평균 행
         const L = D.stores, n = L.length||1, avg = f=>{ const v=L.map(f).filter(x=>x!=null&&isFinite(x)); return v.length? v.reduce((a,b)=>a+b,0)/v.length : null; };
         const sumPlt = L.reduce((a,d)=>a+(+d.t||0),0);
@@ -13411,7 +13433,7 @@ function goalsRender08Body(ctx, opts){
           <td><span class="num">평균 ${aPer!=null?(aPer/1e6).toFixed(1):'-'}</span></td>
           <td><span class="num"><b>${L.reduce((a,d)=>a+(+d.stockTot||0),0).toLocaleString()}</b></span></td>
           <td><span class="num"><b>${L.reduce((a,d)=>a+(+d.yard||0),0).toLocaleString()}</b></span></td>
-          <td></td>${COST_LIVE?(cc=>`<td style="white-space:nowrap"${cc.tip?` data-tip="${escHtml(cc.tip)}"`:""}><span class="num">${cc.html}</span></td>`)(costPctCell(L.flatMap(d=> d.r.members && d.r.members.length ? d.r.members : [d.r.store]))):""}<td><span class="num">${L.length}곳</span></td>${opts && opts.solutions?`<td class="g11-mute">매장을 누르면 솔루션 전체</td>`:""}</tr></tfoot>`; })()}</table></div>`;
+          <td></td>${COST_LIVE?(cc=>`<td style="white-space:nowrap"${cc.tip?` data-tip="${escHtml(cc.tip)}"`:""}><span class="num">${cc.html}</span></td>`)(costPctCell(L.flatMap(d=> d.r.members && d.r.members.length ? d.r.members : [d.r.store]))):""}<td><span class="num">${L.length}곳</span></td>${opts && opts.trust?`<td class="g11-mute">${L.filter(d=> opts.trust[d.r.store] && opts.trust[d.r.store].ok).length}곳 정상</td>`:""}${opts && opts.solutions?`<td class="g11-mute">매장을 누르면 솔루션 전체</td>`:""}</tr></tfoot>`; })()}</table></div>`;
   // ── 유형 요약
   const byTag = t => D.stores.filter(s=>s.tags.indexOf(t)>=0)
       .sort((a,b)=>(a.r.pct)-(b.r.pct)).map(s=>escHtml(s.r.label)).join(" · ") || "해당 없음";
@@ -14282,11 +14304,153 @@ function g11Env(ctx){
   const env = { m, SD, diag, mg, compSales, compPltG, compTot, snap: snaps[snaps.length-1] || null, P, per };
   c.env[key] = env; return env;
 }
+/* ================= build 327: 04 매장 분석 — 데이터 신뢰도 · 관리 누락 경고 =================
+   사용자 요청(2026-11-16): 매출 증감이 실제 영업 때문인지, 보고 누락 · 본사 데이터 미반영 착시인지 먼저 가려 보이게.
+   계산은 여기 한 곳(g11Trust)만 — 단일 · 복수 · 전 매장 교차표 · 솔루션이 모두 이 값을 씀.
+   ① 입출고: 보낸 PLT(직출 + 진천센터, 매장별 PLT 종합의 '보낸 PLT'와 같은 pxSentToStore) − 매장 입고(승현 PLT 사이트)
+      기간 = 이번 달 1일 ~ 어제(오늘 보낸 것은 아직 도착 전일 수 있어 뺌) · 보낸−입고 ≥ 5 PLT 이고 입고 ÷ 보낸 < 80% → 누락
+   ② 해체: 승현 PLT 사이트 해체(dismantled) 마지막 보고일이 오늘보다 3일 이상 전(매장별 PLT 종합 '3일 넘게 입력 없음'과 같은 기준)
+      또는 이번 달 7일 이상 지났는데 해체율(해체 ÷ (기초재고 + 입고)) < 10% (기초재고 + 입고 ≥ 5 PLT일 때) → 지연
+   ③ 본사 비용: 인건비 = 전월(월 1회 자료) 금액이 없거나 0 · 폐기비용 = 전월 · 이번 달 수거분이 모두 없거나 0 → 미업데이트
+   자료 자체가 없으면(PLT_DAILY · COST_LIVE 미수신) 에러 없이 '확인 불가' · '미업데이트(데이터 없음)'으로 표시. 폐점 매장은 제외. */
+const G11_TRUST = { gapPlt:5, gapRate:0.8, disStaleDays:3, disLowRate:0.10, disLowBase:5, disMinDays:7 };
+var G11_TF = "";   // 전 매장 교차표 필터: "" | inb | dis | cost | ok
+function g11PrevMonth(ym){ const d = new Date(ym+"-01T00:00:00"); d.setMonth(d.getMonth()-1); return fmtDate(d).slice(0,7); }
+function g11Trust(members){
+  const today = _kkToday(), curM = today.slice(0,7), prevM = g11PrevMonth(curM);
+  const mem = (members||[]).filter(s=> s && !(typeof askStoreClosed==="function" && askStoreClosed(s)));
+  const P = (typeof PLT_DAILY!=="undefined" && PLT_DAILY && PLT_DAILY.d) ? PLT_DAILY : null;
+  const CL = (typeof COST_LIVE!=="undefined" && COST_LIVE) ? COST_LIVE : null;
+  const c = g11Cache(); c.trust = c.trust || {};
+  const key = [mem.join(","), today, P && P.at || "", CL && CL.at || "", Object.keys(CENTER_D||{}).length, Object.keys(DIRECT_FILE_D||{}).length, Object.keys(DIRECT_MAIN_D||{}).length].join("|");
+  if(c.trust[key]) return c.trust[key];
+  const mL = m => `${+m.slice(5)}월`, md = d => d ? `${+d.slice(5,7)}/${+d.slice(8,10)}` : "-";
+  const T = { members: mem, closed: (members||[]).length>0 && !mem.length, issues:[], unk:[], ok:false, inb:null, dis:null, cost:null, keys:[] };
+  if(!mem.length){ c.trust[key] = T; return T; }
+  const comps = (PX_CATS[0] && PX_CATS[0].gapComps) || SX_COMPS;
+  // ① 입출고 확인
+  const e = sxDay(today, -1), per = { s: curM+"-01", e };
+  if(!P) T.unk.push({ k:"inb", label:"입출고 확인 불가 — 승현 입고 자료 없음" });
+  else if(e >= per.s){
+    try{
+      const SN = pxSentToStore(mem, comps, per);
+      const inb = mem.reduce((a,s)=> a + (sxStore(P, s, comps, per).inb||0), 0);
+      const gap = SN.sent - inb, rate = SN.sent>0 ? inb/SN.sent : null;
+      T.inb = { sent:SN.sent, center:SN.center, direct:SN.direct, inb, gap, rate, per };
+      if(SN.sent>0 && gap >= G11_TRUST.gapPlt && rate < G11_TRUST.gapRate){
+        const n = Math.round(gap*10)/10;
+        T.issues.push({ k:"inb", owner:"매장", short:`입고 미확인 ${g11F1(n)}`,
+          label:`입고 미확인 ${g11F1(n)} PLT — 입출고 보고 누락`,
+          detail:`${md(per.s)}~${md(per.e)} 보낸 ${g11F1(SN.sent)} PLT(직출 ${g11F1(SN.direct)} + 진천센터 ${g11F1(SN.center)}) · 매장 입고 ${g11F1(inb)} PLT (${(rate*100).toFixed(0)}%)`,
+          todo:`센터 출고분 ${g11F1(n)} PLT에 대한 매장 입고 확정 처리 즉시 입력 필요` });
+      }
+    }catch(err){ T.unk.push({ k:"inb", label:"입출고 확인 불가 — 출고 자료 계산 오류" }); }
+  }
+  // ② 해체율 보고
+  if(!P) T.unk.push({ k:"dis", label:"해체 확인 불가 — 승현 해체 자료 없음" });
+  else {
+    try{
+      let lastDis = null;
+      Object.keys(P.d).sort().reverse().some(dt=>{ const x = P.d[dt]||{}; if(mem.some(s=> x[s] && Object.values(x[s]).some(v=> v && v[1]>0))){ lastDis = dt; return true; } return false; });
+      const perM = { s: curM+"-01", e: today };
+      let base = 0, inb = 0, out = 0, now = null, anyBase = false;
+      mem.forEach(s=>{ const x = sxStore(P, s, comps, perM); if(x.base!=null){ base += x.base; anyBase = true; } inb += x.inb||0; out += x.out||0; if(x.now!=null) now = (now||0) + x.now; });
+      const pool = base + inb, rate = pool>0 ? out/pool : null;
+      const since = lastDis ? Math.round((new Date(today+"T00:00:00") - new Date(lastDis+"T00:00:00"))/864e5) : null;
+      const dayN = +today.slice(8,10);
+      T.dis = { lastDis, since, rate, base, inb, out, now, pool };
+      const stale = (pool>0 || inb>0) && (since==null || since >= G11_TRUST.disStaleDays);
+      const low = dayN >= G11_TRUST.disMinDays && pool >= G11_TRUST.disLowBase && rate!=null && rate < G11_TRUST.disLowRate;
+      if(stale || low){
+        const left = now!=null ? Math.max(0, now) : Math.max(0, pool - out);
+        T.issues.push({ k:"dis", owner:"매장", short: stale ? (since==null ? "해체 보고 없음" : `해체 지연 ${since}일`) : `해체율 ${(rate*100).toFixed(0)}%`,
+          label:`해체율 보고 지연 — 최근 보고일 ${lastDis||"없음"} / 해체율 ${rate!=null?(rate*100).toFixed(0)+"%":"-"}`,
+          detail:`${mL(curM)} 기초재고 ${g11F1(base)} + 입고 ${g11F1(inb)} PLT 중 해체 ${g11F1(out)} PLT${since!=null?` · 마지막 해체 보고 ${since}일 전`:" · 이번 자료 기간에 해체 보고 없음"}${low && !stale?` · 해체율 기준 ${(G11_TRUST.disLowRate*100).toFixed(0)}% 미만`:""}`,
+          todo:`미해체 재고 ${g11F1(left)} PLT 현물 확인 후 해체 실적 업데이트 필요 (진열 전환 지연 여부 점검)` });
+      }
+    }catch(err){ T.unk.push({ k:"dis", label:"해체 확인 불가 — 계산 오류" }); }
+  }
+  // ③ 본사 관리 데이터(폐기비용 · 인건비)
+  const has = (kind, m, f)=> !!(CL && CL[kind] && CL[kind][m] && mem.some(s=> CL[kind][m][s] && +CL[kind][m][s][f] > 0));
+  const laborOk = has("labor", prevM, "total") || has("labor", curM, "total");
+  const wasteOk = has("waste", prevM, "amount") || has("waste", curM, "amount");
+  if(!laborOk || !wasteOk){
+    const lastL = CL ? costLatestMonth("labor", mem) : null, lastW = CL ? costLatestMonth("waste", mem) : null;
+    const bits = []; if(!wasteOk) bits.push(`${mL(prevM)} 폐기비용 미입력`); if(!laborOk) bits.push("인건비 미업데이트");
+    T.cost = { laborOk, wasteOk, lastL, lastW, prevM };
+    T.issues.push({ k:"cost", owner:"본사", short: !laborOk && !wasteOk ? "폐기·인건비 미반영" : !wasteOk ? "폐기비용 미반영" : "인건비 미반영",
+      label:`본사 데이터 미반영: ${bits.join(", ")}`,
+      detail: !CL ? "비용 자료 없음(데이터 없음) — 승현 사이트 인건비 · 폐기비용을 아직 받지 않음"
+        : `최근 자료 — 인건비 ${lastL?mL(lastL):"없음"} · 폐기비용 ${lastW?mL(lastW)+" 수거분":"없음"} (0원은 미입력으로 봄)`,
+      todo:`본사 담당자: ${mL(prevM)} 매장별 ${[!wasteOk?"폐기비용":"", !laborOk?"인건비":""].filter(Boolean).join(" 및 ")} 데이터 입력 후 손익·효율 재산출 필요` });
+  } else T.cost = { laborOk, wasteOk, prevM };
+  T.keys = T.issues.map(x=> x.k);
+  T.ok = !T.issues.length && !T.unk.length;
+  c.trust[key] = T; return T;
+}
+// 원인 파악 제한 사유 문구(①이 하나라도 있으면)
+const G11_TRUST_CAUSE = { inb:"입고 미보고(전산 재고 왜곡)", dis:"해체 지연(진열 미전환)", cost:"폐기 손실 · 인건비 누락" };
+const G11_TRUST_NAME = { inb:"입출고 보고 누락", dis:"해체율 보고 지연", cost:"폐기비용 · 인건비 미업데이트" };
+function g11TrustLimitHtml(keys, who){
+  keys = Array.from(new Set(keys||[])); if(!keys.length) return "";
+  return `<div class="g11-limit">⚠ <b>매출 변동 원인 파악 제한:</b> 현재 ${escHtml(who||"이 매장")}은 [${keys.map(k=> G11_TRUST_NAME[k]).join(" / ")}] 상태입니다. 매출 하락이 실제 판매 부진인지, ${keys.map(k=> G11_TRUST_CAUSE[k]).join(" 또는 ")} 때문인지 정확한 판별이 불가합니다. 아래 진단 · 솔루션은 보고가 채워진 뒤 다시 확인하세요.</div>`;
+}
+function g11TrustBlockHtml(list){   // list = [{name, T}]
+  const items = list.filter(x=> x.T && !x.T.closed);
+  if(!items.length) return "";
+  const nIss = items.reduce((a,x)=> a + x.T.issues.length, 0), nUnk = items.reduce((a,x)=> a + x.T.unk.length, 0);
+  const multi = items.length > 1;
+  const owner = o => `<span class="g11-owner ${o==="본사"?"hq":"st"}">${o} 보완</span>`;
+  const rows = items.map(x=>{
+    const pre = multi ? `<b>${escHtml(x.name)}</b> · ` : "";
+    if(x.T.ok) return multi ? `<li>${pre}<span class="g11-tok sm">관리 데이터 정상</span></li>` : "";
+    return x.T.issues.map(it=> `<li title="${escHtml(it.detail||"")}">${pre}${owner(it.owner)}<b>${escHtml(it.label)}</b> <span class="g11-mute">${escHtml(it.detail||"")}</span></li>`).join("")
+      + x.T.unk.map(u=> `<li>${pre}<span class="g11-mute">${escHtml(u.label)}</span></li>`).join("");
+  }).join("");
+  const badge = nIss ? `<span class="g11-tag">관리 누락 ${nIss}건</span>` : nUnk ? `<span class="g11-tag sm" style="background:var(--panel);color:var(--muted2);border-color:var(--line)">일부 확인 불가</span>` : `<span class="g11-tok">✓ 관리 데이터 정상</span>`;
+  return `<div class="g11-trust ${nIss?"bad":nUnk?"":"ok"}">
+    <div class="g11-trust-hd"><b>데이터 신뢰도 · 관리 누락 경고</b>${badge}<span class="g11-mute" data-tip="${escHtml(`입출고: 이번 달 1일~어제 보낸 PLT(직출 + 진천센터) − 매장 입고 ≥ ${G11_TRUST.gapPlt} PLT 이고 입고율 < ${G11_TRUST.gapRate*100}%\n해체: 마지막 해체 보고 ${G11_TRUST.disStaleDays}일 이상 전, 또는 ${G11_TRUST.disMinDays}일 이상 지났는데 해체율 < ${G11_TRUST.disLowRate*100}%\n본사 비용: 전월 인건비 · 전월/이번 달 폐기비용이 없거나 0원\n폐점 매장 제외 · 자료가 아예 없으면 '확인 불가'`)}">판별 기준 ⓘ</span></div>
+    ${rows ? `<ul>${rows}</ul>` : `<div class="g11-mute" style="margin-top:4px">입고 확인 · 해체 보고 · 본사 비용 데이터가 모두 들어와 있습니다 — 아래 매출 분석을 그대로 믿어도 됩니다.</div>`}
+  </div>`;
+}
+// 전 매장 진단 맨 위 요약 카드 + 필터 칩
+function g11TrustSummaryHtml(map, rows){
+  const L = rows.map(r=> ({ r, T: map[r.store] })).filter(x=> x.T && !x.T.closed);
+  const of = k => L.filter(x=> x.T.keys.includes(k));
+  const okL = L.filter(x=> x.T.ok);
+  const names = arr => arr.slice(0,6).map(x=> escHtml(x.r.label||x.r.store)).join(" · ") + (arr.length>6 ? ` 외 ${arr.length-6}곳` : "");
+  const card = (k, title, arr, who) => `<button type="button" class="g11-tcard${G11_TF===k?" act":""}${arr.length?" bad":""}" data-g11-tf="${k}">
+      <span class="l">${title}</span><span class="v">${arr.length}곳</span><span class="s">${who} · ${arr.length?names(arr):"해당 없음"}</span></button>`;
+  const chip = (k, lbl, n) => `<button type="button" class="g11-tchip${G11_TF===k?" act":""}" data-g11-tf="${k}">${lbl} <b>${n}</b></button>`;
+  return `<div class="g-tbl-title">데이터 신뢰도 · 관리 누락 <span class="g11-mute" style="font-weight:400;font-size:13px">· 매출 증감을 보기 전에 먼저 확인 · 카드나 칩을 누르면 아래 교차표가 그 매장만</span></div>
+    <div class="g11-tsum">
+      ${card("inb", "입출고 미보고 매장", of("inb"), "매장 보완")}
+      ${card("dis", "해체율 보고 지연", of("dis"), "매장 보완")}
+      ${card("cost", "본사 비용(폐기·인건비) 미업데이트", of("cost"), "본사 보완")}
+    </div>
+    <div class="g11-tchips">${chip("", "전체", L.length)}${chip("inb","입출고 미보고",of("inb").length)}${chip("dis","해체 지연",of("dis").length)}${chip("cost","본사 비용 미반영",of("cost").length)}${chip("ok","관리 데이터 정상",okL.length)}</div>`;
+}
+function g11TrustCellHtml(T){
+  if(!T) return '<span class="g11-mute">-</span>';
+  if(T.closed) return '<span class="g11-mute">폐점</span>';
+  if(T.ok) return '<span class="g-chip good">정상</span>';
+  return T.issues.map(it=> `<span class="g-chip warn" title="${escHtml(it.label+" · "+(it.detail||""))}">${escHtml(it.short)}</span>`).join("")
+    + (T.unk.length ? `<span class="g-chip" title="${escHtml(T.unk.map(u=>u.label).join(" · "))}">확인 불가</span>` : "");
+}
+function g11ApplyTF(){
+  const box = document.getElementById("goals11Wrap"); if(!box) return;
+  box.querySelectorAll("tr[data-g11-trust]").forEach(tr=>{ const ks = tr.getAttribute("data-g11-trust"); tr.hidden = !!G11_TF && !(ks.split(" ").includes(G11_TF)); });
+  box.querySelectorAll("[data-g11-tf]").forEach(b=> b.classList.toggle("act", b.getAttribute("data-g11-tf")===G11_TF));
+  const n = box.querySelector(".g11-tf-note"); if(n){ const vis = box.querySelectorAll("tr[data-g11-trust]:not([hidden])").length; n.textContent = G11_TF ? `필터 적용 중 — ${vis}곳 표시 (칩 '전체'를 누르면 해제)` : ""; }
+}
 function g11Solutions(r, ctx, env){
   env = env || g11Env(ctx);
   const m = env.m, mem = (r.members && r.members.length) ? r.members : [r.store];
   const mL = x => `${+x.slice(5)}월`;
   const items = []; const byGroup = {};
+  // ⓪ build 327: 관리 · 보고 결함 보완(데이터 신뢰도) — 매출 솔루션보다 먼저(담당: 매장 / 본사)
+  let TR = null; try{ TR = g11Trust(mem); }catch(e){ console.warn("g11 trust", e); }
+  if(TR) TR.issues.forEach(it=> items.push({ urgent:true, pri:2, kind:"보고", owner:it.owner, title:`[${it.owner} 보완] ${it.todo}`, why:`${it.label}${it.detail?" · "+it.detail:""}`, tip:`데이터 신뢰도 점검 — ${it.label}\n이 보고가 채워지기 전에는 매출 증감 원인을 단정하지 않습니다.` }));
   // 같은 카테고리 항목은 하나로 합침 — 효과가 큰 쪽 제목 · 근거는 이어 붙임
   const add = (it, g)=>{ if(g && byGroup[g]){ const o = byGroup[g];
       if((it.gain||0) > (o.gain||0)){ o.why = it.why + " · " + o.why; o.title = it.title; o.kind = it.kind; o.tip = [it.tip, o.tip].filter(Boolean).join("\n"); o.gain = it.gain; }
@@ -14404,13 +14568,13 @@ function g11Solutions(r, ctx, env){
   // ⑨ 현장 메모
   if(dg && dg.memo) items.push({ gain:0, kind:"현장", title:"현장 요청 확인", why: dg.memo.length>70 ? dg.memo.slice(0,70)+"…" : dg.memo, tip: dg.memo });
   items.forEach(it=>{ if(it.gain!=null && !(it.gain>0)) it.gain = 0; });
-  return items.sort((a,b)=> (b.urgent?1:0)-(a.urgent?1:0) || (b.gain||0)-(a.gain||0));
+  return items.sort((a,b)=> (b.pri||0)-(a.pri||0) || (b.urgent?1:0)-(a.urgent?1:0) || (b.gain||0)-(a.gain||0));
 }
 function g11SolutionsHtml(list, head){
   if(!list.length) return `<div class="g-tbl-title">솔루션 제안</div><div class="g11-mute">숫자로 확인되는 개선 항목이 없습니다.</div>`;
   const li = (x,i)=>`<li class="g11-sol k-${x.kind||""}${x.urgent?" urgent":""}"${x.tip?` data-tip="${escHtml(x.tip)}"`:""}>
       <span class="n">${i+1}</span><span class="t"><span class="hd"><b>${escHtml(x.title)}</b>${x.urgent?' <span class="g11-tag sm">먼저</span>':""}</span><span class="w">${escHtml(x.why)}</span></span>
-      <span class="g">${x.fill?`<span class="g11-dn">메울 금액 ${g11Eok(x.fill)}</span>`:x.gain>0?`+${g11Eok(x.gain)}`:`<span class="g11-mute">${/공급|진열|하락/.test(x.kind||"")?"-":"운영"}</span>`}</span></li>`;
+      <span class="g">${x.kind==="보고"?`<span class="g11-mute">보고 보완</span>`:x.fill?`<span class="g11-dn">메울 금액 ${g11Eok(x.fill)}</span>`:x.gain>0?`+${g11Eok(x.gain)}`:`<span class="g11-mute">${/공급|진열|하락/.test(x.kind||"")?"-":"운영"}</span>`}</span></li>`;
   const top = list.slice(0,6), rest = list.slice(6);
   const gsum = list.reduce((a,x)=>a+(x.gain||0),0);
   return `<div class="g-tbl-title">솔루션 제안 <span class="g11-mute" style="font-weight:400;font-size:13.5px">· 효과 큰 순 · 추정 효과 = 원/월(참고) · 항목에 마우스를 올리면 계산 근거</span></div>
@@ -14524,10 +14688,12 @@ function goalsRender11Body(ctx){
   const wrapLayout = inner => `<div class="g11-layout">${side}<div class="g11-main">${inner}</div></div>`;
   if(!sel.length){
     // build 270: 매장을 안 고르면 전 매장 진단(옛 03) — 유형 · 교차표(줄을 누르면 그 매장) · 매장마다 1순위 솔루션
-    let solMap = {};
+    let solMap = {}, trustMap = {};
+    (ctx.rows||[]).forEach(r=>{ try{ trustMap[r.store] = g11Trust((r.members && r.members.length) ? r.members : [r.store]); }catch(e){ console.warn("g11 trust", e); } });   // build 327
     try{ const env = g11Env(ctx); (ctx.rows||[]).forEach(r=>{ const L = g11Solutions(r, ctx, env); if(L.length) solMap[r.store] = L[0]; }); }catch(e){ console.warn("g11 sol", e); solMap = {}; }
+    let tSum = ""; try{ tSum = g11TrustSummaryHtml(trustMap, ctx.rows||[]); }catch(e){ console.warn("g11 trust sum", e); }
     return wrapLayout(`<div class="g11-head"><div class="g11-title">전 매장 진단</div><div class="g11-sub">${h(ctx.scopeLabel)} · 왼쪽 목록이나 아래 표에서 매장을 누르면 그 매장의 솔루션 · 카테고리 · 월별 추이</div></div>`
-      + goalsRender08(ctx, { solutions: solMap }));
+      + tSum + goalsRender08(ctx, { solutions: solMap, trust: trustMap }));
   }
 
   // ---------- 달 목록 ----------
@@ -14568,6 +14734,12 @@ function goalsRender11Body(ctx){
   let diagRows = [], diagD = null;
   try{ diagD = diagBuild(ctx); diagRows = (diagD.stores||[]).filter(d=> sel.includes(d.r.store)); }catch(_){}
   const tags = Array.from(new Set(diagRows.flatMap(d=>d.tags||[])));
+  // build 327: 데이터 신뢰도 · 관리 누락 — 매장마다(복수면 매장별 줄)
+  const trustList = sel.map(s=>{ let T = null; try{ T = g11Trust([s]); }catch(e){ console.warn("g11 trust", e); } return { name:s, T }; });
+  const trustKeys = Array.from(new Set(trustList.flatMap(x=> x.T ? x.T.keys : [])));
+  const trustWho = sel.length===1 ? "이 매장" : `고른 매장 중 ${trustList.filter(x=> x.T && x.T.keys.length).map(x=> x.name).join(" · ")}`;
+  let trustBlock = ""; try{ trustBlock = g11TrustBlockHtml(trustList); }catch(e){ console.warn("g11 trust html", e); }
+  const trustLimit = g11TrustLimitHtml(trustKeys, trustWho);
 
   // ================= 1) 헤더 + KPI =================
   const monthBtns = M.map(m=>`<button class="gsub-tab${m===D?' active':''}" data-g11-month="${m}" style="padding:3px 10px;font-size:13.5px;">${mLY(m)}${isCur(m)?' (진행중)':''}</button>`).join("");
@@ -14602,7 +14774,7 @@ function goalsRender11Body(ctx){
   const tagHtml = tags.length ? tags.map(t=>`<span class="g11-tag">${h(t)}</span>`).join("") : `<span class="g11-mute">판정 신호 없음</span>`;
   const head = `<div class="g11-head">
       <div class="g11-title">${h(title)}</div>
-      <div class="g11-sub">진단(${ctx.mLbl(ctx.curMonth)} 기준): ${tagHtml}</div>
+      <div class="g11-sub">진단(${ctx.mLbl(ctx.curMonth)} 기준): ${tagHtml}${trustKeys.length?` <span class="g-chip warn" title="관리 · 보고 누락이 있어 판정을 단정할 수 없음">데이터 공백 — 참고만</span>`:""}</div>
     </div>
     <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0 12px"><span class="g-tbl-sub" style="margin:0 6px 0 0" data-tip="KPI · 카테고리 표 · 일별 · 시간대가 이 달 기준으로 바뀝니다(월별 추이 표는 전체 달 · 솔루션은 위 '분석 기간' 기준월)">조회 달</span>${monthBtns}</div>`;
 
@@ -14838,7 +15010,7 @@ function goalsRender11Body(ctx){
     <div class="g11-row g11-row-b">${dailyBlock}${hourBlock}</div>`;
   // build 270: 순서 = 머리 · KPI 한 줄 · 솔루션 · 카테고리 한 표 · 월별 추이(카테고리별 월별은 접음) · 재고·일별·시간대 · 메모
   const catMonthly = (pltCatTbl||salesCatTbl) ? `<details class="g-store-more" style="margin-top:8px"><summary>카테고리별 월별 — 공급 PLT · 매출 (펼치기)</summary>${pltCatTbl}${salesCatTbl}</details>` : "";
-  return wrapLayout(head + kpis + solBlock + catTbl + compare + trend + catMonthly + opsBlock + notes);
+  return wrapLayout(head + trustBlock + kpis + trustLimit + solBlock + catTbl + compare + trend + catMonthly + opsBlock + notes);   // build 327: 신뢰도 먼저 · 매출 KPI 바로 아래 해석 한계
 }
 // 06 매장 분석: 매장/모드/달 버튼(이벤트 위임) · 위 "매장 선택" 줄이 바뀌면 이 탭만 다시 그림
 let _g11Wired = false;
@@ -14849,11 +15021,14 @@ function g11Rerender(){
   const ctx = goalsBuildContext(); if(!ctx) return;
   wrap.innerHTML = goalsRender11(ctx);
   try{ g11TipWire(); }catch(_){}   // build 287
+  try{ g11ApplyTF(); }catch(_){}   // build 327
 }
 function wireGoals11(){
   if(_g11Wired) return; _g11Wired = true;
   const wrap = document.getElementById("gsub-11"); if(!wrap) return;
   wrap.addEventListener("click", e=>{
+    const tf = e.target.closest ? e.target.closest("[data-g11-tf]") : null;   // build 327: 관리 누락 필터
+    if(tf){ const k = tf.getAttribute("data-g11-tf"); G11_TF = (G11_TF===k && k) ? "" : k; g11ApplyTF(); return; }
     const b = e.target.closest ? e.target.closest("[data-g11-store],[data-g11-mode],[data-g11-act],[data-g11-month]") : null; if(!b) return;
     const st = g11Selected(); let sel = st.sel.slice(), mode = st.mode;
     if(b.dataset.g11Month){ GOALS11_MONTH = b.dataset.g11Month; g11Rerender(); return; }
