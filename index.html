@@ -3237,6 +3237,7 @@ let HQ_M = {};        // month -> store -> {cat: qty}  (본사 출고계획서)
 let APPLIANCE_M = {}; // month -> store -> {cat: qty}  (가전센터)
 let CENTER_DIRECT_M = {}; // month -> store -> {cat: qty}  (센터 출고내역서 중 "직출"만 — 본사 파일엔 없어 항상 더함)
 let FRESH_M = {};     // month -> store -> {신선식품|수박: qty}
+let FRESH_LIVE_D = {};  // build 331: {YYYY-MM-DD: {매장: 신선 PLT}} 승현 리퀴데이션(신선) 날짜별 — 진행 중 달 공급액을 날짜까지만 자르려고
 let FRESH_SUMMARY_M = {};  // build 90: {YYYY-MM: 파일명} — 신규 양식(매장별분류 요약, D열 합계 PLT)으로 신선식품을 채운 달. 이 달은 구양식 취합본이 신선식품을 덮어쓰지 않는다.
 // ★ build 62 (2026-09-29): 직출을 날짜 단위로도 들고 있는다. 9월부터 센터가 직출만 따로 모은
 //   "직출건 출고내역서"를 주는데, 9/1~9/12처럼 센터 본 파일의 "직 출" 블록과 **같은 날짜가 겹친다**
@@ -3857,7 +3858,7 @@ function buildStateObject(){
   return {
       PARSE_LOGIC_VERSION, _parseVerBySrc, shipMergePolicy, _shipMergeDefaultVer: SHIP_MERGE_DEFAULT_VERSION,
       STORES, STOCK, CATEGORIES, CATEGORY_ORIGIN, SHIP, ACTUAL,
-      HQ_ACTUAL, APPLIANCE_ACTUAL, CENTER_DIRECT_ACTUAL, FRESH_ACTUAL, CENTER_M, HQ_M, APPLIANCE_M, CENTER_DIRECT_M, DIRECT_MAIN_D, DIRECT_FILE_D, CENTER_D, HQ_D, APPLIANCE_D, DAY_SRC, UNMATCHED_WHERE, FRESH_M, FRESH_SUMMARY_M, LOTTE_M, shipScope, HQ_SUPPLY_HISTORY, APPLIANCE_SUPPLY_HISTORY, unmatchedHQStores, unmatchedApplianceStores,
+      HQ_ACTUAL, APPLIANCE_ACTUAL, CENTER_DIRECT_ACTUAL, FRESH_ACTUAL, CENTER_M, HQ_M, APPLIANCE_M, CENTER_DIRECT_M, DIRECT_MAIN_D, DIRECT_FILE_D, CENTER_D, HQ_D, APPLIANCE_D, DAY_SRC, UNMATCHED_WHERE, FRESH_M, FRESH_LIVE_D, FRESH_SUMMARY_M, LOTTE_M, shipScope, HQ_SUPPLY_HISTORY, APPLIANCE_SUPPLY_HISTORY, unmatchedHQStores, unmatchedApplianceStores,
       selected, SUPPLY_HISTORY, STOCK_HISTORY, unmatchedActualStores,
       SALES, SALES_HISTORY, STORE_SALES_HISTORY, unmatchedSalesStores, selectedSalesDate, periodA, periodB, periodMode, periodCmpMonth, periodBStart, periodBEnd, periodStore, SALES_CAT_MAP, SHIP_CAT_MAP, SPECIAL_DAYS, goalsScope, selectedSalesMonth, FIXED_INTAKE_HISTORY, FI_ELIG, FI_SETTINGS_SAVED, FI_DISPATCH_HISTORY, selectedMonthlyStore, IMPROVE_DECISIONS: (typeof IMPROVE_DECISIONS!=="undefined" && IMPROVE_DECISIONS) || {}, IMPROVE_REQUESTS: (typeof IMPROVE_REQUESTS!=="undefined" && IMPROVE_REQUESTS) || [], FI_DISP_DEL_IDS: fiDispDelList(), salesViewMode, EVENTS_COMMON, EVENTS_STORE, PLT_LIVE_META, PLT_DAILY, OPS_PLAN, COST_LIVE, SUPPLY_AMT, ASK_LEARN, ASK_FAILLOG, ASK_CL_CFG, PROCESSED_FILES, CENTER_STOCK: (typeof CENTER_STOCK!=="undefined" ? CENTER_STOCK : null),
       basedateIdx: (typeof basedateEl!=="undefined" && basedateEl.value!=="") ? +basedateEl.value : STOCK_HISTORY.length-1
@@ -4260,6 +4261,7 @@ function applyStateObject(s){
     UNMATCHED_WHERE = Object.assign({ center:{}, hq:{}, appliance:{} }, _o(s.UNMATCHED_WHERE));
     FRESH_M = (s.FRESH_M && typeof s.FRESH_M==="object") ? s.FRESH_M : {};
     FRESH_SUMMARY_M = (s.FRESH_SUMMARY_M && typeof s.FRESH_SUMMARY_M==="object") ? s.FRESH_SUMMARY_M : {};
+    FRESH_LIVE_D = (s.FRESH_LIVE_D && typeof s.FRESH_LIVE_D==="object") ? s.FRESH_LIVE_D : {};
     LOTTE_M = (s.LOTTE_M && typeof s.LOTTE_M==="object") ? s.LOTTE_M : {};
     shipScope = s.shipScope || "all";
     // 구버전 저장 호환: 신선(신선식품·수박)이 FRESH_ACTUAL에만 있고 FRESH_M(월별)에 없으면, 최신 출고 월로 이관해 출고현황에 뜨게 한다.
@@ -11621,9 +11623,10 @@ function askSupplyAmt(q){
     basis.push(`공급액 = 승현 사이트 1번 전산작업 입고금액(매장판매가 총액) · ${S.first||"?"}~${S.last||"?"} · ${S.at ? new Date(S.at).toLocaleString("ko-KR") : ""} 받음`); }
   else q.notes.push("승현 공급액(전산작업)을 아직 안 받았습니다 — 관리자 승현 로그인 후 자동으로 받습니다");
   if((!q.cat || q.cat==="신선식품") && !q.wd && q.by!=="day"){
-    askMonthsIn(q.from, q.to).forEach(m=>{ const P = planParamsOf(m)["신선"]; const price = P ? P.price : 0; const F = FRESH_M[m] || {};
-      const frac = (()=>{ const a = q.from > `${m}-01` ? q.from : `${m}-01`, b = q.to < askMonthEnd(m) ? q.to : askMonthEnd(m); const dim = +askMonthEnd(m).slice(8); return Math.max(0, (new Date(b)-new Date(a))/864e5+1)/dim; })();
-      Object.keys(F).forEach(s=>{ if(!askInStores(q, s)) return; const plt = +((F[s]||{})["신선식품"])||0; if(!plt) return; const v = plt*price*(frac<1 ? frac : 1); fresh += v; add(keyOf(s, "신선식품", `${m}-01`), v); }); });
+    askMonthsIn(q.from, q.to).forEach(m=>{   // build 331: freshAmtIn 한 곳(승현 날짜별 있으면 그 날짜까지, 없으면 일수 비례)
+      const a = q.from > `${m}-01` ? q.from : `${m}-01`, b = q.to < askMonthEnd(m) ? q.to : askMonthEnd(m);
+      const F = freshAmtIn(m, +a.slice(8), +b.slice(8));
+      Object.keys(F).forEach(s=>{ if(!askInStores(q, s)) return; const v = F[s]; if(!v) return; fresh += v; add(keyOf(s, "신선식품", `${m}-01`), v); }); });
     if(fresh) basis.push(`신선 = 입고 PLT × 계획 단가(승현과 같은 방식, 진행 중인 기간은 일수 비례)`);
   }
   return { out, basis, days, fresh };
@@ -13956,31 +13959,55 @@ var CONV_UI = (()=>{ const d = { per:null, view:"store", store:"__all__", cat:nu
 var _convCache = { key:"", data:null };
 function convSave(){ try{ localStorage.setItem("kk_conv_ui_v1", JSON.stringify(CONV_UI)); }catch(_){} }
 function convGroupOfCode(code){ return SUPPLY_CODE_GROUP[code] || "코드 미확인"; }
+/* build 331: 신선 공급액(입고 PLT × 그 달 계획 단가)을 날짜 구간으로 — 05 전환율 · 물어보기 공통.
+   승현 날짜별(FRESH_LIVE_D)이 있는 달은 그 날짜까지만 더하고, 없으면 달 PLT × (일수 ÷ 그 달 일수). → {매장: 금액} */
+function freshAmtIn(m, d1, d2){
+  const P = planParamsOf(m)["신선"]; const price = P ? +P.price || 0 : 0; const out = {}; if(!price) return out;
+  const dim = goalsDaysInMonth(m); d1 = Math.max(1, d1||1); d2 = Math.min(dim, d2||dim); if(d2 < d1) return out;
+  const live = typeof FRESH_SUMMARY_M==="object" && FRESH_SUMMARY_M && FRESH_SUMMARY_M[m]===PLT_FRESH_LIVE_TAG;
+  const days = live ? Object.keys(FRESH_LIVE_D||{}).filter(d=> d.slice(0,7)===m) : [];
+  if(days.length){ days.forEach(d=>{ const k = +d.slice(8); if(k < d1 || k > d2) return; const x = FRESH_LIVE_D[d]||{}; Object.keys(x).forEach(s=>{ const v = (+x[s]||0)*price; if(v) out[s] = (out[s]||0) + v; }); }); return out; }
+  const frac = (d2 - d1 + 1)/dim; const F = FRESH_M[m] || {};
+  Object.keys(F).forEach(s=>{ const plt = +((F[s]||{})["신선식품"]) || 0; if(plt) out[s] = plt*price*frac; });
+  return out;
+}
 function convData(){
   const S = (typeof SUPPLY_AMT!=="undefined" && SUPPLY_AMT && SUPPLY_AMT.d) ? SUPPLY_AMT : null;
   const H = SALES_HISTORY || [];
-  const key = [S ? S.at+"|"+S.last : "-", H.length, H.length ? H[H.length-1].date : "", Object.keys(FRESH_M||{}).join(","), OPS_PLAN && OPS_PLAN.at || ""].join("|");
+  const key = [S ? S.at+"|"+S.last : "-", H.length, H.length ? H[H.length-1].date : "", Object.keys(FRESH_M||{}).join(","), Object.keys(FRESH_LIVE_D||{}).length, OPS_PLAN && OPS_PLAN.at || ""].join("|");
   if(_convCache.key === key) return _convCache.data;
   const A = {}, AF = {}, SL = {}, lastSup = {}, lastSal = {};
   const put = (o, m, s, g, v)=>{ const M = o[m] || (o[m] = {}); const X = M[s] || (M[s] = {}); X[g] = (X[g]||0) + v; };
   if(S) Object.keys(S.d).forEach(d=>{ const m = d.slice(0,7); if(!lastSup[m] || d > lastSup[m]) lastSup[m] = d;
     const x = S.d[d]; Object.keys(x).forEach(s=> Object.keys(x[s]).forEach(code=> supplyAmtSplit(code, x[s][code], (g, v)=>{ if(v) put(A, m, s, g || "코드 미확인", v); }))); });   // build 329: CATE2 우선
-  // 신선 = 입고 PLT × 그 달 계획 단가(askSupplyAmt와 같음)
-  Object.keys(FRESH_M||{}).forEach(m=>{ const P = planParamsOf(m)["신선"]; const price = P ? +P.price || 0 : 0; if(!price) return;
-    const F = FRESH_M[m] || {}; Object.keys(F).forEach(s=>{ const plt = +((F[s]||{})["신선식품"]) || 0; if(plt) put(AF, m, s, "신선식품", plt*price); }); });
   H.forEach(h=>{ if(!h || !h.date || !h.byStoreCat) return; const m = h.date.slice(0,7); if(!lastSal[m] || h.date > lastSal[m]) lastSal[m] = h.date;
     Object.keys(h.byStoreCat).forEach(s=> Object.keys(h.byStoreCat[s]).forEach(c=>{ const v = +(h.byStoreCat[s][c]||{}).amount || 0; if(v) put(SL, m, s, salesCatGroup(c), v); })); });
+  // 신선 = 입고 PLT × 그 달 계획 단가 — build 331: 진행 중인 달은 매출 마지막 날까지만(전에는 달 전체 PLT라 공급액이 부풀었음)
+  Object.keys(FRESH_M||{}).forEach(m=>{ const cut = lastSal[m] ? +lastSal[m].slice(8) : goalsDaysInMonth(m);
+    const x = freshAmtIn(m, 1, cut); Object.keys(x).forEach(s=> put(AF, m, s, "신선식품", x[s])); });
   const months = Array.from(new Set([...Object.keys(A), ...Object.keys(AF)])).filter(m=> SL[m]).sort();
-  const data = { A, AF, SL, months, lastSup, lastSal, have: !!S };
+  const data = { A, AF, SL, months, lastSup, lastSal, have: !!S, S, H, _part:{} };
   _convCache = { key, data }; return data;
 }
 // 기간(달 목록) · 매장(null = 전 매장) → {g: {a, s}} (a = 공급액, s = 매출)
-function convCells(D, ms, stores){
+// build 331: 한 달의 1~upto일만 (전월 같은 기간 비교용)
+function convPart(D, m, upto){
+  const k = m+"|"+upto; if(D._part[k]) return D._part[k];
+  const A = {}, AF = {}, SL = {}; const put = (o, s, g, v)=>{ const X = o[s] || (o[s] = {}); X[g] = (X[g]||0) + v; };
+  if(D.S) Object.keys(D.S.d).forEach(d=>{ if(d.slice(0,7)!==m || +d.slice(8) > upto) return; const x = D.S.d[d];
+    Object.keys(x).forEach(s=> Object.keys(x[s]).forEach(code=> supplyAmtSplit(code, x[s][code], (g, v)=>{ if(v) put(A, s, g || "코드 미확인", v); }))); });
+  const fx = freshAmtIn(m, 1, upto); Object.keys(fx).forEach(s=> put(AF, s, "신선식품", fx[s]));
+  (D.H||[]).forEach(h=>{ if(!h || !h.date || !h.byStoreCat || h.date.slice(0,7)!==m || +h.date.slice(8) > upto) return;
+    Object.keys(h.byStoreCat).forEach(s=> Object.keys(h.byStoreCat[s]).forEach(c=>{ const v = +(h.byStoreCat[s][c]||{}).amount || 0; if(v) put(SL, s, salesCatGroup(c), v); })); });
+  return (D._part[k] = { A, AF, SL });
+}
+function convCells(D, ms, stores, upto){
   const out = {}; const fresh = CONV_UI.fresh !== false;
   const add = (g, k, v)=>{ const o = out[g] || (out[g] = { a:0, s:0 }); o[k] += v; };
   ms.forEach(m=>{
-    [D.A[m]||{}, fresh ? (D.AF[m]||{}) : {}].forEach(src=> Object.keys(src).forEach(s=>{ if(stores && !stores.includes(s)) return; Object.keys(src[s]).forEach(g=> add(g, "a", src[s][g])); }));
-    const SLm = D.SL[m]||{}; Object.keys(SLm).forEach(s=>{ if(stores && !stores.includes(s)) return; Object.keys(SLm[s]).forEach(g=>{ if(!fresh && g==="신선식품") return; add(g, "s", SLm[s][g]); }); });
+    const PT = upto && upto < goalsDaysInMonth(m) ? convPart(D, m, upto) : null;
+    [PT ? PT.A : (D.A[m]||{}), fresh ? (PT ? PT.AF : (D.AF[m]||{})) : {}].forEach(src=> Object.keys(src).forEach(s=>{ if(stores && !stores.includes(s)) return; Object.keys(src[s]).forEach(g=> add(g, "a", src[s][g])); }));
+    const SLm = PT ? PT.SL : (D.SL[m]||{}); Object.keys(SLm).forEach(s=>{ if(stores && !stores.includes(s)) return; Object.keys(SLm[s]).forEach(g=>{ if(!fresh && g==="신선식품") return; add(g, "s", SLm[s][g]); }); });
   });
   return out;
 }
@@ -14008,12 +14035,15 @@ function convHtml(){
   const defP = mP.length>1 && D.lastSal[lastP.key] && +D.lastSal[lastP.key].slice(8) < 10 ? mP[mP.length-2] : lastP;
   let per = P.find(p=> p.key===CONV_UI.per) || defP;
   const ms = per.ms, curM = ms[ms.length-1];
+  // build 331: 진행 중인 달이면 전월도 같은 기간(1~N일)만
+  const upto = per.key!=="__ytd__" && D.lastSal[curM] && +D.lastSal[curM].slice(8) < goalsDaysInMonth(curM) ? +D.lastSal[curM].slice(8) : null;
+  const prevLbl = m => `${+m.slice(5)}월${upto?` 1~${upto}일`:""}`;
   const prevP = per.key!=="__ytd__" ? (()=>{ const i = D.months.indexOf(curM); return i>0 ? [D.months[i-1]] : null; })() : null;
   const eok = v => { const a = Math.abs(v||0); return a>=1e8 ? ((v||0)/1e8).toFixed(2)+"억" : a>=1e4 ? Math.round((v||0)/1e4).toLocaleString()+"만" : Math.round(v||0).toLocaleString(); };
   const won = v => Math.round(v||0).toLocaleString('ko-KR');
   const pct = v => v==null ? "-" : (v>=1000 ? Math.round(v).toLocaleString() : v.toFixed(1))+"%";
   const comp = convSum(convCells(D, ms, null));
-  const compPrev = prevP ? convSum(convCells(D, prevP, null)) : null;
+  const compPrev = prevP ? convSum(convCells(D, prevP, null, upto)) : null;
   const tone = (v, base) => v==null || base==null ? "" : v >= base ? "cv-good" : "cv-bad";
   const dpp = (c, p) => c==null || p==null ? `<span class="cv-na">-</span>` : (()=>{ const d = c - p; return `<span class="${d>0?"cv-up":d<0?"cv-dn":""}">${d>0?"▲":d<0?"▼":"－"} ${Math.abs(d).toFixed(1)}%p</span>`; })();
   const bar = (v, base, max) => { if(v==null) return `<span class="cv-na">-</span>`; const w = Math.max(1, Math.min(100, v/max*100));
@@ -14037,7 +14067,7 @@ function convHtml(){
   if(view==="store"){
     const sel = store==="__all__" ? null : [store];
     const cells = convCells(D, ms, sel), tot = convSum(cells);
-    const pc = prevP ? convCells(D, prevP, sel) : null, ptot = pc ? convSum(pc) : null;
+    const pc = prevP ? convCells(D, prevP, sel, upto) : null, ptot = pc ? convSum(pc) : null;
     const compCells = convCells(D, ms, null);
     const rows = Object.keys(cells).filter(g=> cells[g].a>0).map(g=>{ const c = cells[g]; const unk = g==="코드 미확인"; const cv = unk ? null : c.s/c.a*100;
       const pv = !unk && pc && pc[g] && pc[g].a>0 ? pc[g].s/pc[g].a*100 : null; const cb = compCells[g] && compCells[g].a>0 ? compCells[g].s/compCells[g].a*100 : null;
@@ -14058,11 +14088,11 @@ function convHtml(){
         ${kpiTile("공급액", eok(tot.a)+"원", `${won(tot.a)}원${supTo?` · ${supTo}`:""}`, "", "승현 1번 전산작업 입고금액(매장판매가)" + (CONV_UI.fresh!==false ? " + 신선 PLT × 계획 단가" : ""))}
         ${kpiTile("매출 (공급받은 카테고리)", eok(tot.s)+"원", `${won(tot.s)}원${salTo?` · ${salTo}`:""}`)}
         ${kpiTile("전환율", pct(tot.conv), store==="__all__" ? "매출 ÷ 공급액" : `전사 ${pct(comp.conv)}`, store==="__all__" ? "" : tone(tot.conv, comp.conv))}
-        ${ptot ? kpiTile(`전월(${+prevP[0].slice(5)}월) 대비`, dpp(tot.conv, ptot.conv), `전월 ${pct(ptot.conv)} · 공급 ${eok(ptot.a)} → 매출 ${eok(ptot.s)}`) : ""}
+        ${ptot ? kpiTile(`전월(${prevLbl(prevP[0])}) 대비`, dpp(tot.conv, ptot.conv), `전월 ${pct(ptot.conv)} · 공급 ${eok(ptot.a)} → 매출 ${eok(ptot.s)}`) : ""}
       </div>`;
     const sortBtns = [["amt","공급액순"],["sales","매출순"],["conv","전환율순"],["name","이름순"]].map(([k,l])=>`<button type="button" class="${srt===k?"act":""}" data-cv-sort="${k}">${l}</button>`).join("");
     const tbl = `<div class="cv-tbl-hd"><div class="cv-tbl-t">${h(store==="__all__"?"전 매장":store)} · 카테고리별 전환율 <span>(${h(perTxt)})</span></div><div class="cv-sort">${sortBtns}</div></div>
-      <div class="tblbox"><table class="g-tbl cv-tbl"><thead><tr><th>카테고리</th><th class="num">공급액</th><th class="num">비중</th><th class="num">매출</th><th style="min-width:200px">전환율 <span class="cv-na">(세로선 = 전사)</span></th>${pc?`<th class="num">전월 전환율</th><th class="num">증감</th>`:""}</tr></thead>
+      <div class="tblbox"><table class="g-tbl cv-tbl"><thead><tr><th>카테고리</th><th class="num">공급액</th><th class="num">비중</th><th class="num">매출</th><th style="min-width:200px">전환율 <span class="cv-na">(세로선 = 전사)</span></th>${pc?`<th class="num">전월 전환율${upto?`<br><span class="cv-na">${h(prevLbl(prevP[0]))}</span>`:""}</th><th class="num">증감</th>`:""}</tr></thead>
       <tbody>${rows.map(r=>`<tr class="cv-row" data-cv-gocat="${h(r.g)}" title="누르면 '${h(r.g)}' 카테고리 기준으로 매장끼리 비교">
         <td class="cv-g">${h(r.g)}${r.g==="신선식품"?` <span class="cv-tag">추정</span>`:""}${r.g==="코드 미확인"?` <span class="cv-tag">카테고리 코드 없음</span>`:""}${r.cv!=null && r.cv < 3 && r.a > 1e7 ? ` <span class="cv-tag" title="공급은 큰데 같은 이름의 매출이 거의 없습니다 — 매출 파일에서는 다른 카테고리(예: 신선 · XLE)로 잡혔을 수 있습니다">매출 분류 확인</span>`:""}</td>
         <td class="num">${won(r.a)}</td><td class="num cv-na">${r.share.toFixed(1)}%</td><td class="num">${won(r.s)}</td>
@@ -14078,29 +14108,29 @@ function convHtml(){
     const cb = compCells[cat] && compCells[cat].a>0 ? compCells[cat].s/compCells[cat].a*100 : null;
     const chips = `<div class="cv-chips">${cats.map(g=>{ const c = compCells[g]; return `<button type="button" class="cv-chip${g===cat?" on":""}" data-cv-cat="${h(g)}">${h(g)}<small>${pct(c.s/c.a*100)}</small></button>`; }).join("")}</div>`;
     const rows = STORES.map(s=>{ const c = (convCells(D, ms, [s])[cat]) || {a:0, s:0}; if(!(c.a>0)) return null;
-      const p = prevP ? (convCells(D, prevP, [s])[cat] || {a:0,s:0}) : null;
+      const p = prevP ? (convCells(D, prevP, [s], upto)[cat] || {a:0,s:0}) : null;
       return { s, a:c.a, sv:c.s, cv:c.s/c.a*100, pv: p && p.a>0 ? p.s/p.a*100 : null }; }).filter(Boolean);
     const noSup = STORES.filter(s=>{ const c = convCells(D, ms, [s])[cat]; return c && !(c.a>0) && c.s>0; });
     const srt = CONV_UI.sort;
     rows.sort((x,y)=> srt==="amt" ? (y.a - x.a) : srt==="name" ? x.s.localeCompare(y.s, "ko") : srt==="sales" ? (y.sv - x.sv) : (y.cv - x.cv));
     const mx = Math.max(100, Math.min(300, ...rows.map(r=> r.cv)));
-    const pcat = prevP ? (convCells(D, prevP, null)[cat] || null) : null; const pcv = pcat && pcat.a>0 ? pcat.s/pcat.a*100 : null;
+    const pcat = prevP ? (convCells(D, prevP, null, upto)[cat] || null) : null; const pcv = pcat && pcat.a>0 ? pcat.s/pcat.a*100 : null;
     const kpis = `<div class="cv-kpis">
         ${kpiTile(`${h(cat)} 공급액`, eok(compCells[cat].a)+"원", `${won(compCells[cat].a)}원 · 매장 ${rows.length}곳`)}
         ${kpiTile(`${h(cat)} 매출`, eok(compCells[cat].s)+"원", `${won(compCells[cat].s)}원`)}
         ${kpiTile(`${h(cat)} 전환율`, pct(cb), `전 카테고리 ${pct(comp.conv)}`, tone(cb, comp.conv))}
-        ${pcv!=null ? kpiTile(`전월(${+prevP[0].slice(5)}월) 대비`, dpp(cb, pcv), `전월 ${pct(pcv)}`) : ""}
+        ${pcv!=null ? kpiTile(`전월(${prevLbl(prevP[0])}) 대비`, dpp(cb, pcv), `전월 ${pct(pcv)}`) : ""}
       </div>`;
     const sortBtns = [["conv","전환율순"],["amt","공급액순"],["sales","매출순"],["name","이름순"]].map(([k,l])=>`<button type="button" class="${srt===k?"act":""}" data-cv-sort="${k}">${l}</button>`).join("");
     const tbl = `<div class="cv-tbl-hd"><div class="cv-tbl-t">${h(cat)} · 매장별 전환율 <span>(${h(perTxt)} · 매장 ${rows.length}곳)</span></div><div class="cv-sort">${sortBtns}</div></div>
-      <div class="tblbox"><table class="g-tbl cv-tbl"><thead><tr><th class="num">#</th><th>매장</th><th class="num">공급액</th><th class="num">매출</th><th style="min-width:220px">전환율 <span class="cv-na">(세로선 = 전사 ${pct(cb)})</span></th>${prevP?`<th class="num">전월 전환율</th><th class="num">증감</th>`:""}</tr></thead>
+      <div class="tblbox"><table class="g-tbl cv-tbl"><thead><tr><th class="num">#</th><th>매장</th><th class="num">공급액</th><th class="num">매출</th><th style="min-width:220px">전환율 <span class="cv-na">(세로선 = 전사 ${pct(cb)})</span></th>${prevP?`<th class="num">전월 전환율${upto?`<br><span class="cv-na">${h(prevLbl(prevP[0]))}</span>`:""}</th><th class="num">증감</th>`:""}</tr></thead>
       <tbody>${rows.map((r,i)=>`<tr class="cv-row" data-cv-gostore="${h(r.s)}" title="누르면 ${h(r.s)}의 카테고리별 전환율"><td class="num cv-na">${i+1}</td><td class="cv-g">${h(r.s)}</td><td class="num">${won(r.a)}</td><td class="num">${won(r.sv)}</td><td>${bar(r.cv, cb, mx)}</td>${prevP?`<td class="num">${pct(r.pv)}</td><td class="num">${dpp(r.cv, r.pv)}</td>`:""}</tr>`).join("")}</tbody>
       <tfoot><tr><td></td><td>합계</td><td class="num">${won(compCells[cat].a)}</td><td class="num">${won(compCells[cat].s)}</td><td>${bar(cb, null, Math.max(100, cb||0))}</td>${prevP?`<td class="num">${pct(pcv)}</td><td class="num">${dpp(cb, pcv)}</td>`:""}</tr></tfoot></table></div>
       ${noSup.length?`<div class="cv-only">공급 없이 ${h(cat)} 매출만 있는 매장(이월 재고 등 · 전환율 계산 불가): ${noSup.map(s=> `${h(s)} ${eok((convCells(D, ms, [s])[cat]||{}).s)}원`).join(" · ")}</div>`:""}`;
     body = `<div class="cv-main cv-full">${chips}${kpis}${tbl}${convTrendHtml(D, null, cat, `전 매장 · ${cat}`)}</div>`;
   }
   return `<div class="cv-box">${head}${body}
-    <div class="cv-foot">전환율 = 매출 ÷ 공급액 · 공급액 = 승현 1번 전산작업 입고금액(매장판매가)${CONV_UI.fresh!==false?" · 신선식품은 입고 PLT × 그 달 계획 단가(승현과 같은 추정)":""} · 매출 = 이 사이트 카테고리별 매출 실매출액(대형가전 · XLB = 가전) · 같은 기간의 공급과 매출이라 이월 재고가 섞이는 참고값입니다(100%가 넘으면 이전에 받은 재고가 팔린 것) · 공급 없이 팔린 카테고리는 분자에서 뺍니다</div></div>`;
+    <div class="cv-foot">전환율 = 매출 ÷ 공급액 · 공급액 = 승현 1번 전산작업 입고금액(매장판매가)${CONV_UI.fresh!==false?" · 신선식품은 입고 PLT × 그 달 계획 단가(승현과 같은 추정)":""} · 매출 = 이 사이트 카테고리별 매출 실매출액(대형가전 · XLB = 가전) · 같은 기간의 공급과 매출이라 이월 재고가 섞이는 참고값입니다(100%가 넘으면 이전에 받은 재고가 팔린 것) · 공급 없이 팔린 카테고리는 분자에서 뺍니다${upto?` · 진행 중인 달은 공급 · 매출 · 신선 모두 1~${upto}일, 전월도 같은 1~${upto}일로 비교`:""}</div></div>`;
 }
 // 월별 공급액 · 매출 막대 + 전환율 선(오른쪽 축)
 function convTrendHtml(D, stores, cat, label){
@@ -17685,15 +17715,16 @@ async function pltFreshFetch(){
     (data||[]).forEach(r=> rows.push(r));
     if(!data || data.length < 1000) break;
   }
-  const byMonth = {}, unmatched = {};
+  const byMonth = {}, byDay = {}, unmatched = {};
   rows.forEach(r=>{
     const m = String(r.date||"").slice(0,7); if(!months.includes(m)) return;
     const raw = r.store || r.dest; const q = Number(r.qty||0); if(!raw || !isFinite(q) || !q) return;
     const st = resolveStoreName(String(raw).trim());
     if(STORES.indexOf(st) < 0){ unmatched[raw] = (unmatched[raw]||0) + q; return; }
     const o = byMonth[m] || (byMonth[m] = {}); o[st] = (o[st]||0) + q;
+    const dd = String(r.date).slice(0,10), od = byDay[dd] || (byDay[dd] = {}); od[st] = (od[st]||0) + q;   // build 331
   });
-  return { byMonth, rowCount: rows.length, unmatched };
+  return { byMonth, byDay, rowCount: rows.length, unmatched };
 }
 function pltFreshApply(res){
   const months = Object.keys(res.byMonth).sort(); let total = 0;
@@ -17702,6 +17733,7 @@ function pltFreshApply(res){
     Object.keys(mp).forEach(st=>{ if(mp[st] && mp[st]["신선식품"]!=null) delete mp[st]["신선식품"]; });   // 그 달 신선식품만 비우고 다시 채운다
     Object.keys(res.byMonth[m]).forEach(st=>{ const v = Math.round(res.byMonth[m][st]*10)/10; (mp[st] || (mp[st] = {}))["신선식품"] = v; total += v; });
     if(typeof FRESH_SUMMARY_M==="object" && FRESH_SUMMARY_M) FRESH_SUMMARY_M[m] = PLT_FRESH_LIVE_TAG;   // 구양식 취합본이 이 달 신선식품을 덮어쓰지 않게
+    if(res.byDay){ Object.keys(FRESH_LIVE_D).forEach(d=>{ if(d.slice(0,7)===m) delete FRESH_LIVE_D[d]; }); Object.keys(res.byDay).forEach(d=>{ if(d.slice(0,7)===m) FRESH_LIVE_D[d] = res.byDay[d]; }); }   // build 331
   });
   try{ _g11Cache.key = ""; }catch(_){}
   return { months, total: Math.round(total*10)/10 };
