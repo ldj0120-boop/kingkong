@@ -1915,7 +1915,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 325 · 2026-11-16</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 326 · 2026-11-16</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -5821,13 +5821,22 @@ function renderSalesDaily(){
   if(meta) meta.textContent = `${rngLbl} · ${stLbl} · ${catOn?"카테고리는 아래 '월별 매출'에서 고름 · ":""}막대에 마우스를 올리면 전주 · 전월 · 전년 동기 대비`;
 
   // 기간 합계의 동기간 비교 — 이번 기간에 매출이 있는 날만 짝을 지어 더한다(비교 기간도 같은 날 수)
-  const sumCmp = CMP.map((c,ci)=>{ let cur = 0, prev = 0, n = 0, miss = 0;
-    days.forEach(x=>{ if(x.val==null) return; const pv = x.cmp[ci][3]; if(pv==null){ miss++; return; } cur += x.val; prev += pv; n++; });
-    const ps = days.filter(x=>x.val!=null).map(x=>x.cmp[ci][2]).filter(Boolean).sort();
+  const cmpOf = ds => CMP.map((c,ci)=>{ let cur = 0, prev = 0, n = 0, miss = 0;
+    ds.forEach(x=>{ if(x.val==null) return; const pv = x.cmp[ci][3]; if(pv==null){ miss++; return; } cur += x.val; prev += pv; n++; });
+    const ps = ds.filter(x=>x.val!=null).map(x=>x.cmp[ci][2]).filter(Boolean).sort();
     return { label:c[0].replace(" 대비"," 동기간"), cur, prev, n, miss, from:ps[0], to:ps[ps.length-1] }; });
+  const sumCmp = cmpOf(days);
   // build 325: 기간을 고르면 위 '매출 종합' 큰 숫자도 그 기간 합계(같은 계산 결과를 그대로 넘김)
   { const hadP = !!SD_PERIOD;
-    SD_PERIOD = R ? { from, to, total, n:vals.length, days:days.length, rngLbl, stLbl, catOn, catNm, sumCmp } : null;
+    SD_PERIOD = null;
+    if(R) SD_PERIOD = { total, n:vals.length, rngLbl:`기간 ${rngLbl}`, stLbl, catOn, sumCmp, range:true };
+    else if(catOn || selectedDailyStore!=="__all__"){
+      // build 326: 카테고리 · 매장을 고르면 '매출 종합'도 그 카테고리 · 매장 — 기준일 · 표시 기준(월 누적/하루)을 따름
+      const up = (typeof selectedSalesDate==="string" && selectedSalesDate>=from && selectedSalesDate<=to) ? selectedSalesDate : to;
+      const day1 = (typeof salesViewMode!=="undefined" && salesViewMode==="daily");
+      const ds = days.filter(x=> day1 ? x.dstr===up : x.dstr<=up), vv = ds.map(x=>x.val).filter(v=>v!=null);
+      SD_PERIOD = { total:vv.reduce((a,v)=>a+v,0), n:vv.length, rngLbl: day1 ? `${up} 하루` : `${from.slice(5).replace('-','/')}~${up.slice(5).replace('-','/')} 월 누적`, stLbl, catOn, sumCmp:cmpOf(ds), range:false };
+    }
     if(SD_PERIOD) sdPeriodCard(); else if(hadP){ try{ renderSalesTrend(); }catch(_){} } }
 
   const dense = days.length > 45;
@@ -5901,16 +5910,17 @@ function renderSalesDaily(){
   }
 }
 /* ---- build 287: 일별 매출 기간 달력 ---- */
+function sdCardWanted(){ return !!SD_RANGE || (typeof monthlyCatOn==="function" && monthlyCatOn()) || (typeof selectedDailyStore!=="undefined" && selectedDailyStore!=="__all__"); }   // build 326
 var SD_PERIOD = null;  // build 325: 기간 선택 중일 때 '매출 종합' 카드에 보일 값(renderSalesDaily가 채움)
 function sdPeriodCard(){
   const wrap = document.getElementById("salesTrendBody"), P = SD_PERIOD;
   if(!wrap || !P) return;
   const lines = P.sumCmp.map(s=> s.n ? deltaLineMoney(s.label+" 대비", s.cur, s.prev) : `<div class="delta-line"><span class="lbl">${s.label} 대비</span><span class="delta na">비교 데이터 없음</span></div>`);
-  const tip = `${P.stLbl} · ${P.rngLbl} 매출 합계(원)입니다 — 아래 '기간 합계'와 같은 값.
+  const tip = `${P.stLbl} · ${P.rngLbl} 매출 합계(원)입니다${P.range?" — 아래 '기간 합계'와 같은 값":""}.
 자료: ${P.catOn ? "카테고리 매출 파일 '실매출액'" : "매장별 매출현황 '청구금액'"} · 매출 있는 날 ${P.n}일
 ` + P.sumCmp.map(s=> s.n ? `${s.label}: ${s.from}~${s.to} ${Math.round(s.prev).toLocaleString()}원 (이번 기간 같은 ${s.n}일 ${Math.round(s.cur).toLocaleString()}원)` : `${s.label}: 비교 자료 없음`).join("\n") + `
-'✕ 기간 해제'를 누르면 기준일 · 표시 기준(월 누적/하루) 숫자로 돌아갑니다.`;
-  wrap.innerHTML = `<div class="stat-row">${statCard(`매출 종합 · 기간 ${P.rngLbl}`, Math.round(P.total).toLocaleString(), lines, tip)}</div>`;
+` + (P.range ? "'✕ 기간 해제'를 누르면 기준일 · 표시 기준(월 누적/하루) 숫자로 돌아갑니다." : "매장 · 카테고리는 아래 일별 매출 칸에서 고른 것을 따릅니다(전 매장 · 전체 매출이면 청구금액 합계).");
+  wrap.innerHTML = `<div class="stat-row">${statCard(`매출 종합 · ${P.stLbl} · ${P.rngLbl}`, Math.round(P.total).toLocaleString(), lines, tip)}</div>`;
 }
 var SD_RANGE = null;   // {from, to} — null이면 '월' 고르기(1일~말일)
 try{ const o = JSON.parse(sessionStorage.getItem("kk_sd_range_v1")||"null"); if(o && /^\d{4}-\d{2}-\d{2}$/.test(o.from) && /^\d{4}-\d{2}-\d{2}$/.test(o.to)) SD_RANGE = o; }catch(_){}
@@ -6446,7 +6456,7 @@ function renderSalesTrend(){
     wrap.innerHTML = `<p class="trend-empty">· <b>매장별 매출 업로드(일자별)</b>로 매출현황-YYYYMMDD 파일을 올리면 그 달 누적 매출(청구금액)과 전일·전주·전월 대비 증감이 표시됩니다.<br>· 여러 날짜를 한 번에 끌어다 놓아도 되고, 날짜별로 누적 저장됩니다.<br>· 카테고리별 구성은 <b>카테고리별 매출 업로드</b>(상품별 파일)로 따로 올립니다.</p>`;
     return;
   }
-  if(SD_RANGE && SD_PERIOD){ sdPeriodCard(); return; }   // build 325: 기간 선택 중 → 기간 합계
+  if(sdCardWanted()){ try{ renderSalesDaily(); }catch(_){} if(SD_PERIOD) return; }   // build 325·326: 기간 · 카테고리 · 매장 고름 → 일별 매출과 같은 값
   if(hasStore){
     const dates = Array.from(new Set([...STORE_SALES_HISTORY.map(h=>h.date), ...SALES_HISTORY.map(h=>h.date)])).sort();
     const upto = (selectedSalesDate && dates.includes(selectedSalesDate)) ? selectedSalesDate : dates[dates.length-1];
