@@ -1934,7 +1934,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 332 · 2026-11-16</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 334 · 2026-11-17</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -4564,6 +4564,24 @@ function auditCenter(out){
     out.push({ id:"c-chg-"+C.prev.date+"-"+C.date, lv:"chg", area:"센터 재고", msg:`센터 재고 ${C.prev.date} → ${C.date}: ${_ap(ptot)} → ${_ap(total)} PLT (${total-ptot>=0?"+":""}${_ap(total-ptot)})${big.length?` · 큰 변동 ${big.length}개`:""}`,
       tip: ch.slice(0,14).map(x=>`${x.k}: ${_ap(x.a)} → ${_ap(x.b)} (${x.d>=0?"+":""}${_ap(x.d)})${!x.a?" 새로 생김":!x.b?" 없어짐":""}`).join("\n") || "변동 없음" }); }
 }
+// build 333 (P261116-01): 달 m의 날짜별 본사 출고계획서 ↔ 센터 출고내역서(창고 경유) PLT.
+//   센터가 0인데 본사가 있는 날, 또는 오늘 이후 날짜 → miss(비교에서 뺌). 둘 다 있는 날 → both(차이 큰 순).
+function auditShipSrcDays(m){
+  const inS = new Set(STORES), today = fmtDate(new Date());
+  const sd = (D, d)=>{ let t = 0; const a = (D||{})[d]||{}; Object.keys(a).forEach(st=>{ if(!inS.has(st)) return; Object.values(a[st]||{}).forEach(v=> t += num(v)); }); return t; };
+  const ds = [...new Set([...Object.keys(HQ_D||{}), ...Object.keys(CENTER_D||{})])].filter(d=> d.slice(0,7)===m).sort();
+  const miss = [], both = [], onlyCe = []; let hq = 0, ce = 0, missHq = 0;
+  ds.forEach(d=>{ const h = sd(HQ_D, d), c = sd(CENTER_D, d); if(!h && !c) return;
+    if(d > today || (h>0 && !(c>0))){ if(h>0 || c>0) miss.push({ d, hq:h, ce:c, future: d > today }); missHq += h; return; }
+    hq += h; ce += c; if(h>0 && c>0) both.push({ d, hq:h, ce:c }); else onlyCe.push({ d, ce:c }); });
+  both.sort((a,b)=> Math.abs(b.hq-b.ce) - Math.abs(a.hq-a.ce));
+  const md = d=> `${+d.slice(5,7)}/${+d.slice(8)}`;
+  let tip = "";
+  if(miss.length) tip += `\n센터 내역서 없음(비교에서 뺌): ${miss.map(x=> `${md(x.d)}(본사 ${_ap(x.hq)}${x.future?" · 오늘 이후":""})`).join(" · ")}`;
+  if(both.length) tip += `\n둘 다 있는 날(차이 큰 순):\n` + both.slice(0,12).map(x=> `${md(x.d)} 본사 ${_ap(x.hq)} vs 센터 ${_ap(x.ce)} (${x.ce-x.hq>=0?"+":""}${_ap(x.ce-x.hq)})`).join("\n") + (both.length>12 ? `\n… 외 ${both.length-12}일` : "");
+  if(onlyCe.length) tip += `\n센터만 있는 날: ${onlyCe.map(x=> `${md(x.d)}(센터 ${_ap(x.ce)})`).join(" · ")}`;
+  return { hq, ce, miss, both, onlyCe, missHq, tip };
+}
 function auditShip(out){
   const months = (typeof shipMonths==="function" ? shipMonths() : []).slice().sort().slice(-2);
   if(!months.length) return;
@@ -4577,9 +4595,12 @@ function auditShip(out){
       tip:`날짜별 합 = 공급 · 재고 추이 그래프(본사·센터 병합 + 직출 + 가전)\n매장×카테고리 합 = 매장별 공급 PLT 표에서 신선 · 롯데제타(${_ap(mt.monthOnly)})를 뺀 값\n차이 ${_ap(dsum-monthNoFresh)} PLT → 해당 달 출고내역서를 폴더 불러오기로 다시 읽으면 맞춰집니다.` });
     else if(hasDays) out.push({ id:"p-ok-"+m, lv:"ok", area:"출고", msg:`${+m.slice(5)}월 출고 ${_ap(mt.total)} PLT — 날짜별 합 = 매장×카테고리 합 ✓`, tip:`날짜별 ${_ap(dsum)} + 신선·롯데제타 ${_ap(mt.monthOnly)} = ${_ap(mt.total)} PLT` });
     // 본사 ↔ 센터 차이(같은 출고를 두 번 적은 것)
-    let hq = 0, ce = 0; STORES.forEach(st=> Object.keys(Object.assign({}, (HQ_M[m]||{})[st], (CENTER_M[m]||{})[st])).forEach(c=>{ hq += _mv(HQ_M,m,st,c); ce += _mv(CENTER_M,m,st,c); }));
-    if(hq>0 && ce>0 && Math.abs(hq-ce)/Math.max(hq,ce) > 0.25) out.push({ id:"p-src-"+m+"-"+Math.round(hq)+"-"+Math.round(ce), lv:"warn", area:"출고", msg:`${+m.slice(5)}월 본사 출고계획서 ${_ap(hq)} vs 센터 출고내역서 ${_ap(ce)} PLT — ${Math.round(Math.abs(hq-ce)/Math.max(hq,ce)*100)}% 차이`,
-      tip:`같은 출고를 두 곳에서 적은 것이라 보통 비슷해야 합니다. 한쪽 파일이 덜 올라갔는지 확인하세요.\n집계에는 '${SHIP_MERGE_LABEL[shipMergePolicy]||shipMergePolicy}' 규칙으로 칸마다 한쪽만 씁니다(04 › 원본 표 보기 › 출고 출처 비교).` });
+    // build 333 (P261116-01): 날짜별로 본사 ↔ 센터를 나눠, 센터 출고내역서가 아직 없는 날 · 오늘 이후(내일 출고 계획)는 % 계산에서 빼고 따로 표시
+    const _sd = auditShipSrcDays(m), hq = _sd.hq, ce = _sd.ce;
+    if(hq>0 && ce>0 && Math.abs(hq-ce)/Math.max(hq,ce) > 0.25) out.push({ id:"p-src-"+m+"-"+Math.round(hq)+"-"+Math.round(ce)+"-"+_sd.miss.length, lv:"warn", area:"출고", msg:`${+m.slice(5)}월 본사 출고계획서 ${_ap(hq)} vs 센터 출고내역서 ${_ap(ce)} PLT — ${Math.round(Math.abs(hq-ce)/Math.max(hq,ce)*100)}% 차이${_sd.miss.length ? ` (센터 내역서 없는 ${_sd.miss.length}일 뺌)` : ""}`,
+      tip:`같은 출고를 두 곳에서 적은 것이라 보통 비슷해야 합니다. 한쪽 파일이 덜 올라갔는지 확인하세요.\n집계에는 '${SHIP_MERGE_LABEL[shipMergePolicy]||shipMergePolicy}' 규칙으로 칸마다 한쪽만 씁니다(04 › 원본 표 보기 › 출고 출처 비교).${_sd.tip}` });
+    else if(_sd.miss.length && (hq>0 || _sd.missHq>0)) out.push({ id:"p-srcmiss-"+m+"-"+_sd.miss.map(x=>x.d.slice(8)).join("") , lv:"chg", area:"출고", msg:`${+m.slice(5)}월 센터 출고내역서 없는 날 ${_sd.miss.length}일 — ${_sd.miss.slice(0,4).map(x=>`${+x.d.slice(5,7)}/${+x.d.slice(8)}(본사 ${_ap(x.hq)})`).join(" · ")}${_sd.miss.length>4?" …":""}`,
+      tip:`본사 출고계획서는 있는데 센터 출고내역서가 아직 없는 날입니다(오늘 이후 = 내일 출고 계획). 비교 % 계산에서는 뺐습니다.${hq>0 && ce>0 ? `\n뺀 뒤 본사 ${_ap(hq)} vs 센터 ${_ap(ce)} PLT` : ""}${_sd.tip}` });
   });
   // 변동: 마지막 출고일
   const ds = Object.keys(daily).sort(); if(ds.length){ const d = ds[ds.length-1], v = daily[d];
@@ -4596,9 +4617,9 @@ function auditStock(out){
   try{ if(typeof PLT_DAILY!=="undefined" && PLT_DAILY && PLT_DAILY.d){ const per = pxPeriod(fmtDate(new Date()).slice(0,7)), comps = ["XLA","XLB","XLC","XLE","XLG","XLS","대형가구","대형가전"];
     const stores = [...new Set([].concat(...Object.values(PLT_DAILY.d).map(o=> Object.keys(o))))].filter(s=> STORES.includes(s));
     let sent = 0, inb = 0; const big = [];
-    stores.forEach(st=>{ const S1 = pxSentToStore([st], comps, per), i = sxStore(PLT_DAILY, st, comps, per).inb; sent += S1.sent; inb += i; const g = S1.sent - i; if(Math.abs(g)>=10) big.push(`${st}: 보낸 ${_ap(S1.sent)} (직출 ${_ap(S1.direct)} + 진천 ${_ap(S1.center)}) · 입고 ${_ap(i)} → ${g>0?"+":""}${_ap(g)}`); });
+    stores.forEach(st=>{ const S1 = pxSentToStore([st], comps, per, { hqFill:true }), i = sxStore(PLT_DAILY, st, comps, per).inb; sent += S1.sent; inb += i; const g = S1.sent - i; if(Math.abs(g)>=10) big.push(`${st}: 보낸 ${_ap(S1.sent)} (직출 ${_ap(S1.direct)} + 진천 ${_ap(S1.center)}(센터 ${_ap(S1.ceRaw)} / 본사 ${_ap(S1.hqRaw)})) · 입고 ${_ap(i)} → ${g>0?"+":""}${_ap(g)}`); });
     if(sent || inb) out.push({ id:"k-inb-"+per.e+"-"+Math.round(sent)+"-"+Math.round(inb), lv: big.length ? "warn" : "ok", area:"매장 입고", msg:`${+per.s.slice(5,7)}월 보낸 ${_ap(sent)} · 매장 입고 ${_ap(inb)} PLT${big.length ? ` — 10 PLT 넘게 차이 ${big.length}곳` : " ✓"}`,
-      tip:`보낸 PLT = 거래처 센터 직출(직출 출고내역서) + 진천센터 출고(승현 사이트 출고내역서)\n입고 = 매장이 승현 사이트에 적은 입고(신선·기타·데드우드 제외)\n${big.slice(0,12).join("\n") || "매장별 차이 10 PLT 안"}` }); } }catch(e){ console.warn("입고 대조", e); }
+      tip:`보낸 PLT = 거래처 센터 직출(직출 출고내역서) + 진천센터 출고(날짜 · 매장 · 카테고리마다 센터 출고내역서와 본사 출고계획서 중 큰 값 — 센터 내역서가 늦게 오는 날 보완)\n입고 = 매장이 승현 사이트에 적은 입고(신선·기타·데드우드 제외)\n${big.slice(0,12).join("\n") || "매장별 차이 10 PLT 안"}` }); } }catch(e){ console.warn("입고 대조", e); }
   const sNow = stockSnapSum(L); if(sNow) out.push({ id:"k-now-"+L.date+"-"+Math.round(sNow.tot), lv:"chg", area:"매장 재고", msg:`매장 재고 합계 ${_ap(sNow.tot)} PLT (${L.label})`, tip:`매장 ${sNow.stores}곳 · 센터 재고 아님\n${Object.entries(sNow.by).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k} ${_ap(v)}`).join(" · ")}` });
 }
 // build 262: 김해점 POS3(동김해점) 나누기 검수 — 나누기 전 자료가 남아 있으면 알림, 다 나뉘면 합계 대조
@@ -11229,13 +11250,13 @@ function askStoreList(){ return (STORES||[]).filter(s=> !/센터|서비스솔루
    askParseSlots(글, 앞 질문 칸) → { slots(직접 말한 칸), used, notes, ask(되물을 것), followUp }
    askFinalize(slots) → 실행용 q(기본값 채움 · 안내 문구)  ·  칩을 누르면 slots만 바꿔 다시 실행 */
 const ASK_METRICS = [ [/폐기/,"waste"], [/인건비|급여/,"labor"], [/전환율|전환/,"conv"], [/공급\s*(액|금액|가액)|입고\s*(액|금액)|공급가/,"supplyAmt"], [/달성/,"achieve"],
-  [/목표/,"target"], [/재고/,"stock"], [/객단가/,"avgTicket"], [/건수|객수|영수증|손님\s*수/,"count"], [/^(?!.*(금액|매출|얼마)).*(수량|판매량)/,"count"], /* build 314: '수량'만 → 수량 · '금액과 수량' → 매출(수량은 칸에) */ [/공급|출고|PLT|파레트|팔레트|입고/i,"plt"], [/매출|금액|판매|실적|얼마/,"sales"] ];
+  [/목표/,"target"], [/재고/,"stock"], [/객단가/,"avgTicket"], [/건수|객수|영수증|손님\s*수/,"count"], [/^(?!.*(금액|매출|얼마)).*(수량|판매량|개수|갯수|몇\s*개)/,"count"] /* build 334: 판매 개수 */, /* build 314: '수량'만 → 수량 · '금액과 수량' → 매출(수량은 칸에) */ [/공급|출고|PLT|파레트|팔레트|입고/i,"plt"], [/매출|금액|판매|실적|얼마/,"sales"] ];
 const ASK_METRIC_LABEL = { sales:"매출", supplyAmt:"공급액", plt:"공급 PLT", conv:"전환율", target:"목표매출", achieve:"달성률", waste:"폐기비용", labor:"인건비", stock:"매장재고", count:"매출 건수", avgTicket:"객단가" };
 const ASK_METRIC_WORDS = { "매출":"sales", "공급액":"supplyAmt", "폐기":"waste", "폐기비용":"waste", "인건비":"labor", "전환율":"conv", "달성률":"achieve", "목표":"target", "재고":"stock", "객단가":"avgTicket", "건수":"count", "공급":"plt", "출고":"plt" };
 const ASK_BY_LABEL = { store:"매장별", cat:"카테고리별", month:"월별", day:"일별", hour:"시간대별", wd:"요일별", none:"합계만", storeDay:"매장×날짜" };   // build 318: storeDay = 킹고프리 상세
 const ASK_STOP = new Set(["수량","판매량","판매수량","판매금액","금액과","수량과","매장","전체","전매장","매장별","점포별","카테고리","카테고리별","알려줘","알려","보여줘","얼마","얼마야","금액","총액","합계","월별","일별","주말","평일","오늘","어제",
   "이번","지난","지난주","이번주","최근","올해","누적","시간대","시간대별","요일별","전사","모든","분류별","품목별","날짜별","일자별","비교","대비","상위","하위","가장","그럼","그러면","그리고","이번엔","그건","그거",
-  "오전","오후","매주","매일","카테","공급","출고","매출","판매","실적","얼마나","주세요","해줘","보여","전월","작년","총","달","월달","별로"]);
+  "오전","오후","매주","매일","카테","공급","출고","매출","판매","실적","얼마나","주세요","해줘","보여","전월","작년","총","달","월달","별로","말고","아니고"]);   // build 334: '말고'가 오타 지표(재고)로 잡히지 않게
 let ASK_STATE = { slots:null, text:"" };
 function askLev(a, b){ if(a===b) return 0; const m = a.length, n = b.length; if(Math.abs(m-n) > 2) return 9; let prev = Array.from({length:n+1}, (_,j)=>j);
   for(let i=1;i<=m;i++){ const cur = [i]; for(let j=1;j<=n;j++) cur[j] = Math.min(prev[j]+1, cur[j-1]+1, prev[j-1] + (a[i-1]===b[j-1]?0:1)); prev = cur; } return prev[n]; }
@@ -11368,7 +11389,7 @@ function askProductRun(q, res){
 
 function askPeriodFrom(t, last){
   // build 283: '2026년' · '작년' · 상반기/하반기 · N분기 · N월부터 · N월까지
-  const cy = +last.slice(0,4), cm = +last.slice(5,7); const yM = t.match(/(20\d{2}|(?<!\d)\d{2})\s*년/); const yr = yM ? (+yM[1] < 100 ? 2000 + +yM[1] : +yM[1]) : (/작년|지난\s*해|전년(?!\s*대비)/.test(t) ? cy-1 : null);
+  const cy = +last.slice(0,4), cm = +last.slice(5,7); const yM = t.match(/(20\d{2}|(?<!\d)\d{2})\s*년(?!\s*(?:간|동안|치))/); const yr = yM ? (+yM[1] < 100 ? 2000 + +yM[1] : +yM[1]) : (/작년|지난\s*해|전년(?!\s*대비)/.test(t) ? cy-1 : null);
   const ymOf = m => `${yr!=null ? yr : (m > cm ? cy-1 : cy)}-${String(m).padStart(2,"0")}`; let r; const P = {};
   const fd = (a,b,c)=> `${a}-${String(b).padStart(2,"0")}-${String(c).padStart(2,"0")}`;
   if((r = t.match(/(20\d{2})[-.\/](\d{1,2})[-.\/](\d{1,2})\s*(?:~|-|부터)\s*(20\d{2})[-.\/](\d{1,2})[-.\/](\d{1,2})/))){ P.from = fd(r[1],r[2],r[3]); P.to = fd(r[4],r[5],r[6]); }
@@ -11383,6 +11404,7 @@ function askPeriodFrom(t, last){
   else if(/상반기/.test(t)){ const y = yr!=null ? yr : cy; P.from = fd(y,1,1); P.to = fd(y,6,30); }
   else if(/하반기/.test(t)){ const y = yr!=null ? yr : cy; P.from = fd(y,7,1); P.to = fd(y,12,31); }
   else if(yr!=null){ P.from = fd(yr,1,1); P.to = fd(yr,12,31); }
+  else if((r = t.match(/(?<![\d.])(\d{1,2})\s*년\s*(?:간|동안|치)/) || t.match(/(?:최근|지난)\s*(\d{1,2})\s*년(?!\s*\d)/))){ const n = +r[1]; P.to = last; P.from = fmtDate(new Date(cy, cm-12*n, 1)); }   // build 334: '1년간' · '최근 1년' = 이번 달 포함 12개월
   else if(/이번\s*달|이번달|당월|금월/.test(t)){ P.from = `${last.slice(0,7)}-01`; P.to = last; }
   else if(/지난\s*달|저번\s*달|전월|지난달/.test(t) && !/대비/.test(t)){ const ym = askYm(new Date(+last.slice(0,4), +last.slice(5,7)-2, 1)); P.from = `${ym}-01`; P.to = askMonthEnd(ym); }
   else if(/오늘/.test(t)){ P.from = P.to = fmtDate(new Date()); }
@@ -11394,12 +11416,20 @@ function askPeriodFrom(t, last){
   return P.from ? P : null;
 }
 function askParseSlots(text, prev){
-  const raw = String(text||"").replace(/\s+/g," ").trim(); let t = raw; const last = askLastDataDate();
+  const raw = String(text||"").replace(/\s+/g," ").trim().replace(/(\d)\s*틀/g,"$1일").replace(/이틀/g,"2일").replace(/사흘/g,"3일").replace(/나흘/g,"4일");   // build 334: '2틀간 · 이틀간' = 2일간
+  let t = raw; const last = askLastDataDate();
   const S = {}, used = [], notes = [], ask = [];
+  // build 334: 'X 말고' — 그 지표는 빼고 읽음("매출말고 공급가" · "매출건수 말고 …")
+  t = t.replace(/(매출\s*건수|매출|공급\s*액|공급가|금액|건수|수량)\s*(?:은|는)?\s*(?:말고|아니고)/g, " ");
   // 비교 기간(칩이 만든 글: "비교기간 2026-08-01~2026-08-31")
   let r = t.match(/비교기간\s*(20\d{2}-\d{2}-\d{2})~(20\d{2}-\d{2}-\d{2})/); if(r){ S.cmp = { from:r[1], to:r[2] }; t = t.replace(r[0], " "); }
   // 지표
   for(const [re, k] of ASK_METRICS){ if(re.test(t)){ S.metric = k; break; } }
+  // build 334: 물류비용(운송비)은 사이트 자료에 없음 — 엉뚱한 매출 대신 알려 줌(주간 검색 기록: 물류비용 질문 5가지)
+  const askLogi = /물류\s*비|운송\s*비|운임|배송\s*비|운반\s*비|청구\s*비용/.test(t);
+  if(askLogi && !S.metric) ask.push({ block:true, q:"물류비용(운송비)은 아직 사이트 자료에 없어 물어보기로 계산할 수 없습니다(통합배차대장에서 확인). 대신 볼 것이 있으면 고르세요:", opts: ["sales","supplyAmt","plt","count"].map(k=>({ label:ASK_METRIC_LABEL[k], set:{ metric:k } })) });
+  else if(askLogi) notes.push("물류비용(운송비)은 사이트 자료에 없어 빼고 계산했습니다(통합배차대장에서 확인)");
+  if(/예상|전망|예측|월말/.test(t) && (!S.metric || S.metric==="sales")) notes.push("월말 예상 매출은 물어보기에서 계산하지 않습니다 — '매장별 매출' 탭의 예상 총매출 카드를 보세요(아래는 실적)");   // build 334
   // 시간
   const hm = t.match(/(오전|오후)?\s*(\d{1,2})\s*시?\s*(?:~|-|부터)\s*(오전|오후)?\s*(\d{1,2})\s*시/) || t.match(/(오전|오후)?\s*(\d{1,2})\s*시(?!간대별)/);
   if(hm){ const h24 = (ap, h)=>{ h = +h; if(ap==="오후" && h<12) h += 12; if(ap==="오전" && h===12) h = 0; return h; };
@@ -11440,7 +11470,7 @@ function askParseSlots(text, prev){
   // 나눠 보기
   if(/매장별|점포별/.test(t)) S.by = "store"; else if(/카테고리별|분류별|품목별|카테별|상품별|제품별/.test(t)) S.by = "cat"; else if(/시간대별|시간별/.test(t)) S.by = "hour";
   else if(/요일별/.test(t)) S.by = "wd"; else if(/일별|날짜별|일자별|하루별/.test(t)) S.by = "day"; else if(/월별|달별/.test(t)) S.by = "month";
-  if(/추이|흐름|변화|트렌드|추세|동향|그래프|변동/.test(t)) S.trend = true;   // build 283
+  if(/추이|흐름|변화|트렌드|추세|동향|그래프|차트|변동/.test(t)) S.trend = true;   // build 334: 차트   // build 283
   if(S.cat==="킹고프리" && (/상세|내역|명세/.test(t) || (/매장별|점포별/.test(t) && /일별|날짜별|일자별|하루별/.test(t)))) S.by = "storeDay";   // build 318: P261111-01 킹고프리 상세 · 매장별+일별 → 매장 × 날짜
   // 오타 지표(한 글자 차이) — 지표를 못 찾았을 때만
   if(!S.metric){ const ws = raw.match(/[가-힣]{2,}/g) || [];
@@ -11470,7 +11500,7 @@ function askParseSlots(text, prev){
    (진짜 딥러닝 모델이 아니라 '고친 것을 기억하는' 학습 — 이 브라우저(localStorage)에 바로 저장, 관리자 화면에선 서버 상태에도 저장해 뷰어와 공유) */
 var ASK_LEARN = (()=>{ try{ return JSON.parse(localStorage.getItem("kk_ask_learn_v1")||"{}") || {}; }catch(_){ return {}; } })();
 const ASK_LEARNABLE = ["metric","by","cat","stores","top","order","cmpPrev","wd","hours","allStores"];
-const ASK_KNOWN_RE = /개월|주간|일간|동안|기간|날짜|이번|지난|저번|최근|올해|금년|누적|연간|오늘|어제|주말|평일|요일|분기|반기|작년|전년|부터|까지|이후|추이|흐름|변화|트렌드|추세|동향|그래프|변동|비교|대비|상위|하위|가장|제일|베스트|워스트|꼴찌|매주|매일|오전|오후|매장별|점포별|카테고리별|분류별|품목별|시간대별|시간별|요일별|일별|날짜별|일자별|월별|달별|전체|전사|모든|알려|보여|해줘|주세요|얼마/;
+const ASK_KNOWN_RE = /개월|주간|일간|동안|기간|날짜|이번|지난|저번|최근|올해|금년|누적|연간|오늘|어제|주말|평일|요일|분기|반기|작년|전년|부터|까지|이후|추이|흐름|변화|트렌드|추세|동향|그래프|차트|변동|비교|대비|년간|틀간|현황|종합|총합|집계|기준|내역|말고|아니고|월말|예상|전망|예측|물류|운송비|운임|배송비|청구비용|상위|하위|가장|제일|베스트|워스트|꼴찌|매주|매일|오전|오후|매장별|점포별|카테고리별|분류별|품목별|시간대별|시간별|요일별|일별|날짜별|일자별|월별|달별|전체|전사|모든|알려|보여|해줘|주세요|얼마/;
 function askStripParticle(w){ const m = w.match(/^(.{2,}?)(에서는|에서|으로|은|는|이|가|을|를|의|에|도|만|로|랑|과|와|좀|요)$/); return m ? m[1] : w; }
 function askKnownWord(w){
   if(ASK_STOP.has(w) || ASK_KNOWN_RE.test(w)) return true;
@@ -11781,7 +11811,7 @@ const ASK_INTENTS = [
   { set:{by:"cat"}, label:"카테고리별", ph:["카테고리별","품목별","분류마다","종류별","상품군별"] },
   { set:{by:"hour"}, label:"시간대별", ph:["시간대별","시간마다","몇 시에"] },
   { set:{by:"wd"}, label:"요일별", ph:["요일별","요일마다"] },
-  { set:{trend:true}, label:"추이", ph:["추이","흐름","변화","오르내림","추세","동향"] },
+  { set:{trend:true}, label:"추이", ph:["추이","흐름","변화","오르내림","추세","동향","차트"] },
   { set:{cmpPrev:true}, label:"전월 대비", ph:["지난달과 비교","전월 대비","저번 달보다","전달 대비"] },
   { set:{top:3, order:"desc"}, label:"가장 많은", ph:["제일 많은","가장 잘 팔린","1등","순위 높은","최고"] },
   { set:{top:3, order:"asc"}, label:"가장 적은", ph:["제일 적은","가장 안 팔린","꼴찌","최저","부진한"] },
@@ -18704,13 +18734,17 @@ function pxShipCats(comps){
   const main = new Set([].concat(...Object.values(PX_COMP_SHIP)));
   return { has: c=> comps.some(k=> k==="기타" ? (!main.has(c) && !/신선|수박/.test(c)) : (PX_COMP_SHIP[k]||[k]).includes(c)) };
 }
-function pxSentToStore(members, comps, per){
-  const F = pxShipCats(comps), mem = new Set(members); let center = 0, direct = 0;
+function pxSentToStore(members, comps, per, opt){
+  const F = pxShipCats(comps), mem = new Set(members); let center = 0, direct = 0, ceRaw = 0, hqRaw = 0;
+  const hqFill = !!(opt && opt.hqFill);   // build 333 (P261116-02): 진천 몫 = 날짜 · 매장 · 카테고리마다 센터 출고내역서 · 본사 출고계획서 중 큰 값(검수 입고 비교 전용)
   for(let t = per.s; t <= per.e; t = sxDay(t,1)){
-    const c = (CENTER_D||{})[t] || {}, dsrc = (DIRECT_FILE_D && DIRECT_FILE_D[t]) ? DIRECT_FILE_D[t] : ((DIRECT_MAIN_D||{})[t] || {});
-    mem.forEach(st=>{ Object.entries(c[st]||{}).forEach(([k,v])=>{ if(F.has(k)) center += num(v); }); Object.entries(dsrc[st]||{}).forEach(([k,v])=>{ if(F.has(k)) direct += num(v); }); });
+    const c = (CENTER_D||{})[t] || {}, h = hqFill ? ((HQ_D||{})[t] || {}) : {}, dsrc = (DIRECT_FILE_D && DIRECT_FILE_D[t]) ? DIRECT_FILE_D[t] : ((DIRECT_MAIN_D||{})[t] || {});
+    mem.forEach(st=>{
+      if(hqFill){ const a = c[st]||{}, b = h[st]||{}; new Set([...Object.keys(a), ...Object.keys(b)]).forEach(k=>{ if(!F.has(k)) return; const x = num(a[k]), y = num(b[k]); ceRaw += x; hqRaw += y; center += Math.max(x, y); }); }
+      else Object.entries(c[st]||{}).forEach(([k,v])=>{ if(F.has(k)) center += num(v); });
+      Object.entries(dsrc[st]||{}).forEach(([k,v])=>{ if(F.has(k)) direct += num(v); }); });
   }
-  return { center, direct, sent: center + direct };
+  return hqFill ? { center, direct, sent: center + direct, ceRaw, hqRaw } : { center, direct, sent: center + direct };
 }
 function sxStore(P, store, comps, per){
   const D = P.d || {}, C = P.carry || {};
@@ -27252,11 +27286,11 @@ const IMPROVE_PROPOSALS = [
     why:"10/29~11/1은 매일 7~10개 매장에 킹고프리 주문이 있었는데, 11/2~11/4는 킹고프리 칸 자체가 없고(그 전 파일로 저장돼 다시 안 읽음) 11/5~11/11은 7일 연속 0건(매장별 매출 파일은 매일 올라옴). 실제 주문이 없었던 건지, 매출현황 파일에 회원명 · 메모 열이 빠져 못 찾는 건지 사이트에서 알 수 없음 → 11월 킹고프리 카드가 944만 · 1일로 작게 보임.",
     what:"auditStoreData에 '킹고프리 3일 연속 0건(직전 14일 중 주문 있는 날 ≥3일일 때)' 경고 추가 — 툴팁에 날짜별 상태(칸 없음 / 0건 / N건)와 '매출현황 파일에 회원명(KINGGOFREE) · 메모 열이 있는지 확인' 안내. 월 카드의 일수 옆에 '기록 없는 날 N일' 표시.",
     risk:"낮음 — 알림 · 표시만 추가, 매출 계산 변경 없음. 실제로 주문이 없는 기간엔 거짓 경고가 날 수 있음(하루 1번 '확인됨'으로 끌 수 있게).", done:"build 318" },
-  { id:"P261116-01", date:"2026-11-16", area:"점검", title:"출고 출처 비교 — 센터 출고내역서가 아직 없는 날(오늘 · 내일 계획)은 빼고, 빠진 날짜를 툴팁에 표시",
+  { id:"P261116-01", date:"2026-11-16", area:"점검", done:"build 333", title:"출고 출처 비교 — 센터 출고내역서가 아직 없는 날(오늘 · 내일 계획)은 빼고, 빠진 날짜를 툴팁에 표시",
     why:"검수 '11월 본사 출고계획서 692 vs 센터 출고내역서 290 PLT — 58% 차이' 경고가 매일 커짐(11/9 42% → 11/13 55% → 11/16 58%). 날짜별로 보면 본사 166 PLT(11/13) · 54 PLT(11/16, 내일 출고 계획)는 센터 내역서가 아예 없는 날이고, 11/4(92 vs 45) · 11/11(122 vs 70)만 둘 다 있는데 차이 남. 내역서가 없는 두 날을 빼면 472 vs 290(39%). 지금 툴팁에는 날짜가 없어 어느 파일을 올려야 하는지 알 수 없음.",
     what:"출고 출처 비교 경고에서 ① 센터 내역서가 없는 날 · 오늘 이후 날짜는 % 계산에서 빼고 따로 '센터 내역서 없음: 11/13(본사 166) · 11/16(54)'로 표시 ② 둘 다 있는 날은 날짜별 '본사 N vs 센터 M' 목록(차이 큰 순).",
     risk:"낮음 — 검수 알림 문구 · 계산만 바뀜, 출고 집계('큰 값 채택')는 그대로. 실제로 센터 파일이 늦게 오는 날도 '없음'으로만 보여 경고 등급이 낮아질 수 있음." },
-  { id:"P261116-02", date:"2026-11-16", area:"점검", title:"매장 입고 비교 — 센터 출고내역서가 없는 날은 본사 출고계획서로 '보낸 PLT' 채우기",
+  { id:"P261116-02", date:"2026-11-16", area:"점검", done:"build 333", title:"매장 입고 비교 — 센터 출고내역서가 없는 날은 본사 출고계획서로 '보낸 PLT' 채우기",
     why:"검수 '11월 보낸 382 · 매장 입고 625 PLT — 10 PLT 넘게 차이 11곳'이 11/13 4곳 → 11/16 11곳으로 늘었고 11곳 모두 입고가 더 많음(합 −243 PLT). 보낸 PLT의 진천 몫을 센터 출고내역서에서만 가져오는데 11월 센터 내역서 합은 290 PLT로 본사 계획 692의 42%. 11/1~15 진천 몫을 본사 계획으로 바꿔 보면 차이 10 PLT 넘는 곳이 11곳 → 4곳(용인 +16 · 청주 −11 · 인천 +30 · 제주 −18).",
     what:"auditStoreData 입고 비교에서 진천 몫 = 날짜 · 매장마다 센터 출고내역서와 본사 출고계획서 중 큰 값(출고 집계와 같은 규칙). 툴팁 줄에 '진천 N(센터 a / 본사 b)'로 둘 다 표시.",
     risk:"중간 — 비교 알림만 바뀜. 본사 계획에 직출 몫이 섞여 있으면 보낸 PLT가 부풀어 차이가 반대로(보낸 > 입고) 보일 수 있음 — 반영 전에 본사 계획서에 직출이 들어가는지 확인 필요." },
