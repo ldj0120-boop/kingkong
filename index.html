@@ -20700,6 +20700,8 @@ function fiDispRender(){
   const V = fiVerify(d); h += fiVerifyHtml(d);   // build 227: 1차 검증
   // build 134: 모든 행 도착지 한 번에 (임박식품처럼 도착지를 직접 고르는 경우)
   h += `<div style="margin:10px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b style="font-size:14.5px">모든 행 도착지</b> <select id="fiDispBulkSel">${fiDispDestOptions({ type:(d.rows[0]||{}).type, dest:"", fc: d.rows.length && d.rows.every(x=> x.fc===d.rows[0].fc) ? d.rows[0].fc : "" })}</select> <input id="fiDispBulkFree" placeholder="직접 입력" style="width:110px"> <button class="act fi-mini" id="fiDispBulkEmpty">빈 행에만 적용</button> <button class="act fi-mini" id="fiDispBulkAll">전체 행에 적용</button> <span class="fi-mut">행마다 다르면 아래 표에서 고르세요</span></div>`;
+  // build 336: 모든 행 오전/오후 한 번에
+  h += `<div style="margin:6px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b style="font-size:14.5px">모든 행 오전/오후</b> <button class="act fi-mini" data-fd-ap="오전">오전</button> <button class="act fi-mini" data-fd-ap="오후">오후</button> <button class="act fi-mini" data-fd-ap="">비우기</button> <label class="fi-mut" style="display:inline-flex;align-items:center;gap:3px"><input type="checkbox" id="fiDispApEmptyOnly"> 빈 행에만</label></div>`;
   h += `<div class="fi-sec-t" style="margin-top:12px">인식 결과 · 수정 <span class="fi-mut">노란 칸 = 자동 보정/확인 필요</span></div>
   <div style="overflow-x:auto"><table class="fi-tbl"><thead><tr><th>포함</th><th>#</th><th>낙찰일</th><th>입차CODE (BIDCODE)</th><th>Group (메일)</th><th title="출고요청서 엑셀의 낙찰NO — 낙찰금액 종합 G열 NO.(없으면 D열 센터명), 낙찰금액에 없는 행은 예전 규칙. 직접 고치면 그 값">낙찰NO</th><th>Group Number</th><th class="n">파렛트</th><th>출고일</th><th>오전/오후</th><th>FC</th><th>도착지</th><th>유형</th></tr></thead><tbody>
   ${d.rows.map((r,i)=>`<tr class="${r.memo?"fi-warnrow":""}" style="${r.skip?"opacity:.45":""}"><td><input type="checkbox" class="fi-dinp" data-fd-i="${i}" data-fd-k="skip" ${r.skip?"":"checked"}></td>
@@ -26994,6 +26996,10 @@ function wireFixedDispatch(){
       if(b.dataset.qUseIn){ const inp = Array.from(box.querySelectorAll("input[data-q-in]")).find(x=> x.dataset.qIn===b.dataset.qId); v = inp ? inp.value : ""; if(!String(v||"").trim()){ showNotice("값을 입력해 주세요."); return; } }
       eosDispAnswer(b.dataset.qId, v); }
     else if(b.dataset.qUndo && _fiDisp){ delete (_fiDisp.answers||{})[b.dataset.qUndo]; fiDispSave(); fiDispRender(); }
+    else if(b.dataset.fdAp!=null && _fiDisp){   // build 336: 모든 행 오전/오후
+      const v = b.dataset.fdAp, only = (document.getElementById("fiDispApEmptyOnly")||{}).checked;
+      _fiDisp.rows.forEach(r=>{ if(r.skip) return; if(!only || !r.outboundAmPm) r.outboundAmPm = v; });
+      fiDispSave(); fiDispRender(); }
     else if((b.id==="fiDispBulkEmpty" || b.id==="fiDispBulkAll") && _fiDisp){   // build 134
       const v = String(document.getElementById("fiDispBulkFree").value||"").trim() || document.getElementById("fiDispBulkSel").value;
       if(!v){ showNotice("도착지를 고르거나 입력해 주세요."); return; }
