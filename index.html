@@ -20612,7 +20612,7 @@ function fiDispStart(rows, note, src, opt){
   const matchInfo = (opt && opt.matchInfo) ? opt.matchInfo : smsN ? { ok: rows.every(r=> r.dest && r.fc), date:"", text:`문자 XLG 당일 출고요청 ${smsN}행 — 도착지 ${rows.filter(r=>r.dest).length}/${rows.length}행 자동 지정(여주2 이천점 고정 · 경산2 평일 진천센터/주말 김해점 · 그 외 가까운 매장 중 XLG 재고 최소) · 각 행 아래 "확인" 줄의 근거를 보고 필요하면 바꿔 주세요` } : got ? { ok: !miss.length, date:ents.join(","), text:`고정인수 분배표(${ents.join(", ")||"-"})로 ${got}/${rows.length}행 도착지 지정 · 고정인수 기록과 일치 ${dictN}행${miss.length?` — 도착지 없는 ${miss.length}행(${miss.map(r=>r.group||r.number).slice(0,4).join(", ")}${miss.length>4?" …":""})은 직접 선택`:""}` }
     : { ok:false, latestId: hit.latest && hit.latest.id, latestDate: hit.latest && hit.latest.date,
         text:`낙찰일 ${r0.bidDate||"?"} 과 같은 날짜의 고정인수 분배 기록이 없습니다 — 도착지를 직접 고르세요.` };
-  if(fiHbApply(rows)) fiHbMatchInfo(rows, matchInfo);   // build 225: 2026_쿠팡 낙찰금액 종합에 같은 입차코드 · 센터가 있으면 그 출고지
+  fiHbApply(rows); fiHbMatchInfo(rows, matchInfo);   // build 343: 하나도 못 찾아도 '옛날 파일' 알림은 보이게   // build 225: 2026_쿠팡 낙찰금액 종합에 같은 입차코드 · 센터가 있으면 그 출고지
   rows.forEach(r=>{ r.memo = (r.warn||[]).concat(r.destNote?[r.destNote]:[]).join(" / "); });
   _fiDisp = { id: Date.now(), at: new Date().toLocaleString("ko-KR"), rows, note: note || "", matchInfo, src };
   let _fiSame = [];   // build 229: 내용(입차코드 · FC · 번호 · PLT · 출고일 · 유형 · 도착지)이 완전히 같은 예전 기록 → 이번 것으로 합침
@@ -26027,6 +26027,15 @@ async function fiHbInit(){
   fiHbRenderBar();
   fiHbRefresh(false);
 }
+// build 343: 낙찰금액 출고지 글 → 사이트 매장 이름. "의정부 매장 착불" → 의정부가맹점 · "파주점 오도동 착불" → 파주가맹점 · 진천센터 · 서비스솔루션은 그대로
+function fiHbDestName(raw){
+  const t0 = String(raw||"").replace(/\u00a0/g," ").trim(); if(!t0) return "";
+  const t = t0.replace(/[(\[]\s*(착불|선불|택배|직송|직출|퀵)\s*[)\]]/g," ").replace(/\s(착불|선불|택배|직송|직출|퀵)(?=\s|$)/g," ").replace(/\s+매장(?=\s|$)/g,"").replace(/\s+/g," ").trim();
+  const known = n=> n && ((typeof STORES!=="undefined" && STORES.includes(n)) || (typeof FI_JINCHEON!=="undefined" && n===FI_JINCHEON));
+  for(const c of [t0, t]){ const r = resolveStoreName(c); if(known(r)) return r; }
+  try{ const r = resolveShipmentStoreName(t); if(r && known(r)) return r; }catch(_){}
+  return resolveStoreName(t) || t;
+}
 // 메일 행 → 낙찰금액 후보 줄 (같은 키의 줄들, 위에서부터)
 function fiHbCands(r){
   if(!FI_HB || !FI_HB.rows || !FI_HB.rows.length) return null;
@@ -26061,7 +26070,7 @@ function fiHbApply(rows, reapply){
     if(reapply && r.destManual) return;
     if(!reapply && r.dw && r.dest) return;   // build 226: 데드우드 · FC파손에 사용자가 쓴 출고지(A= 진천센터)는 그대로
     if(!x || !x.dest) return;
-    const d = (typeof resolveStoreName==="function" && resolveStoreName(x.dest)) || x.dest;
+    const d = fiHbDestName(x.dest) || x.dest;
     const prev = r.hbDest ? r.hbAuto : r.dest;
     if(!r.hbDest) r.hbAuto = r.dest || "";
     r.dest = d; r.hbDest = d;
@@ -26090,6 +26099,10 @@ function fiHbMatchInfo(rows, mi){
   mi.text = !t ? mi.base : all ? `${t} — 낙찰금액 출고지 그대로 채웠습니다(다르면 표에서 고치세요)`
     : `${t} · 나머지 ${rest.length}행(${rest.map(r=> r.group||r.number).slice(0,4).join(", ")}${rest.length>4?" …":""})은 낙찰금액에 없어 기존 규칙(분배표 · 재고 추천) — 각 행 "확인" 줄 참고`;
   if(t && !mi.eos && !(rows||[]).some(r=> r.sms)) mi.ok = rows.every(r=> r.dest || r.skip);
+  // build 343: 메일 낙찰일이 읽어 둔 낙찰금액 마지막 낙찰일보다 뒤 = 옛날 내용으로 찾음 → 도착지가 규칙(분배표 · 재고)으로 채워짐
+  const last = FI_HB && FI_HB.rows ? (FI_HB.rows.map(x=> x.bd).filter(Boolean).sort().pop() || "") : "";
+  const late = rest.filter(r=> String(r.bidDate||"").slice(0,10) > last);
+  if(FI_HB && last && late.length){ mi.text = `⚠ 읽어 둔 낙찰금액 파일이 옛날 것(마지막 낙찰일 ${last}) — ${late.length}행 도착지는 낙찰금액이 아니라 자동 추천입니다. 위 📒 줄 '↻ 다시 읽기'(또는 파일 끌어다 놓기)하면 바로 다시 맞춥니다 · ` + mi.text; mi.ok = false; }
   return mi;
 }
 // 낙찰금액을 새로 읽으면 지금 열린 배차 요청에도 다시 적용(직접 바꾼 도착지는 그대로)
@@ -26819,7 +26832,7 @@ async function fiDispFromFile(f){
     }catch(e){ if(st) st.textContent = "⚠ " + (e && e.message || e); }
     return;
   }
-  if(!/\.xls[xmb]?$/i.test(f.name||"")) await fiHbAuto(false);   // build 225: 메일 · 캡처 — 연결된 낙찰금액 최신 내용
+  if(!/\.xls[xmb]?$/i.test(f.name||"")) await fiHbAuto(true);   // build 343: 놓기 · 고르기 = 사용자 동작 → 권한 물어 최신 파일   // build 225: 메일 · 캡처 — 연결된 낙찰금액 최신 내용
   if(/\.xlsx$/i.test(f.name||"") && await fiIsFixedXlsx(f)){   // build 221: 고정인수 낙찰파일 → ④와 같은 직출 분배표
     return fiHandleFiles([f], { statusId:"fiDispStatus", fromDisp:true, scroll:true });
   }
@@ -26951,7 +26964,7 @@ function wireFixedDispatch(){
   dz.addEventListener("click", e=>{ if(e.target.closest("#fiDispPhotoMsg,#fiDispPhotoPrev")) return; if(e.target.closest("#fiDispPhotoBtn")){ e.stopPropagation(); ph.click(); return; } inp.click(); });
   // build 164: 안드로이드 크롬 — 파일 선택칸을 비우면(value="") 고른 사진 권한이 끊겨 NotReadableError가 난다.
   //   → 먼저 사진을 메모리로 다 읽어 둔 다음에 칸을 비운다.
-  ph.addEventListener("change", async ()=>{ const f = await fiGrabFile(ph); ph.value=""; if(f){ await fiHbAuto(false); fiDispFromImage(f); } });
+  ph.addEventListener("change", async ()=>{ const f = await fiGrabFile(ph); ph.value=""; if(f){ await fiHbAuto(true); fiDispFromImage(f); } });
   inp.addEventListener("change", async ()=>{ if(inp.files && inp.files.length>1){ const all = Array.from(inp.files); fiDispFromFiles(all).finally(()=>{ inp.value=""; }); return; }
     const f = await fiGrabFile(inp); inp.value=""; if(f && !/^image\//.test(f.type||"") && !/\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(f.name||"")) try{ fiPhotoMsg(""); }catch(_){}   // build 221: 엑셀·메일 파일엔 "사진 받는 중" 안 남김
     if(f) fiDispFromFile(f); });
