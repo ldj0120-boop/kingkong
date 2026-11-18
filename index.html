@@ -1935,7 +1935,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 347 · 2026-11-18</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 348 · 2026-11-18</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -11277,7 +11277,7 @@ const ASK_METRICS = [ [/폐기/,"waste"], [/인건비|급여/,"labor"], [/전환
   [/목표/,"target"], [/재고/,"stock"], [/객단가/,"avgTicket"], [/건수|객수|영수증|손님\s*수|결제\s*(건|수)/,"count"], [/^(?!.*(금액|매출|얼마)).*(수량|판매량|개수|갯수|몇\s*개)/,"count"] /* build 334: 판매 개수 */, /* build 314: '수량'만 → 수량 · '금액과 수량' → 매출(수량은 칸에) */ [/공급|출고|PLT|파레트|팔레트|입고/i,"plt"], [/매출|금액|판매|실적|얼마/,"sales"] ];
 const ASK_METRIC_LABEL = { sales:"매출", supplyAmt:"공급액", plt:"공급 PLT", conv:"전환율", target:"목표매출", achieve:"달성률", waste:"폐기비용", labor:"인건비", stock:"매장재고", count:"매출 건수", avgTicket:"객단가", logi:"물류비용", dcount:"배차 건수", loss:"손실(비용 합계)" };   // build 335: 물류비용 · 배차 건수(통합 배차 대장) · 손실
 const ASK_METRIC_WORDS = { "매출":"sales", "공급액":"supplyAmt", "폐기":"waste", "폐기비용":"waste", "인건비":"labor", "전환율":"conv", "달성률":"achieve", "목표":"target", "재고":"stock", "객단가":"avgTicket", "건수":"count", "공급":"plt", "출고":"plt" };
-const ASK_BY_LABEL = { store:"매장별", cat:"카테고리별", month:"월별", day:"일별", hour:"시간대별", wd:"요일별", none:"합계만", storeDay:"매장×날짜", chan:"채널별", item:"항목별" };   // build 318: storeDay = 킹고프리 상세
+const ASK_BY_LABEL = { store:"매장별", cat:"카테고리별", month:"월별", day:"일별", hour:"시간대별", wd:"요일별", none:"합계만", storeDay:"매장×날짜", chan:"채널별", item:"항목별", place:"센터별" };   // build 318: storeDay = 킹고프리 상세
 const ASK_STOP = new Set(["수량","판매량","판매수량","판매금액","금액과","수량과","매장","전체","전매장","매장별","점포별","카테고리","카테고리별","알려줘","알려","보여줘","얼마","얼마야","금액","총액","합계","월별","일별","주말","평일","오늘","어제",
   "이번","지난","지난주","이번주","최근","올해","누적","시간대","시간대별","요일별","전사","모든","분류별","품목별","날짜별","일자별","비교","대비","상위","하위","가장","그럼","그러면","그리고","이번엔","그건","그거",
   "오전","오후","매주","매일","카테","공급","출고","매출","판매","실적","얼마나","주세요","해줘","보여","전월","작년","총","달","월달","별로","말고","아니고"]);   // build 334: '말고'가 오타 지표(재고)로 잡히지 않게
@@ -11453,6 +11453,19 @@ function askParseSlots(text, prev){
     if(m){ const u0 = (m[2]||"").replace(/\s/g,"").toUpperCase();
       const unit = /^만/.test(u0) ? "만원" : /^억/.test(u0) ? "억" : /^천/.test(u0) ? "천원" : u0==="원" ? "원" : /PLT|파레트|팔레트/.test(u0) ? "PLT" : /건|개/.test(u0) ? "건" : u0==="%" ? "%" : "";
       S.thr = { v:+m[1], unit, op:m[3], text:m[0].replace(/\s+/g," ").trim() }; t = t.replace(m[0], " "); } }
+  // build 348: 배차 대장 거르기 — 차량(1톤 카고) · 오전/오후/야간 · 출발지 · 도착지 센터 이름(여주2 · 시흥3 · 인천49) 여러 개(합침)
+  const dispUsed = [];
+  if(/물류\s*비|운송\s*비|운임|배송\s*비|운반\s*비|청구\s*비용|배차/.test(t)){
+    dispUsed.push("차량", "차종", "총합", "합산", "센터");
+    const vm = t.match(/(\d+(?:\.\d+)?)\s*톤\s*(윙\s*바디|윙|카고|냉동\s*탑|냉장\s*탑|탑|플축\s*윙|초장축)?/);
+    if(vm){ S.vton = +vm[1]; if(vm[2]) S.vbody = vm[2].replace(/\s|바디/g,""); t = t.replace(vm[0], " "); dispUsed.push(...(vm[0].match(/[가-힣]+/g)||[])); }
+    else { const bm = t.match(/윙\s*바디|카고|냉동\s*탑|냉장\s*탑|플축\s*윙|초장축/); if(bm){ S.vbody = bm[0].replace(/\s|바디/g,""); t = t.replace(bm[0], " "); } }
+    if(S.vbody) dispUsed.push(S.vbody, S.vbody+"바디");
+    const sm = t.match(/(오전|오후|야간)(?!\s*\d{1,2}\s*시)/); if(sm){ S.slot = sm[1]; t = t.replace(sm[0], " "); dispUsed.push(sm[1]); }
+    const PL = []; t = t.replace(/([가-힣]{2,4})\s?(\d{1,3})(?![\d.])(?!\s*(?:월|일|년|시|톤|PLT|plt|파레트|팔레트|건|개|%|만|천|억|원|주|달|위|등|번|분|명|배|일간|개월|시간)(?![가-힣]))(\s*센터)?/g, (m0, w, n)=>{
+      if(/^(상위|하위|최근|지난|이번|베스트|워스트|꼴찌|탑|top|총|합계|전체)$/.test(w) || /점$/.test(w)) return m0; PL.push(w+n); dispUsed.push(w); return " "; });
+    if(PL.length){ S.places = [...new Set(PL)]; if(/센터/.test(raw)) dispUsed.push("센터"); }
+  }
   // build 335: 물류비용 · 배차 건수 = 06 통합 배차 대장(배차 앱) · 손실(까먹은 돈) = 폐기비용 + 인건비 + 물류비용
   const askLogi = /물류\s*비|운송\s*비|운임|배송\s*비|운반\s*비|청구\s*비용|배차\s*비/.test(t);
   const askDel = /직\s*배송|고객\s*배송|매장\s*배송|고객\s*직배/.test(t), askDisp = askLogi || askDel || /배차/.test(t);
@@ -11510,7 +11523,7 @@ function askParseSlots(text, prev){
     for(const w of ws){ if(ASK_STOP.has(w) || askStoreList().some(s=> s.includes(w))) continue; const hit = Object.keys(ASK_METRIC_WORDS).find(k=> k.length>=2 && askLev(w.replace(/(은|는|이|가|을|를|좀)$/,""), k)===1);
       if(hit){ S.metric = ASK_METRIC_WORDS[hit]; notes.push(`'${w}' → ${hit}(으)로 봤습니다`); break; } } }
   // build 283: 배운 말 적용 + 못 알아들은 말 모으기(바로 뒤에 칩을 누르면 그 뜻으로 배움)
-  const leftovers = askLeftovers(raw, R.usedWords).filter(w=> !(S.by==="storeDay" && /상세|내역|명세/.test(w)));   // build 318
+  const leftovers = askLeftovers(raw, [...R.usedWords, ...dispUsed]).filter(w=> !(S.by==="storeDay" && /상세|내역|명세/.test(w)));   // build 318
   // build 293: 모르는 말이 상품 이름이면 상품 검색(매출 구성 자료의 상위 상품)
   const prodWords = new Set();
   if(["logi","dcount","loss"].includes(S.metric)){ if(S.metric!=="loss" && leftovers.length) S.dwords = leftovers.slice(0, 2); leftovers.forEach(w=> prodWords.add(w)); }   // build 335: 배차 대장 출발지 · 도착지 이름으로(상품 검색 안 함)
@@ -11596,7 +11609,7 @@ function askSlotsLabel(s){ if(!s) return ""; return [s.stores ? s.stores.join("�
 // 칸 → 다시 읽을 수 있는 글(최근 검색 · 입력칸)
 function askSlotsText(s){ const metricWord = { sales:"매출", supplyAmt:"공급액", plt:"공급 PLT", conv:"전환율", target:"목표", achieve:"달성률", waste:"폐기비용", labor:"인건비", stock:"재고", count:"건수", avgTicket:"객단가", logi:"물류비용", dcount:"배차 건수", loss:"손실 합계" };
   return [s.stores ? s.stores.join(" ") : (s.allStores ? "전 매장" : ""), s.cat||"", s.dates ? s.dates.join(" ") : (s.from ? (s.from===s.to ? s.from : `${s.from}~${s.to}`) : ""), s.product ? s.product.q : "", s.wd ? s.wd.map(x=>ASK_WD_NAME[x]+"요일").join(" ") : "", s.hours ? `${s.hours[0]}~${s.hours[1]}시` : "",
-    metricWord[s.metric||"sales"], s.by && s.by!=="none" ? ASK_BY_LABEL[s.by] : "", s.top ? (s.order==="asc" ? `하위 ${s.top}` : `상위 ${s.top}`) : "", s.cmp ? `비교기간 ${s.cmp.from}~${s.cmp.to}` : (s.cmpPrev ? "전월 대비" : ""), s.trend && !s.by ? "추이" : "", s.dtype ? ASK_DTYPE[s.dtype] : "", s.thr ? s.thr.text : "", s.dwords ? s.dwords.join(" ") : ""].filter(Boolean).join(" ").replace(/\s+/g," ").trim(); }
+    metricWord[s.metric||"sales"], s.by && s.by!=="none" ? ASK_BY_LABEL[s.by] : "", s.top ? (s.order==="asc" ? `하위 ${s.top}` : `상위 ${s.top}`) : "", s.cmp ? `비교기간 ${s.cmp.from}~${s.cmp.to}` : (s.cmpPrev ? "전월 대비" : ""), s.trend && !s.by ? "추이" : "", s.dtype ? ASK_DTYPE[s.dtype] : "", s.thr ? s.thr.text : "", s.dwords ? s.dwords.join(" ") : "", s.places ? s.places.join(" ") : "", s.slot||"", s.vton!=null ? `${s.vton}톤` : "", s.vbody||""].filter(Boolean).join(" ").replace(/\s+/g," ").trim(); }
 // 기본값 채우기 → 실행용 q (옛 askParse와 같은 모양)
 function askFinalize(slots){
   const s = Object.assign({}, slots||{}); const last = askLastDataDate();
@@ -11622,9 +11635,11 @@ function askFinalize(slots){
   if(!q.by && q.product && q.from){ q.by = q.from===q.to ? "none" : askMonthsIn(q.from, q.to).length > 1 ? "month" : "day"; }   // 상품은 매장 구분이 없어 시간 순서로
   if(!q.by && s.trend && q.from){ q.by = askMonthsIn(q.from, q.to).length>1 ? "month" : "day"; }   // build 283: 추이 = 시간 순서
   q.thr = s.thr || null; q.shareSort = !!s.shareSort; q.dtype = s.dtype || null; q.dwords = s.dwords || null;   // build 335
+  q.places = s.places || null; q.slot = s.slot || null; q.vton = s.vton!=null ? s.vton : null; q.vbody = s.vbody || null;   // build 348
   if(q.shareSort) q.notes.push("비중 = 전체 합계에서 차지하는 %");
   if(["logi","dcount","loss"].includes(q.metric)){
     const today = fmtDate(new Date()); if(q.to && q.to > today && q.from && q.from <= today && q.metric!=="loss"){ q.to = today; q.notes.push(`배차 대장은 오늘(${today})까지로 봤습니다`); }
+    if(!q.by && q.places && q.places.length > 1 && q.metric!=="loss") q.by = "place";   // build 348: 센터 여러 개 → 센터별
     if(!q.by) q.by = q.from && askMonthsIn(q.from, q.to).length > 1 ? "month" : q.metric==="loss" ? "item" : "chan"; }
   if(!q.by){
     if(!q.stores || q.stores.length>1) q.by = "store";
@@ -11633,11 +11648,11 @@ function askFinalize(slots){
     else q.by = "none";
   }
   if(q.by==="storeDay" && q.cat!=="킹고프리") q.by = "store";   // build 318: 매장×날짜는 킹고프리만
-  if(["chan"].includes(q.by) && !["logi","dcount"].includes(q.metric)) q.by = "store"; if(q.by==="item" && q.metric!=="loss") q.by = "store";
+  if(["chan","place"].includes(q.by) && !["logi","dcount"].includes(q.metric)) q.by = "store"; if(q.by==="item" && q.metric!=="loss") q.by = "store";
   // 알아들은 조건 칩
   q.used = [ s.metric ? ASK_METRIC_LABEL[s.metric] : null, q.hours ? `${q.hours[0]}~${q.hours[1]}시` : null, q.wd ? q.wd.map(x=>ASK_WD_NAME[x]).join("·")+"요일" : null,
     q.dates ? q.dates.join(" · ") : s.from ? (q.from===q.to ? q.from : `${q.from}~${q.to}`) : null, q.product ? `🛒 ${q.product.q}` : null, q.stores ? q.stores.join("·") : null, q.cat, s.by ? ASK_BY_LABEL[s.by] : null,
-    q.top ? (q.order==="asc" ? `하위 ${q.top}` : `상위 ${q.top}`) : null, q.cmp ? `비교 ${q.cmp.from}~${q.cmp.to}` : null, s.trend && !s.by ? "추이" : null, q.dtype ? ASK_DTYPE[q.dtype] : null, q.thr ? q.thr.text : null, q.dwords ? q.dwords.join("·") : null ].filter(Boolean);
+    q.top ? (q.order==="asc" ? `하위 ${q.top}` : `상위 ${q.top}`) : null, q.cmp ? `비교 ${q.cmp.from}~${q.cmp.to}` : null, s.trend && !s.by ? "추이" : null, q.dtype ? ASK_DTYPE[q.dtype] : null, q.thr ? q.thr.text : null, q.dwords ? q.dwords.join("·") : null, q.places ? "센터 "+q.places.join("·") : null, q.slot, q.vton!=null || q.vbody ? [q.vton!=null ? q.vton+"톤" : "", q.vbody||""].join(" ").trim() : null ].filter(Boolean);
   return q;
 }
 // 옛 이름 그대로(build 281 검사 · 다른 곳 호환)
@@ -11743,13 +11758,15 @@ async function askDispEnsure(from, to){
     let rows;
     if(typeof window.__askDispMock === "function") rows = await window.__askDispMock(lo, hi);
     else { const c = await askDispClient(); const ses = (await c.auth.getSession()).data.session; if(!ses) throw new Error("NOLOGIN"); rows = [];
-      for(let i = 0; ; i += 1000){ const r = await c.from("dispatches").select("id,run_date,type,status,from_place,to_place,via_place,plt_qty,vehicle_ton,base_fare,extra_fare,return_fare").is("deleted_at", null).gte("run_date", lo).lte("run_date", hi).order("id").range(i, i+999);
+      for(let i = 0; ; i += 1000){ const r = await c.from("dispatches").select("id,run_date,type,status,time_slot,from_place,to_place,via_place,plt_qty,vehicle_ton,vehicle_body,base_fare,extra_fare,return_fare").is("deleted_at", null).gte("run_date", lo).lte("run_date", hi).order("id").range(i, i+999);
         if(r.error) throw new Error(r.error.message); rows.push(...(r.data||[])); if((r.data||[]).length < 1000) break; } }
     ASK_DISP = { lo, hi, rows: rows||[], err:null, at:Date.now() }; return true;
   }catch(e){ const m = String(e && e.message || e);
     ASK_DISP = { lo:from, hi:to, rows:[], at:Date.now(), err: /NOLOGIN/.test(m) ? "물류비용 · 배차 자료는 '목표매출 › 06 통합 배차 대장'에서 본사 로그인을 한 번 하면 여기서도 보입니다" : `통합 배차 대장 자료를 못 받았습니다: ${m}` }; return false; }
 }
 function askDispStore(d){ const p = String((d.type==="delivery" ? d.from_place : d.to_place) || ""); const s = (STORES||[]).find(x=> p===x || p.startsWith(x+"_") || p.startsWith(x+"(")); return s || p || "(미상)"; }
+// build 348: '여주2' = 출발지 · 도착지 이름(공백 무시)이 같거나 '여주2…'로 시작(뒤가 숫자면 아님 — 고양3 ≠ 고양31)
+function askDispPlaceHit(d, p){ return [d.from_place, d.to_place].some(x=>{ x = String(x||"").replace(/\s/g,""); return x===p || (x.startsWith(p) && !/^\d/.test(x.slice(p.length))); }); }
 function askDispFare(d){ return (d.status!=="canceled" ? (+d.base_fare||0) + (+d.extra_fare||0) : 0) + (+d.return_fare||0); }
 function askDispRows(q){
   let L = (ASK_DISP.rows||[]).filter(d=> d.run_date >= q.from && d.run_date <= q.to && (d.status!=="canceled" || +d.return_fare > 0));
@@ -11757,6 +11774,12 @@ function askDispRows(q){
   if(q.stores) L = L.filter(d=> q.stores.includes(askDispStore(d)));
   if(q.wd) L = L.filter(d=> q.wd.includes(new Date(d.run_date+"T00:00:00").getDay()));
   if(q.dates) L = L.filter(d=> q.dates.includes(d.run_date));
+  if(q.places){ q.places.forEach(p=>{ if(!L.some(d=> askDispPlaceHit(d, p))) q.notes.push(`'${p}'는 이 기간 배차 대장 출발지 · 도착지에 없습니다`); });
+    L = L.filter(d=> q.places.some(p=> askDispPlaceHit(d, p))); }
+  if(q.slot) L = L.filter(d=> (d.time_slot||"")===q.slot);
+  if(q.vton!=null || q.vbody){ const n0 = L.filter(d=> d.vehicle_ton==null && !d.vehicle_body).length;
+    L = L.filter(d=> (q.vton==null || +d.vehicle_ton===q.vton) && (!q.vbody || String(d.vehicle_body||"").replace(/\s|바디/g,"").includes(q.vbody)));
+    if(n0) q.notes.push(`차량(톤 · 차종) 미입력 ${n0}건은 빼고 계산했습니다`); }
   if(q.thr && q.thr.unit==="PLT"){ const T = q.thr; L = L.filter(d=>{ const x = +d.plt_qty||0; return T.op==="이상" ? x>=T.v : T.op==="이하" ? x<=T.v : T.op==="초과" ? x>T.v : x<T.v; }); q.thrDone = true; }
   (q.dwords||[]).forEach(w=>{ const hit = L.filter(d=> [d.from_place, d.to_place, d.via_place].some(x=> x && String(x).includes(w)));
     if(hit.length){ L = hit; q.notes.push(`'${w}' 들어간 출발지 · 도착지만`); } else q.notes.push(`'${w}'는 배차 대장 출발지 · 도착지에 없어 빼고 계산했습니다`); });
@@ -11765,16 +11788,18 @@ function askDispRows(q){
 function askDispRun(q, res, per){
   if(ASK_DISP.err) q.notes.push(ASK_DISP.err);
   const won = v => Math.round(v||0).toLocaleString(), r1 = v => Math.round(v*10)/10;
-  const key = d=> q.by==="month" ? d.run_date.slice(0,7) : q.by==="day" ? d.run_date : q.by==="wd" ? ASK_WD_NAME[new Date(d.run_date+"T00:00:00").getDay()]+"요일" : q.by==="store" ? askDispStore(d) : q.by==="chan" ? (ASK_DTYPE[d.type]||d.type) : "합계";
+  const key = d=> q.by==="month" ? d.run_date.slice(0,7) : q.by==="day" ? d.run_date : q.by==="wd" ? ASK_WD_NAME[new Date(d.run_date+"T00:00:00").getDay()]+"요일" : q.by==="store" ? askDispStore(d) : q.by==="chan" ? (ASK_DTYPE[d.type]||d.type) : q.by==="place" ? ((q.places||[]).find(p=> askDispPlaceHit(d, p)) || "(기타)") : "합계";
   const out = {}; askDispRows(q).forEach(d=>{ const o = out[key(d)] || (out[key(d)] = { f:0, n:0, plt:0, nofare:0 }); o.f += askDispFare(d);
     if(d.status!=="canceled"){ o.n++; o.plt += +d.plt_qty||0; if(d.base_fare==null || d.base_fare==="") o.nofare++; } });
   if(q.metric==="logi") res.rows = Object.keys(out).map(k=>{ const o = out[k]; return { k, v:o.f, sub:`${o.n}건 · ${r1(o.plt)} PLT${o.n?` · 건당 ${won(o.f/o.n)}원`:""}${o.nofare?` · 운임 미입력 ${o.nofare}건`:""}` }; });
   else { res.unit = "건"; res.rows = Object.keys(out).map(k=>{ const o = out[k]; return { k, v:o.n, sub:`운임 ${won(o.f)}원 · ${r1(o.plt)} PLT` }; }); }
   const t = res.rows.reduce((a,r)=> a+(r.v||0), 0); res.rows.forEach(r=> r.share = t>0 ? r.v/t*100 : null); res.total = t;
   const nof = Object.values(out).reduce((a,o)=> a+o.nofare, 0);
-  res.title = `${q.stores ? q.stores.join("·") : "전체"}${q.dtype ? " · "+ASK_DTYPE[q.dtype] : ""}${q.thr && q.thr.unit==="PLT" ? " · "+q.thr.text : ""} · ${per} · ${q.metric==="logi" ? "물류비용(운임)" : "배차 건수"}`;
+  res.title = `${q.stores ? q.stores.join("·") : q.places ? q.places.join("·") : "전체"}${q.dtype ? " · "+ASK_DTYPE[q.dtype] : ""}${q.slot ? " · "+q.slot : ""}${q.vton!=null || q.vbody ? " · "+[q.vton!=null ? q.vton+"톤" : "", q.vbody||""].join(" ").trim() : ""}${q.thr && q.thr.unit==="PLT" ? " · "+q.thr.text : ""} · ${per} · ${q.metric==="logi" ? "물류비용(운임)" : "배차 건수"}`;
   res.basis = ["물류비용 = 06 통합 배차 대장(배차 앱) 기본 + 추가 + 회송 운임 · 취소 건은 회송 운임만 · 날짜 = 운행일", "매장 = 고객 배송은 출발 매장, 그 밖은 도착지"];
   if(nof) res.basis.push(`운임 미입력 ${nof}건은 0원으로 셈`);
+  if(q.places) res.basis.push("센터 = 출발지 또는 도착지 이름이 같은 배차(여러 곳이면 합침)");
+  if(q.slot) res.basis.push(`${q.slot} = 배차 대장 시간대 칸`); if(q.vton!=null || q.vbody) res.basis.push("차량 = 배차 대장 톤 · 차종 칸(1톤은 1톤만 — 1.4톤 아님)");
   if(q.cat) q.notes.push(`카테고리(${q.cat})는 배차 대장에 없어 빼고 계산했습니다`);
   res.jump = "goals:13"; return res;
 }
@@ -12404,7 +12429,7 @@ function askShow(slots, notes, asks, text){
   // 상위/하위
   let rows = res.rows.filter(r=> r.v!=null || r.sub); const allN = rows.length;
   if(q.top){ rows = rows.slice().sort((a,b)=> q.order==="asc" ? (a.v||0)-(b.v||0) : (b.v||0)-(a.v||0)).slice(0, q.top); }
-  const head = q.by==="chan" ? "채널" : q.by==="item" ? "항목" : q.by==="store" ? (["logi","dcount"].includes(q.metric) ? "매장 · 도착지" : "매장") : q.by==="storeDay" ? "날짜 · 매장" : q.by==="cat" ? "카테고리" : q.by==="day" ? "날짜" : q.by==="month" ? "월" : q.by==="hour" ? "시간대" : q.by==="wd" ? "요일" : "구분";
+  const head = q.by==="place" ? "센터" : q.by==="chan" ? "채널" : q.by==="item" ? "항목" : q.by==="store" ? (["logi","dcount"].includes(q.metric) ? "매장 · 도착지" : "매장") : q.by==="storeDay" ? "날짜 · 매장" : q.by==="cat" ? "카테고리" : q.by==="day" ? "날짜" : q.by==="month" ? "월" : q.by==="hour" ? "시간대" : q.by==="wd" ? "요일" : "구분";
   const showTbl = rows.length > 1 || (rows.length===1 && rows[0].k!=="합계");
   const tbl = showTbl ? `<div class="tblbox"><table class="g-tbl ask-tbl kk-keep"><thead><tr><th>#</th><th>${head}</th><th>${u==="%"?"비율":q.metric==="avgTicket"?"객단가":"값"}</th>${C?`<th>비교 (${escHtml(q.cmp.from.slice(5))}~${escHtml(q.cmp.to.slice(5))})</th><th>증감</th>`:""}${isRate?"":"<th>비중</th>"}<th>근거</th></tr></thead><tbody>${
     rows.map((r,i)=>{ const b = cmap ? cmap[r.k] : null; return `<tr><td>${i+1}</td><td><b>${escHtml(r.k)}</b></td><td class="num">${askFmt(r.v,u)} <span class="ask-s">${askShort(r.v,u)}</span></td>${C?`<td class="num">${askFmt(b,u)}</td><td class="num ${diffCls(r.v,b)}">${diffTxt(r.v,b)}</td>`:""}${isRate?"":`<td class="num">${r.share!=null?r.share.toFixed(1)+"%":"-"}</td>`}<td class="ask-sub">${escHtml(r.sub||"")}</td></tr>`; }).join("")
@@ -12420,7 +12445,7 @@ function askShow(slots, notes, asks, text){
   if(q.metricGuessed) refine.push(`<div class="ask-qbox"><div class="ask-q">매출로 봤습니다 — 다른 걸 보실 건가요?</div><div class="ask-opts">${["sales","supplyAmt","plt","conv","achieve","waste","labor","stock"].map(k=> chip(ASK_METRIC_LABEL[k], {metric:k}, q.metric===k)).join("")}</div></div>`);
   const per = [["이번 달", { from:`${last.slice(0,7)}-01`, to:last }], ["지난달", { from:`${pm}-01`, to:askMonthEnd(pm) }], ["최근 8주", { from:askAddDays(last,-55), to:last }], ["올해", { from:`${last.slice(0,4)}-01-01`, to:last }]];
   refine.push(`<div class="ask-refine"><span class="ask-rl">기간</span>${per.map(([lb,set])=> chip(lb, set, q.from===set.from && q.to===set.to)).join("")}
-    <span class="ask-rl">나눠 보기</span>${(["logi","dcount"].includes(q.metric) ? ["chan","store","month","day"] : q.metric==="loss" ? ["item","store","month"] : ["store","cat","month","day"]).concat(q.cat==="킹고프리"?["storeDay"]:[]).concat(q.hours||q.metric==="sales"?["hour","wd"]:[]).map(k=> chip(ASK_BY_LABEL[k], {by:k}, q.by===k)).join("")}
+    <span class="ask-rl">나눠 보기</span>${(["logi","dcount"].includes(q.metric) ? (q.places ? ["place"] : []).concat(["chan","store","month","day"]) : q.metric==="loss" ? ["item","store","month"] : ["store","cat","month","day"]).concat(q.cat==="킹고프리"?["storeDay"]:[]).concat(q.hours||q.metric==="sales"?["hour","wd"]:[]).map(k=> chip(ASK_BY_LABEL[k], {by:k}, q.by===k)).join("")}
     <span class="ask-rl">더</span>${chip(q.cmp?"비교 끄기":"전월 대비", q.cmp?{cmp:null, cmpPrev:false}:{cmpPrev:true}, false)}${chip(q.top?"전부 보기":"상위 5", q.top?{top:null}:{top:5, order:"desc"}, false)}${q.stores?chip("전 매장으로", {stores:null, allStores:true}, false):""}</div>`);
   // 자료가 없으면 자료 있는 달 제안
   if(text && text===ASK_STATE.typed){ if(!rows.length) askLogEvent(text, "empty", { m:q.metric, f:q.from, to:q.to }); if((ASK_STATE.leftovers||[]).length) askLogEvent(text, "leftover", { lo:ASK_STATE.leftovers.slice(0,5) }); }   // build 297
