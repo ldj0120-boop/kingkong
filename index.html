@@ -1935,7 +1935,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 343 · 2026-11-18</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 344 · 2026-11-18</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -26440,7 +26440,11 @@ function fiVerifyHtml(d){
   const V = fiVerify(d); if(!V || !V.n) return "";
   const items = Object.entries(V.items).map(([k,n])=> `${escHtml(k)} ${n}`).join(" · ");
   const ok = !V.bad && !V.missing.length;
-  return `<div class="fi-match ${ok?"ok":"bad"}" id="fiVerifyBox" style="margin-top:6px">🔎 <b>1차 검증</b> — ${V.n}행 중 ✓ 이상 없음 ${V.n - V.bad}행${V.bad ? ` · ⚠ 확인 ${V.bad}행 (${items})` : ""}${V.missing.length ? ` · ⚠ 메일에 있는데 출고요청서에 없는 입차코드 ${V.missing.length}개: ${escHtml(V.missing.join(", "))} (이전 메일 인용이면 무시)` : ""}${ok ? " — 입차코드 · 센터 · PLT · 출고일 · 도착지 모두 확인됨" : " — 아래 각 행 \"확인\" 줄의 🔎 항목을 보고 고쳐 주세요"}</div>`;
+  // build 344: 하차지를 낙찰금액에서 못 찾은 행이 있으면 — 지금 읽어 둔 파일 · 마지막 낙찰일 + 바로 다시 읽기 버튼
+  let hbFix = "";
+  if(V.items["낙찰금액"]){ const H = (typeof FI_HB!=="undefined" && FI_HB) || null, last = H && H.rows ? (H.rows.map(x=> x.bd).filter(Boolean).sort().pop() || "") : "";
+    hbFix = `<div style="margin-top:6px;padding:8px 10px;border:2px solid var(--amber);border-radius:8px;font-size:14px">📒 <b>하차지 ${V.items["낙찰금액"]}행을 낙찰금액에서 못 찾음</b> — 사이트가 읽어 둔 낙찰금액: ${H ? `${escHtml(H.name||"")} · 마지막 낙찰일 <b>${escHtml(last||"-")}</b> · 읽은 시각 ${escHtml(new Date(H.checkedAt||H.at).toLocaleString("ko-KR"))}` : "<b>없음</b>"}. 낙찰금액 파일 저장 후 <button class="act fi-mini" id="fiHbReload">↻ 낙찰금액 다시 읽고 하차지 맞추기</button> (연결 안 됐으면 파일 고르는 창이 뜸 · 2026_쿠팡 낙찰금액.xlsx를 이 칸에 끌어다 놓아도 됨)</div>`; }
+  return hbFix + `<div class="fi-match ${ok?"ok":"bad"}" id="fiVerifyBox" style="margin-top:6px">🔎 <b>1차 검증</b> — ${V.n}행 중 ✓ 이상 없음 ${V.n - V.bad}행${V.bad ? ` · ⚠ 확인 ${V.bad}행 (${items})` : ""}${V.missing.length ? ` · ⚠ 메일에 있는데 출고요청서에 없는 입차코드 ${V.missing.length}개: ${escHtml(V.missing.join(", "))} (이전 메일 인용이면 무시)` : ""}${ok ? " — 입차코드 · 센터 · PLT · 출고일 · 도착지 모두 확인됨" : " — 아래 각 행 \"확인\" 줄의 🔎 항목을 보고 고쳐 주세요"}</div>`;
 }
 
 // 전용 표 인식 결과와 범용 인식 결과 중 메일 정보를 더 많이 읽은 쪽 (빈 칸을 날짜 추정으로 채우기 전 값으로 비교)
@@ -26948,7 +26952,8 @@ function wireFixedDispatch(){
     _fiHbAt = 0;
     fiHbRefresh(true).then(s=>{
       if(s==="same"){ _fiHbMsg = "✓ 낙찰금액 파일 변경 없음 — 최신 내용"; fiHbRenderBar(); fiHbReapply(); }
-      else if(s==="nohandle"){ _fiHbMsg = "연결된 파일이 없습니다 — 📂 낙찰금액 파일 연결을 누르거나 2026_쿠팡 낙찰금액.xlsx를 끌어다 놓아 주세요"; fiHbRenderBar(); }
+      else if(s==="nohandle"){ fiHbConnect(); return; }   // build 344: 연결 안 됐으면 바로 파일 고르기
+      else if(s==="nohandle-old"){ _fiHbMsg = "연결된 파일이 없습니다 — 📂 낙찰금액 파일 연결을 누르거나 2026_쿠팡 낙찰금액.xlsx를 끌어다 놓아 주세요"; fiHbRenderBar(); }
     });
   });
   const dz = document.getElementById("fiDispDrop"), inp = document.getElementById("fiDispInput"), ta = document.getElementById("fiDispPaste");
