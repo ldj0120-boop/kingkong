@@ -1934,7 +1934,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 339 · 2026-11-18</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 341 · 2026-11-18</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -22553,6 +22553,15 @@ function esRegionKo(fc){
   const m = /^([A-Z]+)/.exec(c); const p = m && typeof FI_FC_PREFIX!=="undefined" && FI_FC_PREFIX[m[1]];
   return p || null;
 }
+// build 341: 임박 요약 D열 괄호 그룹 이름 — XLB=일반가전 · XLK=대형가전 · XLW=대형가구 또는 대형가전(그 그룹 RAW 판매가 절반 넘게 가전이면 대형가전)
+function esGrpName(src, g){
+  g = esT(g).toUpperCase();
+  if(g==="XLB") return "일반가전";
+  if(g==="XLK") return "대형가전";
+  if(g==="XLW"){ let ga = 0, all = 0; (src||[]).forEach(r=>{ if(esT(r[0]).toUpperCase()!=="XLW") return; const v = Math.abs(+r[18]||0) || 1; all += v; if(/가전/.test(esT(r[6]))) ga += v; });
+    return all && ga*2 > all ? "대형가전" : "대형가구"; }
+  return g;
+}
 function esXlLabel(src, g, codeHint){
   g = esT(g).toUpperCase();
   let fcs = [...new Set(src.filter(r=> esT(r[0]).toUpperCase()===g).map(r=> esT(r[2]).replace(/[\s\u00a0]+/g,"").toUpperCase()).filter(Boolean))];
@@ -22562,8 +22571,10 @@ function esXlLabel(src, g, codeHint){
   const full = fc=>{ const n = kkFcKo(fc); return /[가-힣]/.test(n) ? n.replace(/\s+/g,"") : esRegionKo(fc); };
   let regs = [...new Set(fcs.map(full).filter(Boolean))];
   if(!regs.length && codeHint){ const k = full(codeHint); if(k) regs = [k]; }
-  if(!regs.length) return codeHint ? `${esT(codeHint).replace(/\d.*$/,"").toUpperCase()} ${g}` : g;
-  return `${regs.join("·")} ${g}`;
+  const nm = esGrpName(src, g);   // build 341
+  if(g==="XLW") return nm;          // 대형가구/대형가전은 센터 없이
+  if(!regs.length) return codeHint ? `${esT(codeHint).replace(/\d.*$/,"").toUpperCase()} ${nm}` : nm;
+  return `${regs.join("·")} ${nm}`;
 }
 function esLotCenters(er, src){
   const names = [], codes = new Set(); let needRaw = false;
@@ -22635,13 +22646,17 @@ function esAnalyze(D){
     if(vs.length || aa){
       plt = aa ? aa.plt : vs.reduce((s,x)=> s+x.plt, 0);
       // build 207: "XLB(CHA)" → RAW에서 그 LOT·그룹(XLB) 행의 FC 코드로 센터 지역명을 찾아 "창원 XLB" (못 찾으면 괄호 안 코드 → 지역명)
-      extras = lotFrom==="tbl" ? [] : vs.filter(x=> !eosFc.has(x.fc.toUpperCase())).map(x=>{
+      // build 340: 표의 "XLW"·"XLA(GYS2)" 같은 그룹 줄은 EOS 시트/표 형태와 상관없이 항상 괄호에 표시 (EOS 시트에 XLW 줄이 있어도 빠지지 않게)
+      const xlFc = f=> /^XL[A-Z]{1,2}$/i.test(f) || /^(XL[A-Z])\s*\(/i.test(f) || /^[A-Z]+\d*[A-Z0-9_]*\s+XL[A-Z]$/i.test(f);
+      extras = vs.filter(x=> xlFc(esT(x.fc)) || (lotFrom!=="tbl" && !eosFc.has(x.fc.toUpperCase()))).map(x=>{
         const mm = /^(XL[A-Z])\s*\(\s*([A-Z]+\d*[A-Z0-9_]*)\s*\)$/i.exec(x.fc), m2 = /^([A-Z]+\d*[A-Z0-9_]*)\s+(XL[A-Z])$/i.exec(x.fc);
         const g = mm ? mm[1] : m2 ? m2[2] : null, code = mm ? mm[2] : m2 ? m2[1] : null;
-        return { label: g ? esXlLabel(src, g, code) : x.fc, plt:x.plt }; });
+        return { label: /^XLW$/i.test(esT(x.fc)) || (g && g.toUpperCase()==="XLW") ? esGrpName(src,"XLW") : g ? esXlLabel(src, g, code) : x.fc, plt:x.plt }; });
+      // build 340: 표에 XLW 줄이 없어도 RAW에 XLW(대형가구) 행이 있으면 로케이션 수로 괄호 표시
+      if(!vs.some(x=> /XLW/i.test(esT(x.fc)))){ const lw = new Set(src.filter(r=> esT(r[0]).toUpperCase()==="XLW").map(r=> esT(r[10])).filter(Boolean)); if(lw.size) extras.push({ label:esGrpName(src,"XLW"), plt:lw.size }); }
     } else if(er.some(r=> +r[4]>0)){   // 표가 없으면 ④ 낙찰파일과 같은 계산(EOS Pallet 합 + EOS 외 그룹 로케이션 수)
       const grp = new Map(); src.forEach(r=>{ const g = esT(r[0]).toUpperCase()||"EOS"; if(!/^XL[A-Z]{1,2}$/.test(g)) return; const k=g+"|"+esT(r[2]); if(!grp.has(k)) grp.set(k,{ g, fc:esT(r[2]), locs:new Set() }); const l=esT(r[10]); if(l) grp.get(k).locs.add(l); });
-      extras = [...grp.values()].map(x=>({ label: x.g==="XLW" ? "XLW" : esXlLabel(src, x.g, x.fc), plt:x.locs.size }));
+      extras = [...grp.values()].map(x=>({ label: x.g==="XLW" ? esGrpName(src,"XLW") : esXlLabel(src, x.g, x.fc), plt:x.locs.size }));
       plt = er.reduce((s,r)=> s+(+r[4]||0), 0) + extras.reduce((s,x)=> s+x.plt, 0);
     } else {   // build 166: PLT 정보가 전혀 없으면 로케이션 수로 추정
       extras = []; plt = new Set(src.map(r=> esT(r[10])).filter(Boolean)).size; pltGuess = true;
