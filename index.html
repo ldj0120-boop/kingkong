@@ -1935,7 +1935,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 348 · 2026-11-18</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 350 · 2026-11-19</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -17057,7 +17057,7 @@ async function afScan(gesture, why){
 }
 async function afConnect(){
   if(typeof window.showDirectoryPicker!=="function"){ alert("이 브라우저는 폴더 연결을 지원하지 않습니다. 크롬(또는 엣지)에서 열어 주세요."); return; }
-  let h; try{ h = await window.showDirectoryPicker({ id:"kkupload", mode:"read" }); }catch(_){ return; }   // 취소
+  let h; try{ h = await window.showDirectoryPicker({ id:"kkupload", mode:"read" }); }catch(e){ if(!(e && e.name==="AbortError")){ afSetSub("폴더 창 실패 · 다시 누르기", true); alert("폴더 고르기 창을 열지 못했습니다: " + (e && e.message || e)); } return; }   // 취소
   if(!/업로드/.test(h.name) && !confirm(`'${h.name}' 폴더를 연결할까요?\n보통은 바탕화면 › 클로드 › 업로드용자료 폴더입니다.`)) return;
   _afH = h;
   try{ await _idbSetRaw(AF_HANDLE, h); }catch(e){ alert("연결 정보를 저장하지 못했습니다: " + (e && e.message || e)); return; }
@@ -17070,15 +17070,25 @@ function afAuto(why){
   if(Date.now() - _afLast < 30000) return;
   afScan(false, why).catch(()=>{});
 }
-document.getElementById("afBtn").onclick = async ()=>{
-  try{
-    if(!_afH && !_afBusy) afSetSub("확인 중…");
-    const h = _afH || await afTimeout(afHandle(), 3000, null);
-    if(!h){ await afConnect(); return; }
-    _afH = h;
-    const r = await afScan(true, "button");
-    if(r==="perm" && confirm("폴더 읽기 권한이 없습니다. 폴더를 다시 연결할까요?")) await afConnect();
-  }catch(e){ console.warn("afBtn", e); afSetSub("오류 · 다시 누르기", true); alert("폴더 자동 읽기 오류: " + (e && e.message || e)); }
+// build 350: 클릭 → 다른 기다림 없이 바로 크롬 허용 요청(클릭 효력 5초 안에). 거절/오류면 다음 클릭은 폴더 고르기 창.
+let _afRepick = false;
+document.getElementById("afBtn").onclick = ()=>{
+  const h = _afH;
+  if(!h || _afRepick || typeof h.requestPermission!=="function"){ _afRepick = false; afConnect(); return; }
+  if(_afBusy && Date.now() - _afBusyAt < 180000){ showNotice("🔗 폴더 자동 읽기 — 지금 읽는 중입니다. 잠시 뒤 다시 눌러 주세요."); return; }
+  afSetSub("허용 창 확인", true);
+  let pr; try{ pr = h.requestPermission({ mode:"read" }); }catch(e){ pr = Promise.reject(e); }
+  showNotice("🔗 크롬 주소창 아래 작은 창에서 '방문할 때마다 허용'을 눌러 주세요. 창이 없으면 버튼을 한 번 더 누르면 폴더 고르기 창이 뜹니다.");
+  afTimeout(pr, 60000, "timeout").then(async p=>{
+    if(p==="granted"){ await afScan(true, "button"); return; }
+    _afRepick = true;
+    afSetSub("한 번 더 눌러 폴더 고르기", true);
+    showNotice("🔗 허용이 안 됐습니다(" + p + "). 버튼을 한 번 더 누르면 폴더 고르기 창이 뜹니다 → 업로드용자료 선택.");
+  }).catch(e=>{
+    console.warn("afBtn", e); _afRepick = true;
+    afSetSub("한 번 더 눌러 폴더 고르기", true);
+    showNotice("🔗 허용 요청 실패: " + (e && e.message || e) + " — 버튼을 한 번 더 누르면 폴더 고르기 창이 뜹니다.");
+  });
 };
 document.getElementById("afBtn").oncontextmenu = (e)=>{ e.preventDefault(); afConnect(); };   // 오른쪽 클릭 = 다른 폴더로 다시 연결
 window.addEventListener("focus", ()=> afAuto("focus"));
@@ -20792,8 +20802,21 @@ function fiDispRender(){
 // build 305: XLS "물/탄산수"는 적재물 칸으로 옮김(비고에서 뺌)
 const FI_REMARK_DEFAULT = { XLS:"", XLG:"센터 최우선 입차가능", XLD:"" };
 // build 305: 적재물 — 직접 쓴 값 > 임박 쌀·물(낙찰파일 원본 기준) > XLS 물/탄산수
+// build 349: 대형 PLT 출고센터(평택5 · 금왕3 · 김해) — 배차요청 적재물에 항상 "대형PLT"
+const FI_BIG_PLT_FC = /^(PYT5|GEW3|GMH\d+|평택5|금왕3|김해\d*)(센터)?$/;
+function fiIsBigPltFc(r){
+  const fc = String((r&&r.fc)||"").trim(); if(!fc) return false;
+  let ko = ""; try{ ko = fiCenterName(fc)||""; }catch(_){}
+  let ko2 = ""; try{ ko2 = kkFcKo(fc)||""; }catch(_){}
+  return [fc, ko, ko2].some(x=> FI_BIG_PLT_FC.test(String(x).replace(/\s+/g,"")));
+}
 function fiLoadOf(r){
   if(!r) return "";
+  const v = fiLoadOf0(r);
+  if(!fiIsBigPltFc(r) || /대형\s*PLT/i.test(v)) return v;
+  return v ? `대형PLT · ${v}` : "대형PLT";
+}
+function fiLoadOf0(r){
   if(r.load!=null && String(r.load).trim()!=="") return String(r.load).trim();
   if(r.heavyNote) return String(r.heavyNote).replace(/^중량물\s*/,"");
   if(/^XLS/i.test(String(r.type||""))) return "물/탄산수";
@@ -27512,6 +27535,14 @@ const IMPROVE_PROPOSALS = [
     why:"검수 오류(빨강) '★ 리퀴 매출이 매장 매출보다 큰 날 1건 — 2026-11-03 동탄점 ★ 568,652 > 매출 435,736'이 11/4부터 13일째 남아 검수 배지가 계속 '오류 1'. 지난 날짜라 원본을 다시 올려도 바뀌지 않으면 계속 남고, 새 오류가 생겨도 눈에 덜 띔.",
     what:"이 오류 툴팁에 날짜 · 매장별 '확인함' 버튼(관리자만) — 누르면 그 날짜 · 매장 · 금액 조합은 '확인됨'(초록)으로 내려감. 금액이 바뀌면 다시 오류로.",
     risk:"낮음 — 표시만 바뀜, 매출 자료 변경 없음. '확인함' 기록이 서버 상태에 몇 줄 추가됨." },
+  { id:"P261119-01", date:"2026-11-19", area:"점검", title:"출고 출처 비교 — 센터 출고내역서에 원래 없는 카테고리(11번가 · GS · FC파손 · 생산재고 · 데드우드)는 빼고 % 계산",
+    why:"검수 경고 '11월 본사 출고계획서 725 vs 센터 출고내역서 477 PLT — 34% 차이'가 매일 남음. 11/1~11/17 둘 다 있는 날을 카테고리별로 보면 차이 거의 전부가 센터 내역서에 칸이 없는 카테고리: 데드우드 본사 91 vs 센터 6 · 11번가 54 vs 0 · GS 51 vs 0 · FC파손 43 vs 0 · 생산재고 28 vs 0 · 사입 5 vs 0. 이걸 빼면 XLA 152/149 · XLB 57/59 · XLE 48/48 · 임박 58/58 · 생수 61/61 등 453 vs 471 PLT(4% 차이)로 거의 같음. 반대로 대형가전은 본사 0 vs 센터 22(이름이 다르게 들어가는 듯).",
+    what:"출고 출처 비교 경고의 % 계산을 '그 달에 두 파일 모두 한 번이라도 나온 카테고리'만으로 하고, 툴팁에 '센터 내역서에 없는 카테고리: 데드우드 91 · 11번가 54 · GS 51 …(본사만)' 줄과 카테고리별 '본사 N / 센터 M' 목록 추가. 대형가전처럼 한쪽만 있는 칸도 같이 표시.",
+    risk:"낮음 — 검수 알림 계산 · 문구만 바뀜, 출고 집계('큰 값 채택')는 그대로. 센터가 정말로 그 카테고리를 빠뜨린 경우도 '본사만'으로만 보여 경고 등급이 낮아질 수 있음." },
+  { id:"P261119-02", date:"2026-11-19", area:"점검", title:"매장 입고 비교 — 카테고리별 '보낸 / 입고' 합계를 툴팁에 표시 (XLS · XLC 차이 원인 보이게)",
+    why:"검수 '11월 보낸 605 · 매장 입고 727 PLT — 10 PLT 넘게 차이 8곳'에서 차이 +122 PLT 중 대부분이 두 카테고리: XLS 보낸 71 vs 입고 152(+81) · XLC 36 vs 78(+42). XLC는 제주점 0/18 · 안중점 0/10 · 양주점 0/10 · 원주점 0/4처럼 보낸 기록이 아예 없는 매장에 입고가 있음. 나머지는 XLA 183/162 · XLB 63/60 · 대형가전 22/19로 비슷. 지금 툴팁은 매장별 합계만 있어 어느 카테고리가 빠졌는지 안 보임.",
+    what:"매장 입고 경고 툴팁 맨 위에 카테고리별 '보낸 / 입고 / 차이' 줄(차이 큰 순)을 넣고, 매장 줄에는 차이 큰 카테고리 1~2개를 괄호로(예: '제주점 … → −18 (XLC 0/18)'). 보낸 0인데 입고 4 PLT 이상인 매장 · 카테고리는 '보낸 기록 없음'으로 따로 모아 보여 주기.",
+    risk:"낮음 — 툴팁 표시만 늘어남, 계산 · 자료 변경 없음." },
 ];
 var IMPROVE_DECISIONS; if(!IMPROVE_DECISIONS || typeof IMPROVE_DECISIONS!=="object") IMPROVE_DECISIONS = {};
 var IMPROVE_REQUESTS; if(!Array.isArray(IMPROVE_REQUESTS)) IMPROVE_REQUESTS = [];
