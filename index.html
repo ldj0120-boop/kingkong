@@ -1935,7 +1935,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 350 · 2026-11-19</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 351 · 2026-11-19</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -26116,10 +26116,20 @@ function fiHbCands(r){
   return c.length ? { key:"d|"+bd+"|"+fc+"|"+t, c, how:"낙찰일 · 센터 · 분류(입금코드 없는 줄)" } : null;
 }
 function fiHbApply(rows, reapply){
-  let n = 0; const used = {};
+  let n = 0; const used = {}, usedP = {};
   (rows||[]).forEach(r=>{
     const f = fiHbCands(r); if(!f){ r.hbNo = ""; return; }
-    const k = used[f.key] = (used[f.key]||0) + 1;   // 직접 고친 행도 자리는 차지(순서 유지)
+    let k = used[f.key] = (used[f.key]||0) + 1;   // 직접 고친 행도 자리는 차지(순서 유지)
+    // build 351: 같은 키 여러 줄 + 줄마다 PLT 있음 → 행 수 말고 PLT로 소진 (고양3 XLS 18 진천 · 9 남양주 = 메일 9·9·9 → 진천 · 진천 · 남양주)
+    const pm = r.pallets!=null && r.pallets!=="" ? +r.pallets : NaN;
+    const byP = !f.lot && f.c.length>1 && pm>0 && f.c.every(y=> +y.plt>0);
+    let over = false;
+    if(byP){
+      const u = usedP[f.key] || 0; usedP[f.key] = u + pm;
+      let acc = 0, i = 0; for(; i<f.c.length; i++){ acc += +f.c[i].plt; if(u < acc) break; }
+      if(i>=f.c.length){ i = f.c.length-1; over = true; }
+      k = i + 1;
+    }
     const x = f.lot ? f.c[0] : f.c[Math.min(k, f.c.length) - 1];
     r.hbNo = x ? (String(x.no||"").replace(/\u00a0/g," ").trim() || String(x.fcRaw||"").trim()) : "";   // build 270: 낙찰NO = G열 NO. (없으면 D열 센터명)
     if(reapply && r.destManual) return;
@@ -26131,8 +26141,11 @@ function fiHbApply(rows, reapply){
     r.dest = d; r.hbDest = d;
     const bits = [`📒 낙찰금액 ${FI_HB.sheets[0]||""} ${x.ri}행(${f.how}${!f.lot && f.c.length>1?` · ${f.c.length}줄 중 ${Math.min(k,f.c.length)}번째`:""}) → ${d}`];
     if(prev && prev!==d) bits.push(`자동 배정: ${prev}`);
+    if(byP){ if(over) bits.push(`메일 PLT 합이 낙찰금액 줄 PLT 합보다 많음 — 확인`); }
+    else {
     if(!f.lot && f.c.length>1 && k > f.c.length) bits.push(`메일 행이 낙찰금액 줄(${f.c.length})보다 많음 — 확인`);
     if(!f.lot && r.pallets!=null && r.pallets!=="" && x.plt!=null && +r.pallets!==+x.plt) bits.push(`PLT 메일 ${r.pallets} / 낙찰금액 ${x.plt} — 확인`);
+    }
     r.destNote = bits.join(" · ");
     if(r.warn) r.warn = r.warn.filter(w=> !/^출고지 선택/.test(w));
     if(r.eos || r.dw){ r.warn = (r.warn||[]).filter(w=> !/^📒/.test(w)); r.warn.push(r.destNote); r.destNote = ""; }   // 임박 · 데드우드 · FC파손은 확인 줄이 warn에서 나옴
