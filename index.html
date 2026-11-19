@@ -2840,7 +2840,10 @@ const STORE_ALIASES = { "서귀포점":"제주서귀포점", "광주경안점":"
   // build 67: 직출건 출고내역서의 미매칭 출고지(build 65) — 사용자 확인 2026-09-30.
   "의정부점":"의정부가맹점", "파주점":"파주가맹점", "파주가맹점1":"파주가맹점", "파주점_오도동":"파주가맹점", "파주_오도동":"파주가맹점", "파주오도동":"파주가맹점", "파주 오도동":"파주가맹점", "파주점오도동":"파주가맹점", "파주점 오도동":"파주가맹점",
   // build 72: 원본 오타 — 본사 09월 출고계획서_0930 "퍙택점", 08월 _0831 "벙도리센터".
-  "퍙택점":"평택점", "벙도리센터":"방도리센터" };
+  "퍙택점":"평택점", "벙도리센터":"방도리센터",
+  // build 348: 신광주점·신광주점패션관은 없는 매장 — 전부 "패션관광주점"(사용자 2026-11-19)
+  "신광주점":"패션관광주점", "신광주점패션관":"패션관광주점", "신광주점 패션관":"패션관광주점", "신광주패션관":"패션관광주점", "신광주":"패션관광주점",
+  "광주점패션관":"패션관광주점", "광주점 패션관":"패션관광주점", "광주패션관":"패션관광주점", "패션관 광주점":"패션관광주점", "패션관광주":"패션관광주점", "패션관 광주":"패션관광주점" };
 const _ALIAS_SQUASH = (()=>{ const m={}; Object.keys(STORE_ALIASES).forEach(k=> m[k.replace(/[\s/]+/g,'')] = STORE_ALIASES[k]); return m; })();
 function resolveStoreName(name){
   const t = String(name).trim();
@@ -3170,8 +3173,12 @@ const STOCK_HDR_MATCH = [
 
 /* ============ 데이터 (첨부 "주차별 점별 PLT현황" 마지막 시트에서 추출 / 이후 재업로드로 대체) ============ */
 // 각 배열 = 값 17칸(AGG_HDR 순서) + 비고(memo) 1칸. 파일에 없는 뒤 5곳은 빈 값으로 유지.
-let STORES = ["광주점","경안점","남양주점","기흥점","김포점","대소점","수원점","아산점","안중점","양주점","원주점","이천점","인천점","천안점","청주점","충주점","평택점","김해점","동김해점","용인점","동탄점","패션관광주점","제주서귀포점","서비스솔루션","이천센터","제주점","방도리센터","의정부가맹점","파주가맹점","파주가맹점2","신광주점","신광주점패션관"];
-// "신광주점"·"신광주점패션관": 2026-08-23 폐점된 기존 "광주점"과는 무관한 완전히 새로운 별도 매장(사용자 확인, build 41).
+let STORES = ["광주점","경안점","남양주점","기흥점","김포점","대소점","수원점","아산점","안중점","양주점","원주점","이천점","인천점","천안점","청주점","충주점","평택점","김해점","동김해점","용인점","동탄점","패션관광주점","제주서귀포점","서비스솔루션","이천센터","제주점","방도리센터","의정부가맹점","파주가맹점","파주가맹점2"];
+// build 348 (2026-11-19 사용자): "신광주점"·"신광주점패션관"은 없는 매장 → 목록에서 삭제, 남은 데이터는 "패션관광주점"으로 통합(gjMergeIntoFashion).
+//   앞으로 출고내역서·매출 등 자료의 "광주점"·"신광주점" 표기 = 전부 "패션관광주점"(광주점 폐점일 2026-08-23 이후 날짜만 — 그 전 광주점 실적은 그대로).
+//   매장 목록은 ㄱ~ㅎ 순(sortStoresKo).
+function sortStoresKo(){ try{ STORES.sort((a,b)=> String(a).localeCompare(String(b), "ko")); }catch(_){} }
+sortStoresKo();
 // 파일에 없는 뒤쪽 매장들은 수동 유지 매장. "패션관광주점"은 광주점 바로 옆이지만 별도 운영되는 독립 매장이라 광주점과 합쳐지지 않고 매출·출고 모두 별도 집계된다(기흥점/기흥 패션관과 같은 구조).
 // "의정부가맹점"·"파주가맹점"·"파주가맹점2"는 킹콩백화점 직영이 아닌 가맹점이라 매출(매출현황)에는 잡히지 않지만, 출고내역서의 출고 수량은 매장 목록에 없어 누락되지 않도록 계속 카운트한다.
 let STOCK = {
@@ -3877,6 +3884,7 @@ function saveState(){
 }
 function saveStateNow(){
   if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer=null; }
+  try{ if(gjMergeIntoFashion()) setTimeout(()=>{ try{ if(typeof afterChange==="function") afterChange(); }catch(_){} }, 0); }catch(_){}   // build 348
   const st = withReparseSnapshots(buildStateObject);   // build 72
   // 1차: 용량 큰 IndexedDB에 저장(대용량 매출 데이터도 안전하게 보존)
   try{ idbSet("state", st).catch(()=>{}); }catch(_){}
@@ -3940,6 +3948,64 @@ function migrateRenamedStores(){
     if(typeof selected!=="undefined" && selected===oldName) selected = newName;
   });
 }
+/* build 348 (2026-11-19 사용자): "신광주점"·"신광주점패션관" 삭제 → 남은 데이터 전부 "패션관광주점"으로 합침.
+   + "광주점"(2026-08-23 폐점) 이름으로 들어온 자료 중 폐점일 뒤 날짜(일 > 08-23, 월 ≥ 2026-09)인 것도 "패션관광주점"으로 옮긴다.
+     (출고내역서 등에서 앞으로 "광주점" = 패션관광주점. 08-23 이전 광주점 실적은 그대로 둔다)
+   상태 전체를 훑어 매장 키를 옮긴다: 숫자는 더하고, 객체는 키별로 합치고, 짧은 값 배열(재고)은 칸별로 더함, 긴 배열(기록)은 이어 붙임.
+   날짜가 안 붙은 "현재 값"(STOCK·SHIP·ACTUAL 등)은 오늘 날짜로 본다. 여러 번 돌아도 결과 같음(옮긴 뒤엔 옛 키가 없음). */
+const GJ_FASHION = "패션관광주점", GJ_ALWAYS = ["신광주점","신광주점패션관"], GJ_OLD = "광주점", GJ_OLD_CLOSE = "2026-08-23";
+const GJ_NOW_KEYS = ["STOCK","SHIP","ACTUAL","HQ_ACTUAL","APPLIANCE_ACTUAL","CENTER_DIRECT_ACTUAL","FRESH_ACTUAL"];
+function _gjMerge(a, b){
+  if(a==null) return b; if(b==null) return a;
+  if(typeof a==="number" && typeof b==="number") return a+b;
+  if(typeof a==="string" && typeof b==="string") return a===b ? a : [a,b].filter(Boolean).join("\n");
+  if(Array.isArray(a) && Array.isArray(b)){
+    const flat = x=> x.length<=40 && x.every(v=> v==null || typeof v==="number" || typeof v==="string");
+    if(flat(a) && flat(b)){ const n = Math.max(a.length, b.length); for(let i=0;i<n;i++) a[i] = _gjMerge(a[i], b[i]); return a; }
+    return a.concat(b);
+  }
+  if(typeof a==="object" && typeof b==="object"){ Object.keys(b).forEach(k=>{ a[k] = _gjMerge(a[k], b[k]); }); return a; }
+  return a;
+}
+function _gjHas(v){ if(v==null) return false; if(typeof v==="number") return v!==0; if(typeof v==="string") return v!==""; if(typeof v==="object") return Object.keys(v).some(k=> _gjHas(v[k])); return !!v; }
+function _gjDate(k){ const m = /^(\d{4}-\d{2})(-\d{2})?/.exec(String(k==null?"":k)); return m ? m[0] : null; }
+function _gjAfter(d){ return !!d && (d.length===7 ? d > GJ_OLD_CLOSE.slice(0,7) : d > GJ_OLD_CLOSE); }
+function _gjWalk(node, d, seen, st){
+  if(!node || typeof node!=="object" || seen.has(node)) return; seen.add(node);
+  const isStr = (v, dd)=> typeof v==="string" && (GJ_ALWAYS.includes(v) || (v===GJ_OLD && _gjAfter(dd)));
+  if(Array.isArray(node)){
+    for(let i=0;i<node.length;i++){ if(isStr(node[i], d)){ node[i] = GJ_FASHION; st.n++; } else _gjWalk(node[i], d, seen, st); }
+    return;
+  }
+  if(typeof node.date==="string" && _gjDate(node.date)) d = _gjDate(node.date);
+  else if(typeof node.month==="string" && _gjDate(node.month)) d = _gjDate(node.month);
+  const mv = old=>{ if(!Object.prototype.hasOwnProperty.call(node, old)) return; const v = node[old]; if(_gjHas(v)) st.n++;   // 빈 칸만 옮긴 건 변화로 안 셈(저장 ↔ 다시 그리기 반복 방지)
+    node[GJ_FASHION] = _gjMerge(node[GJ_FASHION], v); delete node[old]; };
+  GJ_ALWAYS.forEach(mv); if(_gjAfter(d)) mv(GJ_OLD);
+  Object.keys(node).forEach(k=>{ const v = node[k];
+    if(isStr(v, d)){ node[k] = GJ_FASHION; st.n++; return; }
+    _gjWalk(v, _gjDate(k) || d, seen, st); });
+}
+function gjMergeIntoFashion(){
+  const st = { n:0 }, today = fmtDate(new Date()), seen = new Set();
+  try{
+    GJ_ALWAYS.forEach(o=>{ const i = STORES.indexOf(o); if(i>=0){ STORES.splice(i,1); st.n++; } });
+    if(!STORES.includes(GJ_FASHION)){ STORES.push(GJ_FASHION); st.n++; }
+    seen.add(STORES);
+    const S = buildStateObject();
+    // 현재 값의 광주점 칸은 옮긴 뒤 빈 칸으로 다시 둔다(광주점은 목록에 남아 있어 STOCK[s]·SHIP[s] 접근이 깨지면 안 됨)
+    const blank = v=> Array.isArray(v) ? v.map(()=>null) : (v && typeof v==="object") ? Object.keys(v).reduce((o,c)=>(o[c]=0,o),{}) : v;
+    GJ_NOW_KEYS.forEach(k=>{ const O = S[k]; if(!O || typeof O!=="object") return; const had = O[GJ_OLD];
+      _gjWalk({ [k]: O, date: today }, today, seen, st);
+      if(had!==undefined && O[GJ_OLD]===undefined) O[GJ_OLD] = blank(had); });
+    Object.keys(S).forEach(k=>{ if(k==="STORES" || GJ_NOW_KEYS.includes(k)) return; const v = S[k]; if(v && typeof v==="object") _gjWalk(v, null, seen, st); });
+    if(typeof selected!=="undefined" && GJ_ALWAYS.includes(selected)) selected = GJ_FASHION;
+    if(typeof periodStore!=="undefined" && GJ_ALWAYS.includes(periodStore)) periodStore = GJ_FASHION;
+    if(typeof selectedMonthlyStore!=="undefined" && GJ_ALWAYS.includes(selectedMonthlyStore)) selectedMonthlyStore = GJ_FASHION;
+    sortStoresKo();
+  }catch(e){ console.warn("build 348 패션관광주점 통합", e); }
+  return st.n;
+}
 // build 86: 9/30·10/1 카테고리별 매출 보정 데이터. build 72~84의 엑셀 범위 잘림 버그로 이 두 날짜 상품별 매출현황 파일이
 //   반영되지 못한 채 '처리됨'으로 남아, 재업로드 없이 복구하려고 원본(상품별 매출현황-20260930/20261001.xlsx)을 이 사이트의
 //   handleSalesFile로 그대로 파싱한 결과를 넣었다(합계 79,576,294 / 82,090,060원 = 매장별 매출과 일치).
@@ -3990,6 +4056,7 @@ function ensureAddedStores(){
     if(SHIP && !SHIP[a.name]) SHIP[a.name] = freshCatMap();
     if(ACTUAL && !ACTUAL[a.name]) ACTUAL[a.name] = freshCatMap();
   });
+  sortStoresKo();   // build 348: 매장 목록 ㄱ~ㅎ
 }
 const SALES_POS_SPLIT = [ { from:"김해점", to:"동김해점", pos:3, since:"2026-10-08" } ];
 // build 289: 킹고프리(회원명 KINGGOFREE · 메모 '킹고프리 KM…') 온라인 주문 — 다음 날 00:01에 매장마다 한 장씩 등록되고 영업일자는 전날.
@@ -4289,6 +4356,7 @@ function applyStateObject(s){
     // 2026-09-23 build 57: 이 상태 블롭이 개명 전("기흥 패션관") 데이터를 들고 있으면 여기서 새
     // 매장명("동탄점")으로 이관 — RENAMED_STORES/migrateRenamedStores() 선언부 주석 참고.
     try{ migrateRenamedStores(); }catch(_){}
+    try{ if(gjMergeIntoFashion()) setTimeout(()=>{ try{ saveState(); }catch(_){} }, 3000); }catch(_){}   // build 348: 신광주점·신광주점패션관 → 패션관광주점
     try{ ensureAddedStores(); posCatSeedFix(); posSplitFix(); }catch(e){ console.warn("build 262 매장 추가/POS 나누기", e); }   // build 262: 동김해점
     try{ compactOldSalesHours(); }catch(e){ console.warn("build 279 옛 시간대 매출 줄이기", e); }
     try{ kgApplySales(); }catch(e){ console.warn("build 289 킹고프리", e); }
@@ -9162,7 +9230,7 @@ const STORE_MONTHLY_TARGETS = {
   "동김해점": 150000000, // build 263: 2026-10-08 오픈(김해점 POS3) — 사용자 지정 월 목표 1.5억. SUPPLY_PLAN에 없어 이 값 그대로 씀
   "평택점": 210000000,
   "광주점": 180000000,
-  "패션관광주점": 50000000,
+  "패션관광주점": 40000000,   // build 348: 월 목표 4천만(사용자 2026-11-19)
   "충주점": 200000000,
   "양주점": 200000000,
   "아산점": 200000000,
@@ -9210,6 +9278,7 @@ const STORE_PROFILE = {
   "청주점":      { fresh:F_ALL, freshStop:"2026-10-19", freshResume:"2026-11-12", freshDirect:{ from:"2026-11-12", src:"배민 칠곡센터" } },   // build 270: 10/19 신선 중지 → build 315: 11/12(목) 신선 재개 + 배민 칠곡센터 직출지(김해점 → 청주점, 최승호 과장 메일)
   "충주점":      { fresh:{chilled:false, frozen:true,  ambient:true} },
   "평택점":      { fresh:{chilled:true,  frozen:false, ambient:true}, close:"2026-11-01" },   // build 288: 2026-11-01까지 영업 후 폐점(사용자 확인 11/4)
+  "패션관광주점":{ fresh:{chilled:false, frozen:false, ambient:false} },   // build 348: XLC·패션사입만 공급(식품 미취급)
   "동탄점":      { fresh:{chilled:false, frozen:false, ambient:false} }, // 구 "기흥 패션관" — 가구·패션 위주라 식품 미취급, 기흥점과는 독립 집계(build 57)
 };
 // build 317: 매장 · 규칙 표 — ⚙ 설정 › '매장 · 규칙 표'에서 고친 값(코드 기본값과 다른 것만)을 덮어씀.
@@ -9372,6 +9441,8 @@ const SUPPLY_PLAN_PARAMS = {
   "XLW":  { price: 1300000, conv: 0.35 },
   "XLG":  { price: 1100000, conv: 0.40 },
   "XLS":  { price: 380000,  conv: 0.50 },
+  // build 348: 패션관광주점 "패션사입" 계획용. 단가·전환율 미정 → 상온 값 임시 적용(확정되면 여기만 고침)
+  "사입": { price: 2100000, conv: 0.50, note: "패션사입(패션관광주점) — 단가·전환율 임시(상온 값)" },
 };
 const SUPPLY_PLAN = {
   "용인점": {
@@ -9865,16 +9936,18 @@ const SUPPLY_PLAN = {
     "opTotal": 63675000,
     "companyTarget": 60000000
   },
-  "패션관광주점": {
-    "src": "패션관광주점",
+  "패션관광주점": {   // build 348 (2026-11-19 사용자): 월 목표 4천만 · XLC와 패션사입만 공급. 배분은 임시(XLC 12PLT 2,880만 + 사입 11.2PLT 1,120만)
+    "src": "패션관광주점 (사용자 지정 월 목표 4천만 — XLC·패션사입, build 348)",
     "plt": {
-      "XLC": 20
+      "XLC": 12,
+      "사입": 10.67
     },
     "target": {
-      "XLC": 48000000
+      "XLC": 28800000,
+      "사입": 11200000
     },
-    "opTotal": 48000000,
-    "companyTarget": 50000000
+    "opTotal": 40000000,
+    "companyTarget": 40000000
   },
 };
 // 2026-09-23: STORE_MONTHLY_TARGETS를 "회사 목표 매출"(위 옛 고정값)에서 SUPPLY_PLAN.opTotal(운영
@@ -9907,7 +9980,10 @@ Object.keys(SUPPLY_PLAN).forEach(s=>{
    - 달마다: 그 달 계획이 없으면 그 전 달 계획을 이어 씀(승현 store_ops_effective_month와 같은 규칙). 승현 첫 계획 달보다 앞선 달은 첫 계획.
    - 승현 계획표에 없는 매장(동김해점 등) · 아직 한 번도 못 받았을 때 = 위 고정값(SUPPLY_PLAN · STORE_MONTHLY_TARGETS) 그대로. */
 var OPS_PLAN = null;   // { at, by, months:{ "YYYY-MM":{ stores:{매장:{kind, companyTarget, plt:{}, target:{}, opTotal, src}}, params:{카테고리:{price, conv, days}} } }, unmatched:[] }
-const OPS_STORE_MAP = { "신광주점패션관":"패션관광주점" };   // 승현 표기 → 이 사이트 매장(회사 목표 5천만 같은 매장)
+const OPS_STORE_MAP = { "신광주점패션관":"패션관광주점", "신광주점":"패션관광주점" };   // 승현 표기 → 이 사이트 매장
+// build 348: 사이트 고정값(SUPPLY_PLAN)을 승현 계획보다 우선하는 매장 — {매장: 시작 달}. 패션관광주점 월 목표 4천만(XLC·패션사입만, 사용자 2026-11-19)
+const OPS_PIN = { "패션관광주점":"2026-11" };
+function opsStoreOf(M, store, ym){ if(!M || !M.stores) return null; const pin = OPS_PIN[store]; if(pin && String(ym || fmtDate(new Date()).slice(0,7)) >= pin) return null; return M.stores[store] || null; }
 function opsStoreName(raw){ const t = String(raw==null?"":raw).trim(); return OPS_STORE_MAP[t] || resolveStoreName(t); }
 function opsMonthKeys(){ return (OPS_PLAN && OPS_PLAN.months) ? Object.keys(OPS_PLAN.months).filter(k=> OPS_PLAN.months[k] && Object.keys(OPS_PLAN.months[k].stores||{}).length).sort() : []; }
 function opsMonthKey(ym){   // 그 달에 쓰는 승현 계획 달(없으면 null)
@@ -9917,10 +9993,10 @@ function opsMonthKey(ym){   // 그 달에 쓰는 승현 계획 달(없으면 nul
   return pick || ks[0];
 }
 function opsMonth(ym){ const k = opsMonthKey(ym); return k ? OPS_PLAN.months[k] : null; }
-function planOf(store, ym){ const M = opsMonth(ym); return (M && M.stores[store]) || SUPPLY_PLAN[store] || null; }
-function planParamsOf(ym){ const M = opsMonth(ym); return (M && M.params && Object.keys(M.params).length) ? M.params : SUPPLY_PLAN_PARAMS; }
-function storeTargetOf(store, ym){ const M = opsMonth(ym); if(M && M.stores[store]) return M.stores[store].opTotal; return STORE_MONTHLY_TARGETS[store]; }
-function planSourceOf(store, ym){ const k = opsMonthKey(ym); return (k && OPS_PLAN.months[k].stores[store]) ? `승현 매장운영 ${k} 계획` : "사이트 고정값(운영계획 엑셀)"; }
+function planOf(store, ym){ const M = opsMonth(ym); return opsStoreOf(M, store, ym) || SUPPLY_PLAN[store] || null; }
+function planParamsOf(ym){ const M = opsMonth(ym); if(!(M && M.params && Object.keys(M.params).length)) return SUPPLY_PLAN_PARAMS; if(M.params["사입"]) return M.params; const o = Object.assign({}, M.params); o["사입"] = SUPPLY_PLAN_PARAMS["사입"]; return o; }   // build 348: 승현 계획에 없는 "사입"(패션관광주점) 단가는 고정값
+function storeTargetOf(store, ym){ const M = opsMonth(ym); const S = opsStoreOf(M, store, ym); if(S) return S.opTotal; return STORE_MONTHLY_TARGETS[store]; }
+function planSourceOf(store, ym){ const k = opsMonthKey(ym); return (k && opsStoreOf(OPS_PLAN.months[k], store, ym)) ? `승현 매장운영 ${k} 계획` : "사이트 고정값(운영계획 엑셀)"; }
 // 승현 표 행 → 월별 계획. rows = {params:[], stores:[], plans:[]} (Supabase 행 그대로, month 칸 포함)
 function opsPlanBuild(rows){
   const months = {}, unmatched = new Set();
@@ -9947,7 +10023,7 @@ function opsPlanBuild(rows){
 // 고정값 대비 차이(관리자 상태 줄 · 검수용)
 function opsPlanDiff(ym){
   const M = opsMonth(ym); if(!M) return null; let ops = 0, fix = 0; const rows = [];
-  Object.keys(M.stores).forEach(s=>{ const a = M.stores[s].opTotal, b = SUPPLY_PLAN[s] ? SUPPLY_PLAN[s].opTotal : (STORE_MONTHLY_TARGETS[s]||0); ops += a; fix += b; if(Math.abs(a-b) >= 1) rows.push({ store:s, ops:a, fix:b }); });
+  Object.keys(M.stores).forEach(s=>{ if(!opsStoreOf(M, s, ym)) return; const a = M.stores[s].opTotal, b = SUPPLY_PLAN[s] ? SUPPLY_PLAN[s].opTotal : (STORE_MONTHLY_TARGETS[s]||0); ops += a; fix += b; if(Math.abs(a-b) >= 1) rows.push({ store:s, ops:a, fix:b }); });
   return { month: opsMonthKey(ym), ops, fix, rows };
 }
 function storeHasZeroTarget(s, ym){ const t = groupMonthlyTarget(s, ym); return t!=null && !(t>0); }
@@ -9979,8 +10055,11 @@ function goalsPlanCatPLT(members, m){
   const real = diagStoreMonth(members, m); // {실제 카테고리명: PLT}
   const total = Object.values(real).reduce((a,v)=>a+v,0);
   const out = {}; let matched = 0; const used = new Set();
-  Object.keys(SUPPLY_PLAN_CAT_MATCH).forEach(pc=>{
-    const list = SUPPLY_PLAN_CAT_MATCH[pc] || [];
+  // build 348: "사입"은 계획에 사입이 있는 매장(패션관광주점)만 계획 카테고리로 — 다른 매장은 그대로 "계획 외"
+  const MATCH = Object.assign({}, SUPPLY_PLAN_CAT_MATCH);
+  try{ if((members||[]).some(s=>{ const P = planOf(s, m); return P && P.plt && P.plt["사입"]!=null; })) MATCH["사입"] = ["사입"]; }catch(_){}
+  Object.keys(MATCH).forEach(pc=>{
+    const list = MATCH[pc] || [];
     const v = list.reduce((a,rc)=>{ used.add(rc); return a+(real[rc]||0); },0);
     out[pc] = v; matched += v;
   });
@@ -10022,7 +10101,7 @@ function goalsSupplyDetail(ctx, month){
       const actualPLT = pltInfo.byCat[pc] || 0;
       return { cat:pc, planPLTFull, planPLT, planRevFull: plan.target[pc] * (fresh ? ffac : 1),
                planOrig: plan.plt[pc], freshStop: fresh && ffac<1 ? { factor:ffac, closed:fStopNow, resume: rsM ? freshResumeDate(rsM) : null } : null,
-               actualPLT, matched: !!SUPPLY_PLAN_CAT_MATCH[pc],
+               actualPLT, matched: !!SUPPLY_PLAN_CAT_MATCH[pc] || pc==="사입",
                pltPct: planPLTFull>0 ? actualPLT/planPLTFull*100 : null };   // build 99: 공급 도달율 = 월 계획 전체 대비(경과일 비례 X)
     });
     const planPLTFullTotal = cats.reduce((a,c)=>a+c.planPLTFull,0);
@@ -10045,7 +10124,7 @@ function goalsSupplyDetail(ctx, month){
       planPLT += c.planPLT; planPLTFull += c.planPLTFull; actualPLT += c.actualPLT; planRevFull += c.planRevFull; });
     // 출처별 분해(계획 있는 매장만, 실제 원장 카테고리 기준) — 표에서 마우스를 올려 검수할 수 있게
     const parts = {hq:0, center:0, merged:0, direct:0, appliance:0, fresh:0, lotte:0};
-    const realCats = SUPPLY_PLAN_CAT_MATCH[pc] || [];
+    const realCats = SUPPLY_PLAN_CAT_MATCH[pc] || (pc==="사입" ? ["사입"] : []);
     rows.forEach(x=>{ if(!x.cats || !x.cats.find(y=>y.cat===pc)) return;
       (x.r.members||[x.store]).forEach(st=> realCats.forEach(rc=>{ const q = diagQtyParts(st, rc, m); Object.keys(parts).forEach(k=> parts[k]+=q[k]); })); });
     return { cat:pc, planPLT, planPLTFull, actualPLT, planRevFull, parts, pltPct: planPLTFull>0 ? actualPLT/planPLTFull*100 : null };   // build 99: 월 기준
@@ -17828,7 +17907,7 @@ async function pltLiveFetchAll(){
 function pltLiveApplyResult(result){
   let touched = 0;
   Object.keys(result).forEach(store=>{
-    if(STORES.indexOf(store) < 0) STORES.push(store); // 신규 매장이면 뒤에 추가만(기존 순서·다른 매장은 그대로)
+    if(STORES.indexOf(store) < 0){ STORES.push(store); sortStoresKo(); } // 신규 매장 추가 → ㄱ~ㅎ 순 유지(build 348)
     if(!STOCK[store]) STOCK[store] = new Array(STOCK_COLS+1).fill(null);
     const { agg, capacity, outdoor, note } = result[store];
     Object.keys(agg).forEach(aggKey=>{
