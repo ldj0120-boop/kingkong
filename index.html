@@ -1938,7 +1938,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 357 · 2026-11-23</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 358 · 2026-11-23</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -4649,19 +4649,30 @@ function auditCenter(out){
 //   센터가 0인데 본사가 있는 날, 또는 오늘 이후 날짜 → miss(비교에서 뺌). 둘 다 있는 날 → both(차이 큰 순).
 function auditShipSrcDays(m){
   const inS = new Set(STORES), today = fmtDate(new Date());
-  const sd = (D, d)=>{ let t = 0; const a = (D||{})[d]||{}; Object.keys(a).forEach(st=>{ if(!inS.has(st)) return; Object.values(a[st]||{}).forEach(v=> t += num(v)); }); return t; };
+  const sd = (D, d, f)=>{ let t = 0; const a = (D||{})[d]||{}; Object.keys(a).forEach(st=>{ if(!inS.has(st)) return; Object.entries(a[st]||{}).forEach(([k,v])=>{ if(!f || f(k)) t += num(v); }); }); return t; };
   const ds = [...new Set([...Object.keys(HQ_D||{}), ...Object.keys(CENTER_D||{})])].filter(d=> d.slice(0,7)===m).sort();
-  const miss = [], both = [], onlyCe = []; let hq = 0, ce = 0, missHq = 0;
+  // build 358 (P261119-01): 그 달에 두 파일 모두 한 번이라도 나온 카테고리만 % 계산(11번가 · GS · FC파손 · 생산재고처럼 센터 내역서에 칸이 없는 카테고리는 뺌)
+  const catSet = D=>{ const z = new Set(); ds.forEach(d=>{ const a = (D||{})[d]||{}; Object.keys(a).forEach(st=>{ if(!inS.has(st)) return; Object.entries(a[st]||{}).forEach(([k,v])=>{ if(num(v)>0) z.add(k); }); }); }); return z; };
+  const hqCats = catSet(HQ_D), ceCats = catSet(CENTER_D), common = k=> hqCats.has(k) && ceCats.has(k);
+  const cat = {}, addCat = (D, d, key)=>{ const a = (D||{})[d]||{}; Object.keys(a).forEach(st=>{ if(!inS.has(st)) return; Object.entries(a[st]||{}).forEach(([k,v])=>{ const x = cat[k] || (cat[k] = { hq:0, ce:0 }); x[key] += num(v); }); }); };
+  const miss = [], both = [], onlyCe = []; let hq = 0, ce = 0, missHq = 0, hqAll = 0, ceAll = 0;
   ds.forEach(d=>{ const h = sd(HQ_D, d), c = sd(CENTER_D, d); if(!h && !c) return;
     if(d > today || (h>0 && !(c>0))){ if(h>0 || c>0) miss.push({ d, hq:h, ce:c, future: d > today }); missHq += h; return; }
-    hq += h; ce += c; if(h>0 && c>0) both.push({ d, hq:h, ce:c }); else onlyCe.push({ d, ce:c }); });
+    const hc = sd(HQ_D, d, common), cc = sd(CENTER_D, d, common); addCat(HQ_D, d, "hq"); addCat(CENTER_D, d, "ce");
+    hqAll += h; ceAll += c; hq += hc; ce += cc; if(h>0 && c>0) both.push({ d, hq:hc, ce:cc }); else onlyCe.push({ d, ce:c }); });
+  const catRows = Object.entries(cat).filter(([k,x])=> x.hq>0 || x.ce>0).sort((a,b)=> Math.abs(b[1].hq-b[1].ce) - Math.abs(a[1].hq-a[1].ce));
+  const catHqOnly = catRows.filter(([k])=> !common(k) && hqCats.has(k)), catCeOnly = catRows.filter(([k])=> !common(k) && !hqCats.has(k));
+  const exN = catHqOnly.length + catCeOnly.length;
   both.sort((a,b)=> Math.abs(b.hq-b.ce) - Math.abs(a.hq-a.ce));
   const md = d=> `${+d.slice(5,7)}/${+d.slice(8)}`;
   let tip = "";
   if(miss.length) tip += `\n센터 내역서 없음(비교에서 뺌): ${miss.map(x=> `${md(x.d)}(본사 ${_ap(x.hq)}${x.future?" · 오늘 이후":""})`).join(" · ")}`;
   if(both.length) tip += `\n둘 다 있는 날(차이 큰 순):\n` + both.slice(0,12).map(x=> `${md(x.d)} 본사 ${_ap(x.hq)} vs 센터 ${_ap(x.ce)} (${x.ce-x.hq>=0?"+":""}${_ap(x.ce-x.hq)})`).join("\n") + (both.length>12 ? `\n… 외 ${both.length-12}일` : "");
   if(onlyCe.length) tip += `\n센터만 있는 날: ${onlyCe.map(x=> `${md(x.d)}(센터 ${_ap(x.ce)})`).join(" · ")}`;
-  return { hq, ce, miss, both, onlyCe, missHq, tip };
+  if(catHqOnly.length) tip += `\n센터 내역서에 없는 카테고리(본사만 · % 계산에서 뺌): ${catHqOnly.map(([k,x])=> `${k} ${_ap(x.hq)}`).join(" · ")}`;
+  if(catCeOnly.length) tip += `\n본사 계획서에 없는 카테고리(센터만 · % 계산에서 뺌): ${catCeOnly.map(([k,x])=> `${k} ${_ap(x.ce)}`).join(" · ")}`;
+  if(exN && catRows.length) tip += `\n카테고리별 본사 / 센터(비교한 날, 차이 큰 순):\n` + catRows.slice(0,16).map(([k,x])=> `${k} 본사 ${_ap(x.hq)} / 센터 ${_ap(x.ce)}${common(k) ? "" : (hqCats.has(k) ? " (본사만)" : " (센터만)")}`).join("\n");
+  return { hq, ce, miss, both, onlyCe, missHq, tip, hqAll, ceAll, exN, catRows, catHqOnly, catCeOnly };
 }
 function auditShip(out){
   const months = (typeof shipMonths==="function" ? shipMonths() : []).slice().sort().slice(-2);
@@ -4678,10 +4689,12 @@ function auditShip(out){
     // 본사 ↔ 센터 차이(같은 출고를 두 번 적은 것)
     // build 333 (P261116-01): 날짜별로 본사 ↔ 센터를 나눠, 센터 출고내역서가 아직 없는 날 · 오늘 이후(내일 출고 계획)는 % 계산에서 빼고 따로 표시
     const _sd = auditShipSrcDays(m), hq = _sd.hq, ce = _sd.ce;
-    if(hq>0 && ce>0 && Math.abs(hq-ce)/Math.max(hq,ce) > 0.25) out.push({ id:"p-src-"+m+"-"+Math.round(hq)+"-"+Math.round(ce)+"-"+_sd.miss.length, lv:"warn", area:"출고", msg:`${+m.slice(5)}월 본사 출고계획서 ${_ap(hq)} vs 센터 출고내역서 ${_ap(ce)} PLT — ${Math.round(Math.abs(hq-ce)/Math.max(hq,ce)*100)}% 차이${_sd.miss.length ? ` (센터 내역서 없는 ${_sd.miss.length}일 뺌)` : ""}`,
+    if(hq>0 && ce>0 && Math.abs(hq-ce)/Math.max(hq,ce) > 0.25) out.push({ id:"p-src-"+m+"-"+Math.round(hq)+"-"+Math.round(ce)+"-"+_sd.miss.length, lv:"warn", area:"출고", msg:`${+m.slice(5)}월 본사 출고계획서 ${_ap(hq)} vs 센터 출고내역서 ${_ap(ce)} PLT — ${Math.round(Math.abs(hq-ce)/Math.max(hq,ce)*100)}% 차이${_sd.miss.length ? ` (센터 내역서 없는 ${_sd.miss.length}일 뺌)` : ""}${_sd.exN ? ` (한쪽에만 있는 카테고리 ${_sd.exN}개 뺌)` : ""}`,
       tip:`같은 출고를 두 곳에서 적은 것이라 보통 비슷해야 합니다. 한쪽 파일이 덜 올라갔는지 확인하세요.\n집계에는 '${SHIP_MERGE_LABEL[shipMergePolicy]||shipMergePolicy}' 규칙으로 칸마다 한쪽만 씁니다(04 › 원본 표 보기 › 출고 출처 비교).${_sd.tip}` });
     else if(_sd.miss.length && (hq>0 || _sd.missHq>0)) out.push({ id:"p-srcmiss-"+m+"-"+_sd.miss.map(x=>x.d.slice(8)).join("") , lv:"chg", area:"출고", msg:`${+m.slice(5)}월 센터 출고내역서 없는 날 ${_sd.miss.length}일 — ${_sd.miss.slice(0,4).map(x=>`${+x.d.slice(5,7)}/${+x.d.slice(8)}(본사 ${_ap(x.hq)})`).join(" · ")}${_sd.miss.length>4?" …":""}`,
       tip:`본사 출고계획서는 있는데 센터 출고내역서가 아직 없는 날입니다(오늘 이후 = 내일 출고 계획). 비교 % 계산에서는 뺐습니다.${hq>0 && ce>0 ? `\n뺀 뒤 본사 ${_ap(hq)} vs 센터 ${_ap(ce)} PLT` : ""}${_sd.tip}` });
+    else if(_sd.exN && (hq>0 || ce>0)) out.push({ id:"p-srccat-"+m+"-"+Math.round(_sd.hqAll)+"-"+Math.round(_sd.ceAll)+"-"+_sd.exN, lv:"chg", area:"출고", msg:`${+m.slice(5)}월 출고 출처 비교 — 한쪽 파일에만 있는 카테고리 ${_sd.exN}개 빼면 본사 ${_ap(hq)} vs 센터 ${_ap(ce)} PLT${hq>0 && ce>0 ? ` (${Math.round(Math.abs(hq-ce)/Math.max(hq,ce)*100)}% 차이)` : ""}`,
+      tip:`전체로는 본사 출고계획서 ${_ap(_sd.hqAll)} vs 센터 출고내역서 ${_ap(_sd.ceAll)} PLT. 센터 내역서에 원래 칸이 없는 카테고리는 % 계산에서 뺐습니다(build 358).${_sd.tip}` });
   });
   // 변동: 마지막 출고일
   const ds = Object.keys(daily).sort(); if(ds.length){ const d = ds[ds.length-1], v = daily[d];
@@ -4697,10 +4710,18 @@ function auditStock(out){
   // 매장 입고 대조: 보낸 PLT(거래처 센터 직출 + 진천센터 출고) vs 매장이 적은 입고(승현)
   try{ if(typeof PLT_DAILY!=="undefined" && PLT_DAILY && PLT_DAILY.d){ const per = pxPeriod(fmtDate(new Date()).slice(0,7)), comps = ["XLA","XLB","XLC","XLE","XLG","XLS","대형가구","대형가전"];
     const stores = [...new Set([].concat(...Object.values(PLT_DAILY.d).map(o=> Object.keys(o))))].filter(s=> STORES.includes(s));
-    let sent = 0, inb = 0; const big = [];
-    stores.forEach(st=>{ const S1 = pxSentToStore([st], comps, per, { hqFill:true }), i = sxStore(PLT_DAILY, st, comps, per).inb; sent += S1.sent; inb += i; const g = S1.sent - i; if(Math.abs(g)>=10) big.push(`${st}: 보낸 ${_ap(S1.sent)} (직출 ${_ap(S1.direct)} + 진천 ${_ap(S1.center)}(센터 ${_ap(S1.ceRaw)} / 본사 ${_ap(S1.hqRaw)})) · 입고 ${_ap(i)} → ${g>0?"+":""}${_ap(g)}`); });
+    let sent = 0, inb = 0; const big = [], catT = {}, noSent = [];
+    // build 358 (P261119-02): 카테고리별 보낸 / 입고 — 툴팁 맨 위 합계 · 매장 줄에 차이 큰 카테고리 · 보낸 기록 없는 입고
+    stores.forEach(st=>{ const S1 = pxSentToStore([st], comps, per, { hqFill:true }), i = sxStore(PLT_DAILY, st, comps, per).inb; sent += S1.sent; inb += i; const g = S1.sent - i;
+      const cs = comps.map(c=>{ const a = pxSentToStore([st], [c], per, { hqFill:true }).sent, b = sxStore(PLT_DAILY, st, [c], per).inb, x = catT[c] || (catT[c] = { s:0, i:0 }); x.s += a; x.i += b;
+        if(!(a>0) && b>=4) noSent.push({ st, c, b }); return { c, a, b, g:a-b }; }).filter(x=> Math.abs(x.g)>=1).sort((p,q)=> Math.abs(q.g)-Math.abs(p.g));
+      if(Math.abs(g)>=10) big.push(`${st}: 보낸 ${_ap(S1.sent)} (직출 ${_ap(S1.direct)} + 진천 ${_ap(S1.center)}(센터 ${_ap(S1.ceRaw)} / 본사 ${_ap(S1.hqRaw)})) · 입고 ${_ap(i)} → ${g>0?"+":""}${_ap(g)}${cs.length ? ` (${cs.slice(0,2).map(x=> `${x.c} ${_ap(x.a)}/${_ap(x.b)}`).join(" · ")})` : ""}`); });
+    const catRows = Object.entries(catT).filter(([c,x])=> x.s>0 || x.i>0).sort((a,b)=> Math.abs(b[1].s-b[1].i) - Math.abs(a[1].s-a[1].i));
+    noSent.sort((a,b)=> b.b-a.b);
+    const catTip = (catRows.length ? `카테고리별 보낸 / 입고 (차이 큰 순):\n` + catRows.map(([c,x])=> `${c}: 보낸 ${_ap(x.s)} / 입고 ${_ap(x.i)} → ${x.s-x.i>0?"+":""}${_ap(x.s-x.i)}`).join("\n") + "\n" : "")
+      + (noSent.length ? `보낸 기록 없음(입고 4 PLT↑): ${noSent.slice(0,12).map(x=> `${x.st} ${x.c} ${_ap(x.b)}`).join(" · ")}${noSent.length>12 ? ` … 외 ${noSent.length-12}` : ""}\n` : "");
     if(sent || inb) out.push({ id:"k-inb-"+per.e+"-"+Math.round(sent)+"-"+Math.round(inb), lv: big.length ? "warn" : "ok", area:"매장 입고", msg:`${+per.s.slice(5,7)}월 보낸 ${_ap(sent)} · 매장 입고 ${_ap(inb)} PLT${big.length ? ` — 10 PLT 넘게 차이 ${big.length}곳` : " ✓"}`,
-      tip:`보낸 PLT = 거래처 센터 직출(직출 출고내역서) + 진천센터 출고(날짜 · 매장 · 카테고리마다 센터 출고내역서와 본사 출고계획서 중 큰 값 — 센터 내역서가 늦게 오는 날 보완)\n입고 = 매장이 승현 사이트에 적은 입고(신선·기타·데드우드 제외)\n${big.slice(0,12).join("\n") || "매장별 차이 10 PLT 안"}` }); } }catch(e){ console.warn("입고 대조", e); }
+      tip:`${catTip}보낸 PLT = 거래처 센터 직출(직출 출고내역서) + 진천센터 출고(날짜 · 매장 · 카테고리마다 센터 출고내역서와 본사 출고계획서 중 큰 값 — 센터 내역서가 늦게 오는 날 보완)\n입고 = 매장이 승현 사이트에 적은 입고(신선·기타·데드우드 제외)\n${big.slice(0,12).join("\n") || "매장별 차이 10 PLT 안"}` }); } }catch(e){ console.warn("입고 대조", e); }
   const sNow = stockSnapSum(L); if(sNow) out.push({ id:"k-now-"+L.date+"-"+Math.round(sNow.tot), lv:"chg", area:"매장 재고", msg:`매장 재고 합계 ${_ap(sNow.tot)} PLT (${L.label})`, tip:`매장 ${sNow.stores}곳 · 센터 재고 아님\n${Object.entries(sNow.by).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k} ${_ap(v)}`).join(" · ")}` });
 }
 // build 262: 김해점 POS3(동김해점) 나누기 검수 — 나누기 전 자료가 남아 있으면 알림, 다 나뉘면 합계 대조
@@ -27790,11 +27811,11 @@ const IMPROVE_PROPOSALS = [
   { id:"P261119-01", date:"2026-11-19", area:"점검", title:"출고 출처 비교 — 센터 출고내역서에 원래 없는 카테고리(11번가 · GS · FC파손 · 생산재고 · 데드우드)는 빼고 % 계산",
     why:"검수 경고 '11월 본사 출고계획서 725 vs 센터 출고내역서 477 PLT — 34% 차이'가 매일 남음. 11/1~11/17 둘 다 있는 날을 카테고리별로 보면 차이 거의 전부가 센터 내역서에 칸이 없는 카테고리: 데드우드 본사 91 vs 센터 6 · 11번가 54 vs 0 · GS 51 vs 0 · FC파손 43 vs 0 · 생산재고 28 vs 0 · 사입 5 vs 0. 이걸 빼면 XLA 152/149 · XLB 57/59 · XLE 48/48 · 임박 58/58 · 생수 61/61 등 453 vs 471 PLT(4% 차이)로 거의 같음. 반대로 대형가전은 본사 0 vs 센터 22(이름이 다르게 들어가는 듯).",
     what:"출고 출처 비교 경고의 % 계산을 '그 달에 두 파일 모두 한 번이라도 나온 카테고리'만으로 하고, 툴팁에 '센터 내역서에 없는 카테고리: 데드우드 91 · 11번가 54 · GS 51 …(본사만)' 줄과 카테고리별 '본사 N / 센터 M' 목록 추가. 대형가전처럼 한쪽만 있는 칸도 같이 표시.",
-    risk:"낮음 — 검수 알림 계산 · 문구만 바뀜, 출고 집계('큰 값 채택')는 그대로. 센터가 정말로 그 카테고리를 빠뜨린 경우도 '본사만'으로만 보여 경고 등급이 낮아질 수 있음." },
+    risk:"낮음 — 검수 알림 계산 · 문구만 바뀜, 출고 집계('큰 값 채택')는 그대로. 센터가 정말로 그 카테고리를 빠뜨린 경우도 '본사만'으로만 보여 경고 등급이 낮아질 수 있음.", done:"build 358" },
   { id:"P261119-02", date:"2026-11-19", area:"점검", title:"매장 입고 비교 — 카테고리별 '보낸 / 입고' 합계를 툴팁에 표시 (XLS · XLC 차이 원인 보이게)",
     why:"검수 '11월 보낸 605 · 매장 입고 727 PLT — 10 PLT 넘게 차이 8곳'에서 차이 +122 PLT 중 대부분이 두 카테고리: XLS 보낸 71 vs 입고 152(+81) · XLC 36 vs 78(+42). XLC는 제주점 0/18 · 안중점 0/10 · 양주점 0/10 · 원주점 0/4처럼 보낸 기록이 아예 없는 매장에 입고가 있음. 나머지는 XLA 183/162 · XLB 63/60 · 대형가전 22/19로 비슷. 지금 툴팁은 매장별 합계만 있어 어느 카테고리가 빠졌는지 안 보임.",
     what:"매장 입고 경고 툴팁 맨 위에 카테고리별 '보낸 / 입고 / 차이' 줄(차이 큰 순)을 넣고, 매장 줄에는 차이 큰 카테고리 1~2개를 괄호로(예: '제주점 … → −18 (XLC 0/18)'). 보낸 0인데 입고 4 PLT 이상인 매장 · 카테고리는 '보낸 기록 없음'으로 따로 모아 보여 주기.",
-    risk:"낮음 — 툴팁 표시만 늘어남, 계산 · 자료 변경 없음." },
+    risk:"낮음 — 툴팁 표시만 늘어남, 계산 · 자료 변경 없음.", done:"build 358" },
 ];
 var IMPROVE_DECISIONS; if(!IMPROVE_DECISIONS || typeof IMPROVE_DECISIONS!=="object") IMPROVE_DECISIONS = {};
 var IMPROVE_REQUESTS; if(!Array.isArray(IMPROVE_REQUESTS)) IMPROVE_REQUESTS = [];
