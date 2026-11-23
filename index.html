@@ -1938,7 +1938,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 359 · 2026-11-23</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 360 · 2026-11-23</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21175,7 +21175,7 @@ function fiComboDelEntry(hid){   // build 141: 합본에서만 뺀다(기록 유
 function fiComboTextAll(C){
   return C.byDate.map(g=>{
     const note = Array.from(new Set(C.inc.filter(h=> h.note && (h.rows||[]).some(r=> (r.outboundDate||"")===g.date)).map(h=> `${fiComboLabel(h)}: ${h.note}`))).join(" · ");   // 그 출고일 요청의 안내만
-    return `━━━━━━ ${fiComboDateLabel(g.date)} 출고 · ${g.rows.length}건 ${g.rows.reduce((a,r)=>a+(+r.pallets||0),0)}PLT ━━━━━━\n\n` + fiDispText(g.rows, { note });   // build 143: 거래처 1곳 — 나누지 않음
+    return `━━━━━━ ${fiComboDateLabel(g.date)} 출고 · ${g.rows.length}건 ${g.rows.reduce((a,r)=>a+(+r.pallets||0),0)}PLT ━━━━━━\n\n` + fiDispText(g.rows, { note }) + (fiTruckText(g.rows) ? "\n\n" + fiTruckText(g.rows) : "");   // build 143 · 360 합적
   }).join("\n\n\n");
 }
 function fiComboTableHtml(C, rs){
@@ -21214,6 +21214,7 @@ function fiComboRender(){
     h += `<div style="margin:16px 0 6px;padding:6px 10px;border-left:4px solid var(--accent,#8F5E00);background:rgba(245,178,17,.08);font-weight:700">■ ${escHtml(fiComboDateLabel(g.date))} 출고 — ${g.rows.length}건 · ${g.rows.reduce((a,r)=>a+(+r.pallets||0),0)}PLT <span class="fi-mut" style="font-weight:400">(엑셀 시트 "${escHtml(fiComboSheetName(g.date))}")</span></div>`;
     h += fiComboTableHtml(C, g.rows);   // build 143: 거래처 1곳 — 표 1개
   });
+  h += fiTruckHtml(C.rows);   // build 360: 합적 배차요청서
   h += `<div id="fiComboImgs"></div>`;   // build 241: 카톡용 이미지 미리보기
   h += `<div class="fi-sec-t">합본 물류업체 전달 문구 (출고일자별) <button class="act primary fi-mini" id="fiComboCopy">복사</button> <span id="fiComboCopyMsg" class="fi-mut"></span></div>
     <textarea id="fiComboText" class="fi-text" style="min-height:220px" readonly>${escHtml(fiComboTextAll(C))}</textarea></div>`;
@@ -21272,6 +21273,7 @@ async function fiComboWorkbook(C){
     });
     ws.views = [{ state:"frozen", ySplit:3 }];
   });
+  if(C.byDate.length) try{ fiTruckSheet(wb, [].concat(...C.byDate.map(g=> g.rows)), border); }catch(_){}   // build 360
   if(!wb.worksheets.length) throw new Error("엑셀에 넣을 행이 없습니다.");
   return wb;
 }
@@ -21388,6 +21390,74 @@ function fiDatedGroups(rows){
   const ds = Array.from(new Set(rows.map(r=> r.outboundDate || ""))).sort((a,b)=> (a||"9999").localeCompare(b||"9999"));
   return ds.map(d=> ({ date:d, rows: fiOrderRows(rows.filter(r=> (r.outboundDate||"")===d)) }));
 }
+/* build 360: 합적 배차요청서 — 같은 출고일 · 오전/오후 · 출고시간 · 상차 FC · 도착지면 한 차에 합적, 1대 최대 18PLT.
+   18PLT 넘는 건은 18씩 나눠 여러 대. 차 안은 큰 건부터 채움(first-fit). 비고 = 입차코드(합적이면 코드별 PLT). */
+const FI_TRUCK_MAX = 18;
+function fiTruckPlan(rows){
+  const ak = v=> v==="오전" ? 0 : v==="오후" ? 1 : 2;
+  const by = new Map();
+  fiOrderRows((rows||[]).filter(r=> !r.skip)).forEach(r=>{
+    const fc = String(fiCenterName(r.fc)||r.fc||"").trim(), dest = String(r.dest||"").trim();
+    const k = [r.outboundDate||"", r.outboundAmPm||"", r.outTime||"", fc, dest].join("|");
+    if(!by.has(k)) by.set(k, { date:r.outboundDate||"", ampm:r.outboundAmPm||"", time:r.outTime||"", fc, dest, rows:[] });
+    by.get(k).rows.push(r);
+  });
+  const out = [];
+  Array.from(by.values()).sort((a,b)=> (a.date||"9999").localeCompare(b.date||"9999") || ak(a.ampm)-ak(b.ampm) || String(a.time).localeCompare(String(b.time)) || a.fc.localeCompare(b.fc) || a.dest.localeCompare(b.dest)).forEach(g=>{
+    const pcs = [];
+    g.rows.forEach(r=>{ let n = +r.pallets||0; if(!(n>0)){ pcs.push({ r, plt:0, unk:true }); return; } while(n > FI_TRUCK_MAX){ pcs.push({ r, plt:FI_TRUCK_MAX, split:true }); n -= FI_TRUCK_MAX; } pcs.push({ r, plt:n, split: (+r.pallets||0) > FI_TRUCK_MAX }); });
+    const trucks = [];
+    pcs.map((x,i)=>({x,i})).sort((a,b)=> b.x.plt-a.x.plt || a.i-b.i).forEach(({x})=>{
+      let t = trucks.find(t=> t.plt + x.plt <= FI_TRUCK_MAX);
+      if(!t){ t = { date:g.date, ampm:g.ampm, time:g.time, fc:g.fc, dest:g.dest, plt:0, items:[] }; trucks.push(t); }
+      t.items.push(x); t.plt += x.plt;
+    });
+    trucks.forEach(t=> out.push(t));
+  });
+  const seq = {}; out.forEach(t=>{ seq[t.date] = (seq[t.date]||0)+1; t.no = seq[t.date]; });
+  return out;
+}
+function fiTruckRows(trucks){
+  return trucks.map(t=>{
+    const codes = new Map();   // 입차코드별 PLT
+    t.items.forEach(x=>{ const c = String(x.r.bidcode||"?"); codes.set(c, (codes.get(c)||0) + x.plt); });
+    const many = codes.size > 1;
+    const cats = [...new Set(t.items.map(x=> /^XLD$/i.test(String(x.r.type||"")) ? "기저귀/분유" : (x.r.typeSub||x.r.type||"")).filter(Boolean))].join("·");
+    const warn = t.items.some(x=> x.unk) ? " ※PLT 확인" : "";
+    return { 차량:`${t.no}호차`, 출고일: t.date ? `${t.date}(${fiDispWeekday(t.date)})` : "", 출고시간:`${t.ampm} ${t.time}`.replace(/\s+/g," ").trim(),
+      상차지:t.fc, 도착지:t.dest||"(도착지 미정)", PLT:t.plt, 합적: t.items.length>1 ? `합적 ${t.items.length}건` : (t.items[0] && t.items[0].split ? "분할" : "단독"), 카테:cats,
+      비고: Array.from(codes).map(([c,n])=> many ? `${c} (${n}PLT)` : c).join(" / ") + warn };
+  });
+}
+const FI_TRUCK_HDR = ["차량","출고일","출고시간","상차지(FC)","도착지","PLT","합적","카테.","비고 (입차코드)"];
+const FI_TRUCK_KEYS = ["차량","출고일","출고시간","상차지","도착지","PLT","합적","카테","비고"];
+const FI_TRUCK_WIDTH = [8,15,12,14,16,7,11,12,46];
+function fiTruckHtml(rows){
+  const T = fiTruckPlan(rows); if(!T.length) return "";
+  const R = fiTruckRows(T);
+  return `<div class="fi-sec-t">🚚 배차요청서 (합적 · 1대 최대 ${FI_TRUCK_MAX}PLT) <span class="fi-mut">${T.length}대 · ${T.reduce((s,t)=>s+t.plt,0)}PLT · 같은 출고일 · 시간 · FC · 도착지면 한 차</span></div>
+  <div class="fi-xprev"><table><thead><tr>${FI_TRUCK_HDR.map(x=>`<th>${escHtml(x)}</th>`).join("")}</tr></thead><tbody>
+  ${R.map(o=>`<tr${/^합적/.test(o.합적)?' style="background:#FFF7D6"':""}>${FI_TRUCK_KEYS.map(k=>`<td${k==="비고"?' style="text-align:left;white-space:normal;min-width:220px"':""}>${escHtml(o[k]==null?"":o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+function fiTruckText(rows){
+  const T = fiTruckPlan(rows); if(!T.length) return "";
+  const R = fiTruckRows(T), out = [`[차량별 합적] 총 ${T.length}대 (1대 최대 ${FI_TRUCK_MAX}PLT)`];
+  let last = "";
+  R.forEach((o,i)=>{ const k = o.출고일+" "+o.출고시간; if(k!==last){ out.push(`■ ${k}`); last = k; }
+    out.push(`${o.차량} ${o.상차지} → ${o.도착지} / ${o.PLT}PLT${/^합적/.test(o.합적)?` (${o.합적})`:""}`); out.push(`   입차코드 ${o.비고}`); });
+  return out.join("\n");
+}
+function fiTruckSheet(wb, rows, border){
+  const T = fiTruckPlan(rows); if(!T.length) return;
+  const ws = wb.addWorksheet("배차요청(합적)");
+  ws.columns = [{ width:3 }].concat(FI_TRUCK_WIDTH.map(w=>({ width:w })));
+  const t = ws.getCell(1, 2); t.value = `배차요청서 (합적) — 총 ${T.length}대 · ${T.reduce((s,x)=>s+x.plt,0)}PLT · 1대 최대 ${FI_TRUCK_MAX}PLT`; t.font = { name:"맑은 고딕", size:13, bold:true };
+  FI_TRUCK_HDR.forEach((tx,i)=>{ const c = ws.getCell(3, 2+i); c.value=tx; c.font={name:"맑은 고딕",size:10,bold:true}; c.alignment={horizontal:"center",vertical:"middle"}; c.border=border; c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFF2F2F2"}}; });
+  fiTruckRows(T).forEach((o,ri)=>{ FI_TRUCK_KEYS.forEach((k,ci)=>{ const c = ws.getCell(4+ri, 2+ci); const v = o[k]; c.value = v===""||v==null ? null : v;
+    c.font = { name:"맑은 고딕", size:11 }; c.alignment = k==="비고" ? { horizontal:"left", vertical:"middle", wrapText:true } : { horizontal:"center", vertical:"middle" }; c.border = border;
+    if(/^합적/.test(o.합적)) c.fill = { type:"pattern", pattern:"solid", fgColor:{ argb:"FFFFF2CC" } }; }); });
+  ws.views = [{ state:"frozen", ySplit:3 }];
+}
 function fiDispOutHtml(d){
   let h = "";
   // build 114: 거래처별(더한 = 경산 외 / KPP = 경산) 출고요청서 — 포함 체크된 행만
@@ -21404,6 +21474,7 @@ function fiDispOutHtml(d){
     <div class="fi-xprev"><table><thead><tr>${fiDispCols(rs).hdr.map(x=>`<th>${escHtml(x)}</th>`).join("")}</tr></thead><tbody>
     ${fiDispSheetRows(rs).map(o=>`<tr>${fiDispCols(rs).keys.map(k=>`<td${/^(주소|비고|적재물)$/.test(k)?' style="text-align:left;white-space:normal;min-width:180px"':""}>${escHtml(o[k]==null?"":o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   });
+  h += fiTruckHtml(inc);   // build 360
   h += `<div id="fiDispImgs"></div>`;   // build 241
   h += `<div class="fi-sec-t">물류업체 전달 문구 <button class="act primary fi-mini" id="fiDispCopy">복사</button> <span id="fiDispCopyMsg" class="fi-mut"></span></div>
   <textarea id="fiDispText" class="fi-text" style="min-height:220px" readonly>${escHtml(fiDispTextAll(d))}</textarea>`;
@@ -21463,7 +21534,8 @@ function fiHistSyncSel(){
 }
 function fiDispTextAll(d){
   const inc = d.rows.filter(r=>!r.skip);
-  return fiDispText(fiOrderRows(inc), { note:d.note });   // build 143: 거래처 1곳
+  const tt = fiTruckText(inc);   // build 360: 차량별 합적
+  return fiDispText(fiOrderRows(inc), { note:d.note }) + (tt ? "\n\n" + tt : "");   // build 143: 거래처 1곳
 }
 async function fiDispWorkbook(groups){
   const ExcelJS = await fiLoadScript("https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js", "ExcelJS");
