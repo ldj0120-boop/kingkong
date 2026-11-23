@@ -1938,7 +1938,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 356 · 2026-11-23</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 357 · 2026-11-23</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -11835,8 +11835,28 @@ async function askDispClient(){
   if(!U || !K || !window.supabase || !window.supabase.createClient) throw new Error("배차 앱 설정을 못 읽었습니다");
   _askDispC = window.supabase.createClient(U, K); return _askDispC;
 }
+// build 357: 영수증 상세와 같은 방식 — 기다리지 않고 바로 보여 줌. 받아 둔 배차 자료가 기간을 덮으면 오래됐어도 바로 답하고
+//   뒤에서 새로 받아(askDispRefresh) 바뀌었으면 답을 다시 그림. 기간을 못 덮을 때만 기다림. 접속 뒤 쉬는 틈에 최근 4달을 미리 받음(askDispPrewarm).
 function askDispNeed(q){ if(!q.from || !q.to) return false; const D = ASK_DISP, age = Date.now() - (D.at||0);
-  return !(D.lo && D.lo <= q.from && D.hi >= q.to) || (D.err ? age > 15000 : age > 600000); }
+  const cover = D.lo && D.lo <= q.from && D.hi >= q.to && !D.err;
+  if(cover){ if(age > 600000) askDispRefresh(); return false; }
+  return !(D.lo && D.lo <= q.from && D.hi >= q.to) || (D.err ? age > 15000 : false); }
+let _askDispBusy = null;
+function askDispRefresh(){
+  if(_askDispBusy) return _askDispBusy; const D = ASK_DISP; if(!D.lo) return null;
+  const sig = x=> (x.rows||[]).length + "|" + (x.rows||[]).reduce((a,d)=> a + askDispFare(d) + (+d.plt_qty||0), 0);
+  const before = sig(D);
+  _askDispBusy = askDispEnsure(D.lo, D.hi).then(()=>{ _askDispBusy = null;
+    if(sig(ASK_DISP)===before || ASK_DISP.err) return;
+    const box = document.getElementById("askResult"); if(box && !box.hidden && ASK_STATE.slots && typeof askShow==="function"){ try{ const m = ASK_STATE.slots && ASK_STATE.slots.metric; if(["logi","dcount","loss"].includes(m)) askShow(ASK_STATE.slots, [], [], ASK_STATE.text); }catch(_){} }
+  }).catch(()=>{ _askDispBusy = null; });
+  return _askDispBusy;
+}
+function askDispPrewarm(){
+  try{ if(ASK_DISP.lo && !ASK_DISP.err) return; const t = new Date(), m = new Date(t.getFullYear(), t.getMonth()-3, 1), e = new Date(t.getFullYear(), t.getMonth()+1, 0);
+    _askDispBusy = askDispEnsure(fmtDate(m), fmtDate(e)).finally(()=>{ _askDispBusy = null; }); }catch(_){}
+}
+setTimeout(()=> (window.requestIdleCallback || setTimeout)(()=> askDispPrewarm(), { timeout:8000 }), 6000);
 async function askDispEnsure(from, to){
   const D = ASK_DISP, keep = D.lo && !D.err && (Date.now() - D.at) < 600000; const lo = keep && D.lo < from ? D.lo : from, hi = keep && D.hi > to ? D.hi : to;
   try{
