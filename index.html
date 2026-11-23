@@ -1938,7 +1938,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 358 · 2026-11-23</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 359 · 2026-11-23</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21896,8 +21896,9 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
     var LY = lsSlimLayout(SP), SLIM = !!LY, CAT0 = SLIM?LY.cat0:0, LASTC = SLIM?LY.last:0;
     var CM = SLIM ? lsSlimColMap(SP, LASTC) : null;   // 옛 열 → 새 열 (지운 열은 없음)
     // build 311: 일반 리퀴는 T~AC에 PLT CATE 10칸 → 그 자리(새 열 19 이상)에 오던 오른쪽 자료를 10칸 오른쪽으로
-    var TSHIFT = SLIM && A.kind!=="buy";
-    if(TSHIFT) CM.forEach(function(v,k){ if(v>=19) CM.set(k, Math.min(16383, v+10)); });
+    // build 359: 바이나우도 PLT CATE 10칸 — 바이나우는 Y~AH(24~33), 일반은 T~AC(19~28)
+    var TSHIFT = SLIM, TC = A.kind==="buy" ? 24 : 19, TE = TC+9;
+    if(TSHIFT) CM.forEach(function(v,k){ if(v>=TC) CM.set(k, Math.min(16383, v+10)); });
     var keepC=function(c){ return !SLIM || CM.has(c); }, NC=function(c){ return SLIM ? CM.get(c) : c; };
     // build 285 (사용자 요청): 오른쪽 자료(파일명 Sample · 카테고리 금액별 점유율 · 킹콩 요율표 · 낙찰가 기록용 · 유형표)는 유지 — 카테고리 칸이 글이라 그 칸을 읽는 수식은 "(" 앞 금액만
     var catNew={}; if(SLIM) for(var cj=CAT0;cj<=LASTC;cj++) catNew[lsCol(CM.get(cj))]=1;
@@ -21930,11 +21931,11 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
     // build 311: T~AC = PLT CATE R~AA 10칸(주방 · 가전 · 생활용품 · 가구 · 식품 · 의류 · 패션잡화 · 뷰티 · 기타-J · 합계) — 숫자 값 그대로(수식 아님 → 다른 파일에 바로 복사 · 붙여넣기)
     //   일반 리퀴만(바이나우는 T가 표 안). 오른쪽 자료(파일명 Sample ~ 유형표)는 위 CM에서 10칸 오른쪽으로 밀어 둠(V → AF), 총합계 줄은 SUM
     if(TSHIFT){ var PCN=["주방","가전","생활용품","가구","식품","의류","패션잡화","뷰티","기타-J","합계"];
-      put(2,19,lsCell("T3","PLT CATE (R~AA) 복사용",0,sst2));
-      PCN.forEach(function(h,j){ put(3,19+j,lsCell(lsCol(19+j)+"4",h,0,sst2)); });
+      put(2,TC,lsCell(lsCol(TC)+"3","PLT CATE (R~AA) 복사용",0,sst2));
+      PCN.forEach(function(h,j){ put(3,TC+j,lsCell(lsCol(TC+j)+"4",h,0,sst2)); });
       A.rows.forEach(function(R,i){ var r=4+i, vals=R.cats.concat([R.cats.reduce(function(a,b){ return a+b; },0)]);
-        vals.forEach(function(v,j){ put(r,19+j,lsCell(lsCol(19+j)+(r+1),Math.round((+v||0)*100)/100,0,sst2)); }); });
-      PCN.forEach(function(h,j){ var c=lsCol(19+j); put(newTot0,19+j,lsCell(c+(newTot0+1),{f:"SUM("+c+"5:"+c+newLast1+")",v:A.rows.reduce(function(s,R){ return s+(j<9?(+R.cats[j]||0):R.cats.reduce(function(a,b){ return a+b; },0)); },0)},0,sst2)); });
+        vals.forEach(function(v,j){ put(r,TC+j,lsCell(lsCol(TC+j)+(r+1),Math.round((+v||0)*100)/100,0,sst2)); }); });
+      PCN.forEach(function(h,j){ var c=lsCol(TC+j); put(newTot0,TC+j,lsCell(c+(newTot0+1),{f:"SUM("+c+"5:"+c+newLast1+")",v:A.rows.reduce(function(s,R){ return s+(j<9?(+R.cats[j]||0):R.cats.reduce(function(a,b){ return a+b; },0)); },0)},0,sst2)); });
       _lsTcol = A.rows.length; }
     SP.absolute.forEach(function(c){ if(!SLIM && c[0]<newTot0 && keepC(c[1])) put(c[0],c[1],lsCell(lsCol(c[1])+(c[0]+1),val(c[3],c[4],false),c[2],sst2)); });
     SP.footer.forEach(function(c){ if(SLIM && (c[0]!==0 || !keepC(c[1]))) return; var r=newTot0+c[0], v=val(c[3],c[4],true);
@@ -21947,8 +21948,8 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
       for(var k=c[0];k<=Math.min(c[1],LASTC);k++){ if(!CM.has(k)) continue; var fl=c[4]||0; if(fl&0x700) fl&=~0x701; fl&=~0x1000;
         var w=c[2]; if(k>=CAT0 && k<=LASTC && catFit.w[k-CAT0]) w=Math.round(catFit.w[k-CAT0]*256);   // 카테고리 칸: 글이 들어가게 최대 +20%
         sCols.push([NC(k),NC(k),w,c[3],fl]); } }); }
-    if(TSHIFT){ var sc2=[]; sCols.forEach(function(c){ if(c[1]<19 || c[0]>28) sc2.push(c); else { if(c[0]<19) sc2.push([c[0],18,c[2],c[3],c[4]]); if(c[1]>28) sc2.push([29,c[1],c[2],c[3],c[4]]); } });
-      for(var tk=19;tk<=28;tk++) sc2.push([tk,tk,14*256,0,0x2]); sCols=sc2.sort(function(a,b){ return a[0]-b[0]; }); }   // T~AC 너비 14
+    if(TSHIFT){ var sc2=[]; sCols.forEach(function(c){ if(c[1]<TC || c[0]>TE) sc2.push(c); else { if(c[0]<TC) sc2.push([c[0],TC-1,c[2],c[3],c[4]]); if(c[1]>TE) sc2.push([TE+1,c[1],c[2],c[3],c[4]]); } });
+      for(var tk=TC;tk<=TE;tk++) sc2.push([tk,tk,14*256,0,0x2]); sCols=sc2.sort(function(a,b){ return a[0]-b[0]; }); }   // T~AC 너비 14
     var cf=(SLIM?[]:(SP.cf||[])).map(function(b){ var rf=b.ref[0]; return '<conditionalFormatting sqref="'+lsCol(rf[2])+'5:'+lsCol(rf[3])+newLast1+'">'+b.rules.map(function(ru){ return '<cfRule type="expression" dxfId="'+ru[1]+'" priority="'+ru[2]+'"><formula>'+lsX(ru[3])+'</formula></cfRule>'; }).join("")+'</conditionalFormatting>'; }).join("");
     var pane=lsPane(SP.pane);
     if(SLIM) pane="";   // build 285: 틀 고정 없음
