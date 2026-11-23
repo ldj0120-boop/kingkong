@@ -1938,7 +1938,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 354 · 2026-11-23</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 355 · 2026-11-23</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -3519,7 +3519,7 @@ const grandTotal = () => Math.round(STORES.reduce((a,s)=>a+storeShipTotal(s),0)*
 
 /* ================= 마지막 자료 상태 저장/복원 (localStorage) ================= */
 const STORAGE_KEY = "plt_shipment_state_v2"; // 재고 열 스키마 변경(마지막 시트 기준·17열)으로 키 상향
-let _saveWarned = false;
+let _saveWarned = false, _lsTooBig = false;   // build 355
 // 카테고리 지정(매핑)을 지정 즉시 항상 별도 키에 자동 백업한다(버튼을 안 눌러도 유지·복원됨).
 const CATMAP_KEY = "plt_catmap_v1";
 function persistCatMaps(){
@@ -3893,10 +3893,12 @@ function saveStateNow(){
   // 카테고리 지정(매핑)은 별도의 작은 키에 항상 저장 → 전체 상태가 용량 초과로 실패해도 지정은 유지된다.
   try{ localStorage.setItem("plt_catmap_v1", JSON.stringify({ SALES_CAT_MAP, SHIP_CAT_MAP, CATEGORIES, CATEGORY_ORIGIN })); }catch(_){}
   // 2차: localStorage 빠른 경로(작으면 저장, 초과하면 낡은 값 제거해 IndexedDB가 우선되게)
-  try{
+  // build 355: 상태가 커서(약 5MB) localStorage는 매번 실패하며 JSON만 만들고 버렸다(저장 1번에 ~100ms) → 한 번 실패하면 이번 접속 동안 건너뜀(IndexedDB에는 그대로 저장)
+  if(!_lsTooBig) try{
     localStorage.setItem(STORAGE_KEY, JSON.stringify(st));
     _saveWarned = false;
   }catch(e){
+    _lsTooBig = true;
     try{ localStorage.removeItem(STORAGE_KEY); }catch(_){}
     if(!_saveWarned){ _saveWarned = true; }
   }
@@ -11970,31 +11972,86 @@ function askRun(q){
    일별 표에는 0건 · 기록 없는 날도 줄로 보여 줌. */
 /* build 354: 킹고프리 영수증 상세 — 물어보기 표에서 매장 줄을 누르면 그 날 · 그 매장 영수증(등록일시 · 상품정보 · 수량 · 금액 · 주문번호).
    상세는 매출현황 파일을 읽을 때 kg[매장][3]에 저장. 예전에 읽은 날(상세 없음)은 연결된 '업로드용자료' 폴더의 매출현황-YYYYMMDD 파일을 바로 읽어 보여 줌. */
-const _kgDetCache = {};
-async function kgDetFromFolder(d){
-  if(_kgDetCache[d]!==undefined) return _kgDetCache[d];
-  const h = _afH || await afTimeout(afHandle(), 5000, null); if(!h) return (_kgDetCache[d] = null, null);
+// build 355: 느렸던 까닭 — 폴더 전체를 훑고 · 파일 전체(5천 줄 · 17열)를 매장 매출 계산까지 다시 함 · 날짜를 하나씩 차례로.
+//   → 매장별매출현황\YYMM\ 바로 열기 · 킹고프리 줄만 읽기(dense) · 날짜 여러 개 동시에 · 폴더 읽은 뒤 최근 62일 상세를 미리 채워 둠(kgDetBackfill).
+async function kgDetDir(gesture){
+  const h = _afH || await afTimeout(afHandle(), 5000, null); if(!h) return null;
   let p = "prompt"; try{ p = await h.queryPermission({ mode:"read" }); }catch(_){}
-  if(p!=="granted"){ try{ p = await afTimeout(h.requestPermission({ mode:"read" }), 60000, "timeout"); }catch(_){ p = "err"; } }
-  if(p!=="granted") return null;
-  _afH = h; const ymd = d.replace(/-/g,""); let file = null;
+  if(p!=="granted" && gesture){ try{ p = await afTimeout(h.requestPermission({ mode:"read" }), 60000, "timeout"); }catch(_){ p = "err"; } }
+  if(p!=="granted") return null; _afH = h; return h;
+}
+async function kgDetFindFile(h, d){
+  const ymd = d.replace(/-/g,""), ok = n=> n.includes(ymd) && /매출현황/.test(n) && !/상품별|^~\$/.test(n) && /\.(xlsx|xls)$/i.test(n);
+  try{ const a = await h.getDirectoryHandle("매장별매출현황"); let m = null; try{ m = await a.getDirectoryHandle(ymd.slice(2,6)); }catch(_){}
+    for(const dir of [m, a].filter(Boolean)) for await (const x of dir.values()) if(x.kind==="file" && ok(x.name)) return await x.getFile(); }catch(_){}
+  let file = null;   // 예전 방식: 폴더 훑기
   async function walk(dir, depth){ if(file || depth > 4) return; for await (const x of dir.values()){ if(file) return;
     if(x.kind==="directory"){ if(depth===0 && !/매장별/.test(x.name)) continue; await walk(x, depth+1); continue; }
-    if(/^~\$/.test(x.name) || !/\.(xlsx|xls)$/i.test(x.name) || /상품별/.test(x.name)) continue;
-    if(x.name.includes(ymd) && /매출현황/.test(x.name)){ try{ file = await x.getFile(); }catch(_){} } } }
+    if(ok(x.name)){ try{ file = await x.getFile(); }catch(_){} } } }
   try{ await walk(h, 0); }catch(_){}
-  if(!file) return (_kgDetCache[d] = null, null);
-  try{ const wb = XLSX.read(await file.arrayBuffer(), { type:"array" }); const r = parseStoreSalesWorkbook(wb); const bd = r.byDate && r.byDate[d];
-    return (_kgDetCache[d] = { kg: (bd && bd.kg) || {}, file: file.name }); }catch(e){ console.warn("kgDetFromFolder", e); return null; }
+  return file;
+}
+// 파일에서 그날 킹고프리 줄만: { 매장: [금액, 장, 수량, [[등록일시, 상품정보, 수량, 금액, 주문번호]]] }
+function kgDetParse(buf, d){
+  const wb = XLSX.read(buf, { type:"array", dense:true, cellStyles:false, cellHTML:false, cellFormula:false });
+  const norm = x=> String(x==null?"":x).replace(/\s+/g,""), num = v=>{ const n = parseFloat(String(v==null?"":v).replace(/[,\s₩원]/g,"")); return isNaN(n)?0:n; }, out = {};
+  wb.SheetNames.forEach(sn=>{
+    const aoa = sheetAoA(wb, sn); if(!aoa.length) return;
+    let hr = -1; for(let r=0; r<Math.min(aoa.length,8); r++) if((aoa[r]||[]).some(c=> /청구금액/.test(norm(c)))){ hr = r; break; } if(hr<0) return;
+    const H = aoa[hr].map(norm), ix = n=> H.indexOf(n);
+    const cB = H.findIndex(c=> /청구금액/.test(c)), cS = H.findIndex(c=> c==="매장명" || c==="매장" || /매장/.test(c)), cD = H.findIndex(c=> /영업일자|판매일자|매출일자|일자/.test(c)), cP = findSalesPosCol(aoa[hr]);
+    const cM = ix("회원명"), cMemo = ix("메모"), cQ = ix("상품수량"), cI = ix("상품정보"), cR = ix("등록일시");
+    for(let r=hr+1; r<aoa.length; r++){ const row = aoa[r]||[];
+      if(!kgIsRow(cM>=0 ? row[cM] : null, cMemo>=0 ? row[cMemo] : null)) continue;
+      const bill = num(row[cB]); if(!bill) continue;
+      const ds = cD>=0 ? normalizeDateCell(row[cD]) : d; if(ds!==d) continue;
+      let st = cS>=0 ? resolveSalesStoreName(row[cS]) : null; if(cP>=0 && st) st = salesPosStore(st, row[cP], ds); if(!st || !STORES.includes(st)) continue;
+      const q = cQ>=0 ? num(row[cQ]) : 0, k = out[st] || (out[st] = [0,0,0,[]]); k[0] += bill; k[1] += 1; k[2] += q;
+      k[3].push([cR>=0 ? String(row[cR]==null?"":row[cR]).trim() : "", cI>=0 ? String(row[cI]==null?"":row[cI]).trim() : "", q, bill, cMemo>=0 ? String(row[cMemo]==null?"":row[cMemo]).replace(/^\s*킹고프리\s*/,"").trim() : ""]);
+    }
+  });
+  return out;
+}
+const _kgDetCache = {};
+async function kgDetFromFolder(d, gesture){
+  if(_kgDetCache[d]) return _kgDetCache[d];
+  const h = await kgDetDir(gesture !== false); if(!h) return null;
+  const file = await kgDetFindFile(h, d); if(!file) return null;
+  const pr = (async()=>{ try{ return { kg: kgDetParse(await file.arrayBuffer(), d), file: file.name }; }catch(e){ console.warn("kgDetFromFolder", e); delete _kgDetCache[d]; return null; } })();
+  _kgDetCache[d] = pr; return pr;
+}
+// 사이트에 기억(같은 금액일 때만). 바뀐 게 있으면 true
+function kgDetKeep(d, kgF){
+  const k = kgOfDate(d); if(!k) return false; let ch = false;
+  Object.keys(kgF||{}).forEach(s=>{ const v = kgF[s]; if(k[s] && !k[s][3] && v[3] && Math.abs((+k[s][0]||0) - (+v[0]||0)) <= 1){ k[s][3] = v[3]; ch = true; } });
+  return ch;
+}
+let _kgBfRun = false;
+async function kgDetBackfill(){
+  if(_kgBfRun) return; _kgBfRun = true; let n = 0;
+  try{
+    const h = await kgDetDir(false); if(!h) return;
+    const ds = (STORE_SALES_HISTORY||[]).filter(x=> x && x.date && x.kg && Object.keys(x.kg).some(s=>{ const v = x.kg[s]; return v && +v[0] && !Array.isArray(v[3]); })).map(x=> x.date).sort().slice(-62).reverse();
+    for(const d of ds){
+      await new Promise(r=> (window.requestIdleCallback || setTimeout)(r, { timeout:2000 }));
+      const F = await kgDetFromFolder(d, false); if(F && kgDetKeep(d, F.kg)) n++;
+    }
+    if(n && typeof IS_ADMIN!=="undefined" && IS_ADMIN) saveState();
+  }catch(e){ console.warn("kgDetBackfill", e); }
+  finally{ _kgBfRun = false; if(n) console.log(`킹고프리 영수증 상세 ${n}일 채움`); }
 }
 async function kgDetGet(pairs){
   const out = [], need = [];
   pairs.forEach(([d, s])=>{ const k = kgOfDate(d), v = k && k[s]; if(v && Array.isArray(v[3]) && v[3].length) v[3].forEach(x=> out.push([d, s].concat(x))); else need.push([d, s]); });
-  const miss = [], src = new Set();
-  for(const [d, s] of need){ const F = await kgDetFromFolder(d); const v = F && F.kg[s];
-    if(v && Array.isArray(v[3]) && v[3].length){ src.add(F.file); v[3].forEach(x=> out.push([d, s].concat(x)));
-      const k = kgOfDate(d); if(k && k[s] && Math.abs((+k[s][0]||0) - (+v[0]||0)) <= 1) k[s][3] = v[3]; }   // 같은 금액이면 이 화면에 기억
-    else miss.push([d, s]); }
+  const miss = [], src = new Set(), Fs = {};
+  const days = [...new Set(need.map(x=> x[0]))];
+  await Promise.all(days.map(async d=>{ Fs[d] = await kgDetFromFolder(d); }));   // build 355: 여러 날 동시에
+  let kept = false;
+  need.forEach(([d, s])=>{ const F = Fs[d], v = F && F.kg[s];
+    if(v && Array.isArray(v[3]) && v[3].length){ src.add(F.file); v[3].forEach(x=> out.push([d, s].concat(x))); }
+    else miss.push([d, s]); });
+  days.forEach(d=>{ if(Fs[d] && kgDetKeep(d, Fs[d].kg)) kept = true; });
+  if(kept && typeof IS_ADMIN!=="undefined" && IS_ADMIN) saveState();
   out.sort((a,b)=> a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]) || String(a[2]).localeCompare(String(b[2])));
   return { rows: out, miss, src:[...src] };
 }
@@ -17192,6 +17249,7 @@ async function afScan(gesture, why){
     afSetSub("읽는 중…");
     const files = await afCollect(h);
     const r = await handleFolderBatch(files, { auto:true });
+    setTimeout(()=>{ try{ kgDetBackfill(); }catch(_){} }, 3000);   // build 355: 킹고프리 영수증 상세 미리 채우기(쉬는 틈에)
     const t = new Date(); const hm = `${String(t.getHours()).padStart(2,"0")}:${String(t.getMinutes()).padStart(2,"0")}`;
     _afInfo = r && r.n ? `${hm} ${r.n}개 반영` : `${hm} 확인 · 새 파일 없음`;
     afSetSub(_afInfo);
@@ -28269,6 +28327,29 @@ window.addEventListener("load", kkMarkClosedSoon); setTimeout(kkMarkClosed, 1200
       return Object.assign({}, r, { series: Object.assign({}, r.series) });
     };
   }catch(e){ console.warn("build 300 gds", e); }
+  // build 355: 목표매출 탭 한 번 그릴 때 mergedSupplyDaily 41번 · mergeByStoreCat 39번(salesCatGroup 25만 번) · goalsBuildContext 2~3번 — 같은 작업 안에서는 한 번만
+  try{
+    const _msd = mergedSupplyDaily;
+    mergedSupplyDaily = function(){ const c = bag(); let r = c.get("msd"); if(!r){ r = _msd(); c.set("msd", r); } return Object.assign({}, r); };
+  }catch(e){ console.warn("build 355 msd", e); }
+  try{
+    const ids = new WeakMap(); let seq = 0; const idOf = o=>{ if(!o || typeof o!=="object") return "x"; let i = ids.get(o); if(!i){ i = ++seq; ids.set(o, i); } return i; };
+    const _mbs = mergeByStoreCat;
+    mergeByStoreCat = function(snaps){
+      if(!Array.isArray(snaps)) return _mbs(snaps);
+      const c = bag(), k = "mbs|" + snaps.map(sn=> idOf(sn && sn.byStoreCat)).join(",");
+      let r = c.get(k); if(!r){ r = _mbs(snaps); c.set(k, r); }
+      const o = {}; Object.keys(r).forEach(st=>{ const a = r[st], b = o[st] = {}; Object.keys(a).forEach(ct=>{ b[ct] = { qty:a[ct].qty, amount:a[ct].amount }; }); }); return o;
+    };
+  }catch(e){ console.warn("build 355 mbs", e); }
+  try{ const _shm = shipMonths; shipMonths = function(){ const c = bag(); let r = c.get("shm"); if(!r){ r = _shm(); c.set("shm", r); } return r.slice(); }; }catch(e){ console.warn("build 355 shm", e); }
+  try{ const _ggm = goalsGroupMap; goalsGroupMap = function(m){ const c = bag(), k = "ggm|"+m; let r = c.get(k); if(!r){ r = _ggm(m); c.set(k, r); } return { map: Object.assign({}, r.map), total: r.total, source: r.source }; }; }catch(e){ console.warn("build 355 ggm", e); }
+  try{
+    const _gbc = goalsBuildContext;
+    goalsBuildContext = function(){ const c = bag(), k = "gbc|" + JSON.stringify(typeof goalsScope!=="undefined" ? goalsScope : null); if(!c.has(k)) c.set(k, _gbc()); return c.get(k); };
+  }catch(e){ console.warn("build 355 gbc", e); }
+  try{ const _ac = afterChange; afterChange = function(){ drop(); return _ac.apply(this, arguments); }; }catch(e){ console.warn("build 355 ac", e); }   // 자료 바꾼 뒤 다시 그릴 때는 새로 계산
+  try{ const _kas = kgApplySales; kgApplySales = function(){ drop(); try{ return _kas.apply(this, arguments); }finally{ drop(); } }; }catch(e){ console.warn("build 355 kas", e); }
   try{ const _aso = applyStateObject; applyStateObject = function(){ drop(); try{ return _aso.apply(this, arguments); }finally{ drop(); } }; }catch(e){ console.warn("build 300 aso", e); }
   try{ const _ss = saveState; saveState = function(){ drop(); return _ss.apply(this, arguments); }; }catch(e){ console.warn("build 300 ss", e); }
 })();
