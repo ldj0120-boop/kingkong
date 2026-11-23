@@ -1935,7 +1935,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 352 · 2026-11-19</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 353 · 2026-11-23</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -1977,8 +1977,7 @@
       <div class="tool-group uploads">
                 <div class="tool-group-body">
           <input type="file" id="importFolderFile" webkitdirectory multiple hidden>
-          <button class="act primary" id="importFolderBtn" title="'업로드용자료' 폴더를 통째로 선택하면, 하위 폴더 이름(센터출고내역서·본사출고내역서·가전센터출고내역서·매장재고현황·매장별매출현황·카테고리별매출현황)을 자동 인식해 각 슬롯에 한 번에 불러옵니다."><span class="up-ic">📁</span>폴더 통째로 올리기<small>한 번에 전부</small></button>
-          <button class="act" id="afBtn" title="build 316: 업로드용자료 폴더를 한 번 연결해 두면, 관리자 로그인 때와 이 창으로 돌아올 때마다 새 파일만 알아서 읽습니다. 크롬 권한 창에서 '방문할 때마다 허용'을 고르면 다음부터 클릭이 필요 없습니다."><span class="up-ic">🔗</span>폴더 자동 읽기<small id="afBtnSub">연결 안 됨</small></button>
+          <button class="act primary" id="importFolderBtn" title="build 353: 누르면 연결해 둔 '업로드용자료' 폴더를 통째로 다시 읽어 모든 칸을 업데이트합니다(폴더 고르기 창 없음). 처음 한 번만 폴더를 고르고, 크롬이 물으면 '방문할 때마다 허용'. 오른쪽 클릭 = 다른 폴더 고르기."><span class="up-ic">📁</span>폴더 통째로 올리기<small id="afBtnSub">클릭 한 번에 전부</small></button>
           <input type="file" id="importActualFile" accept=".xlsx,.xlsm,.xls" hidden>
           <button class="act dropzone" id="importActualBtn" title="클릭하거나 엑셀 파일을 끌어다 놓으세요 (예: 출고내역서_26년_7월.xlsx)"><span class="up-ic">🏭</span>센터 출고내역서</button>
           <input type="file" id="importHQFile" accept=".xlsx,.xlsm,.xls" hidden>
@@ -17074,12 +17073,12 @@ async function handleFolderBatch(fileList, opts){
   if(reread) msg += ` (공급 파일 ${reread}개 다시 읽음 · 보관 원본도 갱신)`;
   if(skipped) msg += ` (이미 반영된 ${skipped}개는 건너뜀 → 빠르게 완료)`;
   if(unrouted.length && !AUTO) msg += `\n분류하지 못한 파일 ${unrouted.length}개: ${unrouted.slice(0,5).join(", ")}${unrouted.length>5?" 외":""}`;
-  if(AUTO) msg = "🔗 폴더 자동 읽기 — " + msg;
+  if(AUTO) msg = "📁 폴더 통째로 읽기 — " + msg;
   showNotice(msg);
   return { n: totalNew + hbN, files: files.length, done };
 }
 const importFolderInput = document.getElementById("importFolderFile");
-document.getElementById("importFolderBtn").onclick = ()=> importFolderInput.click();
+// build 353: 클릭 = 연결된 폴더 통째로 읽기(아래 afClick). 폴더 연결 기능이 없는 브라우저만 예전 폴더 고르기 창.
 importFolderInput.onchange = (e)=>{ handleFolderBatch(e.target.files); importFolderInput.value=""; };
 
 /* ================= build 316: 폴더 자동 읽기 =================
@@ -17129,7 +17128,7 @@ async function afScan(gesture, why){
     const t = new Date(); const hm = `${String(t.getHours()).padStart(2,"0")}:${String(t.getMinutes()).padStart(2,"0")}`;
     _afInfo = r && r.n ? `${hm} ${r.n}개 반영` : `${hm} 확인 · 새 파일 없음`;
     afSetSub(_afInfo);
-    if(gesture && !(r && r.n)) showNotice(`🔗 폴더 자동 읽기 — '${h.name}' 폴더 ${files.length}개 파일 확인, 새로 반영할 파일 없음.`);
+    if(gesture && !(r && r.n)) showNotice(`📁 '${h.name}' 폴더 ${files.length}개 파일 확인 — 모두 최신, 새로 반영할 파일 없음.`);
     return r && r.n ? "read" : "same";
   }catch(e){ console.warn("afScan", e); afSetSub("읽기 실패", true); if(gesture) alert("폴더를 읽지 못했습니다: " + (e && e.message || e)); return "err"; }
   finally{ _afBusy = false; }
@@ -17151,28 +17150,33 @@ function afAuto(why){
 }
 // build 350: 클릭 → 다른 기다림 없이 바로 크롬 허용 요청(클릭 효력 5초 안에). 거절/오류면 다음 클릭은 폴더 고르기 창.
 let _afRepick = false;
-document.getElementById("afBtn").onclick = ()=>{
+// build 353: 별도 '폴더 자동 읽기' 버튼 없앰 → '📁 폴더 통째로 올리기' 한 번 클릭 = 연결된 업로드용자료 폴더 통째로 읽기.
+//   처음(연결 없음)만 폴더 고르기 창 → 저장. 이미 허용돼 있으면 requestPermission이 창 없이 바로 granted.
+function afClick(){
+  if(typeof window.showDirectoryPicker!=="function"){ importFolderInput.click(); return; }   // 지원 안 하는 브라우저 = 예전 방식
   const h = _afH;
   if(!h || _afRepick || typeof h.requestPermission!=="function"){ _afRepick = false; afConnect(); return; }
-  if(_afBusy && Date.now() - _afBusyAt < 180000){ showNotice("🔗 폴더 자동 읽기 — 지금 읽는 중입니다. 잠시 뒤 다시 눌러 주세요."); return; }
-  afSetSub("허용 창 확인", true);
+  if(_afBusy && Date.now() - _afBusyAt < 180000){ showNotice("📁 지금 폴더를 읽는 중입니다. 잠시 뒤 다시 눌러 주세요."); return; }
   let pr; try{ pr = h.requestPermission({ mode:"read" }); }catch(e){ pr = Promise.reject(e); }
-  showNotice("🔗 크롬 주소창 아래 작은 창에서 '방문할 때마다 허용'을 눌러 주세요. 창이 없으면 버튼을 한 번 더 누르면 폴더 고르기 창이 뜹니다.");
+  let settled = false;
+  setTimeout(()=>{ if(!settled){ afSetSub("허용 창 확인", true); showNotice("📁 크롬 주소창 아래 작은 창에서 '방문할 때마다 허용'을 눌러 주세요. 창이 없으면 한 번 더 누르면 폴더 고르기 창이 뜹니다."); } }, 700);
   afTimeout(pr, 60000, "timeout").then(async p=>{
+    settled = true;
     if(p==="granted"){ await afScan(true, "button"); return; }
     _afRepick = true;
     afSetSub("한 번 더 눌러 폴더 고르기", true);
-    showNotice("🔗 허용이 안 됐습니다(" + p + "). 버튼을 한 번 더 누르면 폴더 고르기 창이 뜹니다 → 업로드용자료 선택.");
+    showNotice("📁 허용이 안 됐습니다(" + p + "). 한 번 더 누르면 폴더 고르기 창이 뜹니다 → 업로드용자료 선택.");
   }).catch(e=>{
-    console.warn("afBtn", e); _afRepick = true;
+    settled = true; console.warn("afClick", e); _afRepick = true;
     afSetSub("한 번 더 눌러 폴더 고르기", true);
-    showNotice("🔗 허용 요청 실패: " + (e && e.message || e) + " — 버튼을 한 번 더 누르면 폴더 고르기 창이 뜹니다.");
+    showNotice("📁 허용 요청 실패: " + (e && e.message || e) + " — 한 번 더 누르면 폴더 고르기 창이 뜹니다.");
   });
-};
-document.getElementById("afBtn").oncontextmenu = (e)=>{ e.preventDefault(); afConnect(); };   // 오른쪽 클릭 = 다른 폴더로 다시 연결
+}
+document.getElementById("importFolderBtn").onclick = afClick;
+document.getElementById("importFolderBtn").oncontextmenu = (e)=>{ e.preventDefault(); afConnect(); };   // 오른쪽 클릭 = 다른 폴더 고르기
 window.addEventListener("focus", ()=> afAuto("focus"));
 document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") afAuto("visible"); });
-afHandle().then(h=>{ if(h){ _afH = h; afSetSub(`'${h.name}' 연결됨`); } }).catch(()=>{});
+afHandle().then(h=>{ if(h){ _afH = h; afSetSub(`'${h.name}' · 클릭 한 번에 전부`); } }).catch(()=>{});
 
 /* ================= 출고 초기화 (계획 + 실적 + 공급 추이 전부 초기화) ================= */
 document.getElementById("resetBtn").onclick=()=>{
