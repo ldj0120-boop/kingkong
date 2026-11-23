@@ -1908,6 +1908,9 @@
   .ask-err{color:var(--red);font-size:13px;}
   .ask-sub{font-size:12px;color:var(--muted2);}
   .ask-tbl td.num{text-align:right;white-space:nowrap;}
+  .ask-kgrow{cursor:pointer;} .ask-kgrow:hover td{background:rgba(99,102,241,.07);} .ask-kgrow.open td{background:rgba(99,102,241,.10);}
+  .ask-kgbtn{font-size:11px;font-weight:600;color:#4f46e5;border:1px solid #c7d2fe;border-radius:10px;padding:0 6px;margin-left:4px;white-space:nowrap;}
+  .kg-det td{background:#fafbff;padding:8px 10px!important;} .kg-det table{width:100%;border-collapse:collapse;font-size:12.5px;} .kg-det th,.kg-det td td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:left;} .kg-det .num{text-align:right;white-space:nowrap;} .kg-det .ord{font-size:11px;color:var(--muted2);word-break:break-all;} .kg-det th{font-size:12px!important;font-weight:600;padding:4px 6px!important;}
   .ask-qbox{margin:8px 0;padding:8px 10px;border:1px dashed var(--line);border-radius:10px;}
   .ask-q{font-size:13.5px;font-weight:600;margin-bottom:6px;}
   .ask-opts{display:flex;flex-wrap:wrap;gap:6px;}
@@ -1935,7 +1938,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 353 · 2026-11-23</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 354 · 2026-11-23</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -8996,7 +8999,7 @@ function parseStoreSalesWorkbook(wb){
   wb.SheetNames.forEach(sn=>{
     const aoa = sheetAoA(wb, sn);
     if(!aoa.length) return;
-    let hr=-1, colBill=-1, colStore=-1, colDate=-1, colCnt=-1, colPos=-1, colMember=-1, colMemo=-1, colQtyB=-1;   // build 289: 회원명 · 메모 · 상품수량(킹고프리)
+    let hr=-1, colBill=-1, colStore=-1, colDate=-1, colCnt=-1, colPos=-1, colMember=-1, colMemo=-1, colQtyB=-1, colInfo=-1, colReg=-1;   // build 289: 회원명 · 메모 · 상품수량(킹고프리)
     for(let r=0;r<Math.min(aoa.length,8);r++){
       const row = aoa[r]||[];
       const bill = row.findIndex(c=>/청구금액/.test(norm(c)));
@@ -9006,7 +9009,7 @@ function parseStoreSalesWorkbook(wb){
         colDate = row.findIndex(c=> /영업일자|판매일자|매출일자|일자/.test(norm(c)));
         colCnt = row.findIndex(c=> /전표건수|영수증건수|거래건수/.test(norm(c)));
         colPos = findSalesPosCol(row); if(colPos>=0) hasPos = true;   // build 262
-        colMember = row.findIndex(c=> norm(c)==="회원명"); colMemo = row.findIndex(c=> norm(c)==="메모"); colQtyB = row.findIndex(c=> norm(c)==="상품수량");   // build 289
+        colMember = row.findIndex(c=> norm(c)==="회원명"); colMemo = row.findIndex(c=> norm(c)==="메모"); colQtyB = row.findIndex(c=> norm(c)==="상품수량"); colInfo = row.findIndex(c=> norm(c)==="상품정보"); colReg = row.findIndex(c=> norm(c)==="등록일시");   // build 289 · 354
         usedColLabel = bill>=0?String(row[bill]).trim():"G열(청구금액)"; break;
       }
     }
@@ -9032,7 +9035,9 @@ function parseStoreSalesWorkbook(wb){
       cntByStore[store] = (cntByStore[store]||0) + cntAdd;
       if(dstr){ byDate[dstr].byStore[store] = (byDate[dstr].byStore[store]||0) + bill; byDate[dstr].cnt[store] = (byDate[dstr].cnt[store]||0) + cntAdd; }
       // build 289: 킹고프리 온라인 주문 — 매장 매출에는 그대로 두고 따로 기록(카테고리 매출 맞추기 · 킹고프리 매출 종합)
-      if(dstr && byDate[dstr].kg && kgIsRow(colMember>=0 ? row[colMember] : null, colMemo>=0 ? row[colMemo] : null)){ const k = byDate[dstr].kg[store] || (byDate[dstr].kg[store] = [0,0,0]); k[0] += bill; k[1] += 1; k[2] += colQtyB>=0 ? num(row[colQtyB]) : 0; }
+      if(dstr && byDate[dstr].kg && kgIsRow(colMember>=0 ? row[colMember] : null, colMemo>=0 ? row[colMemo] : null)){ const k = byDate[dstr].kg[store] || (byDate[dstr].kg[store] = [0,0,0]); k[0] += bill; k[1] += 1; k[2] += colQtyB>=0 ? num(row[colQtyB]) : 0;
+        // build 354: 영수증 상세 [등록일시, 상품정보, 수량, 금액, 주문번호] — 물어보기 표에서 매장 누르면 보임
+        (k[3] || (k[3] = [])).push([colReg>=0 ? String(row[colReg]==null?"":row[colReg]).trim() : "", colInfo>=0 ? String(row[colInfo]==null?"":row[colInfo]).trim() : "", colQtyB>=0 ? num(row[colQtyB]) : 0, bill, colMemo>=0 ? String(row[colMemo]==null?"":row[colMemo]).replace(/^\s*킹고프리\s*/,"").trim() : ""]); }
     }
   });
   return { byStore, total, noStoreTotal, byDate, cntByStore, unmatched: Array.from(unmatched), usedColLabel, hasPos };
@@ -11963,6 +11968,65 @@ function askRun(q){
 /* build 318: P261111-01 — 킹고프리(온라인) 판매내역: 매장별 매출현황의 킹고프리 영수증(kgOfDate: 매장 → [금액, 영수증, 상품수량])을 그대로.
    나눠 보기 = 매장별(기본) · 일별 · 월별 · 요일별 · 매장×날짜(상세) · 합계. 카테고리별은 상품 정보가 '외 n건'뿐이라 없음 → 매장×날짜.
    일별 표에는 0건 · 기록 없는 날도 줄로 보여 줌. */
+/* build 354: 킹고프리 영수증 상세 — 물어보기 표에서 매장 줄을 누르면 그 날 · 그 매장 영수증(등록일시 · 상품정보 · 수량 · 금액 · 주문번호).
+   상세는 매출현황 파일을 읽을 때 kg[매장][3]에 저장. 예전에 읽은 날(상세 없음)은 연결된 '업로드용자료' 폴더의 매출현황-YYYYMMDD 파일을 바로 읽어 보여 줌. */
+const _kgDetCache = {};
+async function kgDetFromFolder(d){
+  if(_kgDetCache[d]!==undefined) return _kgDetCache[d];
+  const h = _afH || await afTimeout(afHandle(), 5000, null); if(!h) return (_kgDetCache[d] = null, null);
+  let p = "prompt"; try{ p = await h.queryPermission({ mode:"read" }); }catch(_){}
+  if(p!=="granted"){ try{ p = await afTimeout(h.requestPermission({ mode:"read" }), 60000, "timeout"); }catch(_){ p = "err"; } }
+  if(p!=="granted") return null;
+  _afH = h; const ymd = d.replace(/-/g,""); let file = null;
+  async function walk(dir, depth){ if(file || depth > 4) return; for await (const x of dir.values()){ if(file) return;
+    if(x.kind==="directory"){ if(depth===0 && !/매장별/.test(x.name)) continue; await walk(x, depth+1); continue; }
+    if(/^~\$/.test(x.name) || !/\.(xlsx|xls)$/i.test(x.name) || /상품별/.test(x.name)) continue;
+    if(x.name.includes(ymd) && /매출현황/.test(x.name)){ try{ file = await x.getFile(); }catch(_){} } } }
+  try{ await walk(h, 0); }catch(_){}
+  if(!file) return (_kgDetCache[d] = null, null);
+  try{ const wb = XLSX.read(await file.arrayBuffer(), { type:"array" }); const r = parseStoreSalesWorkbook(wb); const bd = r.byDate && r.byDate[d];
+    return (_kgDetCache[d] = { kg: (bd && bd.kg) || {}, file: file.name }); }catch(e){ console.warn("kgDetFromFolder", e); return null; }
+}
+async function kgDetGet(pairs){
+  const out = [], need = [];
+  pairs.forEach(([d, s])=>{ const k = kgOfDate(d), v = k && k[s]; if(v && Array.isArray(v[3]) && v[3].length) v[3].forEach(x=> out.push([d, s].concat(x))); else need.push([d, s]); });
+  const miss = [], src = new Set();
+  for(const [d, s] of need){ const F = await kgDetFromFolder(d); const v = F && F.kg[s];
+    if(v && Array.isArray(v[3]) && v[3].length){ src.add(F.file); v[3].forEach(x=> out.push([d, s].concat(x)));
+      const k = kgOfDate(d); if(k && k[s] && Math.abs((+k[s][0]||0) - (+v[0]||0)) <= 1) k[s][3] = v[3]; }   // 같은 금액이면 이 화면에 기억
+    else miss.push([d, s]); }
+  out.sort((a,b)=> a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]) || String(a[2]).localeCompare(String(b[2])));
+  return { rows: out, miss, src:[...src] };
+}
+async function kgDetToggle(tr){
+  const nx = tr.nextElementSibling;
+  if(nx && nx.classList.contains("kg-det")){ nx.remove(); tr.classList.remove("open"); return; }
+  let pairs = []; try{ pairs = JSON.parse(tr.getAttribute("data-kg")||"[]"); }catch(_){}
+  const n = tr.children.length, det = document.createElement("tr"); det.className = "kg-det";
+  det.innerHTML = `<td colspan="${n}"><span class="ask-sub">영수증 상세 읽는 중…</span></td>`; tr.after(det); tr.classList.add("open");
+  const R = await kgDetGet(pairs); const won = v=> Math.round(+v||0).toLocaleString(), E = escHtml;
+  const multiS = new Set(R.rows.map(r=> r[1])).size > 1, multiD = new Set(R.rows.map(r=> r[0])).size > 1;
+  let h = "";
+  if(R.rows.length){
+    const tA = R.rows.reduce((a,r)=> a + (+r[5]||0), 0), tQ = R.rows.reduce((a,r)=> a + (+r[4]||0), 0);
+    h += `<table><thead><tr>${multiD?"<th>영업일자</th>":""}${multiS?"<th>매장</th>":""}<th>등록일시</th><th>상품정보</th><th class="num">수량</th><th class="num">금액</th><th>주문번호</th></tr></thead><tbody>${
+      R.rows.map(r=>{ const ords = String(r[6]||"").split(/[,\s]+/).filter(Boolean);
+        return `<tr>${multiD?`<td>${E(r[0])}</td>`:""}${multiS?`<td>${E(r[1])}</td>`:""}<td style="white-space:nowrap">${E(r[2])}</td><td>${E(r[3])}</td><td class="num">${won(r[4])}</td><td class="num"><b>${won(r[5])}</b></td><td class="ord">${ords.length?`${ords.length}건 · `:""}${E(ords.join(", "))}</td></tr>`; }).join("")
+    }</tbody><tfoot><tr><td colspan="${2+(multiD?1:0)+(multiS?1:0)}"><b>합계</b> 영수증 ${R.rows.length}장</td><td class="num">${won(tQ)}</td><td class="num"><b>${won(tA)}</b></td><td></td></tr></tfoot></table>`;
+    h += `<div class="ask-sub" style="margin-top:4px">상품정보는 원본 매출현황 그대로('외 n건' = 한 영수증에 묶인 다른 상품). 주문번호(KM…)로 킹고프리 관리 화면에서 상품을 찾을 수 있습니다.${R.src.length?` · 폴더에서 읽음: ${E(R.src.join(", "))}`:""} · <a href="#" data-kgx="${E(tr.getAttribute("data-kg"))}">📥 엑셀로 받기</a></div>`;
+  }
+  if(R.miss.length) h += `<div class="ask-note" style="margin-top:4px">상세 없음: ${E(R.miss.map(([d,s])=>`${d.slice(5)} ${s}`).join(" · "))} — 그날 매출현황 파일을 아직 상세까지 안 읽었습니다. 🔗 폴더 자동 읽기를 연결하거나 매장별매출현황 파일을 다시 올리면 보입니다.</div>`;
+  det.firstElementChild.innerHTML = h || `<span class="ask-sub">영수증 상세가 없습니다.</span>`;
+}
+async function kgDetXlsx(a){
+  let pairs = []; try{ pairs = JSON.parse(a.getAttribute("data-kgx")||"[]"); }catch(_){}
+  const R = await kgDetGet(pairs); if(!R.rows.length){ alert("받을 상세가 없습니다."); return; }
+  const aoa = [["영업일자","매장","등록일시","상품정보","상품수량","청구금액","주문번호"]].concat(R.rows.map(r=> [r[0], r[1], r[2], r[3], +r[4]||0, +r[5]||0, r[6]]));
+  const ws = XLSX.utils.aoa_to_sheet(aoa); ws["!cols"] = [{wch:11},{wch:10},{wch:22},{wch:60},{wch:8},{wch:12},{wch:50}];
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "킹고프리 영수증");
+  const ds = [...new Set(R.rows.map(r=> r[0]))].sort(), ss = [...new Set(R.rows.map(r=> r[1]))];
+  XLSX.writeFile(wb, `킹고프리_영수증_${ss.length===1?ss[0]:"매장"+ss.length}_${ds[0].replace(/-/g,"")}${ds.length>1?"-"+ds[ds.length-1].replace(/-/g,""):""}.xlsx`);
+}
 function askKgRun(q, res){
   const won = v=> Math.round(v||0).toLocaleString();
   if(q.by==="cat"){ q.by = "storeDay"; q.notes.push("킹고프리는 상품 정보가 '외 n건'뿐이라 카테고리로 못 나눕니다 — 매장 × 날짜로 보여 드립니다"); }
@@ -11978,7 +12042,7 @@ function askKgRun(q, res){
     if(stt==="none"){ miss.none.push(d); if(by==="day") out[d] = { v:null, c:0, p:0, miss:"킹고프리 기록 없음" }; return; }
     days++; let any = false;
     Object.keys(K.rows).forEach(s=>{ if(!askInStores(q, s)) return; const v = K.rows[s], a = v[0], c = v[1], p = v[2]; any = true;
-      const o = out[keyOf(s, d)] || (out[keyOf(s, d)] = { v:0, c:0, p:0 }); o.v += a; o.c += c; o.p += p; aT += a; nT += c; pT += p; });
+      const o = out[keyOf(s, d)] || (out[keyOf(s, d)] = { v:0, c:0, p:0, kgp:[] }); o.kgp.push([d, s]); o.v += a; o.c += c; o.p += p; aT += a; nT += c; pT += p; });
     if(!any){ miss.zero.push(d); if(by==="day") out[d] = { v:0, c:0, p:0, miss:"0건" }; }
   });
   const sub = x=> x.miss || `영수증 ${x.c}장 · 상품 ${x.p}개`;
@@ -11986,6 +12050,7 @@ function askKgRun(q, res){
   else if(q.metric==="avgTicket"){ res.rows = Object.keys(out).map(k=>({ k, v: out[k].c>0 ? out[k].v/out[k].c : null, sub: out[k].miss || `${won(out[k].v)}원 ÷ ${out[k].c}장` })); res.total = nT>0 ? aT/nT : null; }
   else { res.rows = Object.keys(out).map(k=>({ k, v: out[k].v, sub: sub(out[k]) })); res.total = aT; }
   if(q.metric!=="avgTicket"){ const t = res.rows.reduce((a,r)=> a + (r.v||0), 0); res.rows.forEach(r=> r.share = t>0 && r.v!=null ? r.v/t*100 : null); }
+  res.rows.forEach(r=>{ const x = out[r.k]; if(x && x.kgp && x.kgp.length) r.kgp = x.kgp; });   // build 354: 눌러서 영수증 상세
   if(by==="day" || by==="month") res.rows.sort((a,b)=> a.k.localeCompare(b.k));
   else if(by==="storeDay") res.rows.sort((a,b)=> a.k.slice(0,10).localeCompare(b.k.slice(0,10)) || (b.v||0)-(a.v||0));
   else if(by==="wd") res.rows.sort((a,b)=> "월화수목금토일".indexOf(a.k[0]) - "월화수목금토일".indexOf(b.k[0]));
@@ -12510,7 +12575,7 @@ function askShow(slots, notes, asks, text){
   const head = q.by==="place" ? "센터" : q.by==="chan" ? "채널" : q.by==="item" ? "항목" : q.by==="store" ? (["logi","dcount"].includes(q.metric) ? "매장 · 도착지" : "매장") : q.by==="storeDay" ? "날짜 · 매장" : q.by==="cat" ? "카테고리" : q.by==="day" ? "날짜" : q.by==="month" ? "월" : q.by==="hour" ? "시간대" : q.by==="wd" ? "요일" : "구분";
   const showTbl = rows.length > 1 || (rows.length===1 && rows[0].k!=="합계");
   const tbl = showTbl ? `<div class="tblbox"><table class="g-tbl ask-tbl kk-keep"><thead><tr><th>#</th><th>${head}</th><th>${u==="%"?"비율":q.metric==="avgTicket"?"객단가":"값"}</th>${C?`<th>비교 (${escHtml(q.cmp.from.slice(5))}~${escHtml(q.cmp.to.slice(5))})</th><th>증감</th>`:""}${isRate?"":"<th>비중</th>"}<th>근거</th></tr></thead><tbody>${
-    rows.map((r,i)=>{ const b = cmap ? cmap[r.k] : null; return `<tr><td>${i+1}</td><td><b>${escHtml(r.k)}</b></td><td class="num">${askFmt(r.v,u)} <span class="ask-s">${askShort(r.v,u)}</span></td>${C?`<td class="num">${askFmt(b,u)}</td><td class="num ${diffCls(r.v,b)}">${diffTxt(r.v,b)}</td>`:""}${isRate?"":`<td class="num">${r.share!=null?r.share.toFixed(1)+"%":"-"}</td>`}<td class="ask-sub">${escHtml(r.sub||"")}</td></tr>`; }).join("")
+    rows.map((r,i)=>{ const b = cmap ? cmap[r.k] : null; return `<tr${r.kgp?` class="ask-kgrow" data-kg="${escHtml(JSON.stringify(r.kgp))}" title="눌러서 영수증 상세 보기"`:""}><td>${i+1}</td><td><b>${escHtml(r.k)}</b>${r.kgp?` <span class="ask-kgbtn">🧾 상세</span>`:""}</td><td class="num">${askFmt(r.v,u)} <span class="ask-s">${askShort(r.v,u)}</span></td>${C?`<td class="num">${askFmt(b,u)}</td><td class="num ${diffCls(r.v,b)}">${diffTxt(r.v,b)}</td>`:""}${isRate?"":`<td class="num">${r.share!=null?r.share.toFixed(1)+"%":"-"}</td>`}<td class="ask-sub">${escHtml(r.sub||"")}</td></tr>`; }).join("")
   }</tbody><tfoot><tr><td></td><td><b>${isRate?"전체":"합계"}</b> (${allN}${head==="매장"?"곳":"줄"}${q.top&&allN>rows.length?` 중 ${q.order==="asc"?"하위":"상위"} ${rows.length}`:""})</td><td class="num"><b>${askFmt(res.total,u)}</b></td>${C?`<td class="num">${askFmt(C.total,u)}</td><td class="num ${diffCls(res.total,C.total)}">${diffTxt(res.total,C.total)}</td>`:""}${isRate?"":"<td>100%</td>"}<td class="ask-sub">${escHtml(res.totalSub||"")}</td></tr></tfoot></table></div>` : "";
   // 다듬기 칩(되묻기 대신 결과와 같이): 지표를 짐작했으면 지표, 기간을 짐작했으면 기간, 나눠 보기 · 비교 · 상위
   const last = askLastDataDate(), pm = askYm(new Date(+last.slice(0,4), +last.slice(5,7)-2, 1));
@@ -12566,6 +12631,8 @@ function askWire(){
   if(panel) panel.addEventListener("click", e=>{
     const ex = e.target.closest("[data-ask]"); if(ex){ e.preventDefault(); ASK_STATE.slots = null; inp.value = ex.getAttribute("data-ask"); run(); return; }   // 예시 = 새 질문
     const st = e.target.closest("[data-ask-set]"); if(st){ try{ askApply(JSON.parse(st.getAttribute("data-ask-set"))); }catch(_){} return; }
+    const kx = e.target.closest("[data-kgx]"); if(kx){ e.preventDefault(); kgDetXlsx(kx); return; }   // build 354
+    const kr = e.target.closest("tr[data-kg]"); if(kr){ kgDetToggle(kr); return; }
     if(e.target.closest("[data-ask-close]")){ document.getElementById("askResult").hidden = true; ASK_STATE.slots = null; }
     if(e.target.closest("[data-ask-learnlist]")){ askLearnListRender(); if(typeof IS_ADMIN!=="undefined" && IS_ADMIN) askLogPull().then(n=>{ if(n) askLearnListRender(); }); return; }
     if(e.target.closest("[data-ask-logclear]")){ if(confirm("못 알아들은 검색 기록을 지울까요?")){ ASK_FAILLOG.length = 0; askLogSave(null); try{ const db = _fbDb(); if(db && IS_ADMIN) db.ref("asklog").remove().catch(()=>{}); }catch(_){} askLearnListRender(); } return; }
