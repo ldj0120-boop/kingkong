@@ -1730,6 +1730,13 @@
   .up-how{cursor:help;opacity:.6;}
   #trendMeta{cursor:help;opacity:.6;}
 .kk-audit .g-fc-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.kk-audit-hid .audit-list,.kk-audit-hid>details{display:none}
+  /* build 361: 매장별 PLT 종합 · 지금 재고 → 카테고리별 */
+  .px-stk{cursor:pointer;white-space:nowrap}
+  .px-stk.on{background:rgba(59,130,246,.10)}
+  .px-stk-row td{text-align:left}
+  .px-stk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px}
+  .px-stk-c{border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:12.5px}
+  .px-stk-c.z{opacity:.45}
 </style>
 <style id="bentoTheme">
   /* ===== build 237: 사이트 전체 벤토(시안 4) — 밝은 회색 바탕 · 흰 둥근 칸 · 굵은 글씨 · 늘어남 빨강 / 줄어듦 파랑 ===== */
@@ -1938,7 +1945,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 360 · 2026-11-23</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 361 · 2026-11-24</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -5660,7 +5667,7 @@ function renderSalesMonthlyCore(){
     return `<th class="kk-msort${cls?" "+cls:""}${on?" on":""}" data-msort="${key}" title="누르면 ${on&&kkMonSort.dir>0?"작은":"큰"} 순으로 줄 세우기">${lab}${ar}</th>`; };
   let A = storeSel + `<table${(monthlyCatOn()||kkMonSort.col)?' class="kk-keep"':''}><thead><tr><th class="kk-msort" data-msort="" title="누르면 기본 순서(${monthlyCatOn()?"마지막 달 "+escHtml(selectedMonthlyCat)+" 매출 큰 순":"매출 큰 순"})">매장</th>${months.map(m=>msTh(m, mlabel(m))).join("")}${msTh("__acc__","누적","total-col")}</tr></thead><tbody>`;
   rowsStores.forEach(s=>{
-    A += `<tr><td>${s}${storeNameTag(s)}</td>${months.map(m=>{const v=storeMonth[m][s]||0;const sb=storeStateBadge(s,m);const sbTag=(sb&&sb!=="폐점"&&sb!=="미오픈")?`<div style="font-size:11px;color:${/^폐점/.test(sb)?'var(--red)':'var(--muted2)'};">${escHtml(sb)}</div>`:'';return `<td><span class="num">${v?Math.round(v).toLocaleString():''}</span>${v?cellDeltas(m,v,(mm)=>storeMonth[mm][s]||0,s):''}${sbTag}</td>`;}).join("")}<td class="total-col kk-acc" data-tip="${escHtml(kkAccTip(s, mm=>storeMonth[mm][s]||0))}"><span class="num">${Math.round(storeGrand(s)).toLocaleString()}</span></td></tr>`;
+    A += `<tr><td class="kk-mstore" data-mstore="${escHtml(s)}" style="cursor:pointer" title="${selectedMonthlyStore==="__all__"?"누르면 이 매장 월별 매출 막대그래프":"누르면 전체 매장으로"}"><u style="text-decoration-color:var(--line);text-underline-offset:3px">${s}</u>${storeNameTag(s)}</td>${months.map(m=>{const v=storeMonth[m][s]||0;const sb=storeStateBadge(s,m);const sbTag=(sb&&sb!=="폐점"&&sb!=="미오픈")?`<div style="font-size:11px;color:${/^폐점/.test(sb)?'var(--red)':'var(--muted2)'};">${escHtml(sb)}</div>`:'';return `<td><span class="num">${v?Math.round(v).toLocaleString():''}</span>${v?cellDeltas(m,v,(mm)=>storeMonth[mm][s]||0,s):''}${sbTag}</td>`;}).join("")}<td class="total-col kk-acc" data-tip="${escHtml(kkAccTip(s, mm=>storeMonth[mm][s]||0))}"><span class="num">${Math.round(storeGrand(s)).toLocaleString()}</span></td></tr>`;
   });
   const curM = selectedSalesDate ? selectedSalesDate.slice(0,7) : months[months.length-1];   // build 323: 옛 월별 막대 합침 — 합계 칸 = 그 달 일평균 · 누르면 그 달로 이동
   const mDays = m => { try{ return salesMonthSummary(m, selectedMonthlyStore).days||0; }catch(_){ return 0; } };
@@ -5772,6 +5779,8 @@ function renderSalesMonthlyCore(){
   }
   wrap.innerHTML = A + C + B + diag; try{ kkSyncCatSels(); }catch(_){}   // build 321
   wrap.querySelectorAll("td[data-mpick]").forEach(td=> td.addEventListener("click", ()=>{ try{ salesMonthPickTo(td.getAttribute("data-mpick")); renderSalesMonthly(); }catch(_){} }));   // build 323
+  // build 361: 매장 이름 누르면 그 매장 월별 막대그래프(위 칸) · 다시 누르면 전체 매장
+  wrap.querySelectorAll("td[data-mstore]").forEach(td=> td.addEventListener("click", ()=>{ salesPickMonStore(selectedMonthlyStore===td.getAttribute("data-mstore") ? "__all__" : td.getAttribute("data-mstore")); }));
   wrap.querySelectorAll("th[data-msort]").forEach(th=> th.addEventListener("click", ()=>{
     const k = th.getAttribute("data-msort") || null;
     kkMonSort = !k ? { col:null, dir:1 } : (kkMonSort.col===k ? { col:k, dir:-kkMonSort.dir } : { col:k, dir:1 });
@@ -5887,12 +5896,75 @@ ${r.prevFull!=null ? `전월(${prevOf(r.month)}) 전체: ${won(r.prevFull)}` : '
   if(meta) meta.textContent = `${stLabel} · 맨 아래 합계 칸을 누르면 그 달로 이동`;
   // build 323: 사용자 요청 — '월별 매출' 막대 목록은 아래 매장 × 월 표와 중복이라 없앰.
   //   남긴 것: 연도 합계 · 최고 달 한 줄. 일평균 · 전월 대비 · 달 누르면 이동은 표 '합계' 줄로 옮김.
-  wrap.innerHTML = `<div class="sd-sum">${yearSum}${top?`<span>최고 달 <b>${top.month.replace('-','년 ')}월 ${won(top.total)}</b></span>`:''}</div>`;
+  wrap.innerHTML = (st==="__all__" ? "" : salesStoreMonBarsHtml(st, rows, cur)) + `<div class="sd-sum">${yearSum}${top?`<span>최고 달 <b>${top.month.replace('-','년 ')}월 ${won(top.total)}</b></span>`:''}</div>`;
+  wrap.querySelectorAll("[data-smb-month]").forEach(el=> el.addEventListener("click", ()=>{ try{ salesMonthPickTo(el.getAttribute("data-smb-month")); renderSalesMonthly(); renderSalesMonthTotals(); }catch(_){} }));
+  { const x = wrap.querySelector("[data-smb-all]"); if(x) x.addEventListener("click", e=>{ e.preventDefault(); salesPickMonStore("__all__"); }); }
   wrap.querySelectorAll(".sm-row[data-month]").forEach(el=>{
     const m = el.getAttribute("data-month");
     el.addEventListener("click", ()=> salesMonthPickTo(m));
     el.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); salesMonthPickTo(m); } });
   });
+}
+/* build 361: 매장 하나를 고르면 '매장 × 월 매출' 카드 위에 그 매장 월별 매출 막대그래프.
+   막대 = 그 달 매출(진행 중인 달은 지금까지 올라온 최신 자료 금액) · 점선 = 그 달 매장 목표(groupMonthlyTarget: 운영계획 시트 → 없으면 고정값).
+   전체 매장일 때는 그리지 않음(예전 그대로). 카테고리를 고르면 목표선 없음(목표는 전체 매출 기준). */
+function salesPickMonStore(s){
+  selectedMonthlyStore = s; selectedMonTotStore = s;
+  const ssel = document.getElementById("salesMonTotStore"); if(ssel) ssel.value = s;
+  try{ renderSalesMonthTotals(); }catch(e){ console.warn(e); }
+  try{ renderSalesMonthly(); }catch(e){ console.warn(e); }
+  try{ saveState(); }catch(_){}
+  const c = document.getElementById("salesMonTotCard"); if(c && s!=="__all__") try{ c.scrollIntoView({block:"start", behavior:"smooth"}); }catch(_){}
+}
+function salesStoreMonBarsHtml(st, rows, cur){
+  const catOn = monthlyCatOn();
+  const won = v => Math.round(v).toLocaleString('ko-KR') + "원";
+  const eok = v => v>=1e8 ? (v/1e8).toFixed(2)+"억" : Math.round(v/1e4).toLocaleString()+"만";
+  const R = rows.slice(-12).map(r=>{
+    let tg = null; if(!catOn){ try{ tg = groupMonthlyTarget(storeSalesGroup(st), r.month); }catch(_){} }
+    return Object.assign({}, r, { tg: (tg>0 ? tg : null) });
+  });
+  if(!R.length) return "";
+  const maxV = Math.max(1, ...R.map(r=> Math.max(r.total||0, r.tg||0)));
+  const H = 180;
+  const bars = R.map(r=>{
+    const [y,mo] = r.month.split('-');
+    const h = r.total>0 ? Math.max(2, r.total/maxV*H) : 0;
+    const th = r.tg ? r.tg/maxV*H : null;
+    const dimM = new Date(+y, +mo, 0).getDate();
+    const pr = r.tg && r.partial && r.lastDay ? r.tg*r.lastDay/dimM : r.tg;   // 진행 중인 달 = 경과일 일할 목표
+    const pct = pr ? r.total/pr*100 : null;
+    const col = pct==null ? "var(--accent,#3b82f6)" : (pct>=100 ? "var(--green)" : pct>=80 ? "var(--good2,var(--green))" : pct>=60 ? "var(--bad2,var(--red))" : "var(--red)");
+    const tip = `${y}년 ${+mo}월 · ${st}${catOn?` · ${selectedMonthlyCat}`:""}
+매출: ${won(r.total)}${r.partial?` (진행 중 · ${r.lastDay}일까지 최신 자료)`:` (${r.days}일 자료)`}${r.tg?`
+월 목표: ${won(r.tg)}${r.partial?`
+${r.lastDay}일까지 목표(일할): ${won(pr)}`:""}
+달성률: ${pct.toFixed(1)}%${r.partial?` (일할 기준) · 월 목표 대비 ${(r.total/r.tg*100).toFixed(1)}%`:""}`:(catOn?"":"\n목표 없음")}
+누르면 이 달로 이동`;
+    return `<div class="smb-col${r.month===cur?" on":""}" data-smb-month="${r.month}" data-tip="${escHtml(tip)}" style="flex:1;min-width:44px;max-width:96px;display:flex;flex-direction:column;align-items:center;cursor:pointer;">
+      <div style="font-size:11.5px;font-weight:700;white-space:nowrap;margin-bottom:2px;">${r.total>0?eok(r.total):""}</div>
+      <div style="font-size:11px;color:${pct==null?"var(--muted2)":col};height:14px;white-space:nowrap;">${pct!=null?pct.toFixed(0)+"%":""}</div>
+      <div style="position:relative;width:62%;height:${H}px;display:flex;align-items:flex-end;">
+        <i style="display:block;width:100%;height:${h.toFixed(1)}px;background:${col};opacity:${r.partial?.75:.9};border-radius:4px 4px 0 0;${r.partial?"background-image:repeating-linear-gradient(45deg,transparent 0 5px,rgba(255,255,255,.25) 5px 10px);":""}"></i>
+        ${th!=null?`<b style="position:absolute;left:-14%;right:-14%;bottom:${th.toFixed(1)}px;border-top:2px dashed var(--pale,#111);opacity:.7;"></b>`:""}
+      </div>
+      <div style="font-size:12px;margin-top:4px;white-space:nowrap;${r.month===cur?"font-weight:700;":""}">${y.slice(2)}/${mo}</div>
+      <div style="font-size:10.5px;color:var(--muted2);white-space:nowrap;">${r.partial?`~${r.lastDay}일`:""}</div>
+    </div>`;
+  }).join("");
+  const last = R[R.length-1];
+  let head = "";
+  if(last && last.tg){
+    const dimL = new Date(+last.month.slice(0,4), +last.month.slice(5,7), 0).getDate();
+    const prL = last.partial && last.lastDay ? last.tg*last.lastDay/dimL : last.tg;
+    head = ` · ${+last.month.slice(5)}월 ${last.partial?`${last.lastDay}일까지 `:""}<b>${won(last.total)}</b> / 월 목표 <b>${won(last.tg)}</b> (${(last.total/last.tg*100).toFixed(1)}%${last.partial?` · 일할 ${(last.total/prL*100).toFixed(1)}%`:""})`;
+  }
+  return `<div class="smb-box" style="border:1px solid var(--line);border-radius:10px;padding:10px 12px 8px;margin-bottom:10px;">
+    <div style="font-size:13.5px;margin-bottom:6px;"><b>${escHtml(st)}</b> 월별 매출${catOn?` · ${escHtml(selectedMonthlyCat)}`:""}${head}
+      <a href="#" data-smb-all style="margin-left:8px;font-size:12.5px;">← 전체 매장</a></div>
+    <div style="display:flex;gap:4px;align-items:flex-end;overflow-x:auto;padding-top:4px;">${bars}</div>
+    <div style="font-size:11.5px;color:var(--muted2);margin-top:6px;">${catOn?"카테고리 매출(목표선 없음)":"점선 = 그 달 매장 목표 · 막대 색: 목표(진행 중인 달은 일할) 대비 — 짙은 빨강 100%↑ · 빨강 80%↑ · 파랑 60%↑ · 짙은 파랑 미만"} · 빗금 = 진행 중인 달(최신 자료까지) · 막대를 누르면 그 달로</div>
+  </div>`;
 }
 function renderSalesDaily(){
   /* build 287: 사용자 요청 — ① 달력에서 기간(시작~끝)을 골라 그 기간 일별 매출을 본다(달을 넘어가도 됨)
@@ -14639,13 +14711,14 @@ function selectGoalsSub(key){
     if(b.setAttribute) b.setAttribute("aria-selected", on ? "true" : "false");
   });
   GOALS_SUB_KEYS.forEach(k=>{ const p = document.getElementById("gsub-"+k); if(p) p.hidden = (k!==key); });
+  try{ goalsLazyRender(key); }catch(e){ console.warn("build 361 lazy", e); }
   if(key==="11" && typeof g11Rerender==="function") g11Rerender();   // build 103: 06 매장 분석은 열 때 그린다
   if(key==="12") renderConv();   // build 287: 05 판매에 따른 전환율은 열 때 그린다
   if(key==="13"){ const f = document.getElementById("kkDispatchFrame"); if(f && !f.getAttribute("src")) f.setAttribute("src", f.getAttribute("data-src")); }   // build 294: 열 때 한 번만 불러옴
   if(key==="13" && !window.__kkdSw){ window.__kkdSw = 1; document.querySelectorAll("[data-kkd]").forEach(b => b.addEventListener("click", () => {   // build 324: 대장 ↔ 앱 설치 링크
     const f = document.getElementById("kkDispatchFrame"), k = b.getAttribute("data-kkd"); if(!f) return; f.setAttribute("src", "/kingkong-dispatch/?embed=" + k);
     document.querySelectorAll("[data-kkd]").forEach(x => { const on = x === b; x.classList.toggle("primary", on); x.setAttribute("aria-selected", String(on)); }); })); }
-  if(key==="10") aggRenderAll();   // build 185: 옛 재고/공급 탭 내용(추이 · PLT 종합 · 원본 표)
+  if(key==="10" && !selectGoalsSub._agg){ selectGoalsSub._agg = true; queueMicrotask(()=>{ selectGoalsSub._agg = false; }); aggRenderAll(); }   // build 361: 같은 작업에서 두 번 그리지 않음 · build 185: 옛 재고/공급 탭 내용(추이 · PLT 종합 · 원본 표)
 }
 let _goalsSubWired = false;
 function wireGoalsSubTabs(){
@@ -16189,7 +16262,7 @@ function mixPanelHtml(){
   const tileKpi = (label, a, b, f, note)=> `<div class="bx-t bx-kpi"><span class="bx-k">${label}</span><span class="bx-v">${f(b)}</span><span class="bx-s">전 ${f(a)} ${dPill(a,b)}</span>${note?`<span class="bx-n">${note}</span>`:""}</div>`;
   const hero = `<div class="bx-t bx-hero"><span class="bx-k">${R.store ? `${escHtml(R.store)} 하루 매출` : `하루 매출 · 기존점 ${R.same.length}곳`}</span>
       <span class="bx-big">${won(t.sB)}원</span><span class="bx-s">전 ${won(t.sA)}원 ${dPill(t.sA,t.sB)} <b>${man(t.sB-t.sA)}원</b></span>
-      <div class="bx-hero-say">${(RP.lines||[]).slice(1,3).map(l=>`<p>${l}</p>`).join("")}</div>
+      <div class="bx-hero-say">${(RP.lines||[]).slice(1).filter(l=>!/폐점·신규 매장 영향/.test(l)).map(l=>`<p>${l}</p>`).join("")}</div>
       <span class="bx-n">${escHtml(R.P.bl)} vs ${escHtml(R.P.al)} · 하루 평균${!R.store && Math.abs(gap)>=100000 ? ` · 폐점·신규 영향 ${man(gap)}원 제외` : ""}</span></div>`;
   const todoT = (a, i)=> !a ? "" : `<div class="bx-t ${i===0?"bx-todo1":"bx-todo"}"><span class="bx-chip">할 일 ${i+1} · ${escHtml(a.k)}</span><div class="bx-todo-t">${a.t}</div><div class="bx-todo-a">→ ${a.a}</div></div>`;
   const catTop = R.cats.filter(c=>Math.abs(c.d)>=10000).sort((x,y)=>Math.abs(y.d)-Math.abs(x.d)).slice(0,10).sort((x,y)=>x.d-y.d);
@@ -16205,16 +16278,13 @@ function mixPanelHtml(){
       ${tileKpi(t.payLabel.split("(")[0], t.pA, t.pB, v=>Math.round(v).toLocaleString()+"건", t.payLabel.includes("(") ? t.payLabel.slice(t.payLabel.indexOf("(")+1, -1) : "")}
       ${tileKpi("객단가", t.uA, t.uB, v=>Math.round(v).toLocaleString()+"원", "실매출액 ÷ 건수")}
       ${todoT(acts[0],0) || '<div class="bx-t bx-todo1"><span class="bx-chip">할 일</span><div class="bx-todo-t">따로 할 일이 없습니다.</div></div>'}
-      ${catBars}
       ${todoT(acts[1],1)}${todoT(acts[2],2)}
       ${kTile}${basisT}
-      ${pList(upP, "bx-upT", "늘어난 상품")}${pList(dnP, "bx-dnT", "줄어든 상품")}
-      ${stChips}
-    </div>`;
+    </div>`;   // build 361: 중복 정리 — 분류별 하루 변화 · 늘어난/줄어든 상품 · 매장 칩은 아래 1 · 2 · 3 표와 같은 자료라 뺌
   const tile = (n, title, body)=> `<section class="bx-t bx-sec"><h3 class="mix-sec-h"><span>${n}</span>${title}</h3>${body}</section>`;
   return head + bar + per + bento
     + `<h2 class="bx-sub">자세한 분석</h2>`
-    + tile("결론", "한눈에", RP.concl.replace('<div class="mix-concl"><div class="mix-concl-hd">결론</div>','<div class="mix-concl">'))
+    /* build 361: '결론 한눈에'는 위 하루 매출 칸 문장과 같아 뺌 */
     + tile(1, "카테고리별 변화 (하루 평균)", RP.s1 + catHtml)
     + (()=>{ try{ const h = mixSupplyEvalHtml(R); return h ? tile("1-2", "공급 · 매장 재고 · 센터 재고로 본 평가", h) : ""; }catch(e){ console.warn("mix eval", e); return ""; } })()
     + tile(2, "상품별 원인", (RP.s2 || '<p class="mix-say">눈에 띄는 상품 변화가 없습니다.</p>') + prodHtml)
@@ -16278,8 +16348,8 @@ function renderGoals(){
   wireGoalsScope();
   wireGoalsPlanMonth();
   renderGoalsScopeBar();
-  try{ renderCatTrend(); }catch(e){ console.warn("cat trend", e); }   // build 287: 카테고리 월별 매출 추이(단수 · 복수)
-  try{ const mw = document.getElementById("mixWrap"); if(mw) mw.innerHTML = mixPanelHtml(); wireMixPanel(); }catch(e){ console.warn("mix", e); }   // build 233
+  // build 361: 속도 — 02 카테고리 · 03 재고·공급은 열려 있을 때만 그림(안 보이는 칸 그리던 약 0.5초 없앰). 나중에 열면 그때 그림.
+  if(!_goalsLazy) _goalsLazy = {}; _goalsLazy["04"] = true; _goalsLazy["10"] = true;
   const ctx = goalsBuildContext();
   if(!ctx){
     GOALS_SUB_KEYS.forEach(k=>{ if(panels[k]) panels[k].innerHTML = ""; });
@@ -16293,13 +16363,11 @@ function renderGoals(){
   const base = `${period} · 데이터 소스 ${ctx.curTot.source} · 목표는 코드(STORE_MONTHLY_TARGETS)의 월 목표 기준(연간 아님)`;
   panels["01"].innerHTML = goalsRender01(ctx);
   // build 233: 02 카테고리 분석 = 매출 변화 원인(상품 구성, 위에서 먼저 그림) + 전사 카테고리(옛 03) + 매장별 카테고리 구조(옛 02, 접힘)
-  panels["04"].innerHTML = goalsRender05(ctx)
-    + `<details class="g-store-more" style="margin-top:14px"><summary>매장별 카테고리 구조 — 전사 평균 대비 강점·기회 (옛 "02 카테고리 진단")</summary>${goalsRender04(ctx)}</details>`;
+  // (02 카테고리 내용은 goalsLazyRender("04")에서)
   // build 150: 04 전 매장 진단 = 달성률 그룹(매장 → 06 매장 분석) + 옛 04 전 매장 진단 + 월별 달성률 추이 + 옛 04 매장 카드(접힘)
   panels["06"].innerHTML = "";   // build 270: 전 매장 진단은 04 매장 분석(매장 안 고름)에서 그림 — 월별 달성률 추이는 01 요약으로
   panels["08"].innerHTML = "";
   // build 73: 07 관리매장 매출요약 탭 삭제(사용자 요청 — 개별 매장 관리 안 함)
-  panels["10"].innerHTML = goalsRender10(ctx);
   { const m11 = document.getElementById("goals11Meta"); if(m11) m11.textContent = "매장을 안 고르면 전 매장 진단 · 고르면 그 매장의 솔루션 · 카테고리 · 월별 추이 · 재고"; }
   wireGoals11();
   if(metas["01"]) metas["01"].textContent = base;
@@ -16312,6 +16380,20 @@ function renderGoals(){
   wireGoalsForecast();
   wireCatDrill(ctx);
   selectGoalsSub(goalsSubTab);
+}
+var _goalsLazy = window._goalsLazy || {};
+function goalsLazyRender(key){
+  if(!_goalsLazy || !_goalsLazy[key]) return;
+  delete _goalsLazy[key];
+  if(key==="04"){
+    try{ renderCatTrend(); }catch(e){ console.warn("cat trend", e); }   // build 287: 카테고리 월별 매출 추이(단수 · 복수)
+    try{ const mw = document.getElementById("mixWrap"); if(mw) mw.innerHTML = mixPanelHtml(); wireMixPanel(); }catch(e){ console.warn("mix", e); }   // build 233
+    const ctx = goalsBuildContext(), w = document.getElementById("goals04Wrap");
+    if(w) w.innerHTML = ctx ? goalsRender05(ctx)
+      + `<details class="g-store-more" style="margin-top:14px"><summary>매장별 카테고리 구조 — 전사 평균 대비 강점·기회 (옛 "02 카테고리 진단")</summary>${goalsRender04(ctx)}</details>` : "";
+    if(ctx) try{ wireCatDrill(ctx); }catch(e){ console.warn(e); }
+  }
+  if(key==="10"){ const ctx = goalsBuildContext(), w = document.getElementById("goals10Wrap"); if(w) w.innerHTML = ctx ? goalsRender10(ctx) : ""; }
 }
 function storeSalesActiveMap(){
   const allDates = Array.from(new Set([...STORE_SALES_HISTORY.map(h=>h.date), ...SALES_HISTORY.map(h=>h.date)])).sort();
@@ -19237,7 +19319,20 @@ const PX_CATS = [
   { k:"기타", label:"기타 (FC파손·사입·임박 등)", plan:[], comps:["기타"], outside:true },
   { k:"신선", label:"신선 (목표·출고만)", plan:["신선"], comps:[] },
 ];
-const PX_UI = { cat:"", month:"", sort:"pace", dir:1 };
+const PX_UI = { cat:"", month:"", sort:"pace", dir:1, open:new Set() };
+/* build 361: '지금 재고' 칸을 누르면 그 매장 카테고리별 재고(승현 사이트 이월+입고−해체, 받아 둔 PLT_DAILY만 씀 → 바로 뜸).
+   열린 매장만 계산. 카테고리 10종 + 입고 · 해체(고른 기간). */
+const pxOpen = k=> PX_UI.open.has(k);
+function pxStockRowHtml(P, r, per){
+  if(!P) return `<tr class="px-stk-row"><td colspan="15" class="fi-mut">승현 사이트 자료가 없어 카테고리별 재고를 못 봅니다.</td></tr>`;
+  const n1 = v=> v==null ? "-" : (Math.round(v*10)/10).toLocaleString();
+  const cs = SX_COMPS.map(c=>{ const xs = r.members.map(s=> sxStore(P, s, [c], per)); const any = xs.some(x=> x.now!=null);
+    return { c, now: any ? xs.reduce((a,x)=> a+(+x.now||0),0) : null, inb: xs.reduce((a,x)=> a+(+x.inb||0),0), out: xs.reduce((a,x)=> a+(+x.out||0),0) }; });
+  const tot = cs.reduce((a,x)=> a+(+x.now||0),0) || 1;
+  const cell = x=> `<div class="px-stk-c${x.now>0?"":" z"}"><div class="fi-mut">${escHtml(x.c)}</div><b>${n1(x.now)}</b>${x.now>0?`<span class="fi-mut"> ${Math.round(x.now/tot*100)}%</span>`:""}<div class="fi-mut" style="font-size:11px">입고 ${n1(x.inb)} · 해체 ${n1(x.out)}</div></div>`;
+  return `<tr class="px-stk-row"><td colspan="15"><div style="font-size:12.5px;margin:2px 0 6px"><b>${escHtml(r.label)}</b> 카테고리별 매장 재고 (PLT · 승현 사이트 마지막 입력${r.last?` ${r.last.slice(5)}`:""}) · 입고 · 해체 = ${escHtml(per.label)}</div>
+    <div class="px-stk-grid">${cs.map(cell).join("")}</div></td></tr>`;
+}
 function pxMonths(){ const t = fmtDate(new Date()), m = t.slice(0,7); const d = new Date(m+"-01T00:00:00"); d.setMonth(d.getMonth()-1); return [m, fmtDate(d).slice(0,7)]; }
 function pxPeriod(m){ const t = fmtDate(new Date()); if(m===t.slice(0,7)) return { s:m+"-01", e:t, label:`${+m.slice(5)}월 (1일~오늘)`, ongoing:true };
   const e = `${m}-${String(goalsDaysInMonth(m)).padStart(2,"0")}`; return { s:m+"-01", e, label:`${+m.slice(5)}월 전체`, ongoing:false }; }
@@ -19256,7 +19351,7 @@ function sxRender(){
     [...ss].filter(s=> !covered.has(s)).forEach(s=> rowsDef.push({ label:s, members:[s], sd:null })); }
   const prorate = sdOk && SD.prorate>0 ? SD.prorate : 1;
   let rows = rowsDef.map(R=>{
-    const o = { label:R.label, plan:null, ship:null };
+    const o = { label:R.label, plan:null, ship:null, members:R.members };
     if(R.sd && R.sd.cats && C.plan.length){ o.plan = 0; o.ship = 0; C.plan.forEach(pc=>{ const c = R.sd.cats.find(y=> y.cat===pc); if(c){ o.plan += c.planPLTFull||0; o.ship += c.actualPLT||0; } }); if(!o.plan && !o.ship) o.plan = o.ship = null; }
     if(C.outside && R.sd){ o.ship = R.sd.outsideTotal || 0; }   // 공급계획 밖 출고(FC파손·사입·임박·생산재고) = 승현 "기타"
     o.pct = o.plan ? o.ship/o.plan : null; o.pace = o.plan ? o.ship/(o.plan*prorate) : null;
@@ -19309,9 +19404,9 @@ function sxRender(){
       ${rows.map(r=>`<tr><td><b>${escHtml(r.label)}</b></td>
         <td class="n">${n1(r.plan)}</td><td class="n">${n1(r.ship)}</td><td class="n ${paceCls(r.pace)}">${pct(r.pct)}</td>
         <td class="n" title="직출 ${n1(r.sentD||0)} + 진천센터 ${n1(r.sentC||0)} PLT">${r.sent==null?"-":n1(r.sent)}</td><td class="n">${r.inb==null?"-":n1(r.inb)}</td><td class="n${r.gap!=null && Math.abs(r.gap)>=5 ? " px-gap" : ""}">${r.gap==null?"-":(r.gap>0?"+":"")+n1(r.gap)}</td>
-        <td class="n"><b>${r.out==null?"-":n1(r.out)}</b></td><td class="n">${pct(r.rate)}</td><td class="n">${n1(r.avg)}</td><td class="n">${n1(r.now)}</td><td class="n ${leftCls(r.left)}">${dd(r.left)}</td>
+        <td class="n"><b>${r.out==null?"-":n1(r.out)}</b></td><td class="n">${pct(r.rate)}</td><td class="n">${n1(r.avg)}</td><td class="n px-stk${pxOpen(r.label)?" on":""}" data-px-stk="${escHtml(r.label)}" title="누르면 카테고리별 매장 재고">${r.now==null?"-":`<u>${n1(r.now)}</u> ${pxOpen(r.label)?"▴":"▾"}`}</td><td class="n ${leftCls(r.left)}">${dd(r.left)}</td>
         <td class="n">${won(r.sales)}</td><td class="n">${won(r.perPlt)}</td>
-        <td${stale(r)?' style="color:#8F5E00" title="3일 넘게 입력 없음"':""}>${r.last ? r.last.slice(5) : "-"}</td></tr>`).join("")}
+        <td${stale(r)?' style="color:#8F5E00" title="3일 넘게 입력 없음"':""}>${r.last ? r.last.slice(5) : "-"}</td></tr>${pxOpen(r.label) ? pxStockRowHtml(P, r, per) : ""}`).join("")}
       <tr style="font-weight:700"><td>합계 ${rows.length}곳</td><td class="n">${noSD?"-":n1(T.plan)}</td><td class="n">${noSD?"-":n1(T.ship)}</td><td class="n ${paceCls(T.plan ? T.ship/(T.plan*prorate) : null)}">${pct(T.plan ? T.ship/T.plan : null)}</td>
         <td class="n" title="직출 ${n1(T.sentD)} + 진천센터 ${n1(T.sentC)} PLT">${n1(T.sent)}</td><td class="n">${n1(T.inb)}</td><td class="n">${(T.sent||T.gapInb) ? (T.sent-T.gapInb>0?"+":"")+n1(T.sent-T.gapInb) : "-"}</td><td class="n">${n1(T.out)}</td><td class="n">${pct(T.base+T.inb ? T.out/(T.base+T.inb) : null)}</td>
         <td class="n">${n1(T.avg)}</td><td class="n">${n1(T.now)}</td><td class="n">${T.avg ? Math.round(T.now/T.avg)+"일" : "-"}</td><td class="n">${C.k?"-":won(T.sales)}</td><td class="n">${!C.k && T.sOut ? won(T.sales/T.sOut) : "-"}</td><td></td></tr>
@@ -19323,7 +19418,8 @@ function sxRender(){
 function wireSell(){
   const el = document.getElementById("sxBody"); if(!el || el._wired) return; el._wired = true;
   el.addEventListener("change", e=>{ const t = e.target; if(t.dataset.px){ PX_UI[t.dataset.px] = t.value; sxRender(); } });
-  el.addEventListener("click", e=>{ const h = e.target.closest("[data-px-sort]"); if(!h) return; const k = h.dataset.pxSort;
+  el.addEventListener("click", e=>{ const sk = e.target.closest("[data-px-stk]"); if(sk){ const k = sk.dataset.pxStk; if(PX_UI.open.has(k)) PX_UI.open.delete(k); else PX_UI.open.add(k); sxRender(); return; }
+    const h = e.target.closest("[data-px-sort]"); if(!h) return; const k = h.dataset.pxSort;
     if(PX_UI.sort===k) PX_UI.dir = -PX_UI.dir; else { PX_UI.sort = k; PX_UI.dir = ["label","left","pace","rate"].includes(k) ? 1 : -1; } sxRender(); });
 }
 
@@ -21758,7 +21854,7 @@ function lsAnalyze(iter, maxRows){   // build 219: iter(fn) = 행 읽기(xlsb �
     LIQSUM_CODES.forEach(function(x){ if(u.indexOf(x[1])>=0) c[x[0]]=(c[x[0]]||0)+1; });
     var n7=0; if(/.{3}-XLB.-777/.test(u)) n7++; if(/.{3}-XLB..-777/.test(u)) n7++; if(/.{3}-XLB...-777/.test(u)) n7++; if(n7) c["777"]=(c["777"]||0)+n7;
   });
-  function catStr(no){ var c=cnt.get(no)||{}, s=""; LIQSUM_CODES.forEach(function(x){ var n=c[x[0]]||0; if(n>0) s+=x[0]+"-"+n+(x[0]==="대형"?"":", "); }); if(c["777"]>0) s+="777-"+c["777"]; return s; }
+  function catStr(no){ var c=cnt.get(no)||{}, a=[]; LIQSUM_CODES.forEach(function(x){ var n=c[x[0]]||0; if(n>0) a.push(x[0]+"-"+n); }); if(c["777"]>0) a.push("777-"+c["777"]); return a.join(", "); }   // build 361: 끝의 ", " 없앰 (C-9, → C-9)
   var cat2All=new Set(); byNo.forEach(function(o){ o.cat.forEach(function(v,k){ cat2All.add(k); }); });
   var cat2List=Array.from(cat2All).sort(lsCmp), noList=Array.from(byNo.keys()).sort(lsCmp);
   function catVals(no){ var o=byNo.get(no); return LIQSUM_CAT.map(function(m){ var s=0; if(o) m[1].forEach(function(k){ s+=o.cat.get(k)||0; }); return s; }); }
@@ -21918,8 +22014,9 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
         var R=A.rows[i], cn=R.cnt;
         labs.forEach(function(l,j){ x+=lsCellV(lsCol(6+j)+r,{f:'COUNTIFS(E$1:E$1048576,C'+r+',D$1:D$1048576,"'+pats[j]+'")',v:cn[l]||0},st[6+j],sst2); });
         x+=lsCellV("N"+r,{f:'COUNTIFS(E$1:E$1048576,C'+r+',D$1:D$1048576,"*???-XLB?-777*")+COUNTIFS(E$1:E$1048576,C'+r+',D$1:D$1048576,"*???-XLB??-777*")+COUNTIFS(E$1:E$1048576,C'+r+',D$1:D$1048576,"*???-XLB???-777*")',v:cn["777"]||0},st[13],sst2);
-        var parts=["G","H","I","J","K","L","M","N"].map(function(c,j){ return '(_xlfn.IFS('+c+r+'>0,(CONCATENATE('+c+'$1,"-",'+c+r+(j<6?',", "':'')+')),'+c+r+'=0,""))'; });
-        x+=lsCellV("O"+r,{f:"CONCATENATE("+parts.join(",")+")",v:R.cat},st[14],sst2);
+        // build 361: 끝의 ", " 없앰 — TEXTJOIN으로 있는 것만 ", "로 이음 (C-9, → C-9 · A-3, C-9)
+        var parts=["G","H","I","J","K","L","M","N"].map(function(c){ return 'IF('+c+r+'>0,'+c+'$1&"-"&'+c+r+',"")'; });
+        x+=lsCellV("O"+r,{f:'_xlfn.TEXTJOIN(", ",TRUE,'+parts.join(",")+')',v:R.cat},st[14],sst2);
         catF.forEach(function(ks,j){ var f=ks.map(function(k2){ return 'IFERROR(SUMIFS(INDEX(Sheet1!A$1:Z$1048576,,MATCH("'+k2+'",Sheet1!$A$1:$XFD$1,0)),Sheet1!$A$1:$A$1048576,C'+r+'),0)'; }).join("+");
           x+=lsCellV(lsCol(17+j)+r,{f:f,v:R.cats[j]},st[17+j],sst2); });
         x+=lsCellV("AA"+r,{f:"SUM(R"+r+":Z"+r+")",v:R.cats.reduce(function(a,b){ return a+b; },0)},st[26],sst2);
@@ -27889,6 +27986,14 @@ const IMPROVE_PROPOSALS = [
     why:"검수 '11월 보낸 605 · 매장 입고 727 PLT — 10 PLT 넘게 차이 8곳'에서 차이 +122 PLT 중 대부분이 두 카테고리: XLS 보낸 71 vs 입고 152(+81) · XLC 36 vs 78(+42). XLC는 제주점 0/18 · 안중점 0/10 · 양주점 0/10 · 원주점 0/4처럼 보낸 기록이 아예 없는 매장에 입고가 있음. 나머지는 XLA 183/162 · XLB 63/60 · 대형가전 22/19로 비슷. 지금 툴팁은 매장별 합계만 있어 어느 카테고리가 빠졌는지 안 보임.",
     what:"매장 입고 경고 툴팁 맨 위에 카테고리별 '보낸 / 입고 / 차이' 줄(차이 큰 순)을 넣고, 매장 줄에는 차이 큰 카테고리 1~2개를 괄호로(예: '제주점 … → −18 (XLC 0/18)'). 보낸 0인데 입고 4 PLT 이상인 매장 · 카테고리는 '보낸 기록 없음'으로 따로 모아 보여 주기.",
     risk:"낮음 — 툴팁 표시만 늘어남, 계산 · 자료 변경 없음.", done:"build 358" },
+  { id:"P261124-01", date:"2026-11-24", area:"물어보기", title:"물어보기 AI(Gemini) 'Request contains an invalid argument' 실패 — 같은 질문을 덜어낸 형식으로 한 번 더 보내기",
+    why:"질문 실패 기록 50개 중 13개 질문(35회)이 'Claude 연결 실패: Request contains an invalid argument.'로 끝남(11/12~11/23, 예: '최저 매출 매장' · '점별 매출 피크시간' · '안중점 신선 매출 중단일자' · '매출 점진 하락 원인'). 이 문구는 Gemini(구글)가 400으로 돌려주는 것인데, 지금은 메시지에 'thinking'이 들어 있을 때만 다시 보내고 그 밖의 400은 바로 포기함. 또 Gemini인데도 'Claude 연결 실패'로 표시됨.",
+    what:"Gemini가 400 'invalid argument'를 주면 같은 질문을 ① 생각 끄기 설정(thinkingConfig) 빼고 ② 그래도 안 되면 지난 대화(이어 묻기)와 빈 글 조각을 빼고 한 번 더 보냄. 성공한 방식은 기억해 다음부터 처음부터 그렇게. 실패 문구는 'Gemini 연결 실패'로, 실패 기록에 몇 번째 방식까지 해 봤는지 남김.",
+    risk:"낮음 — 실패할 때만 1~2번 더 보냄(무료 한도 소모가 조금 늘 수 있음). 규칙 검색 결과는 그대로." },
+  { id:"P261124-02", date:"2026-11-24", area:"물어보기", title:"물어보기 '인건비' — 물어본 달 자료가 없으면 가장 최근 달 값을 같이 보여 주기",
+    why:"승현 인건비 자료가 2025-12 ~ 2026-08(9달)까지만 있음. 11/23 '11월 인건비'는 빈 결과(실패 기록 empty)로 끝났고 메모 '2026-11 자료 없음'만 보임. 폐기비용은 2026-11까지 있어 인건비만 3달 늦음.",
+    what:"인건비 · 폐기비용 질문에서 물어본 달이 모두 없으면 '2026-11 자료 없음 — 가장 최근 2026-08 인건비 N원(매장별)'로 최근 달 표를 대신 보여 주고, 검수에 '인건비 자료 3달 늦음(마지막 2026-08)' 변동 알림 추가.",
+    risk:"낮음 — 자료가 없을 때 표시만 바뀜. 다른 달 값을 보여 주므로 제목에 달을 크게 표시해야 헷갈리지 않음." },
 ];
 var IMPROVE_DECISIONS; if(!IMPROVE_DECISIONS || typeof IMPROVE_DECISIONS!=="object") IMPROVE_DECISIONS = {};
 var IMPROVE_REQUESTS; if(!Array.isArray(IMPROVE_REQUESTS)) IMPROVE_REQUESTS = [];
@@ -28434,13 +28539,18 @@ window.addEventListener("load", kkMarkClosedSoon); setTimeout(kkMarkClosed, 1200
 (function(){
   let C = null;
   const bag = ()=>{ if(!C){ C = new Map(); queueMicrotask(()=>{ C = null; }); } return C; };
-  const drop = ()=>{ C = null; };
+  /* build 361: 탭을 옮겨도 남는 기억(자료가 바뀔 때만 비움) — 자료에만 기대는 계산 2개만.
+     · 하루 매출(byStoreCat) 묶음(대형가전·XLB → 가전)을 하루치 객체마다 한 번만 → mergeByStoreCat은 더하기만
+     · monthStoreTotals(달 · 마지막 날) 결과
+     비우는 때: 업로드 · 클라우드 받기 · 킹고프리 · 저장(afterChange · applyStateObject · kgApplySales · saveState). */
+  let DAYC = new WeakMap(), LONG = new Map();
+  const drop = ()=>{ C = null; DAYC = new WeakMap(); LONG = new Map(); };
   window.kkCalcCacheClear = drop;
   try{
     const _mst = monthStoreTotals;
     monthStoreTotals = function(month, maxDay){
-      const c = bag(), k = "mst|"+month+"|"+(maxDay==null ? "" : maxDay);
-      let r = c.get(k); if(!r){ r = _mst(month, maxDay); c.set(k, r); }
+      const k = "mst|"+month+"|"+(maxDay==null ? "" : maxDay);
+      let r = LONG.get(k); if(!r){ r = _mst(month, maxDay); LONG.set(k, r); }
       return { map: Object.assign({}, r.map), total: r.total, source: r.source };
     };
   }catch(e){ console.warn("build 300 mst", e); }
@@ -28460,10 +28570,19 @@ window.addEventListener("load", kkMarkClosedSoon); setTimeout(kkMarkClosed, 1200
   try{
     const ids = new WeakMap(); let seq = 0; const idOf = o=>{ if(!o || typeof o!=="object") return "x"; let i = ids.get(o); if(!i){ i = ++seq; ids.set(o, i); } return i; };
     const _mbs = mergeByStoreCat;
+    const grp = bsc=>{ let g = DAYC.get(bsc); if(g) return g; g = {};
+      Object.keys(bsc).forEach(st=>{ const o = g[st] = [], src = bsc[st]; Object.keys(src).forEach(ct=>{ const v = src[ct]; o.push(salesCatGroup(ct), v); }); });   // 원래 순서 그대로(더하는 순서가 같아야 소수 끝자리까지 같음)
+      DAYC.set(bsc, g); return g; };
+    const fastMbs = snaps=>{
+      if(!snaps.every(sn=> sn && sn.byStoreCat && typeof sn.byStoreCat==="object")) return null;   // 이상한 자료는 원래 계산으로
+      const merged = {};
+      snaps.forEach(sn=>{ const g = grp(sn.byStoreCat); Object.keys(g).forEach(st=>{ const m = merged[st] || (merged[st] = {}), a = g[st];
+        for(let i=0;i<a.length;i+=2){ const k = a[i], v = a[i+1]; const o = m[k] || (m[k] = { qty:0, amount:0 }); o.qty += v.qty; o.amount += v.amount; } }); });
+      return merged; };
     mergeByStoreCat = function(snaps){
       if(!Array.isArray(snaps)) return _mbs(snaps);
       const c = bag(), k = "mbs|" + snaps.map(sn=> idOf(sn && sn.byStoreCat)).join(",");
-      let r = c.get(k); if(!r){ r = _mbs(snaps); c.set(k, r); }
+      let r = c.get(k); if(!r){ r = fastMbs(snaps) || _mbs(snaps); c.set(k, r); }
       const o = {}; Object.keys(r).forEach(st=>{ const a = r[st], b = o[st] = {}; Object.keys(a).forEach(ct=>{ b[ct] = { qty:a[ct].qty, amount:a[ct].amount }; }); }); return o;
     };
   }catch(e){ console.warn("build 355 mbs", e); }
