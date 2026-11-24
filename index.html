@@ -1945,7 +1945,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 363 · 2026-11-24</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 364 · 2026-11-24</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21506,6 +21506,8 @@ function fiFcKm(a, b){
   const R = 6371, rad = x=> x*Math.PI/180, dLa = rad(B[0]-A[0]), dLo = rad(B[1]-A[1]);
   const h = Math.sin(dLa/2)**2 + Math.cos(rad(A[0]))*Math.cos(rad(B[0]))*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(h));
 }
+/* build 364: 배차요청서 비고 = Group Number(출고요청서 Group Number 칸과 같은 값) */
+function fiTruckGno(r){ const v = r.numFull ? r.numFull : (r.number||""); return String(v||r.bidcode||"?"); }
 function fiTruckPlan(rows){
   const ak = v=> v==="오전" ? 0 : v==="오후" ? 1 : 2;
   const by = new Map();
@@ -21539,7 +21541,7 @@ function fiTruckPlan(rows){
 function fiTruckRows(trucks){
   return trucks.map(t=>{
     const codes = new Map(), mfc = (t.fcs||[]).length > 1;   // 입차코드별 PLT (build 363: 상차지 여러 곳이면 코드 옆에 FC)
-    t.items.forEach(x=>{ const c = String(x.r.bidcode||"?") + (mfc ? ` ${x.r._fc}` : ""); codes.set(c, (codes.get(c)||0) + x.plt); });
+    t.items.forEach(x=>{ const c = fiTruckGno(x.r) + (mfc ? ` ${x.r._fc}` : ""); codes.set(c, (codes.get(c)||0) + x.plt); });
     const many = codes.size > 1;
     const cats = [...new Set(t.items.map(x=> /^XLD$/i.test(String(x.r.type||"")) ? "기저귀/분유" : (x.r.typeSub||x.r.type||"")).filter(Boolean))].join("·");
     const warn = t.items.some(x=> x.unk) ? " ※PLT 확인" : "";
@@ -21548,7 +21550,7 @@ function fiTruckRows(trucks){
       비고: Array.from(codes).map(([c,n])=> many ? `${c} (${n}PLT)` : c).join(" / ") + warn };
   });
 }
-const FI_TRUCK_HDR = ["차량","출고일","출고시간","상차지(FC)","도착지","PLT","합적","카테.","비고 (입차코드)"];
+const FI_TRUCK_HDR = ["차량","출고일","출고시간","상차지(FC)","도착지","PLT","합적","카테.","비고 (Group Number)"];
 const FI_TRUCK_KEYS = ["차량","출고일","출고시간","상차지","도착지","PLT","합적","카테","비고"];
 const FI_TRUCK_WIDTH = [8,15,12,14,16,7,11,12,46];
 function fiTruckHtml(rows){
@@ -21563,14 +21565,14 @@ function fiTruckText(rows){
   const R = fiTruckRows(T), out = [`[차량별 합적] 총 ${T.length}대 (1대 최대 ${FI_TRUCK_MAX}PLT)`];
   let last = "";
   R.forEach((o,i)=>{ const k = o.출고일+" "+o.출고시간; if(k!==last){ out.push(`■ ${k}`); last = k; }
-    out.push(`${o.차량} ${o.상차지} → ${o.도착지} / ${o.PLT}PLT${/^합적/.test(o.합적)?` (${o.합적})`:""}`); out.push(`   입차코드 ${o.비고}`); });
+    out.push(`${o.차량} ${o.상차지} → ${o.도착지} / ${o.PLT}PLT${/^합적/.test(o.합적)?` (${o.합적})`:""}`); out.push(`   Group Number ${o.비고}`); });
   return out.join("\n");
 }
 /* build 363: 배차요청(합적) 시트 = 한 장에 차량별 칸으로 나눠 봄. 차량 머리줄(출고일 · 시간 · 상차 → 하차 · 합계) → 건별 줄 → 합계 → 빈 줄. */
 function fiTruckSheet(wb, rows, border){
   const T = fiTruckPlan(rows); if(!T.length) return;
   const ws = wb.addWorksheet("배차요청(합적)");
-  const H = ["No","입차코드","상차지(FC)","유형","카테.","PLT","비고"], W = [6,20,14,8,16,8,34], NC = H.length;
+  const H = ["No","Group Number","상차지(FC)","유형","카테.","PLT","비고"], W = [6,20,14,8,16,8,34], NC = H.length;
   ws.columns = [{ width:3 }].concat(W.map(w=>({ width:w })));
   const F = (sz,bold,color)=> Object.assign({ name:"맑은 고딕", size:sz, bold:!!bold }, color ? { color:{ argb:color } } : {});
   const fill = a=> ({ type:"pattern", pattern:"solid", fgColor:{ argb:a } });
@@ -21587,7 +21589,7 @@ function fiTruckSheet(wb, rows, border){
     t.items.forEach((x,i)=>{
       const cat = /^XLD$/i.test(String(x.r.type||"")) ? "기저귀/분유" : (x.r.typeSub||x.r.type||"");
       const note = x.unk ? "※PLT 확인" : x.split ? `분할 (전체 ${+x.r.pallets||0}PLT)` : "";
-      const v = [i+1, x.r.bidcode||"?", x.r._fc||"", x.r.type||"", cat, x.unk ? null : x.plt, note];
+      const v = [i+1, fiTruckGno(x.r), x.r._fc||"", x.r.type||"", cat, x.unk ? null : x.plt, note];
       v.forEach((val,ci)=>{ const c = ws.getCell(r, 2+ci); c.value = val===""||val==null ? null : val; c.font = F(10.5, false, ci===6 && val ? "FFC00000" : null); c.alignment = { horizontal: ci===6 ? "left" : "center", vertical:"middle", wrapText: ci===6 }; c.border = border; if(mix) c.fill = fill("FFFFF9E5"); });
       r++;
     });
