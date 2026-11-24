@@ -1945,7 +1945,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 364 · 2026-11-24</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 365 · 2026-11-24</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21323,10 +21323,10 @@ function fiComboRender(){
 }
 // build 232: 출고요청서 시트 제목(B1) 수식 — "출고요청서 · 2026-10-23(금) 출고 — 오전 11건·99PLT / 오후 4건·7PLT · T/T 106 PLT"
 //   날짜는 첫 행 출고일시(없으면 시트 출고일), 오전/오후는 출고일시에 "오전"/"오후"가 들어간 행(“오전 11시”도 오전), 범위 4~500행
-function fiComboTitleCell(COLS, g){
+function fiComboTitleCell(COLS, g, endRow){
   const colL = k=>{ const i = COLS.keys.indexOf(k); let n = 2 + i, s = ""; while(n>0){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=Math.floor((n-1)/26); } return s; };
   const P = colL("PLT"), D = colL("출고일시");
-  const R = c=> `$${c}$4:$${c}$500`;
+  const R = c=> `$${c}$4:$${c}$${endRow||500}`;   // build 365: 아래 배차요청 표는 빼고 셈
   const part = l=> `"${l} "&COUNTIFS(${R(D)},"*${l}*")&"건·"&SUMIFS(${R(P)},${R(D)},"*${l}*")&"PLT"`;
   const fallback = String(fiComboDateLabel(g.date)).replace(/"/g,'""');
   const formula = `"출고요청서 · "&IFERROR(LEFT(${D}4,10)&"("&MID("일월화수목금토",WEEKDAY(DATEVALUE(LEFT(${D}4,10))),1)&")","${fallback}")` +
@@ -21355,7 +21355,7 @@ async function fiComboWorkbook(C){
     const COLS = fiDispCols(g.rows);
     ws.columns = [{ width:3 }].concat(COLS.width.map(w=>({ width:w })));
     // build 232: 제목 = 수식 — 엑셀에서 행을 넣거나 빼도 날짜 · 오전/오후 건수·PLT · T/T PLT가 자동 갱신
-    const t = ws.getCell(1, 2); t.value = fiComboTitleCell(COLS, g); t.font = { name:"맑은 고딕", size:13, bold:true };
+    const t = ws.getCell(1, 2); t.value = fiComboTitleCell(COLS, g, 3 + fiDispSheetRows(g.rows).length + 1); t.font = { name:"맑은 고딕", size:13, bold:true };
     [["진행","FF92D050"],["완료","FF9BC2E6"],["미진행",null]].forEach(([tx,c],i)=>{ const cell = ws.getCell(2, 3+i); cell.value=tx; cell.alignment={horizontal:"center"}; cell.border=border; cell.font={name:"맑은 고딕",size:10}; if(c) cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:c}}; });
     let row = 3;
     [g.rows].forEach(rs=>{   // build 143: 거래처 1곳 — 머리글 1번 + 행
@@ -21372,9 +21372,9 @@ async function fiComboWorkbook(C){
         row++;
       });
     });
+    try{ fiTruckBlock(ws, g.rows, row + 2, border); }catch(e){ console.warn("build 365 truck", e); }   // build 365: 배차요청(합적)은 같은 시트 아래에
     ws.views = [{ state:"frozen", ySplit:3 }];
   });
-  if(C.byDate.length) try{ fiTruckSheet(wb, [].concat(...C.byDate.map(g=> g.rows)), border); }catch(_){}   // build 360
   if(!wb.worksheets.length) throw new Error("엑셀에 넣을 행이 없습니다.");
   return wb;
 }
@@ -21568,38 +21568,35 @@ function fiTruckText(rows){
     out.push(`${o.차량} ${o.상차지} → ${o.도착지} / ${o.PLT}PLT${/^합적/.test(o.합적)?` (${o.합적})`:""}`); out.push(`   Group Number ${o.비고}`); });
   return out.join("\n");
 }
-/* build 363: 배차요청(합적) 시트 = 한 장에 차량별 칸으로 나눠 봄. 차량 머리줄(출고일 · 시간 · 상차 → 하차 · 합계) → 건별 줄 → 합계 → 빈 줄. */
-function fiTruckSheet(wb, rows, border){
-  const T = fiTruckPlan(rows); if(!T.length) return;
-  const ws = wb.addWorksheet("배차요청(합적)");
-  const H = ["No","Group Number","상차지(FC)","유형","카테.","PLT","비고"], W = [6,20,14,8,16,8,34], NC = H.length;
-  ws.columns = [{ width:3 }].concat(W.map(w=>({ width:w })));
+/* build 365: 배차요청(합적) = 출고요청서 시트 아래에 같이(따로 시트 없음). 건 하나 = 줄 하나, 차량 칸(차량 · 시간 · 도착지 · 합계 · 합적)은 세로로 합침.
+   열은 출고요청서 열 폭에 맞춤: B 차량 | C 출고시간 | D 상차지 | E 도착지 | F Group Number | G PLT | H 차량 합계 | I 합적 | J 카테. | K:L 비고 */
+function fiTruckBlock(ws, rows, r0, border){
+  const T = fiTruckPlan(rows); if(!T.length) return r0;
+  const R = fiTruckRows(T);
   const F = (sz,bold,color)=> Object.assign({ name:"맑은 고딕", size:sz, bold:!!bold }, color ? { color:{ argb:color } } : {});
   const fill = a=> ({ type:"pattern", pattern:"solid", fgColor:{ argb:a } });
-  const mergeRow = (r, v, font, f, h)=>{ ws.mergeCells(r, 2, r, 1+NC); const c = ws.getCell(r, 2); c.value = v; c.font = font; c.alignment = { horizontal:"left", vertical:"middle", wrapText:true, indent:1 }; if(f) for(let i=0;i<NC;i++){ const x = ws.getCell(r, 2+i); x.fill = f; x.border = border; } if(h) ws.getRow(r).height = h; };
-  const R = fiTruckRows(T), nM = R.filter(o=> /^합적/.test(o.합적)).length;
-  mergeRow(1, `배차요청서 (합적) — 총 ${T.length}대 · ${T.reduce((s,x)=>s+x.plt,0)}PLT  (합적 ${nM}대 · 단독/분할 ${T.length-nM}대 · 1대 최대 ${FI_TRUCK_MAX}PLT)`, F(13,true), null, 24);
-  mergeRow(2, `묶는 기준: 같은 출고일 · 오전/오후 · 출고시간 · 도착지 + 상차 FC 같거나 근처(직선 ${FI_NEAR_KM}km 안). 노란 칸 = 합적.`, F(9,false,"FF666666"));
-  let r = 4, lastDate = null;
+  const C0 = 2, NC = 11;
+  let r = r0;
+  const nM = R.filter(o=> /^합적/.test(o.합적)).length;
+  const t0 = ws.getCell(r, C0); t0.value = `🚚 배차요청서 (합적) — 총 ${T.length}대 · ${T.reduce((s,x)=>s+x.plt,0)}PLT  (합적 ${nM}대 · 1대 최대 ${FI_TRUCK_MAX}PLT · 같은 출고일 · 시간 · 도착지 + 상차 FC 같거나 근처 ${FI_NEAR_KM}km 안)`; t0.font = F(12,true); r++;
+  const H = ["차량","출고시간","상차지(FC)","도착지","Group Number","PLT","차량 합계","합적","카테.","비고"];
+  H.forEach((tx,i)=>{ const c = ws.getCell(r, C0+i); c.value = tx; c.font = F(10,true); c.alignment = { horizontal:"center", vertical:"middle" }; c.border = border; c.fill = fill("FFF2F2F2"); });
+  ws.mergeCells(r, C0+9, r, C0+10); ws.getCell(r, C0+10).border = border; r++;
   T.forEach((t,ti)=>{
-    const o = R[ti], mix = /^합적/.test(o.합적);
-    if(t.date !== lastDate){ mergeRow(r, `■ ${o.출고일 || "출고일 미정"}`, F(12,true,"FF1F3864")); r++; lastDate = t.date; }
-    mergeRow(r, `🚚 ${o.차량}   ${o.출고시간 || "-"}   │   상차 ${o.상차지 || "-"}  →  하차 ${o.도착지}   │   ${o.PLT}PLT · ${o.합적}${o.카테 ? " · " + o.카테 : ""}`, F(11,true), fill(mix ? "FFFFE699" : "FFDDEBF7"), 22); r++;
-    H.forEach((tx,i)=>{ const c = ws.getCell(r, 2+i); c.value = tx; c.font = F(9.5,true); c.alignment = { horizontal:"center", vertical:"middle" }; c.border = border; c.fill = fill("FFF2F2F2"); }); r++;
-    t.items.forEach((x,i)=>{
+    const o = R[ti], mix = /^합적/.test(o.합적), top = r;
+    t.items.forEach(x=>{
       const cat = /^XLD$/i.test(String(x.r.type||"")) ? "기저귀/분유" : (x.r.typeSub||x.r.type||"");
       const note = x.unk ? "※PLT 확인" : x.split ? `분할 (전체 ${+x.r.pallets||0}PLT)` : "";
-      const v = [i+1, fiTruckGno(x.r), x.r._fc||"", x.r.type||"", cat, x.unk ? null : x.plt, note];
-      v.forEach((val,ci)=>{ const c = ws.getCell(r, 2+ci); c.value = val===""||val==null ? null : val; c.font = F(10.5, false, ci===6 && val ? "FFC00000" : null); c.alignment = { horizontal: ci===6 ? "left" : "center", vertical:"middle", wrapText: ci===6 }; c.border = border; if(mix) c.fill = fill("FFFFF9E5"); });
+      const gno = fiTruckGno(x.r);
+      const v = [o.차량, o.출고일 ? `${o.출고일.slice(5)} ${o.출고시간}` : o.출고시간, x.r._fc||"", o.도착지, /^\d+$/.test(gno) ? +gno : gno, x.unk ? null : x.plt, t.plt, o.합적, cat, note, null];
+      v.forEach((val,ci)=>{ const c = ws.getCell(r, C0+ci); c.value = val===""||val==null ? null : val; c.font = F(11, ci===0||ci===6, ci===9 && val ? "FFC00000" : null);
+        c.alignment = { horizontal: ci===9 ? "left" : "center", vertical:"middle", wrapText: ci===9 }; c.border = border; if(mix) c.fill = fill("FFFFF2CC"); });
+      ws.mergeCells(r, C0+9, r, C0+10);
       r++;
     });
-    ws.mergeCells(r, 2, r, 6); const s = ws.getCell(r, 2); s.value = `합계 ${t.items.length}건`; s.font = F(10.5,true); s.alignment = { horizontal:"right", vertical:"middle" };
-    const p = ws.getCell(r, 7); p.value = t.plt; p.font = F(10.5,true); p.alignment = { horizontal:"center", vertical:"middle" };
-    const n = ws.getCell(r, 8); n.value = `${FI_TRUCK_MAX - t.plt}PLT 여유`; n.font = F(9.5,false,"FF666666"); n.alignment = { horizontal:"left", vertical:"middle" };
-    for(let i=0;i<NC;i++){ const c = ws.getCell(r, 2+i); c.border = border; c.fill = fill("FFF7F7F7"); }
-    r += 2;
+    if(r - top > 1) [0,1,3,6,7].forEach(ci=> ws.mergeCells(top, C0+ci, r-1, C0+ci));
   });
-  ws.pageSetup = { orientation:"portrait", fitToPage:true, fitToWidth:1, fitToHeight:0, paperSize:9 };
+  return r;
 }
 function fiDispOutHtml(d){
   let h = "";
