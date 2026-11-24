@@ -1945,7 +1945,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 361 · 2026-11-24</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 363 · 2026-11-24</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -11633,19 +11633,20 @@ function askParseSlots(text, prev){
       S.thr = { v:+m[1], unit, op:m[3], text:m[0].replace(/\s+/g," ").trim() }; t = t.replace(m[0], " "); } }
   // build 348: 배차 대장 거르기 — 차량(1톤 카고) · 오전/오후/야간 · 출발지 · 도착지 센터 이름(여주2 · 시흥3 · 인천49) 여러 개(합침)
   const dispUsed = [];
-  if(/물류\s*비|운송\s*비|운임|배송\s*비|운반\s*비|청구\s*비용|배차/.test(t)){
+  const vehCost = /\d+(?:\.\d+)?\s*톤|카고|윙\s*바디|냉동\s*탑|냉장\s*탑|탑차|차량/.test(t) && /비용|운임|요금/.test(t);   // build 362: '1톤카고차량 … 총비용' = 물류비용(차량 비용)
+  if(vehCost || /물류\s*비|운송\s*비|운임|배송\s*비|운반\s*비|청구\s*비용|배차/.test(t)){
     dispUsed.push("차량", "차종", "총합", "합산", "센터");
     const vm = t.match(/(\d+(?:\.\d+)?)\s*톤\s*(윙\s*바디|윙|카고|냉동\s*탑|냉장\s*탑|탑|플축\s*윙|초장축)?/);
     if(vm){ S.vton = +vm[1]; if(vm[2]) S.vbody = vm[2].replace(/\s|바디/g,""); t = t.replace(vm[0], " "); dispUsed.push(...(vm[0].match(/[가-힣]+/g)||[])); }
     else { const bm = t.match(/윙\s*바디|카고|냉동\s*탑|냉장\s*탑|플축\s*윙|초장축/); if(bm){ S.vbody = bm[0].replace(/\s|바디/g,""); t = t.replace(bm[0], " "); } }
     if(S.vbody) dispUsed.push(S.vbody, S.vbody+"바디");
     const sm = t.match(/(오전|오후|야간)(?!\s*\d{1,2}\s*시)/); if(sm){ S.slot = sm[1]; t = t.replace(sm[0], " "); dispUsed.push(sm[1]); }
-    const PL = []; t = t.replace(/([가-힣]{2,4})\s?(\d{1,3})(?![\d.])(?!\s*(?:월|일|년|시|톤|PLT|plt|파레트|팔레트|건|개|%|만|천|억|원|주|달|위|등|번|분|명|배|일간|개월|시간)(?![가-힣]))(\s*센터)?/g, (m0, w, n)=>{
+    const PL = []; t = t.replace(/([가-힣]{2,4})\s?(\d{1,3})(?![\d.])(?!\s*(?:월|년|톤|개월))(?!\s*(?:월|일|년|시|톤|PLT|plt|파레트|팔레트|건|개|%|만|천|억|원|주|달|위|등|번|분|명|배|일간|개월|시간)(?![가-힣]))(\s*센터)?/g, (m0, w, n)=>{
       if(/^(상위|하위|최근|지난|이번|베스트|워스트|꼴찌|탑|top|총|합계|전체)$/.test(w) || /점$/.test(w)) return m0; PL.push(w+n); dispUsed.push(w); return " "; });
     if(PL.length){ S.places = [...new Set(PL)]; if(/센터/.test(raw)) dispUsed.push("센터"); }
   }
   // build 335: 물류비용 · 배차 건수 = 06 통합 배차 대장(배차 앱) · 손실(까먹은 돈) = 폐기비용 + 인건비 + 물류비용
-  const askLogi = /물류\s*비|운송\s*비|운임|배송\s*비|운반\s*비|청구\s*비용|배차\s*비/.test(t);
+  const askLogi = vehCost || /물류\s*비|운송\s*비|운임|배송\s*비|운반\s*비|청구\s*비용|배차\s*비/.test(t);
   const askDel = /직\s*배송|고객\s*배송|매장\s*배송|고객\s*직배/.test(t), askDisp = askLogi || askDel || /배차/.test(t);
   if(/까먹은\s*돈|까먹|손실|새는\s*돈|날린\s*돈|비용\s*(전체|합계|총)/.test(t)) S.metric = "loss";
   else if(askLogi) S.metric = "logi";
@@ -11657,8 +11658,10 @@ function askParseSlots(text, prev){
   // 시간
   const hm = t.match(/(오전|오후)?\s*(\d{1,2})\s*시?\s*(?:~|-|부터)\s*(오전|오후)?\s*(\d{1,2})\s*시/) || t.match(/(오전|오후)?\s*(\d{1,2})\s*시(?!간대별)/);
   if(hm){ const h24 = (ap, h)=>{ h = +h; if(ap==="오후" && h<12) h += 12; if(ap==="오전" && h===12) h = 0; return h; };
-    const a = h24(hm[1], hm[2]); let b = hm[4]!=null ? h24(hm[3]||hm[1], hm[4]) : a+1; if(hm[4]!=null && b<=a) b = a+1;
-    if(a>=0 && a<24) S.hours = [a, Math.min(24,b)]; t = t.replace(hm[0], " "); }
+    let a = h24(hm[1], hm[2]); let b = hm[4]!=null ? h24(hm[3]||hm[1], hm[4]) : a+1; if(hm[4]!=null && b<=a) b = a+1;
+    const after = t.slice(t.indexOf(hm[0]) + hm[0].length);   // build 362: '오후2시 이후' = 14~24시 · '10시 이전' = 0~10시
+    if(hm[4]==null){ const am = after.match(/^\s*(이후|부터|넘어서?|후(?![가-힣]))/), bm = after.match(/^\s*(이전|전(?![가-힣])|까지)/); if(am){ b = 24; t = t.replace(am[0], " "); } else if(bm){ b = a; a = 0; t = t.replace(bm[0], " "); } }
+    if(a>=0 && a<24 && b>a) S.hours = [a, Math.min(24,b)]; t = t.replace(hm[0], " "); }
   // 요일
   const wd = new Set(); (t.match(/[월화수목금토일]요일/g)||[]).forEach(w=> wd.add(ASK_WD_NAME.indexOf(w[0])));
   if(/주말/.test(t)){ wd.add(0); wd.add(6); } if(/평일/.test(t)) [1,2,3,4,5].forEach(x=>wd.add(x));
@@ -11668,6 +11671,8 @@ function askParseSlots(text, prev){
   else if((r = t.match(/(하위|꼴찌|워스트)\s*(\d+)?/))){ S.top = +(r[2]||3); S.order = "asc"; }
   else if(/가장\s*(많|높|크|잘)|제일\s*(많|높|크|잘)|1등|1위/.test(t)){ S.top = 3; S.order = "desc"; }
   else if(/가장\s*(적|낮|작|못)|제일\s*(적|낮|작|못)/.test(t)){ S.top = 3; S.order = "asc"; }
+  else if(/최저|최소|꼴등|부진/.test(t)){ S.top = 3; S.order = "asc"; }   // build 362: '최저 매출 매장'
+  else if(/최고|최대|1등/.test(t)){ S.top = 3; S.order = "desc"; }
   // build 293: 날짜 여러 개("26년10월30일 31일 1일") · 날짜 범위 — 비교 · 기간 규칙보다 먼저, 쓴 날짜 글은 지움
   const DL = askDateList(t, last);
   if(DL && DL.dates.length){ S.from = DL.dates[0]; S.to = DL.dates[DL.dates.length-1]; if(DL.dates.length >= 2 && !DL.range) S.dates = DL.dates; t = DL.rest; }
@@ -11692,7 +11697,7 @@ function askParseSlots(text, prev){
   // 카테고리
   for(const [re, c] of ASK_CATS){ if(re.test(rest)){ S.cat = c; break; } }
   // 나눠 보기
-  if(/매장별|점포별/.test(t)) S.by = "store"; else if(/카테고리별|분류별|품목별|카테별|상품별|제품별/.test(t)) S.by = "cat"; else if(/시간대별|시간별/.test(t)) S.by = "hour";
+  if(/피크|붐비는\s*시간|몰리는\s*시간/.test(t)) S.by = "hour"; else if(/매장별|점포별|지점별|(?<![가-힣])점별/.test(t)) S.by = "store"; else if(/카테고리별|분류별|품목별|카테별|상품별|제품별/.test(t)) S.by = "cat"; else if(/시간대별|시간별/.test(t)) S.by = "hour";   // build 362: '점별 매출 피크시간' = 시간대별(점별은 매장별)
   else if(/요일별/.test(t)) S.by = "wd"; else if(/일별|날짜별|일자별|하루별/.test(t)) S.by = "day"; else if(/월별|달별/.test(t)) S.by = "month";
   if(/추이|흐름|변화|트렌드|추세|동향|그래프|차트|변동/.test(t)) S.trend = true;   // build 334: 차트   // build 283
   if(S.cat==="킹고프리" && (/상세|내역|명세/.test(t) || (/매장별|점포별/.test(t) && /일별|날짜별|일자별|하루별/.test(t)))) S.by = "storeDay";   // build 318: P261111-01 킹고프리 상세 · 매장별+일별 → 매장 × 날짜
@@ -11728,7 +11733,7 @@ var ASK_LEARN = (()=>{ try{ return JSON.parse(localStorage.getItem("kk_ask_learn
 //   이상/이하/초과/미만 = 기준 숫자 거르기 · 만원 = 금액 단위 · 결제건 = 결제 건수 · 비중 = 전체에서 차지하는 % · 까먹은돈 = 손실 합계(항목별)
 const ASK_LEARN_RULED = new Set(["이상","이하","초과","미만","만원","결제건","결제건수","비중","까먹은돈"]);
 const ASK_LEARNABLE = ["metric","by","cat","stores","top","order","cmpPrev","wd","hours","allStores"];
-const ASK_KNOWN_RE = /개월|주간|일간|동안|기간|날짜|이번|지난|저번|최근|올해|금년|누적|연간|오늘|어제|주말|평일|요일|분기|반기|작년|전년|부터|까지|이후|추이|흐름|변화|트렌드|추세|동향|그래프|차트|변동|비교|대비|년간|틀간|현황|종합|총합|집계|기준|내역|말고|아니고|월말|예상|전망|예측|물류|운송비|운임|배송비|청구비용|이상|이하|초과|미만|만원|결제|비중|점유율|구성비|까먹|손실|배차|배송|쿠팡|내부물류|상위|하위|가장|제일|베스트|워스트|꼴찌|매주|매일|오전|오후|매장별|점포별|카테고리별|분류별|품목별|시간대별|시간별|요일별|일별|날짜별|일자별|월별|달별|전체|전사|모든|알려|보여|해줘|주세요|얼마/;
+const ASK_KNOWN_RE = /개월|주간|일간|동안|기간|날짜|이번|지난|저번|최근|올해|금년|누적|연간|오늘|어제|주말|평일|요일|분기|반기|작년|전년|부터|까지|이후|추이|흐름|변화|트렌드|추세|동향|그래프|차트|변동|비교|대비|년간|틀간|현황|종합|총합|집계|기준|내역|말고|아니고|월말|예상|전망|예측|물류|운송비|운임|배송비|청구비용|이상|이하|초과|미만|만원|결제|비중|점유율|구성비|까먹|손실|배차|배송|쿠팡|내부물류|상위|하위|가장|제일|베스트|워스트|꼴찌|매주|매일|오전|오후|매장별|점포별|카테고리별|분류별|품목별|시간대별|시간별|요일별|일별|날짜별|일자별|월별|달별|전체|전사|모든|알려|보여|해줘|주세요|얼마|객단|최저|최소|최고|최대|꼴등|부진|피크|붐비|몰리|점별|지점별|비용|카고|차량|윙바디|탑차|이후|이전/;   // build 362
 function askStripParticle(w){ const m = w.match(/^(.{2,}?)(에서는|에서|으로|은|는|이|가|을|를|의|에|도|만|로|랑|과|와|좀|요)$/); return m ? m[1] : w; }
 function askKnownWord(w){
   if(ASK_STOP.has(w) || ASK_KNOWN_RE.test(w)) return true;
@@ -21486,42 +21491,60 @@ function fiDatedGroups(rows){
   const ds = Array.from(new Set(rows.map(r=> r.outboundDate || ""))).sort((a,b)=> (a||"9999").localeCompare(b||"9999"));
   return ds.map(d=> ({ date:d, rows: fiOrderRows(rows.filter(r=> (r.outboundDate||"")===d)) }));
 }
-/* build 360: 합적 배차요청서 — 같은 출고일 · 오전/오후 · 출고시간 · 상차 FC · 도착지면 한 차에 합적, 1대 최대 18PLT.
+/* build 360: 합적 배차요청서 — 같은 출고일 · 오전/오후 · 출고시간 · 도착지면 한 차에 합적, 1대 최대 18PLT.
+   build 363: 상차 FC가 달라도 주소상 가까우면(지역 중심 직선 FI_NEAR_KM 이내) 같이 합적. 모르는 지역은 같은 센터끼리만.
    18PLT 넘는 건은 18씩 나눠 여러 대. 차 안은 큰 건부터 채움(first-fit). 비고 = 입차코드(합적이면 코드별 PLT). */
 const FI_TRUCK_MAX = 18;
+const FI_NEAR_KM = 30;
+const FI_FC_GEO = { 고양:[37.66,126.83],김포:[37.62,126.72],인천:[37.46,126.70],부천:[37.50,126.77],시흥:[37.38,126.80],안산:[37.32,126.83],화성:[37.20,126.83],서울:[37.57,126.98],남양주:[37.64,127.22],
+  경기광주:[37.43,127.26],곤지암:[37.35,127.35],이천:[37.27,127.44],마장:[37.24,127.37],덕평:[37.23,127.38],호법:[37.21,127.43],여주:[37.30,127.64],용인:[37.24,127.18],양지:[37.23,127.28],동탄:[37.20,127.07],오산:[37.15,127.07],
+  평택:[36.99,127.11],안성:[37.01,127.28],천안:[36.82,127.11],목천:[36.78,127.22],금왕:[36.99,127.59],음성:[36.94,127.69],진천:[36.86,127.44],청주:[36.64,127.49],세종:[36.48,127.29],대전:[36.35,127.38],
+  칠곡:[36.00,128.40],대구:[35.87,128.60],경산:[35.83,128.74],창원:[35.23,128.68],김해:[35.23,128.89],양산:[35.34,129.04],부산:[35.18,129.08],전남광주:[35.16,126.85] };
+function fiFcGeo(fc){ const k = String(fc||"").replace(/센터|FC/gi,"").replace(/[\d\s\-_.()]+.*$/,"").trim(); return FI_FC_GEO[k] || null; }
+function fiFcKm(a, b){
+  if(a===b) return 0; const A = fiFcGeo(a), B = fiFcGeo(b); if(!A || !B) return Infinity;
+  const R = 6371, rad = x=> x*Math.PI/180, dLa = rad(B[0]-A[0]), dLo = rad(B[1]-A[1]);
+  const h = Math.sin(dLa/2)**2 + Math.cos(rad(A[0]))*Math.cos(rad(B[0]))*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(h));
+}
 function fiTruckPlan(rows){
   const ak = v=> v==="오전" ? 0 : v==="오후" ? 1 : 2;
   const by = new Map();
   fiOrderRows((rows||[]).filter(r=> !r.skip)).forEach(r=>{
     const fc = String(fiCenterName(r.fc)||r.fc||"").trim(), dest = String(r.dest||"").trim();
-    const k = [r.outboundDate||"", r.outboundAmPm||"", r.outTime||"", fc, dest].join("|");
-    if(!by.has(k)) by.set(k, { date:r.outboundDate||"", ampm:r.outboundAmPm||"", time:r.outTime||"", fc, dest, rows:[] });
-    by.get(k).rows.push(r);
+    const k = [r.outboundDate||"", r.outboundAmPm||"", r.outTime||"", dest].join("|");
+    if(!by.has(k)) by.set(k, { date:r.outboundDate||"", ampm:r.outboundAmPm||"", time:r.outTime||"", dest, rows:[] });
+    by.get(k).rows.push(Object.assign({}, r, { _fc: fc }));
   });
   const out = [];
-  Array.from(by.values()).sort((a,b)=> (a.date||"9999").localeCompare(b.date||"9999") || ak(a.ampm)-ak(b.ampm) || String(a.time).localeCompare(String(b.time)) || a.fc.localeCompare(b.fc) || a.dest.localeCompare(b.dest)).forEach(g=>{
-    const pcs = [];
-    g.rows.forEach(r=>{ let n = +r.pallets||0; if(!(n>0)){ pcs.push({ r, plt:0, unk:true }); return; } while(n > FI_TRUCK_MAX){ pcs.push({ r, plt:FI_TRUCK_MAX, split:true }); n -= FI_TRUCK_MAX; } pcs.push({ r, plt:n, split: (+r.pallets||0) > FI_TRUCK_MAX }); });
-    const trucks = [];
-    pcs.map((x,i)=>({x,i})).sort((a,b)=> b.x.plt-a.x.plt || a.i-b.i).forEach(({x})=>{
-      let t = trucks.find(t=> t.plt + x.plt <= FI_TRUCK_MAX);
-      if(!t){ t = { date:g.date, ampm:g.ampm, time:g.time, fc:g.fc, dest:g.dest, plt:0, items:[] }; trucks.push(t); }
-      t.items.push(x); t.plt += x.plt;
+  Array.from(by.values()).sort((a,b)=> (a.date||"9999").localeCompare(b.date||"9999") || ak(a.ampm)-ak(b.ampm) || String(a.time).localeCompare(String(b.time)) || a.dest.localeCompare(b.dest)).forEach(g=>{
+    // 상차 FC 묶기: 모든 FC끼리 FI_NEAR_KM 이내인 묶음(멀리 이어붙지 않게). PLT 많은 FC부터.
+    const plt = {}; g.rows.forEach(r=>{ plt[r._fc] = (plt[r._fc]||0) + (+r.pallets||0); });
+    const cl = [];
+    Object.keys(plt).sort((a,b)=> plt[b]-plt[a] || a.localeCompare(b)).forEach(fc=>{ const c = cl.find(c=> c.every(x=> fiFcKm(x, fc) <= FI_NEAR_KM)); if(c) c.push(fc); else cl.push([fc]); });
+    cl.forEach(fcs=>{
+      const pcs = [];
+      g.rows.filter(r=> fcs.includes(r._fc)).forEach(r=>{ let n = +r.pallets||0; if(!(n>0)){ pcs.push({ r, plt:0, unk:true }); return; } while(n > FI_TRUCK_MAX){ pcs.push({ r, plt:FI_TRUCK_MAX, split:true }); n -= FI_TRUCK_MAX; } pcs.push({ r, plt:n, split: (+r.pallets||0) > FI_TRUCK_MAX }); });
+      const trucks = [];
+      pcs.map((x,i)=>({x,i})).sort((a,b)=> b.x.plt-a.x.plt || a.i-b.i).forEach(({x})=>{
+        let t = trucks.find(t=> t.plt + x.plt <= FI_TRUCK_MAX);
+        if(!t){ t = { date:g.date, ampm:g.ampm, time:g.time, dest:g.dest, plt:0, items:[] }; trucks.push(t); }
+        t.items.push(x); t.plt += x.plt;
+      });
+      trucks.forEach(t=>{ t.fcs = fcs.filter(f=> t.items.some(x=> x.r._fc===f)); t.fc = t.fcs.join(" + "); out.push(t); });
     });
-    trucks.forEach(t=> out.push(t));
   });
   const seq = {}; out.forEach(t=>{ seq[t.date] = (seq[t.date]||0)+1; t.no = seq[t.date]; });
   return out;
 }
 function fiTruckRows(trucks){
   return trucks.map(t=>{
-    const codes = new Map();   // 입차코드별 PLT
-    t.items.forEach(x=>{ const c = String(x.r.bidcode||"?"); codes.set(c, (codes.get(c)||0) + x.plt); });
+    const codes = new Map(), mfc = (t.fcs||[]).length > 1;   // 입차코드별 PLT (build 363: 상차지 여러 곳이면 코드 옆에 FC)
+    t.items.forEach(x=>{ const c = String(x.r.bidcode||"?") + (mfc ? ` ${x.r._fc}` : ""); codes.set(c, (codes.get(c)||0) + x.plt); });
     const many = codes.size > 1;
     const cats = [...new Set(t.items.map(x=> /^XLD$/i.test(String(x.r.type||"")) ? "기저귀/분유" : (x.r.typeSub||x.r.type||"")).filter(Boolean))].join("·");
     const warn = t.items.some(x=> x.unk) ? " ※PLT 확인" : "";
     return { 차량:`${t.no}호차`, 출고일: t.date ? `${t.date}(${fiDispWeekday(t.date)})` : "", 출고시간:`${t.ampm} ${t.time}`.replace(/\s+/g," ").trim(),
-      상차지:t.fc, 도착지:t.dest||"(도착지 미정)", PLT:t.plt, 합적: t.items.length>1 ? `합적 ${t.items.length}건` : (t.items[0] && t.items[0].split ? "분할" : "단독"), 카테:cats,
+      상차지:t.fc, 도착지:t.dest||"(도착지 미정)", PLT:t.plt, 합적: t.items.length>1 ? `합적 ${t.items.length}건${(t.fcs||[]).length>1?` · 상차 ${t.fcs.length}곳`:""}` : (t.items[0] && t.items[0].split ? "분할" : "단독"), 카테:cats,
       비고: Array.from(codes).map(([c,n])=> many ? `${c} (${n}PLT)` : c).join(" / ") + warn };
   });
 }
@@ -21531,7 +21554,7 @@ const FI_TRUCK_WIDTH = [8,15,12,14,16,7,11,12,46];
 function fiTruckHtml(rows){
   const T = fiTruckPlan(rows); if(!T.length) return "";
   const R = fiTruckRows(T);
-  return `<div class="fi-sec-t">🚚 배차요청서 (합적 · 1대 최대 ${FI_TRUCK_MAX}PLT) <span class="fi-mut">${T.length}대 · ${T.reduce((s,t)=>s+t.plt,0)}PLT · 같은 출고일 · 시간 · FC · 도착지면 한 차</span></div>
+  return `<div class="fi-sec-t">🚚 배차요청서 (합적 · 1대 최대 ${FI_TRUCK_MAX}PLT) <span class="fi-mut">${T.length}대 · ${T.reduce((s,t)=>s+t.plt,0)}PLT · 같은 출고일 · 시간 · 도착지 + 상차 FC 같거나 근처(${FI_NEAR_KM}km 안)면 한 차</span></div>
   <div class="fi-xprev"><table><thead><tr>${FI_TRUCK_HDR.map(x=>`<th>${escHtml(x)}</th>`).join("")}</tr></thead><tbody>
   ${R.map(o=>`<tr${/^합적/.test(o.합적)?' style="background:#FFF7D6"':""}>${FI_TRUCK_KEYS.map(k=>`<td${k==="비고"?' style="text-align:left;white-space:normal;min-width:220px"':""}>${escHtml(o[k]==null?"":o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
@@ -21543,16 +21566,38 @@ function fiTruckText(rows){
     out.push(`${o.차량} ${o.상차지} → ${o.도착지} / ${o.PLT}PLT${/^합적/.test(o.합적)?` (${o.합적})`:""}`); out.push(`   입차코드 ${o.비고}`); });
   return out.join("\n");
 }
+/* build 363: 배차요청(합적) 시트 = 한 장에 차량별 칸으로 나눠 봄. 차량 머리줄(출고일 · 시간 · 상차 → 하차 · 합계) → 건별 줄 → 합계 → 빈 줄. */
 function fiTruckSheet(wb, rows, border){
   const T = fiTruckPlan(rows); if(!T.length) return;
   const ws = wb.addWorksheet("배차요청(합적)");
-  ws.columns = [{ width:3 }].concat(FI_TRUCK_WIDTH.map(w=>({ width:w })));
-  const t = ws.getCell(1, 2); t.value = `배차요청서 (합적) — 총 ${T.length}대 · ${T.reduce((s,x)=>s+x.plt,0)}PLT · 1대 최대 ${FI_TRUCK_MAX}PLT`; t.font = { name:"맑은 고딕", size:13, bold:true };
-  FI_TRUCK_HDR.forEach((tx,i)=>{ const c = ws.getCell(3, 2+i); c.value=tx; c.font={name:"맑은 고딕",size:10,bold:true}; c.alignment={horizontal:"center",vertical:"middle"}; c.border=border; c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFF2F2F2"}}; });
-  fiTruckRows(T).forEach((o,ri)=>{ FI_TRUCK_KEYS.forEach((k,ci)=>{ const c = ws.getCell(4+ri, 2+ci); const v = o[k]; c.value = v===""||v==null ? null : v;
-    c.font = { name:"맑은 고딕", size:11 }; c.alignment = k==="비고" ? { horizontal:"left", vertical:"middle", wrapText:true } : { horizontal:"center", vertical:"middle" }; c.border = border;
-    if(/^합적/.test(o.합적)) c.fill = { type:"pattern", pattern:"solid", fgColor:{ argb:"FFFFF2CC" } }; }); });
-  ws.views = [{ state:"frozen", ySplit:3 }];
+  const H = ["No","입차코드","상차지(FC)","유형","카테.","PLT","비고"], W = [6,20,14,8,16,8,34], NC = H.length;
+  ws.columns = [{ width:3 }].concat(W.map(w=>({ width:w })));
+  const F = (sz,bold,color)=> Object.assign({ name:"맑은 고딕", size:sz, bold:!!bold }, color ? { color:{ argb:color } } : {});
+  const fill = a=> ({ type:"pattern", pattern:"solid", fgColor:{ argb:a } });
+  const mergeRow = (r, v, font, f, h)=>{ ws.mergeCells(r, 2, r, 1+NC); const c = ws.getCell(r, 2); c.value = v; c.font = font; c.alignment = { horizontal:"left", vertical:"middle", wrapText:true, indent:1 }; if(f) for(let i=0;i<NC;i++){ const x = ws.getCell(r, 2+i); x.fill = f; x.border = border; } if(h) ws.getRow(r).height = h; };
+  const R = fiTruckRows(T), nM = R.filter(o=> /^합적/.test(o.합적)).length;
+  mergeRow(1, `배차요청서 (합적) — 총 ${T.length}대 · ${T.reduce((s,x)=>s+x.plt,0)}PLT  (합적 ${nM}대 · 단독/분할 ${T.length-nM}대 · 1대 최대 ${FI_TRUCK_MAX}PLT)`, F(13,true), null, 24);
+  mergeRow(2, `묶는 기준: 같은 출고일 · 오전/오후 · 출고시간 · 도착지 + 상차 FC 같거나 근처(직선 ${FI_NEAR_KM}km 안). 노란 칸 = 합적.`, F(9,false,"FF666666"));
+  let r = 4, lastDate = null;
+  T.forEach((t,ti)=>{
+    const o = R[ti], mix = /^합적/.test(o.합적);
+    if(t.date !== lastDate){ mergeRow(r, `■ ${o.출고일 || "출고일 미정"}`, F(12,true,"FF1F3864")); r++; lastDate = t.date; }
+    mergeRow(r, `🚚 ${o.차량}   ${o.출고시간 || "-"}   │   상차 ${o.상차지 || "-"}  →  하차 ${o.도착지}   │   ${o.PLT}PLT · ${o.합적}${o.카테 ? " · " + o.카테 : ""}`, F(11,true), fill(mix ? "FFFFE699" : "FFDDEBF7"), 22); r++;
+    H.forEach((tx,i)=>{ const c = ws.getCell(r, 2+i); c.value = tx; c.font = F(9.5,true); c.alignment = { horizontal:"center", vertical:"middle" }; c.border = border; c.fill = fill("FFF2F2F2"); }); r++;
+    t.items.forEach((x,i)=>{
+      const cat = /^XLD$/i.test(String(x.r.type||"")) ? "기저귀/분유" : (x.r.typeSub||x.r.type||"");
+      const note = x.unk ? "※PLT 확인" : x.split ? `분할 (전체 ${+x.r.pallets||0}PLT)` : "";
+      const v = [i+1, x.r.bidcode||"?", x.r._fc||"", x.r.type||"", cat, x.unk ? null : x.plt, note];
+      v.forEach((val,ci)=>{ const c = ws.getCell(r, 2+ci); c.value = val===""||val==null ? null : val; c.font = F(10.5, false, ci===6 && val ? "FFC00000" : null); c.alignment = { horizontal: ci===6 ? "left" : "center", vertical:"middle", wrapText: ci===6 }; c.border = border; if(mix) c.fill = fill("FFFFF9E5"); });
+      r++;
+    });
+    ws.mergeCells(r, 2, r, 6); const s = ws.getCell(r, 2); s.value = `합계 ${t.items.length}건`; s.font = F(10.5,true); s.alignment = { horizontal:"right", vertical:"middle" };
+    const p = ws.getCell(r, 7); p.value = t.plt; p.font = F(10.5,true); p.alignment = { horizontal:"center", vertical:"middle" };
+    const n = ws.getCell(r, 8); n.value = `${FI_TRUCK_MAX - t.plt}PLT 여유`; n.font = F(9.5,false,"FF666666"); n.alignment = { horizontal:"left", vertical:"middle" };
+    for(let i=0;i<NC;i++){ const c = ws.getCell(r, 2+i); c.border = border; c.fill = fill("FFF7F7F7"); }
+    r += 2;
+  });
+  ws.pageSetup = { orientation:"portrait", fitToPage:true, fitToWidth:1, fitToHeight:0, paperSize:9 };
 }
 function fiDispOutHtml(d){
   let h = "";
