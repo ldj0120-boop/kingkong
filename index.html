@@ -1945,7 +1945,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 365 · 2026-11-24</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 366 · 2026-11-24</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21535,6 +21535,18 @@ function fiTruckPlan(rows){
       trucks.forEach(t=>{ t.fcs = fcs.filter(f=> t.items.some(x=> x.r._fc===f)); t.fc = t.fcs.join(" + "); out.push(t); });
     });
   });
+  // build 366: 같은 출고일 · 같은 상차 FC(한 곳) · 같은 도착지인데 오전 / 오후로 나뉜 차 → 합쳐 18PLT 안이면 오후 차로 일괄 합적(비고에 표기)
+  out.filter(t=> t.ampm==="오전" && (t.fcs||[]).length===1).sort((a,b)=> b.plt-a.plt).forEach(am=>{
+    const cand = out.filter(pm=> pm!==am && !pm._gone && pm.ampm==="오후" && pm.date===am.date && pm.dest===am.dest && (pm.fcs||[]).length===1 && pm.fcs[0]===am.fcs[0] && pm.plt + am.plt <= FI_TRUCK_MAX);
+    if(!cand.length) return;
+    const pm = cand.sort((a,b)=> b.plt-a.plt)[0];   // 꽉 차게(남는 PLT 적은 차)
+    const g = it=> it.map(x=> fiTruckGno(x.r)).join("·");
+    pm.amMerge = (pm.amMerge||[]).concat([`오전 ${am.plt}PLT(${g(am.items)})`]);
+    if(!pm.pmOwn) pm.pmOwn = `오후 ${pm.plt}PLT(${g(pm.items)})`;
+    am.items.forEach(x=>{ x.fromAm = true; pm.items.push(x); }); pm.plt += am.plt; am._gone = true;
+    pm.ampmNote = `${pm.amMerge.join(" + ")} + ${pm.pmOwn} → 오후 ${pm.plt}PLT 일괄 합적`;
+  });
+  for(let i=out.length-1;i>=0;i--) if(out[i]._gone) out.splice(i,1);
   const seq = {}; out.forEach(t=>{ seq[t.date] = (seq[t.date]||0)+1; t.no = seq[t.date]; });
   return out;
 }
@@ -21546,8 +21558,8 @@ function fiTruckRows(trucks){
     const cats = [...new Set(t.items.map(x=> /^XLD$/i.test(String(x.r.type||"")) ? "기저귀/분유" : (x.r.typeSub||x.r.type||"")).filter(Boolean))].join("·");
     const warn = t.items.some(x=> x.unk) ? " ※PLT 확인" : "";
     return { 차량:`${t.no}호차`, 출고일: t.date ? `${t.date}(${fiDispWeekday(t.date)})` : "", 출고시간:`${t.ampm} ${t.time}`.replace(/\s+/g," ").trim(),
-      상차지:t.fc, 도착지:t.dest||"(도착지 미정)", PLT:t.plt, 합적: t.items.length>1 ? `합적 ${t.items.length}건${(t.fcs||[]).length>1?` · 상차 ${t.fcs.length}곳`:""}` : (t.items[0] && t.items[0].split ? "분할" : "단독"), 카테:cats,
-      비고: Array.from(codes).map(([c,n])=> many ? `${c} (${n}PLT)` : c).join(" / ") + warn };
+      상차지:t.fc, 도착지:t.dest||"(도착지 미정)", PLT:t.plt, 합적: t.items.length>1 ? `합적 ${t.items.length}건${(t.fcs||[]).length>1?` · 상차 ${t.fcs.length}곳`:""}${t.ampmNote?" · 오전→오후":""}` : (t.items[0] && t.items[0].split ? "분할" : "단독"), 카테:cats,
+      비고: Array.from(codes).map(([c,n])=> many ? `${c} (${n}PLT)` : c).join(" / ") + warn + (t.ampmNote ? ` ※ ${t.ampmNote}` : "") };
   });
 }
 const FI_TRUCK_HDR = ["차량","출고일","출고시간","상차지(FC)","도착지","PLT","합적","카테.","비고 (Group Number)"];
@@ -21586,12 +21598,14 @@ function fiTruckBlock(ws, rows, r0, border){
     const o = R[ti], mix = /^합적/.test(o.합적), top = r;
     t.items.forEach(x=>{
       const cat = /^XLD$/i.test(String(x.r.type||"")) ? "기저귀/분유" : (x.r.typeSub||x.r.type||"");
-      const note = x.unk ? "※PLT 확인" : x.split ? `분할 (전체 ${+x.r.pallets||0}PLT)` : "";
+      let note = x.unk ? "※PLT 확인" : x.split ? `분할 (전체 ${+x.r.pallets||0}PLT)` : "";
+      if(t.ampmNote) note = [x.fromAm ? "오전 요청분" : "오후 요청분", note].filter(Boolean).join(" · ") + (x === t.items[0] ? `\n※ ${t.ampmNote}` : "");
       const gno = fiTruckGno(x.r);
       const v = [o.차량, o.출고일 ? `${o.출고일.slice(5)} ${o.출고시간}` : o.출고시간, x.r._fc||"", o.도착지, /^\d+$/.test(gno) ? +gno : gno, x.unk ? null : x.plt, t.plt, o.합적, cat, note, null];
       v.forEach((val,ci)=>{ const c = ws.getCell(r, C0+ci); c.value = val===""||val==null ? null : val; c.font = F(11, ci===0||ci===6, ci===9 && val ? "FFC00000" : null);
         c.alignment = { horizontal: ci===9 ? "left" : "center", vertical:"middle", wrapText: ci===9 }; c.border = border; if(mix) c.fill = fill("FFFFF2CC"); });
       ws.mergeCells(r, C0+9, r, C0+10);
+      if(t.ampmNote && x === t.items[0]) ws.getRow(r).height = 30;
       r++;
     });
     if(r - top > 1) [0,1,3,6,7].forEach(ci=> ws.mergeCells(top, C0+ci, r-1, C0+ci));
