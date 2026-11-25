@@ -23486,7 +23486,7 @@ const BP_LINK_C5 = new Set(["식품"]);   // cate2 시트에서 cate5 합계를 
 function bpStyles(xml){
   const m = /<cellXfs count="(\d+)">/.exec(xml); if(!m) return { xml, id:null };
   const n0 = +m[1];
-  let fills = 0; xml = xml.replace(/<fills count="(\d+)">([\s\S]*?)<\/fills>/, (a,c,b)=>{ fills = +c; return '<fills count="'+(fills+1)+'">'+b+'<fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/><bgColor indexed="64"/></patternFill></fill></fills>'; });
+  let fills = 0; xml = xml.replace(/<fills count="(\d+)">([\s\S]*?)<\/fills>/, (a,c,b)=>{ fills = +c; return '<fills count="'+(fills+3)+'">'+b+['FFFFF2CC','FFFFFF00','FFFCE4D6'].map(c=> '<fill><patternFill patternType="solid"><fgColor rgb="'+c+'"/><bgColor indexed="64"/></patternFill></fill>').join("")+'</fills>'; });   // build 368: 입력칸 · LOT 줄(노랑) · CATE2 줄(주황)
   let fonts = 0; xml = xml.replace(/<fonts count="(\d+)"([^>]*)>([\s\S]*?)<\/fonts>/, (a,c,x,b)=>{ fonts = +c; return '<fonts count="'+(fonts+1)+'"'+x+'>'+b+'<font><b/><sz val="11"/><color theme="1"/><name val="맑은 고딕"/><family val="3"/><charset val="129"/><scheme val="minor"/></font></fonts>'; });
   const add = [
     '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="center"/></xf>',                                   // hdr
@@ -23497,8 +23497,16 @@ function bpStyles(xml){
     '<xf numFmtId="10" fontId="0" fillId="'+fills+'" borderId="0" xfId="0" applyNumberFormat="1" applyFill="1" applyAlignment="1"><alignment vertical="center"/></xf>',   // pct (입력 칸, 노란색)
     '<xf numFmtId="41" fontId="'+fonts+'" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyAlignment="1"><alignment vertical="center"/></xf>'     // tot (굵게)
   ];
+  // 색깔 구분: LOT · 총합계 줄 = 노랑(굵게), cate5 시트 CATE2 줄 = 주황(굵게) — 라벨 · 숫자 · 합계 · % · 빈칸
+  [["y",fills+1],["o",fills+2]].forEach(([k,fi])=>{
+    const f = ' fillId="'+fi+'" borderId="0" xfId="0" applyFill="1" applyAlignment="1"';
+    add.push('<xf numFmtId="0" fontId="'+fonts+'"'+f+' applyFont="1"><alignment horizontal="left" vertical="center"'+(k==="o"?' indent="1"':'')+'/></xf>',
+      '<xf numFmtId="41" fontId="0"'+f+' applyNumberFormat="1"><alignment vertical="center"/></xf>',
+      '<xf numFmtId="41" fontId="'+fonts+'"'+f+' applyNumberFormat="1" applyFont="1"><alignment vertical="center"/></xf>',
+      '<xf numFmtId="10" fontId="'+fonts+'"'+f+' applyNumberFormat="1" applyFont="1"><alignment vertical="center"/></xf>',
+      '<xf numFmtId="0" fontId="0"'+f+'><alignment vertical="center"/></xf>'); });
   xml = xml.replace(/<cellXfs count="\d+">([\s\S]*?)<\/cellXfs>/, (a,b)=> '<cellXfs count="'+(n0+add.length)+'">'+b+add.join("")+'</cellXfs>');
-  const k = ["hdr","lot","c2","c5","num","pct","tot"], id = {}; k.forEach((x,i)=> id[x] = n0+i);
+  const k = ["hdr","lot","c2","c5","num","pct","tot","yL","yN","yT","yP","yB","oL","oN","oT","oP","oB"], id = {}; k.forEach((x,i)=> id[x] = n0+i);
   return { xml, id };
 }
 // rows = [[lot, cate2, cate5, 수량, 판매가]] · lots = LOT 순서 · hq/hs = 머리글 이름
@@ -23523,15 +23531,15 @@ function bpCateSheets(lots, rows, C, sst, X, hq, hs){
       let sub = "";
       sorted(o.c5).forEach(([c5,p])=>{ const rr = r++; k5.push(rr); const g = rate2!=null ? p.s*rate2 : 0; g2 += g;
         sub += '<row r="'+rr+'">'+C("A"+rr,c5,X.c5,sst)+C("B"+rr,p.q,X.num,sst)+C("C"+rr,p.s,X.num,sst)+C("E"+rr,p.s,X.num,sst)+C("F"+rr,rate2==null?null:rate2,X.pct,sst)+C("G"+rr,{ f:`F${rr}*E${rr}`, v:g },X.num,sst)+'</row>'; });
-      body += '<row r="'+cr+'">'+C("A"+cr,c2,X.c2,sst)+C("B"+cr,o.q,X.num,sst)+C("C"+cr,o.s,X.num,sst)+C("E"+cr,o.s,X.num,sst)
-        +C("F"+cr,{ f:`IFERROR(G${cr}/E${cr},0)`, v:o.s?g2/o.s:0 },X.pct,sst)+C("G"+cr,{ f:`SUM(G${k5[0]}:G${k5[k5.length-1]})`, v:g2 },X.tot,sst)+'</row>'+sub;
+      body += '<row r="'+cr+'">'+C("A"+cr,c2,X.oL,sst)+C("B"+cr,o.q,X.oN,sst)+C("C"+cr,o.s,X.oN,sst)+C("D"+cr,null,X.oB,sst)+C("E"+cr,o.s,X.oN,sst)
+        +C("F"+cr,{ f:`IFERROR(G${cr}/E${cr},0)`, v:o.s?g2/o.s:0 },X.oP,sst)+C("G"+cr,{ f:`SUM(G${k5[0]}:G${k5[k5.length-1]})`, v:g2 },X.oT,sst)+'</row>'+sub;
       c5Row.set(L+"|"+c2, cr); c5Val.set(L+"|"+c2, g2); lq += o.q; ls += o.s; lg += g2; });
-    x5 += '<row r="'+lr+'">'+C("A"+lr,L,X.lot,sst)+C("B"+lr,lq,X.num,sst)+C("C"+lr,ls,X.num,sst)+C("E"+lr,ls,X.tot,sst)
-      +C("F"+lr,{ f:`IFERROR(G${lr}/E${lr},0)`, v:ls?lg/ls:0 },X.pct,sst)+C("G"+lr,{ f:c2r.map(k=> "G"+k).join("+"), v:lg },X.tot,sst)+'</row>'+body;
+    x5 += '<row r="'+lr+'">'+C("A"+lr,L,X.yL,sst)+C("B"+lr,lq,X.yN,sst)+C("C"+lr,ls,X.yN,sst)+C("D"+lr,null,X.yB,sst)+C("E"+lr,ls,X.yT,sst)
+      +C("F"+lr,{ f:`IFERROR(G${lr}/E${lr},0)`, v:ls?lg/ls:0 },X.yP,sst)+C("G"+lr,{ f:c2r.map(k=> "G"+k).join("+"), v:lg },X.yT,sst)+'</row>'+body;
     lot5.push([lr, lg]); TQ += lq; TS += ls; });
   const t5 = r;
-  x5 += '<row r="'+t5+'">'+C("A"+t5,"총합계",X.lot,sst)+C("B"+t5,TQ,X.num,sst)+C("C"+t5,TS,X.num,sst)+C("E"+t5,TS,X.tot,sst)
-    +C("G"+t5,{ f:lot5.map(x=> "G"+x[0]).join("+"), v:lot5.reduce((s,x)=> s+x[1],0) },X.tot,sst)+'</row>' + end;
+  x5 += '<row r="'+t5+'">'+C("A"+t5,"총합계",X.yL,sst)+C("B"+t5,TQ,X.yN,sst)+C("C"+t5,TS,X.yN,sst)+C("D"+t5,null,X.yB,sst)+C("E"+t5,TS,X.yT,sst)+C("F"+t5,null,X.yB,sst)
+    +C("G"+t5,{ f:lot5.map(x=> "G"+x[0]).join("+"), v:lot5.reduce((s,x)=> s+x[1],0) },X.yT,sst)+'</row>' + end;
   // ---- cate2
   let x2 = top('<cols><col min="1" max="1" width="21" customWidth="1"/><col min="2" max="2" width="11.1" customWidth="1"/><col min="3" max="3" width="22.6" customWidth="1"/><col min="5" max="5" width="16.2" customWidth="1"/><col min="6" max="6" width="8.8" customWidth="1"/><col min="7" max="7" width="13.5" customWidth="1"/></cols>') + hd();
   r = 5; const lot2 = []; const res = [];
@@ -23542,12 +23550,12 @@ function bpCateSheets(lots, rows, C, sst, X, hq, hs){
       else { const rt = BP_DEF_C2[c2]; g = rt!=null ? o.s*rt : 0; F = rt==null ? null : rt; G = { f:`F${cr}*E${cr}`, v:g }; }
       lg += g;
       body += '<row r="'+cr+'">'+C("A"+cr,c2,X.c2,sst)+C("B"+cr,o.q,X.num,sst)+C("C"+cr,o.s,X.num,sst)+C("E"+cr,o.s,X.num,sst)+C("F"+cr,F,X.pct,sst)+C("G"+cr,G,X.num,sst)+'</row>'; });
-    x2 += '<row r="'+lr+'">'+C("A"+lr,L,X.lot,sst)+C("B"+lr,lq,X.num,sst)+C("C"+lr,ls,X.num,sst)+C("E"+lr,ls,X.tot,sst)
-      +C("F"+lr,{ f:`IFERROR(G${lr}/E${lr},0)`, v:ls?lg/ls:0 },X.pct,sst)+C("G"+lr,{ f:`SUM(G${c2r[0]}:G${c2r[c2r.length-1]})`, v:lg },X.tot,sst)+'</row>'+body;
+    x2 += '<row r="'+lr+'">'+C("A"+lr,L,X.yL,sst)+C("B"+lr,lq,X.yN,sst)+C("C"+lr,ls,X.yN,sst)+C("D"+lr,null,X.yB,sst)+C("E"+lr,ls,X.yT,sst)
+      +C("F"+lr,{ f:`IFERROR(G${lr}/E${lr},0)`, v:ls?lg/ls:0 },X.yP,sst)+C("G"+lr,{ f:`SUM(G${c2r[0]}:G${c2r[c2r.length-1]})`, v:lg },X.yT,sst)+'</row>'+body;
     lot2.push([lr, lg]); res.push({ no:L, amt:lg, F:ls }); });
   const t2 = r;
-  x2 += '<row r="'+t2+'">'+C("A"+t2,"총합계",X.lot,sst)+C("B"+t2,TQ,X.num,sst)+C("C"+t2,TS,X.num,sst)+C("E"+t2,TS,X.tot,sst)
-    +C("G"+t2,{ f:lot2.map(x=> "G"+x[0]).join("+"), v:lot2.reduce((s,x)=> s+x[1],0) },X.tot,sst)+'</row>' + end;
+  x2 += '<row r="'+t2+'">'+C("A"+t2,"총합계",X.yL,sst)+C("B"+t2,TQ,X.yN,sst)+C("C"+t2,TS,X.yN,sst)+C("D"+t2,null,X.yB,sst)+C("E"+t2,TS,X.yT,sst)+C("F"+t2,null,X.yB,sst)
+    +C("G"+t2,{ f:lot2.map(x=> "G"+x[0]).join("+"), v:lot2.reduce((s,x)=> s+x[1],0) },X.yT,sst)+'</row>' + end;
   return { c2:x2, c5:x5, res };
 }
 
