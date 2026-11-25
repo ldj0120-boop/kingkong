@@ -1945,7 +1945,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 368 · 2026-11-25</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 374 · 2026-11-25</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21501,7 +21501,34 @@ const FI_FC_GEO = { 고양:[37.66,126.83],김포:[37.62,126.72],인천:[37.46,12
   경기광주:[37.43,127.26],곤지암:[37.35,127.35],이천:[37.27,127.44],마장:[37.24,127.37],덕평:[37.23,127.38],호법:[37.21,127.43],여주:[37.30,127.64],용인:[37.24,127.18],양지:[37.23,127.28],동탄:[37.20,127.07],오산:[37.15,127.07],
   평택:[36.99,127.11],안성:[37.01,127.28],천안:[36.82,127.11],목천:[36.78,127.22],금왕:[36.99,127.59],음성:[36.94,127.69],진천:[36.86,127.44],청주:[36.64,127.49],세종:[36.48,127.29],대전:[36.35,127.38],
   칠곡:[36.00,128.40],대구:[35.87,128.60],경산:[35.83,128.74],창원:[35.23,128.68],김해:[35.23,128.89],양산:[35.34,129.04],부산:[35.18,129.08],전남광주:[35.16,126.85] };
-function fiFcGeo(fc){ const k = String(fc||"").replace(/센터|FC/gi,"").replace(/[\d\s\-_.()]+.*$/,"").trim(); return FI_FC_GEO[k] || null; }
+function fiFcGeo(fc){ const k = String(fc||"").replace(/센터|FC/gi,"").replace(/[\d\s\-_.()]+.*$/,"").trim(); return FI_FC_GEO[k] || fiCityGeo(fc); }   // build 371: 표에 없으면 지역명으로
+/* build 371: 매장 · 센터 좌표가 없어도 이름 속 지역으로 위치를 잡는다(동선 합적용). 시 · 군 중심 좌표(대략). */
+const FI_CITY_GEO = Object.assign({}, FI_FC_GEO, {
+  파주:[37.76,126.78],오도동:[37.79,126.70],의정부:[37.74,127.05],양주:[37.79,127.05],포천:[37.89,127.20],동두천:[37.90,127.06],구리:[37.59,127.13],하남:[37.54,127.21],
+  성남:[37.42,127.13],분당:[37.38,127.12],수원:[37.27,127.01],기흥:[37.27,127.11],안양:[37.39,126.95],군포:[37.36,126.94],의왕:[37.34,126.97],광명:[37.48,126.86],과천:[37.43,126.99],
+  경안:[37.41,127.26],광주:[37.41,127.26],도척:[37.33,127.32],방도리:[37.33,127.32],백사:[37.30,127.47],장호원:[37.12,127.63],대소:[36.98,127.49],안중:[36.99,126.93],
+  아산:[36.79,127.00],온양:[36.78,127.00],당진:[36.89,126.63],서산:[36.78,126.45],예산:[36.68,126.85],홍성:[36.60,126.66],공주:[36.45,127.12],논산:[36.19,127.10],
+  충주:[36.99,127.93],제천:[37.13,128.19],괴산:[36.81,127.79],증평:[36.79,127.58],오창:[36.72,127.43],오송:[36.63,127.33],옥천:[36.31,127.57],
+  원주:[37.34,127.92],횡성:[37.49,127.98],춘천:[37.88,127.73],홍천:[37.69,127.89],강릉:[37.75,128.88],속초:[38.21,128.59],동해:[37.52,129.11],삼척:[37.45,129.17],
+  구미:[36.12,128.34],김천:[36.14,128.11],상주:[36.41,128.16],안동:[36.57,128.73],영천:[35.97,128.94],경주:[35.86,129.22],포항:[36.02,129.34],울산:[35.54,129.31],
+  밀양:[35.50,128.75],마산:[35.21,128.58],진주:[35.18,128.11],거제:[34.88,128.62],통영:[34.85,128.43],
+  전주:[35.82,127.15],익산:[35.95,126.96],군산:[35.97,126.74],광주광역:[35.16,126.85],목포:[34.81,126.39],순천:[34.95,127.49],여수:[34.76,127.66],
+  제주:[33.50,126.53],서귀포:[33.25,126.56]
+});
+function fiCityGeo(name){
+  const t = String(name||"").replace(/\s+/g,""); if(!t) return null;
+  if(/전남광주|광주광역/.test(t)) return FI_CITY_GEO.전남광주;
+  const ks = Object.keys(FI_CITY_GEO).sort((a,b)=> b.length-a.length);
+  for(const k of ks) if(t.indexOf(k) >= 0) return FI_CITY_GEO[k];
+  return null;
+}
+function fiDestGeo(d){
+  const raw = String(d||"").trim(); if(!raw) return null;
+  if(FI_STORE_GEO[raw]) return FI_STORE_GEO[raw];
+  const t = raw.replace(/\(.*?\)/g,"").replace(/^(가구)?(시그니처|패션관|가구패션관)/,"").split(/[_\s]/)[0].trim();
+  if(FI_STORE_GEO[t]) return FI_STORE_GEO[t];
+  return fiCityGeo(raw);   // 이름 속 지역(파주가맹점 → 파주, 의정부가맹점 → 의정부, 방도리센터 → 방도리)
+}
 function fiFcKm(a, b){
   if(a===b) return 0; const A = fiFcGeo(a), B = fiFcGeo(b); if(!A || !B) return Infinity;
   const R = 6371, rad = x=> x*Math.PI/180, dLa = rad(B[0]-A[0]), dLo = rad(B[1]-A[1]);
@@ -21509,6 +21536,107 @@ function fiFcKm(a, b){
 }
 /* build 364: 배차요청서 비고 = Group Number(출고요청서 Group Number 칸과 같은 값) */
 function fiTruckGno(r){ const v = r.numFull ? r.numFull : (r.number||""); return String(v||r.bidcode||"?"); }
+/* build 369: 하차 동선 합적 — 하차지 좌표(FI_STORE_GEO) · 상차 FC 좌표(FI_FC_GEO)로 판단.
+   하차지끼리 모두 직선 FI_ROUTE_LEG_KM(100km) 이내면 한 차(build 372). 내리는 순서 = 상차지에서 가장 짧은 동선. 하차 최대 FI_ROUTE_MAXDROP곳. */
+const FI_ROUTE_LEG_KM = 100, FI_ROUTE_MAXDROP = 3;   // build 372 (사용자): 하차지끼리 직선 100km 이내면 묶음(우회 배수 조건 없앰)
+function fiTruckDests(t){ return t.drops ? t.drops.slice() : [t.dest]; }
+function fiRouteOrder(fcs, dests){
+  const F = fiFcGeo((fcs||[])[0]); if(!F) return null;
+  const G = dests.map(d=> fiDestGeo(d)); if(G.some(g=> !g)) return null;   // build 371: 좌표 없으면 지역으로
+  const km = (a,b)=> fiFcKm2(a,b);
+  // build 370: 내리는 순서 = 상차지에서 출발해 하차지를 모두 도는 거리가 가장 짧은 순서(모든 순서 비교, 최대 3곳)
+  const pts = dests.map((d,i)=>({ d, g:G[i], k:km(F,G[i]) }));
+  const perms = a=> a.length<=1 ? [a] : a.flatMap((x,i)=> perms(a.slice(0,i).concat(a.slice(i+1))).map(p=> [x].concat(p)));
+  let ord = null, tot = Infinity;
+  perms(pts).forEach(p=>{ let t = 0, prev = F, ok = true;
+    p.forEach((o,i)=>{ const leg = km(prev, o.g); if(i>0 && leg > FI_ROUTE_LEG_KM) ok = false; t += leg; prev = o.g; });
+    if(ok && t < tot - 1e-9){ tot = t; ord = p; } });
+  if(!ord) return null;
+  if(pts.some(a=> pts.some(b=> km(a.g,b.g) > FI_ROUTE_LEG_KM))) return null;   // 하차지 모두 서로 100km 이내
+  return ord.map(o=> o.d);
+}
+function fiFcKm2(A, B){ const R = 6371, rad = x=> x*Math.PI/180, dLa = rad(B[0]-A[0]), dLo = rad(B[1]-A[1]);
+  const h = Math.sin(dLa/2)**2 + Math.cos(rad(A[0]))*Math.cos(rad(B[0]))*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
+function fiTruckCat(x){ return x ? (/^XLD$/i.test(String(x.r.type||"")) ? "기저귀/분유" : String(x.r.typeSub||x.r.type||"")) : ""; }
+function fiTruckCats(t){ return [...new Set(t.items.map(fiTruckCat).filter(Boolean))]; }
+function fiTruckRouteMerge(out, sameCat){
+  const same = (a,b)=> a.date===b.date && a.ampm===b.ampm && String(a.time||"")===String(b.time||"") && (a.fcs||[]).join("|")===(b.fcs||[]).join("|") && (a.fcs||[]).length>=1;
+  const catEq = (a,b)=>{ const x = fiTruckCats(a), y = fiTruckCats(b); return x.length===1 && y.length===1 && x[0]===y[0]; };
+  let changed = true;
+  while(changed){
+    changed = false;
+    const live = out.filter(t=> !t._gone && t.dest).sort((a,b)=> b.plt-a.plt);
+    for(const t of live){
+      if(t._gone) continue;
+      let best = null, bestOrd = null, bestN = 9;
+      live.forEach(u=>{
+        if(u===t || u._gone || !same(t,u) || t.plt + u.plt > FI_TRUCK_MAX) return;
+        if(sameCat && !catEq(t,u)) return;
+        const ds = [...new Set([...fiTruckDests(t), ...fiTruckDests(u)])];
+        if(ds.length > FI_ROUTE_MAXDROP) return;
+        const ord = ds.length===1 ? null : fiRouteOrder(t.fcs, ds); if(ds.length>1 && !ord) return;
+        // 같은 하차지 먼저, 그다음 PLT 많은(꽉 차는) 차
+        if(!best || ds.length < bestN || (ds.length===bestN && u.plt > best.plt)){ best = u; bestOrd = ord; bestN = ds.length; }
+      });
+      if(!best) continue;
+      best.items.forEach(x=> t.items.push(x)); t.plt += best.plt; best._gone = true;
+      if(best.ampmNote) t.ampmNote = [t.ampmNote, best.ampmNote].filter(Boolean).join(" / "), t.ampmCross = t.ampmCross || best.ampmCross;
+      t.fcs = [...new Set([...(t.fcs||[]), ...(best.fcs||[])])]; t.fc = t.fcs.join(" + ");
+      if(bestOrd){
+        t.drops = bestOrd; t.dest = bestOrd.map((d,i)=> `${d}(${i+1}차)`).join(" → ");
+        t.routeNote = `${t.fc} → ` + bestOrd.map((d,i)=> `${i+1}차 ${d} ${t.items.filter(x=> String(x.r.dest||"").trim()===d).reduce((s,x)=> s+x.plt,0)}PLT`).join(" → ") + " 동선 합적";
+      }
+      changed = true;
+    }
+    for(let i=out.length-1;i>=0;i--) if(out[i]._gone) out.splice(i,1);
+  }
+}
+/* build 373 (사용자): 항상 같이 묶는 하차지. 같은 출고일 · 합 18PLT 이하면 상차 FC가 달라도, 오전/오후가 달라도(→ 오후) 한 차. 같은 카테고리 · 같은 오전/오후 먼저. */
+const FI_DEST_PAIRS = [["김해점","동김해점"],["제주점","제주서귀포점","서귀포점"]];   // build 374: 제주점 ↔ 서귀포점
+function fiTruckDestPairMerge(out){
+  const grp = t=>{ const ds = fiTruckDests(t).map(d=> String(d||"").trim()); const P = FI_DEST_PAIRS.find(P=> ds.every(d=> P.includes(d))); return P ? FI_DEST_PAIRS.indexOf(P) : -1; };
+  let changed = true;
+  while(changed){
+    changed = false;
+    const live = out.filter(t=> !t._gone && grp(t) >= 0).sort((a,b)=> b.plt-a.plt);
+    for(const t of live){
+      if(t._gone) continue;
+      let best = null, bs = -1;
+      live.forEach(u=>{
+        if(u===t || u._gone || u.date!==t.date || grp(u)!==grp(t) || t.plt + u.plt > FI_TRUCK_MAX) return;
+        const ct = fiTruckCats(t), cu = fiTruckCats(u);
+        const sc = (ct.length===1 && cu.length===1 && ct[0]===cu[0] ? 4 : 0) + (u.ampm===t.ampm ? 2 : 0) + ((u.fcs||[]).join("|")===(t.fcs||[]).join("|") ? 1 : 0);
+        if(sc > bs || (sc===bs && u.plt > best.plt)){ best = u; bs = sc; }
+      });
+      if(!best) continue;
+      const u = best;
+      if(u.ampm !== t.ampm){ const note = `오전/오후 다른 ${[...new Set([...fiTruckDests(t), ...fiTruckDests(u)].map(d=> String(d||"").trim()))].join("·")} 묶음 → 오후`; t.ampmNote = [t.ampmNote, u.ampmNote, note].filter(Boolean).join(" / "); t.ampm = "오후"; t.time = ""; }
+      else if(u.ampmNote) t.ampmNote = [t.ampmNote, u.ampmNote].filter(Boolean).join(" / ");
+      u.items.forEach(x=> t.items.push(x)); t.plt += u.plt; u._gone = true;
+      t.fcs = [...new Set([...(t.fcs||[]), ...(u.fcs||[])])]; t.fc = t.fcs.join(" + ");
+      const ds = [...new Set([...fiTruckDests(t), ...fiTruckDests(u)].map(d=> String(d||"").trim()))];
+      if(ds.length > 1){
+        const ord = fiRouteOrder(t.fcs, ds) || ds;
+        t.drops = ord; t.dest = ord.map((d,i)=> `${d}(${i+1}차)`).join(" → ");
+        t.routeNote = `${t.fc} → ` + ord.map((d,i)=> `${i+1}차 ${d} ${t.items.filter(x=> String(x.r.dest||"").trim()===d).reduce((s,x)=> s+x.plt,0)}PLT`).join(" → ") + " 묶음 하차";
+      }
+      changed = true;
+    }
+    for(let i=out.length-1;i>=0;i--) if(out[i]._gone) out.splice(i,1);
+  }
+}
+/* build 372: 합적 차 비고 코멘트 — 하차 시 입차코드별 PLT 분류(하차지별) + 같은/다른 카테고리 */
+function fiTruckUnloadNote(t){
+  if(t.items.length < 2) return "";
+  const cats = fiTruckCats(t), drops = t.drops || [String(t.dest||"").trim()];
+  const parts = drops.map((d,i)=>{
+    const m = new Map(); t.items.filter(x=> !t.drops || String(x.r.dest||"").trim()===d).forEach(x=>{ const k = `${x.r.bidcode||"?"}(${fiTruckCat(x)||"-"})`; m.set(k, (m.get(k)||0) + x.plt); });
+    return `${t.drops ? `${i+1}차 ${d}: ` : ""}${Array.from(m).map(([k,n])=> `${k} ${n}PLT`).join(" / ")}`;
+  });
+  const head = cats.length > 1 ? `다른 카테고리 합적(${cats.map(c=> `${c} ${t.items.filter(x=> fiTruckCat(x)===c).reduce((s,x)=>s+x.plt,0)}PLT`).join(" · ")}) — 카테고리 · 입차코드별 구분 상하차`
+                               : `동일 카테고리(${cats[0]||"-"}) 합적 — 입차코드 준수`;
+  return `${head}. 하차 시 입차코드별 PLT 분류 철저: ${parts.join(" | ")}`;
+}
 function fiTruckPlan(rows){
   const ak = v=> v==="오전" ? 0 : v==="오후" ? 1 : 2;
   const by = new Map();
@@ -21527,9 +21655,9 @@ function fiTruckPlan(rows){
     cl.forEach(fcs=>{
       const pcs = [];
       g.rows.filter(r=> fcs.includes(r._fc)).forEach(r=>{ let n = +r.pallets||0; if(!(n>0)){ pcs.push({ r, plt:0, unk:true }); return; } while(n > FI_TRUCK_MAX){ pcs.push({ r, plt:FI_TRUCK_MAX, split:true }); n -= FI_TRUCK_MAX; } pcs.push({ r, plt:n, split: (+r.pallets||0) > FI_TRUCK_MAX }); });
-      const trucks = [];
+      const trucks = [];   // build 372: 같은 카테고리끼리 먼저 채움(다른 카테고리는 아래 fiTruckRouteMerge 2단계에서)
       pcs.map((x,i)=>({x,i})).sort((a,b)=> b.x.plt-a.x.plt || a.i-b.i).forEach(({x})=>{
-        let t = trucks.find(t=> t.plt + x.plt <= FI_TRUCK_MAX);
+        let t = trucks.find(t=> t.plt + x.plt <= FI_TRUCK_MAX && fiTruckCat(t.items[0]) === fiTruckCat(x));
         if(!t){ t = { date:g.date, ampm:g.ampm, time:g.time, dest:g.dest, plt:0, items:[] }; trucks.push(t); }
         t.items.push(x); t.plt += x.plt;
       });
@@ -21557,6 +21685,10 @@ function fiTruckPlan(rows){
     pm.ampmNote = `${pm.amMerge.join(" + ")} + ${pm.pmOwn} → 오후 ${pm.plt}PLT ${pm.ampmCross ? "합적 추천(상차 " + pm.fcs.length + "곳)" : "일괄 합적"}`;
   });
   for(let i=out.length-1;i>=0;i--) if(out[i]._gone) out.splice(i,1);
+  // build 369: 같은 출고일 · 오전/오후 · 시간 · 같은 상차 FC인데 하차지가 한 동선(예: 경산2 → 진천센터 1차 → 충주점 2차)이면 18PLT 안에서 한 차로 합적
+  fiTruckRouteMerge(out, true);    // build 372: 1순위 같은 카테고리(하차지 달라도 동선이면)
+  fiTruckRouteMerge(out, false);   // 2순위 다른 카테고리(같은 하차지 먼저) — 비고에 코멘트
+  fiTruckDestPairMerge(out);        // build 373: 김해점 ↔ 동김해점은 상차 FC · 오전/오후 달라도 묶음
   const seq = {}; out.forEach(t=>{ seq[t.date] = (seq[t.date]||0)+1; t.no = seq[t.date]; });
   return out;
 }
@@ -21568,8 +21700,8 @@ function fiTruckRows(trucks){
     const cats = [...new Set(t.items.map(x=> /^XLD$/i.test(String(x.r.type||"")) ? "기저귀/분유" : (x.r.typeSub||x.r.type||"")).filter(Boolean))].join("·");
     const warn = t.items.some(x=> x.unk) ? " ※PLT 확인" : "";
     return { 차량:`${t.no}호차`, 출고일: t.date ? `${t.date}(${fiDispWeekday(t.date)})` : "", 출고시간:`${t.ampm} ${t.time}`.replace(/\s+/g," ").trim(),
-      상차지:t.fc, 도착지:t.dest||"(도착지 미정)", PLT:t.plt, 합적: t.items.length>1 ? `합적 ${t.items.length}건${(t.fcs||[]).length>1?` · 상차 ${t.fcs.length}곳`:""}${t.ampmNote?(t.ampmCross?" · 오전→오후 추천":" · 오전→오후"):""}` : (t.items[0] && t.items[0].split ? "분할" : "단독"), 카테:cats,
-      비고: Array.from(codes).map(([c,n])=> many ? `${c} (${n}PLT)` : c).join(" / ") + warn + (t.ampmNote ? ` ※ ${t.ampmNote}` : "") };
+      상차지:t.fc, 도착지:t.dest||"(도착지 미정)", PLT:t.plt, 합적: t.items.length>1 ? `합적 ${t.items.length}건${(t.fcs||[]).length>1?` · 상차 ${t.fcs.length}곳`:""}${t.ampmNote?(t.ampmCross?" · 오전→오후 추천":" · 오전→오후"):""}${t.drops?` · 하차 ${t.drops.length}곳(동선)`:""}${fiTruckCats(t).length>1?" · 다른 카테고리":""}` : (t.items[0] && t.items[0].split ? "분할" : "단독"), 카테:cats,
+      비고: Array.from(codes).map(([c,n])=> many ? `${c} (${n}PLT)` : c).join(" / ") + warn + (t.ampmNote ? ` ※ ${t.ampmNote}` : "") + (t.routeNote ? ` ※ ${t.routeNote}` : "") + (fiTruckUnloadNote(t) ? ` ※ ${fiTruckUnloadNote(t)}` : "") };
   });
 }
 const FI_TRUCK_HDR = ["차량","출고일","출고시간","상차지(FC)","도착지","PLT","합적","카테.","비고 (Group Number)"];
@@ -21605,20 +21737,24 @@ function fiTruckBlock(ws, rows, r0, border){
   H.forEach((tx,i)=>{ const c = ws.getCell(r, C0+i); c.value = tx; c.font = F(10,true); c.alignment = { horizontal:"center", vertical:"middle" }; c.border = border; c.fill = fill("FFF2F2F2"); });
   ws.mergeCells(r, C0+9, r, C0+10); ws.getCell(r, C0+10).border = border; r++;
   T.forEach((t,ti)=>{
+    if(t.drops) t.items.sort((a,b)=> t.drops.indexOf(String(a.r.dest||"").trim()) - t.drops.indexOf(String(b.r.dest||"").trim()));   // build 369: 1차 하차부터
     const o = R[ti], mix = /^합적/.test(o.합적), top = r;
     t.items.forEach(x=>{
       const cat = /^XLD$/i.test(String(x.r.type||"")) ? "기저귀/분유" : (x.r.typeSub||x.r.type||"");
       let note = x.unk ? "※PLT 확인" : x.split ? `분할 (전체 ${+x.r.pallets||0}PLT)` : "";
       if(t.ampmNote) note = [x.fromAm ? "오전 요청분" : "오후 요청분", note].filter(Boolean).join(" · ") + (x === t.items[0] ? `\n※ ${t.ampmNote}` : "");
       const gno = fiTruckGno(x.r);
-      const v = [o.차량, o.출고일 ? `${o.출고일.slice(5)} ${o.출고시간}` : o.출고시간, x.r._fc||"", o.도착지, /^\d+$/.test(gno) ? +gno : gno, x.unk ? null : x.plt, t.plt, o.합적, cat, note, null];
+      if(t.routeNote && x === t.items[0]) note = [note, `※ ${t.routeNote}`].filter(Boolean).join("\n");   // build 369
+      if(x === t.items[0] && fiTruckUnloadNote(t)) note = [note, `※ ${fiTruckUnloadNote(t)}`].filter(Boolean).join("\n");   // build 372
+      const dIdx = t.drops ? t.drops.indexOf(String(x.r.dest||"").trim()) : -1;
+      const v = [o.차량, o.출고일 ? `${o.출고일.slice(5)} ${o.출고시간}` : o.출고시간, x.r._fc||"", t.drops ? `${dIdx+1}차 ${x.r.dest}` : o.도착지, /^\d+$/.test(gno) ? +gno : gno, x.unk ? null : x.plt, t.plt, o.합적, cat, note, null];
       v.forEach((val,ci)=>{ const c = ws.getCell(r, C0+ci); c.value = val===""||val==null ? null : val; c.font = F(11, ci===0||ci===6, ci===9 && val ? "FFC00000" : null);
         c.alignment = { horizontal: ci===9 ? "left" : "center", vertical:"middle", wrapText: ci===9 }; c.border = border; if(mix) c.fill = fill("FFFFF2CC"); });
       ws.mergeCells(r, C0+9, r, C0+10);
-      if(t.ampmNote && x === t.items[0]) ws.getRow(r).height = 30;
+      if(x === t.items[0]){ const nl = String(note||"").split("\n").length + Math.floor(String(note||"").length/45); if(nl > 1) ws.getRow(r).height = Math.min(120, 15*nl+3); }   // build 372
       r++;
     });
-    if(r - top > 1) [0,1,3,6,7].forEach(ci=> ws.mergeCells(top, C0+ci, r-1, C0+ci));
+    if(r - top > 1) (t.drops ? [0,1,6,7] : [0,1,3,6,7]).forEach(ci=> ws.mergeCells(top, C0+ci, r-1, C0+ci));
   });
   return r;
 }
