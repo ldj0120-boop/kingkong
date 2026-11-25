@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 381 · 2026-11-25</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 384 · 2026-11-25</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21671,7 +21671,8 @@ function fiTruckDestPairMerge(out){
       });
       if(!best) continue;
       const u = best;
-      if(u.ampm !== t.ampm){ const note = `오전/오후 → 오후`; t.ampmNote = [t.ampmNote, u.ampmNote, note].filter(Boolean).join(" / "); t.ampm = "오후"; t.time = ""; }
+      if(u.ampm !== t.ampm){ [t,u].forEach(v=>{ if(v.ampm==="오전") v.items.forEach(x=>{ x.fromAm = true; }); });   // build 382: 오전 건은 "오전 요청분"으로 표시
+        const note = `오전/오후 → 오후`; t.ampmNote = [t.ampmNote, u.ampmNote, note].filter(Boolean).join(" / "); t.ampm = "오후"; t.time = ""; }
       else if(u.ampmNote) t.ampmNote = [t.ampmNote, u.ampmNote].filter(Boolean).join(" / ");
       u.items.forEach(x=> t.items.push(x)); t.plt += u.plt; u._gone = true;
       t.fcs = [...new Set([...(t.fcs||[]), ...(u.fcs||[])])]; t.fc = t.fcs.join(" + ");
@@ -21715,14 +21716,43 @@ function fiTruckPlan(rows){
     const cl = [];
     Object.keys(plt).sort((a,b)=> plt[b]-plt[a] || a.localeCompare(b)).forEach(fc=>{ const c = cl.find(c=> c.every(x=> fiFcKm(x, fc) <= FI_NEAR_KM)); if(c) c.push(fc); else cl.push([fc]); });
     cl.forEach(fcs=>{
-      const pcs = [];
-      g.rows.filter(r=> fcs.includes(r._fc)).forEach(r=>{ let n = +r.pallets||0; if(!(n>0)){ pcs.push({ r, plt:0, unk:true }); return; } while(n > FI_TRUCK_MAX){ pcs.push({ r, plt:FI_TRUCK_MAX, split:true }); n -= FI_TRUCK_MAX; } pcs.push({ r, plt:n, split: (+r.pallets||0) > FI_TRUCK_MAX }); });
-      const trucks = [];   // build 372: 같은 카테고리끼리 먼저 채움(다른 카테고리는 아래 fiTruckRouteMerge 2단계에서)
-      pcs.map((x,i)=>({x,i})).sort((a,b)=> b.x.plt-a.x.plt || a.i-b.i).forEach(({x})=>{
-        let t = trucks.find(t=> t.plt + x.plt <= FI_TRUCK_MAX && fiTruckCat(t.items[0]) === fiTruckCat(x));
-        if(!t){ t = { date:g.date, ampm:g.ampm, time:g.time, dest:g.dest, plt:0, items:[] }; trucks.push(t); }
-        t.items.push(x); t.plt += x.plt;
+      // build 384 (사용자): 상차지는 입차CODE별로 물건을 분류(1PLT ~ 100PLT 넘게, 평균 9PLT). 입차CODE 하나 = 한 묶음.
+      //  18PLT 이하 → 통째로 한 차. 18PLT 넘으면 18PLT씩 꽉 찬 차 + 남은 PLT 한 묶음(남은 건 다른 입차CODE와 합적 가능). 줄(Group)은 18 경계에서만 나눔.
+      const pcs = [], units = [], byCode = new Map();
+      g.rows.filter(r=> fcs.includes(r._fc)).forEach((r,i)=>{ const n = +r.pallets||0;
+        if(!(n>0)){ const x = { r, plt:0, unk:true }; pcs.push(x); units.push({ pcs:[x], plt:0, cat:fiTruckCat(x), i }); return; }
+        const k = String(r.bidcode||fiTruckGno(r)) + "|" + fiTruckCat({ r });
+        if(!byCode.has(k)) byCode.set(k, { i, rows:[] }); byCode.get(k).rows.push(r); });
+      byCode.forEach(({ i, rows: rs })=>{
+        const tot = rs.reduce((s,r)=> s + (+r.pallets||0), 0);
+        let cur = null;
+        const nu = ()=>{ cur = { pcs:[], plt:0, cat:fiTruckCat({ r:rs[0] }), i }; units.push(cur); };
+        rs.slice().sort((a,b)=> (+b.pallets||0) - (+a.pallets||0)).forEach(r=>{ let n = +r.pallets||0; const whole = n;
+          while(n > 0){ if(!cur || cur.plt >= FI_TRUCK_MAX) nu();
+            const take = Math.min(n, FI_TRUCK_MAX - cur.plt), x = { r, plt:take, split: take < whole || undefined, codeTot: tot > FI_TRUCK_MAX ? tot : undefined };
+            cur.pcs.push(x); cur.plt += take; pcs.push(x); n -= take; } });
       });
+      const trucks = [];   // build 372: 같은 카테고리끼리 먼저 채움
+      const put = (t, u)=>{ u.pcs.forEach(x=> t.items.push(x)); t.plt += u.plt; (t._u = t._u || []).push(u); };
+      units.sort((a,b)=> b.plt-a.plt || a.i-b.i).forEach(u=>{
+        let t = trucks.find(t=> t.plt + u.plt <= FI_TRUCK_MAX && t._u[0].cat === u.cat);
+        if(!t){ t = { date:g.date, ampm:g.ampm, time:g.time, dest:g.dest, plt:0, items:[] }; trucks.push(t); }
+        put(t, u);
+      });
+      // build 383: 같은 카테고리로 채운 뒤 빈자리 — 작은 차의 건(입차CODE 통째)을 다른 차 빈자리로 옮겨 차 한 대를 줄일 수 있으면 옮김(같은 카테고리 차 먼저)
+      let moved = true;
+      while(moved && trucks.length > 1){
+        moved = false;
+        for(const s of trucks.slice().sort((a,b)=> a.plt-b.plt)){
+          const others = trucks.filter(t=> t!==s), room = new Map(others.map(t=> [t, FI_TRUCK_MAX - t.plt])), plan = [];
+          const ok = s._u.slice().sort((a,b)=> b.plt-a.plt).every(u=>{
+            const c = others.filter(t=> room.get(t) >= u.plt).sort((a,b)=> ((b._u[0].cat===u.cat)-(a._u[0].cat===u.cat)) || room.get(a)-room.get(b))[0];
+            if(!c) return false; room.set(c, room.get(c) - u.plt); plan.push([c, u]); return true; });
+          if(!ok) continue;
+          plan.forEach(([c,u])=> put(c, u)); trucks.splice(trucks.indexOf(s), 1); moved = true; break;
+        }
+      }
+      trucks.forEach(t=> delete t._u);
       trucks.forEach(t=>{ t.fcs = fcs.filter(f=> t.items.some(x=> x.r._fc===f)); t.fc = t.fcs.join(" + "); out.push(t); });
     });
   });
