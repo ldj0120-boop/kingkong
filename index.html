@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 379 · 2026-11-25</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 381 · 2026-11-25</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21795,7 +21795,7 @@ function fiTruckBlock(ws, rows, r0, border){
   let r = r0;
   const nM = R.filter(o=> /^합적/.test(o.합적)).length;
   const t0 = ws.getCell(r, C0); t0.value = `🚚 배차요청서 (합적) — 총 ${T.length}대 · ${T.reduce((s,x)=>s+x.plt,0)}PLT  (합적 ${nM}대 · 1대 최대 ${FI_TRUCK_MAX}PLT · 같은 출고일 · 시간 · 도착지 + 상차 FC 같거나 근처 ${FI_NEAR_KM}km 안)`; t0.font = F(12,true); r++;
-  const H = ["차량","출고시간","상차지(FC)","도착지","Group Number","PLT","차량 합계","합적","카테.","비고"];
+  const H = ["차량","출고시간","상차지(FC)","도착지","Group Number","PLT","차량 합계","합적","카테.","비고 ※ Group No별 구분 하차"];   // build 380: 사용자 양식
   H.forEach((tx,i)=>{ const c = ws.getCell(r, C0+i); c.value = tx; c.font = F(10,true); c.alignment = { horizontal:"center", vertical:"middle" }; c.border = border; c.fill = fill("FFF2F2F2"); });
   ws.mergeCells(r, C0+9, r, C0+10); ws.getCell(r, C0+10).border = border; r++;
   T.forEach((t,ti)=>{
@@ -21809,8 +21809,7 @@ function fiTruckBlock(ws, rows, r0, border){
       const dIdx = t.drops ? t.drops.indexOf(String(x.r.dest||"").trim()) : -1;
       if(t.items.length > 1){   // build 376: 줄마다 "이 Group No → 어디 하차"(물류회사 기준), 괄호 낙찰NO
         const mixed = fiTruckCats(t).length > 1;
-        note = [`${t.drops ? `${dIdx+1}차 ` : ""}${String(x.r.dest||t.dest||"").trim()} 하차 (낙찰 ${fiTruckBno(x)})${mixed ? " · "+cat+" 구분" : ""}`, note].filter(Boolean).join(" · ");
-        if(x === t.items[0]) note = `※ Group No별 구분 하차\n` + note;
+        note = [`${t.drops ? `${dIdx+1}차 ` : ""}${String(x.r.dest||t.dest||"").trim()} 하차 (낙찰 ${fiTruckBno(x)})${t.drops ? ` / ${gno}` : ""}${mixed ? " · "+cat+" 구분" : ""}`, note].filter(Boolean).join(" · ");   // build 380: 사용자 양식
       }
       const v = [o.차량, o.출고일 ? `${o.출고일.slice(5)} ${o.출고시간}` : o.출고시간, x.r._fc||"", t.drops ? `${dIdx+1}차 ${x.r.dest}` : o.도착지, /^\d+$/.test(gno) ? +gno : gno, x.unk ? null : x.plt, t.plt, o.합적, cat, note, null];
       v.forEach((val,ci)=>{ const c = ws.getCell(r, C0+ci); c.value = val===""||val==null ? null : val; c.font = F(11, ci===0||ci===6, ci===9 && val ? "FFC00000" : null);
