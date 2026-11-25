@@ -1945,7 +1945,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 375 · 2026-11-25</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 376 · 2026-11-25</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21626,16 +21626,16 @@ function fiTruckDestPairMerge(out){
   }
 }
 /* build 372: 합적 차 비고 코멘트 — 하차 시 입차코드별 PLT 분류(하차지별) + 같은/다른 카테고리 */
-function fiTruckUnloadNote(t){   // build 375: 낙찰NO 기준 · 짧게
+function fiTruckBno(x){ try{ return fiBidNoOf(x.r) || x.r.bidcode || "?"; }catch(_){ return x.r.bidcode || "?"; } }
+/* build 376: 물류회사 기준 — 하차지마다 어떤 Group No를 몇 PLT 내리는지(괄호에 낙찰NO = 받는 곳 확인용) */
+function fiTruckUnloadNote(t){
   if(t.items.length < 2) return "";
   const cats = fiTruckCats(t), mixed = cats.length > 1, drops = t.drops || [String(t.dest||"").trim()];
-  const bno = x=>{ try{ return fiBidNoOf(x.r) || x.r.bidcode || "?"; }catch(_){ return x.r.bidcode || "?"; } };
   const parts = drops.map((d,i)=>{
-    const m = new Map(); t.items.filter(x=> !t.drops || String(x.r.dest||"").trim()===d).forEach(x=>{ const k = bno(x) + (mixed ? `(${fiTruckCat(x)||"-"})` : ""); m.set(k, (m.get(k)||0) + x.plt); });
-    return `${t.drops ? `${i+1}차 ` : ""}${Array.from(m).map(([k,n])=> `${k} ${n}PLT`).join(" / ")}`;
+    const m = new Map(); t.items.filter(x=> !t.drops || String(x.r.dest||"").trim()===d).forEach(x=>{ const k = fiTruckGno(x.r); const o = m.get(k) || { n:0, b:fiTruckBno(x), c:fiTruckCat(x) }; o.n += x.plt; m.set(k, o); });
+    return `${t.drops ? `${i+1}차 ` : ""}${d}: ` + Array.from(m).map(([g,o])=> `${g} ${o.n}PLT${mixed ? " "+o.c : ""}(낙찰 ${o.b})`).join(" / ");
   });
-  const head = mixed ? `혼합 ${cats.map(c=> `${c} ${t.items.filter(x=> fiTruckCat(x)===c).reduce((s,x)=>s+x.plt,0)}`).join("·")}` : `동일 ${cats[0]||"-"}`;
-  return `입차코드별 분류하차 · ${head} · 낙찰NO ${parts.join(" | ")}`;   // build 375 (사용자): 짧게
+  return `Group No별 구분 하차${mixed ? " · 카테고리 혼합" : ""} ▶ ` + parts.join(" ▶ ");
 }
 function fiTruckPlan(rows){
   const ak = v=> v==="오전" ? 0 : v==="오후" ? 1 : 2;
@@ -21701,7 +21701,7 @@ function fiTruckRows(trucks){
     const warn = t.items.some(x=> x.unk) ? " ※PLT 확인" : "";
     return { 차량:`${t.no}호차`, 출고일: t.date ? `${t.date}(${fiDispWeekday(t.date)})` : "", 출고시간:`${t.ampm} ${t.time}`.replace(/\s+/g," ").trim(),
       상차지:t.fc, 도착지:t.dest||"(도착지 미정)", PLT:t.plt, 합적: t.items.length>1 ? `합적 ${t.items.length}건${(t.fcs||[]).length>1?` · 상차 ${t.fcs.length}곳`:""}${t.ampmNote?(t.ampmCross?" · 오전→오후 추천":" · 오전→오후"):""}${t.drops?` · 하차 ${t.drops.length}곳(동선)`:""}${fiTruckCats(t).length>1?" · 다른 카테고리":""}` : (t.items[0] && t.items[0].split ? "분할" : "단독"), 카테:cats,
-      비고: "Group No " + Array.from(codes).map(([c,n])=> many ? `${c} (${n}PLT)` : c).join(" / ") + warn + (fiTruckUnloadNote(t) ? ` ※ ${fiTruckUnloadNote(t)}` : "") + (t.ampmNote ? ` ※ ${t.ampmNote}` : "") };   // build 375: 동선 문구 뺌(도착지 칸에 1차/2차)
+      비고: (fiTruckUnloadNote(t) || ("Group No " + Array.from(codes).map(([c,n])=> many ? `${c} (${n}PLT)` : c).join(" / "))) + warn + (t.ampmNote ? ` ※ ${t.ampmNote}` : "") };   // build 376   // build 375: 동선 문구 뺌(도착지 칸에 1차/2차)
   });
 }
 const FI_TRUCK_HDR = ["차량","출고일","출고시간","상차지(FC)","도착지","PLT","합적","카테.","비고 (Group Number)"];
@@ -21744,8 +21744,12 @@ function fiTruckBlock(ws, rows, r0, border){
       let note = x.unk ? "※PLT 확인" : x.split ? `분할 (전체 ${+x.r.pallets||0}PLT)` : "";
       if(t.ampmNote) note = [x.fromAm ? "오전 요청분" : "오후 요청분", note].filter(Boolean).join(" · ") + (x === t.items[0] ? `\n※ ${t.ampmNote}` : "");
       const gno = fiTruckGno(x.r);
-      if(x === t.items[0] && fiTruckUnloadNote(t)) note = [note, `※ ${fiTruckUnloadNote(t)}`].filter(Boolean).join("\n");   // build 372
       const dIdx = t.drops ? t.drops.indexOf(String(x.r.dest||"").trim()) : -1;
+      if(t.items.length > 1){   // build 376: 줄마다 "이 Group No → 어디 하차"(물류회사 기준), 괄호 낙찰NO
+        const mixed = fiTruckCats(t).length > 1;
+        note = [`${t.drops ? `${dIdx+1}차 ` : ""}${String(x.r.dest||t.dest||"").trim()} 하차 (낙찰 ${fiTruckBno(x)})${mixed ? " · "+cat+" 구분" : ""}`, note].filter(Boolean).join(" · ");
+        if(x === t.items[0]) note = `※ Group No별 구분 하차\n` + note;
+      }
       const v = [o.차량, o.출고일 ? `${o.출고일.slice(5)} ${o.출고시간}` : o.출고시간, x.r._fc||"", t.drops ? `${dIdx+1}차 ${x.r.dest}` : o.도착지, /^\d+$/.test(gno) ? +gno : gno, x.unk ? null : x.plt, t.plt, o.합적, cat, note, null];
       v.forEach((val,ci)=>{ const c = ws.getCell(r, C0+ci); c.value = val===""||val==null ? null : val; c.font = F(11, ci===0||ci===6, ci===9 && val ? "FFC00000" : null);
         c.alignment = { horizontal: ci===9 ? "left" : "center", vertical:"middle", wrapText: ci===9 }; c.border = border; if(mix) c.fill = fill("FFFFF2CC"); });
