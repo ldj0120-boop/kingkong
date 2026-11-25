@@ -1945,7 +1945,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 376 · 2026-11-25</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 377 · 2026-11-25</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -22346,10 +22346,12 @@ async function lsBuild(ff, u8, srcName, TPL, prog, opt){
   })();
   // ---- 피벗 캐시 · 피벗 테이블 (Excel이 열 때 새로 고침 → 실제 피벗으로 동작)
   var lastRawRow=A.maxRow+1;
-  var fieldNames=[]; for(var fi=0;fi<=19;fi++) fieldNames.push(A.hdr[fi]==null?("열"+(fi+1)):String(A.hdr[fi]).trim());
+  var rawNF=0; while(rawNF<20 && A.hdr[rawNF]!=null && String(A.hdr[rawNF]).trim()!=="") rawNF++;   // build 377: 머리글이 이어진 열까지만(빈 머리글 칸이 피벗 범위에 들어가면 엑셀 "피벗 테이블 필드 이름이 잘못" 오류)
+  if(rawNF<19) rawNF=20;   // 예전 방식 유지(머리글이 일찍 끊긴 이상한 원본)
+  var fieldNames=[]; for(var fi=0;fi<rawNF;fi++) fieldNames.push(A.hdr[fi]==null?("열"+(fi+1)):String(A.hdr[fi]).trim());
   var seen={}; fieldNames=fieldNames.map(function(n){ var b=n||"열", k=b, j=2; while(seen[k]) k=b+j++; seen[k]=1; return k; });
   var F_NO=fieldNames.indexOf("NO."), F_C2=fieldNames.indexOf("CATE2"), F_C4=fieldNames.indexOf("CATE4"), F_Q=fieldNames.indexOf("QUANTITY"), F_S=fieldNames.indexOf("Sales_Price (VAT X)");
-  addText("xl/pivotCache/pivotCacheDefinition1.xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotCacheDefinition '+LS_NS+' r:id="rId1" refreshOnLoad="1" createdVersion="6" refreshedVersion="6" minRefreshableVersion="3" recordCount="0"><cacheSource type="worksheet"><worksheetSource ref="A2:T'+lastRawRow+'" sheet="RAW"/></cacheSource><cacheFields count="'+fieldNames.length+'">'+fieldNames.map(function(n){ return '<cacheField name="'+lsX(n)+'" numFmtId="0"><sharedItems/></cacheField>'; }).join("")+'</cacheFields></pivotCacheDefinition>');
+  addText("xl/pivotCache/pivotCacheDefinition1.xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotCacheDefinition '+LS_NS+' r:id="rId1" refreshOnLoad="1" createdVersion="6" refreshedVersion="6" minRefreshableVersion="3" recordCount="0"><cacheSource type="worksheet"><worksheetSource ref="A2:'+lsCol(rawNF-1)+lastRawRow+'" sheet="RAW"/></cacheSource><cacheFields count="'+fieldNames.length+'">'+fieldNames.map(function(n){ return '<cacheField name="'+lsX(n)+'" numFmtId="0"><sharedItems/></cacheField>'; }).join("")+'</cacheFields></pivotCacheDefinition>');
   addText("xl/pivotCache/pivotCacheRecords1.xml",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<pivotCacheRecords '+LS_NS+' count="0"/>');
   addText("xl/pivotCache/_rels/pivotCacheDefinition1.xml.rels",'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/pivotCacheRecords" Target="pivotCacheRecords1.xml"/></Relationships>');
   function pivotXml(name, rowsF, colsF, dataF, loc){
