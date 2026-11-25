@@ -21636,7 +21636,7 @@ function fiTruckUnloadNote(t){
     const m = new Map(); t.items.filter(x=> !t.drops || String(x.r.dest||"").trim()===d).forEach(x=>{ const k = fiTruckGno(x.r); const o = m.get(k) || { n:0, b:fiTruckBno(x), c:fiTruckCat(x) }; o.n += x.plt; m.set(k, o); });
     Array.from(m).forEach(([g,o])=> lines.push(`${t.drops ? `${i+1}차 ` : ""}${d} — Group ${g} · 낙찰 ${o.b} · ${o.n}PLT${mixed ? " · "+o.c : ""}`));
   });
-  return lines.join("\n");
+  return ["※ 하차 시 낙찰No 구분 필수"].concat(lines).join("\n");   // build 378: 맨 위 주의 문구(사용자 지정)
 }
 function fiTruckPlan(rows){
   const ak = v=> v==="오전" ? 0 : v==="오후" ? 1 : 2;
