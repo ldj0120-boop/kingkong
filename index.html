@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 394 · 2026-11-26</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 395 · 2026-11-26</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21722,35 +21722,39 @@ function fiFcKm2(A, B){ const R = 6371, rad = x=> x*Math.PI/180, dLa = rad(B[0]-
   const h = Math.sin(dLa/2)**2 + Math.cos(rad(A[0]))*Math.cos(rad(B[0]))*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
 function fiTruckCat(x){ return x ? (/^XLD$/i.test(String(x.r.type||"")) ? "기저귀/분유" : String(x.r.typeSub||x.r.type||"")) : ""; }
 function fiTruckCats(t){ return [...new Set(t.items.map(fiTruckCat).filter(Boolean))]; }
+function fiRouteKm(fcs, ds){ const F = fiFcGeo((fcs||[])[0]); if(!F) return Infinity; let t = 0, prev = F; for(const d of ds){ const g = fiDestGeo(d); if(!g) return Infinity; t += fiFcKm2(prev, g); prev = g; } return t; }
 function fiTruckRouteMerge(out, sameCat){
   const same = (a,b)=> a.date===b.date && a.ampm===b.ampm && String(a.time||"")===String(b.time||"") && (a.fcs||[]).join("|")===(b.fcs||[]).join("|") && (a.fcs||[]).length>=1;
   const catEq = (a,b)=>{ const x = fiTruckCats(a), y = fiTruckCats(b); return x.length===1 && y.length===1 && x[0]===y[0]; };
+  // build 395: 짝 고르기 = 전체에서 가장 이득 큰 짝부터(같은 하차지 먼저 → 따로 갈 때보다 줄어드는 거리(km)가 큰 짝 → 꽉 차는 짝).
+  //   예전엔 PLT 큰 차부터 처음 걸리는 짝을 골라 아산+김포 · 안중+양주처럼 먼 곳끼리 묶이기도 했음 → 아산+안중 · 김포+양주
   let changed = true;
   while(changed){
     changed = false;
-    const live = out.filter(t=> !t._gone && t.dest).sort((a,b)=> b.plt-a.plt);
-    for(const t of live){
-      if(t._gone) continue;
-      let best = null, bestOrd = null, bestN = 9;
-      live.forEach(u=>{
-        if(u===t || u._gone || !same(t,u) || t.plt + u.plt > FI_TRUCK_MAX) return;
-        if(sameCat && !catEq(t,u)) return;
-        const ds = [...new Set([...fiTruckDests(t), ...fiTruckDests(u)])];
-        if(ds.length > FI_ROUTE_MAXDROP) return;
-        const ord = ds.length===1 ? null : fiRouteOrder(t.fcs, ds); if(ds.length>1 && !ord) return;
-        // 같은 하차지 먼저, 그다음 PLT 많은(꽉 차는) 차
-        if(!best || ds.length < bestN || (ds.length===bestN && u.plt > best.plt)){ best = u; bestOrd = ord; bestN = ds.length; }
-      });
-      if(!best) continue;
-      best.items.forEach(x=> t.items.push(x)); t.plt += best.plt; best._gone = true;
-      if(best.ampmNote) t.ampmNote = [t.ampmNote, best.ampmNote].filter(Boolean).join(" / "), t.ampmCross = t.ampmCross || best.ampmCross;
-      t.fcs = [...new Set([...(t.fcs||[]), ...(best.fcs||[])])]; t.fc = t.fcs.join(" + ");
-      if(bestOrd){
-        t.drops = bestOrd; t.dest = bestOrd.map((d,i)=> `${d}(${i+1}차)`).join(" → ");
-        t.routeNote = `${t.fc} → ` + bestOrd.map((d,i)=> `${i+1}차 ${d} ${t.items.filter(x=> String(x.r.dest||"").trim()===d).reduce((s,x)=> s+x.plt,0)}PLT`).join(" → ") + " 동선 합적";
-      }
-      changed = true;
+    const live = out.filter(t=> !t._gone && t.dest);
+    let best = null;
+    for(let i=0;i<live.length;i++) for(let j=i+1;j<live.length;j++){
+      const t = live[i], u = live[j];
+      if(!same(t,u) || t.plt + u.plt > FI_TRUCK_MAX) continue;
+      if(sameCat && !catEq(t,u)) continue;
+      const ds = [...new Set([...fiTruckDests(t), ...fiTruckDests(u)])];
+      if(ds.length > FI_ROUTE_MAXDROP) continue;
+      const ord = ds.length===1 ? null : fiRouteOrder(t.fcs, ds); if(ds.length>1 && !ord) continue;
+      const save = ds.length===1 ? Infinity : (fiRouteKm(t.fcs, fiTruckDests(t)) + fiRouteKm(u.fcs, fiTruckDests(u)) - fiRouteKm(t.fcs, ord));
+      const c = { t, u, ord, n:ds.length, save: isFinite(save) || save===Infinity ? save : -1e9, plt:t.plt+u.plt };
+      if(!best || c.n < best.n || (c.n===best.n && (c.save > best.save + 1e-6 || (Math.abs(c.save-best.save)<=1e-6 && c.plt > best.plt)))) best = c;
     }
+    if(!best) break;
+    let { t, u: bst, ord: bestOrd } = best;
+    if(bst.plt > t.plt){ const k = t; t = bst; bst = k; }   // 큰 차에 붙임(예전과 같음)
+    bst.items.forEach(x=> t.items.push(x)); t.plt += bst.plt; bst._gone = true;
+    if(bst.ampmNote) t.ampmNote = [t.ampmNote, bst.ampmNote].filter(Boolean).join(" / "), t.ampmCross = t.ampmCross || bst.ampmCross;
+    t.fcs = [...new Set([...(t.fcs||[]), ...(bst.fcs||[])])]; t.fc = t.fcs.join(" + ");
+    if(bestOrd){
+      t.drops = bestOrd; t.dest = bestOrd.map((d,i)=> `${d}(${i+1}차)`).join(" → ");
+      t.routeNote = `${t.fc} → ` + bestOrd.map((d,i)=> `${i+1}차 ${d} ${t.items.filter(x=> String(x.r.dest||"").trim()===d).reduce((s,x)=> s+x.plt,0)}PLT`).join(" → ") + " 동선 합적";
+    }
+    changed = true;
     for(let i=out.length-1;i>=0;i--) if(out[i]._gone) out.splice(i,1);
   }
 }
