@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 387 · 2026-11-26</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 388 · 2026-11-26</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21205,6 +21205,11 @@ function fiDispDestOptions(r){
   const D = fiDestStock(), tl = String(t).toUpperCase()==="임박" ? "임박" : String(t).toUpperCase();
   const info = s=>{ const v = fiDestStockOf(s, t), k = r.fc ? fiKmTo(r.fc, s) : null;   // build 209
     return (v!=null ? ` · ${tl} ${Math.round(v*10)/10}PLT` : "") + (k!=null ? ` · ${k}km` : ""); };
+  if(r.fc){   // build 388: 도착지 목록 = 상차 FC에서 가까운 순(거리 모르는 곳은 맨 아래, 원래 순서 유지)
+    const km = new Map(); const kOf = s=>{ if(!km.has(s)){ const k = fiKmTo(r.fc, s); km.set(s, k==null||isNaN(+k) ? Infinity : +k); } return km.get(s); };
+    const byKm = arr=> arr.map((s,i)=>[s,i]).sort((x,y)=> (kOf(x[0])-kOf(y[0])) || (x[1]-y[1])).map(x=>x[0]);
+    top.splice(0, top.length, ...byKm(top)); all.splice(0, all.length, ...byKm(all));
+  }
   const opt = s=>`<option value="${escHtml(s)}" ${s===cur?"selected":""}>${escHtml(s+info(s)+(FI_CLOSING.includes(s)?" (폐점예정)":""))}</option>`;
   const basis = (D.snap ? ` — 재고 ${String(D.snap.date||"").slice(0,10)} 기준` : " — 매장재고 없음") + (r.fc ? ` · ${fiCenterName(r.fc)||r.fc}에서 거리` : "");
   return `<option value="" ${cur?"":"selected"}>(선택)</option>`
