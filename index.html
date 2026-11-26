@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 395 · 2026-11-26</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 396 · 2026-11-26</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21820,7 +21820,13 @@ function fiTruckPlan(rows){
     // 상차 FC 묶기: 모든 FC끼리 FI_NEAR_KM 이내인 묶음(멀리 이어붙지 않게). PLT 많은 FC부터.
     const plt = {}; g.rows.forEach(r=>{ plt[r._fc] = (plt[r._fc]||0) + (+r.pallets||0); });
     const cl = [];
-    Object.keys(plt).sort((a,b)=> plt[b]-plt[a] || a.localeCompare(b)).forEach(fc=>{ const c = cl.find(c=> c.every(x=> fiFcKm(x, fc) <= FI_NEAR_KM)); if(c) c.push(fc); else cl.push([fc]); });
+    // build 396: 가까운 센터끼리 먼저 — 모든 묶음 쌍 중 '가장 먼 두 센터 거리'가 가장 짧은 쌍부터 합침(FI_NEAR_KM 안). 예전: PLT 많은 순서로 처음 맞는 묶음에 넣음
+    const ord0 = Object.keys(plt).sort((a,b)=> plt[b]-plt[a] || a.localeCompare(b));
+    ord0.forEach(fc=> cl.push([fc]));
+    for(;;){ let bi = -1, bj = -1, bd = Infinity;
+      for(let i=0;i<cl.length;i++) for(let j=i+1;j<cl.length;j++){ let d = 0; for(const x of cl[i]) for(const y of cl[j]) d = Math.max(d, fiFcKm(x, y)); if(d <= FI_NEAR_KM && d < bd){ bd = d; bi = i; bj = j; } }
+      if(bi < 0) break; cl[bi] = cl[bi].concat(cl[bj]).sort((a,b)=> ord0.indexOf(a)-ord0.indexOf(b)); cl.splice(bj, 1); }
+    cl.sort((a,b)=> ord0.indexOf(a[0]) - ord0.indexOf(b[0]));
     cl.forEach(fcs=>{
       // build 384 (사용자): 상차지는 입차CODE별로 물건을 분류(1PLT ~ 100PLT 넘게, 평균 9PLT). 입차CODE 하나 = 한 묶음.
       //  18PLT 이하 → 통째로 한 차. 18PLT 넘으면 18PLT씩 꽉 찬 차 + 남은 PLT 한 묶음(남은 건 다른 입차CODE와 합적 가능). 줄(Group)은 18 경계에서만 나눔.
