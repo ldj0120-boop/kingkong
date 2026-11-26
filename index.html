@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 390 · 2026-11-26</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 391 · 2026-11-26</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21881,7 +21881,7 @@ function fiTruckHtml(rows){
   const R = fiTruckRows(T);
   return `<div class="fi-sec-t">🚚 배차요청서 (합적 · 1대 최대 ${FI_TRUCK_MAX}PLT) <span class="fi-mut">${T.length}대 · ${T.reduce((s,t)=>s+t.plt,0)}PLT · 같은 출고일 · 시간 · 도착지 + 상차 FC 같거나 근처(${FI_NEAR_KM}km 안)면 한 차</span></div>
   <div class="fi-xprev"><table><thead><tr>${FI_TRUCK_HDR.map(x=>`<th>${escHtml(x)}</th>`).join("")}</tr></thead><tbody>
-  ${R.map((o,i)=>`${i>0 && (T[i-1].date!==T[i].date || T[i-1].fc!==T[i].fc) ? `<tr><td colspan="${FI_TRUCK_KEYS.length}" style="height:10px;border:none;background:transparent"></td></tr>` : ""}<tr${/^합적/.test(o.합적)?' style="background:#FFF7D6"':""}>${FI_TRUCK_KEYS.map(k=>`<td${k==="비고"?' style="text-align:left;white-space:pre-line;min-width:220px"':k==="입차CODE"?' style="white-space:pre-line"':""}>${escHtml(o[k]==null?"":o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  ${R.map((o,i)=>`${i>0 && (T[i-1].date!==T[i].date || T[i-1].fc!==T[i].fc) ? `<tr><td colspan="${FI_TRUCK_KEYS.length}" style="height:10px;border:none;background:transparent"></td></tr>` : ""}<tr${/^합적/.test(o.합적)?' style="background:#FFF7D6"':""}>${FI_TRUCK_KEYS.map(k=>`<td${k==="출고시간"&&/오[전후]/.test(o.출고시간)?` style="background:${/오전/.test(o.출고시간)?"#DDEBF7":"#FFFF99"}"`:k==="비고"?' style="text-align:left;white-space:pre-line;min-width:220px"':k==="입차CODE"?' style="white-space:pre-line"':""}>${escHtml(o[k]==null?"":o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 function fiTruckText(rows){
   const T = fiTruckPlan(rows); if(!T.length) return "";
@@ -21921,7 +21921,8 @@ function fiTruckBlock(ws, rows, r0, border){
       }
       const v = [o.차량, o.출고일 ? `${o.출고일.slice(5)} ${o.출고시간}` : o.출고시간, x.r._fc||"", String(x.r.bidcode||"").trim(), t.drops ? `${dIdx+1}차 ${x.r.dest}` : o.도착지, /^\d+$/.test(gno) ? +gno : gno, x.unk ? null : x.plt, t.plt, o.합적, cat, note, null];
       v.forEach((val,ci)=>{ const c = ws.getCell(r, C0+ci); c.value = val===""||val==null ? null : val; c.font = F(11, ci===0||ci===7, ci===10 && val ? "FFC00000" : null);
-        c.alignment = { horizontal: ci===10 ? "left" : "center", vertical:"middle", wrapText: ci===10 }; c.border = border; if(mix) c.fill = fill("FFFFF2CC"); });
+        c.alignment = { horizontal: ci===10 ? "left" : "center", vertical:"middle", wrapText: ci===10 }; c.border = border; if(mix) c.fill = fill("FFFFF2CC");
+        if(ci===1){ const ap = /오전/.test(o.출고시간) ? "FFDDEBF7" : /오후/.test(o.출고시간) ? "FFFFFF99" : ""; if(ap) c.fill = fill(ap); } });   // build 391: 출고시간 칸 오전=옅은 파랑 · 오후=옅은 노랑
       ws.mergeCells(r, C0+10, r, C0+11);
       if(x === t.items[0]){ const nl = String(note||"").split("\n").length + Math.floor(String(note||"").length/45); if(nl > 1) ws.getRow(r).height = Math.min(120, 15*nl+3); }   // build 372
       r++;
