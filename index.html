@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 399 · 2026-11-26</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 400 · 2026-11-26</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -20616,7 +20616,7 @@ function fiDispText(rows, meta){
   const by = {};
   rows.forEach(r=>{ const k=(r.outboundDate||"")+" "+(r.outboundAmPm||""); (by[k]=by[k]||[]).push(r); });
   const out = [];
-  const types = Array.from(new Set(rows.map(r=>r.typeSub||r.type).filter(Boolean)));   // build 202: XLGD 그대로
+  const types = Array.from(new Set(rows.map(r=> fiCatLabel(r)).filter(Boolean)));   // build 202: XLGD 그대로 · build 400: XLS = 물/탄산수
   out.push(`[배차 요청] ${types.join("·")||""} ${rows.length}건 / 총 ${rows.reduce((s,r)=>s+(+r.pallets||0),0)}PLT`.replace(/\s+/g," ").trim());
   if(meta && meta.note) out.push(`※ ${meta.note}`);
   out.push("");
@@ -21291,7 +21291,7 @@ function fiDispSheetRows(rows){
     GroupNumber: r.numFull ? r.numFull : /^\d+$/.test(String(r.number||"")) ? +r.number : (r.number||""),   // build 169: 메일 NUMBER 전체
     PLT: r.pallets==null||r.pallets==="" ? "" : +r.pallets,
     출고일시: `${r.outboundDate||""} ${r.outboundAmPm||""} ${r.outTime||""}`.replace(/\s+/g," ").trim(),   // build 196: "오전 11시"
-    FC: fiCenterName(r.fc)||r.fc, 주소:r.addr||"", 담당자:r.person||"", 연락처:r.phone||"", 도착지:r.dest||"", 카테: /^XLD$/i.test(String(r.type||"")) ? "기저귀/분유" : (r.typeSub||r.type||""),   // build 198: XLD → 기저귀/분유(사용자 배차표와 같음)
+    FC: fiCenterName(r.fc)||r.fc, 주소:r.addr||"", 담당자:r.person||"", 연락처:r.phone||"", 도착지:r.dest||"", 카테: fiCatLabel(r),   // build 198: XLD → 기저귀/분유(사용자 배차표와 같음)
     적재물: fiLoadOf(r),   // build 305
     비고: fiRemarkOf(r)
   }));
@@ -21733,7 +21733,9 @@ function fiRouteOrder(fcs, dests){
 }
 function fiFcKm2(A, B){ const R = 6371, rad = x=> x*Math.PI/180, dLa = rad(B[0]-A[0]), dLo = rad(B[1]-A[1]);
   const h = Math.sin(dLa/2)**2 + Math.cos(rad(A[0]))*Math.cos(rad(B[0]))*Math.sin(dLo/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
-function fiTruckCat(x){ return x ? (/^XLD$/i.test(String(x.r.type||"")) ? "기저귀/분유" : String(x.r.typeSub||x.r.type||"")) : ""; }
+/* build 400: 카테 표기 — XLD = 기저귀/분유, XLS = 물/탄산수(사용자), 그 외 세부유형 · 유형 */
+function fiCatLabel(r){ const t = String((r&&r.type)||"").trim(); if(/^XLD$/i.test(t)) return "기저귀/분유"; if(/^XLS$/i.test(t)) return "물/탄산수"; return String((r&&(r.typeSub||r.type))||""); }
+function fiTruckCat(x){ return x ? fiCatLabel(x.r) : ""; }
 function fiTruckCats(t){ return [...new Set(t.items.map(fiTruckCat).filter(Boolean))]; }
 function fiRouteKm(fcs, ds){ const F = fiFcGeo((fcs||[])[0]); if(!F) return Infinity; let t = 0, prev = F; for(const d of ds){ const g = fiDestGeo(d); if(!g) return Infinity; t += fiFcKm2(prev, g); prev = g; } return t; }
 function fiTruckRouteMerge(out, sameCat, cross){
@@ -21925,7 +21927,7 @@ function fiTruckRows(trucks){
     const codes = new Map(), mfc = (t.fcs||[]).length > 1;   // 입차코드별 PLT (build 363: 상차지 여러 곳이면 코드 옆에 FC)
     (t.drops ? t.items.slice().sort((a,b)=> t.drops.indexOf(String(a.r.dest||"").trim()) - t.drops.indexOf(String(b.r.dest||"").trim())) : t.items).forEach(x=>{ const c = fiTruckGno(x.r) + (mfc ? ` ${x.r._fc}` : ""); codes.set(c, (codes.get(c)||0) + x.plt); });   // build 375: 1차 하차부터
     const many = codes.size > 1;
-    const cats = [...new Set(t.items.map(x=> /^XLD$/i.test(String(x.r.type||"")) ? "기저귀/분유" : (x.r.typeSub||x.r.type||"")).filter(Boolean))].join("·");
+    const cats = [...new Set(t.items.map(x=> fiCatLabel(x.r)).filter(Boolean))].join("·");
     const warn = t.items.some(x=> x.unk) ? " ※PLT 확인" : "";
     const icodes = [...new Set((t.drops ? t.items.slice().sort((a,b)=> t.drops.indexOf(String(a.r.dest||"").trim()) - t.drops.indexOf(String(b.r.dest||"").trim())) : t.items).map(x=> String(x.r.bidcode||"").trim()).filter(Boolean))].join("\n");   // build 387: 입차CODE 칸
     return { 차량:`${t.no}호차`, 입차CODE:icodes, 출고일: t.date ? `${t.date}(${fiDispWeekday(t.date)})` : "", 출고시간:`${t.ampm} ${t.time}`.replace(/\s+/g," ").trim(),
@@ -21976,7 +21978,7 @@ function fiTruckBlock(ws, rows, r0, border, upRef){
     if(t.drops) t.items.sort((a,b)=> t.drops.indexOf(String(a.r.dest||"").trim()) - t.drops.indexOf(String(b.r.dest||"").trim()));   // build 369: 1차 하차부터
     const o = R[ti], mix = /^합적/.test(o.합적), top = r;
     t.items.forEach(x=>{
-      const cat = /^XLD$/i.test(String(x.r.type||"")) ? "기저귀/분유" : (x.r.typeSub||x.r.type||"");
+      const cat = fiCatLabel(x.r);
       let note = x.unk ? "※PLT 확인" : x.split ? `분할 (전체 ${+x.r.pallets||0}PLT)` : "";
       if(t.ampmNote) note = [x.fromAm ? "오전 요청분" : "오후 요청분", note].filter(Boolean).join(" · ") + (x === t.items[0] ? `\n※ ${t.ampmNote}` : "");
       const gno = fiTruckGno(x.r);
@@ -21995,7 +21997,7 @@ function fiTruckBlock(ws, rows, r0, border, upRef){
         v[4] = t.drops ? fx(`"${dIdx+1}차 "&${L("도착지")}`, v[4]) : fx(L("도착지"), v[4]);
         v[5] = fx(L("GroupNumber"), v[5]);
         if(!x.unk && !x.split) v[6] = fx(L("PLT"), v[6]);
-        v[9] = fx(L("카테"), v[9]);
+        { const k = L("카테"); v[9] = fx(`IF(${k}="XLS","물/탄산수",IF(${k}="XLD","기저귀/분유",${k}))`, v[9]); }   // build 400
         if(t.items.length > 1){ const mixed = fiTruckCats(t).length > 1, rest = String(note).split(" · ").slice(mixed?2:1).join(" · ");
           const head = String(note).split(" · ")[0];
           if(head === `${t.drops ? `${dIdx+1}차 ` : ""}${String(x.r.dest||t.dest||"").trim()} 하차 (낙찰 ${fiTruckBno(x)})${t.drops ? ` / ${gno}` : ""}` && x.r.dest)
