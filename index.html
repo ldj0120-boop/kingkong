@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 393 · 2026-11-26</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 394 · 2026-11-26</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21534,7 +21534,8 @@ async function fiComboWorkbook(C){
         row++;
       });
     });
-    try{ fiTruckBlock(ws, g.rows, row + 2, border); }catch(e){ console.warn("build 365 truck", e); }   // build 365: 배차요청(합적)은 같은 시트 아래에
+    const upRef = new Map(); fiOrderRows(g.rows).forEach((r,i)=> upRef.set(r, 4+i));   // build 394: 아래 배차요청 표가 위 출고요청서 칸을 수식으로 가리킴
+    try{ fiTruckBlock(ws, g.rows, row + 2, border, upRef); }catch(e){ console.warn("build 365 truck", e); }   // build 365: 배차요청(합적)은 같은 시트 아래에
     ws.views = [{ state:"frozen", ySplit:3 }];
   });
   if(!wb.worksheets.length) throw new Error("엑셀에 넣을 행이 없습니다.");
@@ -21808,7 +21809,7 @@ function fiTruckPlan(rows){
     const fc = String(fiCenterName(r.fc)||r.fc||"").trim(), dest = String(r.dest||"").trim();
     const k = [r.outboundDate||"", r.outboundAmPm||"", r.outTime||"", dest].join("|");
     if(!by.has(k)) by.set(k, { date:r.outboundDate||"", ampm:r.outboundAmPm||"", time:r.outTime||"", dest, rows:[] });
-    by.get(k).rows.push(Object.assign({}, r, { _fc: fc }));
+    by.get(k).rows.push(Object.assign({}, r, { _fc: fc, _src: r._src || r }));   // build 394: _src = 원래 행(엑셀 위 표 줄 찾기)
   });
   const out = [];
   Array.from(by.values()).sort((a,b)=> (a.date||"9999").localeCompare(b.date||"9999") || ak(a.ampm)-ak(b.ampm) || String(a.time).localeCompare(String(b.time)) || a.dest.localeCompare(b.dest)).forEach(g=>{
@@ -21921,7 +21922,8 @@ function fiTruckText(rows){
 }
 /* build 365: 배차요청(합적) = 출고요청서 시트 아래에 같이(따로 시트 없음). 건 하나 = 줄 하나, 차량 칸(차량 · 시간 · 도착지 · 합계 · 합적)은 세로로 합침.
    열은 출고요청서 열 폭에 맞춤: B 차량 | C 출고시간 | D 상차지 | E 도착지 | F Group Number | G PLT | H 차량 합계 | I 합적 | J 카테. | K:L 비고 */
-function fiTruckBlock(ws, rows, r0, border){
+function fiColL(n){ let s = ""; while(n>0){ const k = (n-1)%26; s = String.fromCharCode(65+k)+s; n = Math.floor((n-1)/26); } return s; }   // build 394: 열 번호(1=A) → 글자
+function fiTruckBlock(ws, rows, r0, border, upRef){
   const T = fiTruckPlan(rows); if(!T.length) return r0;
   const R = fiTruckRows(T);
   const F = (sz,bold,color)=> Object.assign({ name:"맑은 고딕", size:sz, bold:!!bold }, color ? { color:{ argb:color } } : {});
@@ -21929,7 +21931,12 @@ function fiTruckBlock(ws, rows, r0, border){
   const C0 = 2, NC = 12;   // build 387: 입차CODE 칸 추가
   let r = r0;
   const nM = R.filter(o=> /^합적/.test(o.합적)).length;
-  const t0 = ws.getCell(r, C0); t0.value = `🚚 배차요청서 (합적) — 총 ${T.length}대 · ${T.reduce((s,x)=>s+x.plt,0)}PLT  (합적 ${nM}대 · 1대 최대 ${FI_TRUCK_MAX}PLT · 같은 출고일 · 시간 · 도착지 + 상차 FC 같거나 근처 ${FI_NEAR_KM}km 안)`; t0.font = F(12,true); r++;
+  const t0 = ws.getCell(r, C0), tRow = r, t0txt = `🚚 배차요청서 (합적) — 총 ${T.length}대 · ${T.reduce((s,x)=>s+x.plt,0)}PLT  (합적 ${nM}대 · 1대 최대 ${FI_TRUCK_MAX}PLT · 같은 출고일 · 시간 · 도착지 + 상차 FC 같거나 근처 ${FI_NEAR_KM}km 안)`; t0.value = t0txt; t0.font = F(12,true); r++;
+  // build 394: 위 출고요청서 칸을 수식으로 — 위 표에서 FC · 입차CODE · 도착지 · Group No · PLT · 카테 · 출고일시를 고치면 아래도 같이 바뀜
+  const UL = k=> { const i = FI_DISP_KEYS.indexOf(k); return i<0 ? null : fiColL(2+i); };
+  const up = x=> (upRef && x && x.r && (upRef.get(x.r._src) || upRef.get(x.r))) || null;
+  const q = t=> String(t).replace(/"/g,'""').replace(/\n/g,'"&CHAR(10)&"');
+  const fx = (formula, result)=> ({ formula, result: result==null ? "" : result });
   const H = ["차량","출고시간","상차지(FC)","입차CODE","도착지","Group Number","PLT","차량 합계","합적","카테.","비고 ※ Group No별 구분 하차"];   // build 380: 사용자 양식
   H.forEach((tx,i)=>{ const c = ws.getCell(r, C0+i); c.value = tx; c.font = F(10,true); c.alignment = { horizontal:"center", vertical:"middle" }; c.border = border; c.fill = fill("FFF2F2F2"); });
   ws.mergeCells(r, C0+10, r, C0+11); ws.getCell(r, C0+11).border = border; r++;
@@ -21948,6 +21955,20 @@ function fiTruckBlock(ws, rows, r0, border){
         note = [`${t.drops ? `${dIdx+1}차 ` : ""}${String(x.r.dest||t.dest||"").trim()} 하차 (낙찰 ${fiTruckBno(x)})${t.drops ? ` / ${gno}` : ""}${mixed ? " · "+cat+" 구분" : ""}`, note].filter(Boolean).join(" · ");   // build 380: 사용자 양식
       }
       const v = [o.차량, o.출고일 ? `${o.출고일.slice(5)} ${o.출고시간}` : o.출고시간, x.r._fc||"", String(x.r.bidcode||"").trim(), t.drops ? `${dIdx+1}차 ${x.r.dest}` : o.도착지, /^\d+$/.test(gno) ? +gno : gno, x.unk ? null : x.plt, t.plt, o.합적, cat, note, null];
+      const ur = up(x);
+      if(ur){   // build 394
+        const L = k=> UL(k)+ur;
+        if(x === t.items[0] && o.출고일) { const h = L("출고일시"); v[1] = fx(`IFERROR(MID(${h},6,5)&"("&MID("일월화수목금토",WEEKDAY(DATEVALUE(LEFT(${h},10))),1)&")"&MID(${h},11,100),MID(${h},6,100))`, v[1]); }
+        v[2] = fx(L("FC"), v[2]); v[3] = fx(L("입차CODE"), v[3]);
+        v[4] = t.drops ? fx(`"${dIdx+1}차 "&${L("도착지")}`, v[4]) : fx(L("도착지"), v[4]);
+        v[5] = fx(L("GroupNumber"), v[5]);
+        if(!x.unk && !x.split) v[6] = fx(L("PLT"), v[6]);
+        v[9] = fx(L("카테"), v[9]);
+        if(t.items.length > 1){ const mixed = fiTruckCats(t).length > 1, rest = String(note).split(" · ").slice(mixed?2:1).join(" · ");
+          const head = String(note).split(" · ")[0];
+          if(head === `${t.drops ? `${dIdx+1}차 ` : ""}${String(x.r.dest||t.dest||"").trim()} 하차 (낙찰 ${fiTruckBno(x)})${t.drops ? ` / ${gno}` : ""}` && x.r.dest)
+            v[10] = fx(`"${t.drops ? `${dIdx+1}차 ` : ""}"&${L("도착지")}&" 하차 (낙찰 "&${L("낙찰NO")}&")"${t.drops ? `&" / "&${L("GroupNumber")}` : ""}${mixed ? `&" · "&${L("카테")}&" 구분"` : ""}${rest ? `&" · ${q(rest)}"` : ""}`, note); }
+      }
       v.forEach((val,ci)=>{ const c = ws.getCell(r, C0+ci); c.value = val===""||val==null ? null : val; c.font = F(11, ci===0||ci===7, ci===10 && val ? "FFC00000" : null);
         c.alignment = { horizontal: ci===10 ? "left" : "center", vertical:"middle", wrapText: ci===10 }; c.border = border; if(mix) c.fill = fill("FFFFF2CC");
         if(ci===1){ const ap = /오전/.test(o.출고시간) ? "FFDDEBF7" : /오후/.test(o.출고시간) ? "FFFFFF99" : ""; if(ap) c.fill = fill(ap); } });   // build 391: 출고시간 칸 오전=옅은 파랑 · 오후=옅은 노랑
@@ -21955,8 +21976,10 @@ function fiTruckBlock(ws, rows, r0, border){
       if(x === t.items[0]){ const nl = String(note||"").split("\n").length + Math.floor(String(note||"").length/45); if(nl > 1) ws.getRow(r).height = Math.min(120, 15*nl+3); }   // build 372
       r++;
     });
+    { const pc = fiColL(C0+6), c7 = ws.getCell(top, C0+7); c7.value = fx(`SUM(${pc}${top}:${pc}${r-1})`, t.plt); }   // build 394: 차량 합계 = 이 차 PLT 합
     if(r - top > 1) (t.drops ? [0,1,7,8] : [0,1,4,7,8]).forEach(ci=> ws.mergeCells(top, C0+ci, r-1, C0+ci));
   });
+  { const pc = fiColL(C0+6), hd = tRow+2; t0.value = fx(`"${q(t0txt.split(" — ")[0])} — 총 ${T.length}대 · "&SUM(${pc}${hd}:${pc}${r-1})&"PLT  ${q(t0txt.split("PLT  ")[1]||"")}"`, t0txt); }   // build 394: 총 PLT = 아래 PLT 칸 합
   return r;
 }
 function fiDispOutHtml(d){
