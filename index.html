@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 400 · 2026-11-26</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 401 · 2026-11-26</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21922,6 +21922,13 @@ function fiTruckPlan(rows){
   const seq = {}; out.forEach(t=>{ seq[t.date] = (seq[t.date]||0)+1; t.no = seq[t.date]; });
   return out;
 }
+/* build 401: 오전 건을 오후 차에 얹은 차 — 어느 건이 오전 · 오후인지 출고시간 칸에 표시 */
+function fiTruckAmPmLabel(t){
+  if(!t || !t.items.some(x=> x.fromAm)) return "";
+  const nm = x=> String(x.r.dest||t.dest||"").trim(), uq = a=> [...new Set(a)];
+  const am = uq(t.items.filter(x=> x.fromAm).map(nm)), pm = uq(t.items.filter(x=> !x.fromAm).map(nm));
+  return `오전: ${am.join("·")}\n오후: ${pm.join("·")}\n→ 오후 배차`;
+}
 function fiTruckRows(trucks){
   return trucks.map(t=>{
     const codes = new Map(), mfc = (t.fcs||[]).length > 1;   // 입차코드별 PLT (build 363: 상차지 여러 곳이면 코드 옆에 FC)
@@ -21930,7 +21937,7 @@ function fiTruckRows(trucks){
     const cats = [...new Set(t.items.map(x=> fiCatLabel(x.r)).filter(Boolean))].join("·");
     const warn = t.items.some(x=> x.unk) ? " ※PLT 확인" : "";
     const icodes = [...new Set((t.drops ? t.items.slice().sort((a,b)=> t.drops.indexOf(String(a.r.dest||"").trim()) - t.drops.indexOf(String(b.r.dest||"").trim())) : t.items).map(x=> String(x.r.bidcode||"").trim()).filter(Boolean))].join("\n");   // build 387: 입차CODE 칸
-    return { 차량:`${t.no}호차`, 입차CODE:icodes, 출고일: t.date ? `${t.date}(${fiDispWeekday(t.date)})` : "", 출고시간:`${t.ampm} ${t.time}`.replace(/\s+/g," ").trim(),
+    return { 차량:`${t.no}호차`, 입차CODE:icodes, 출고일: t.date ? `${t.date}(${fiDispWeekday(t.date)})` : "", 출고시간:`${t.ampm} ${t.time}`.replace(/\s+/g," ").trim(), 출고시간표: fiTruckAmPmLabel(t),
       상차지:t.fc, 도착지:t.dest||"(도착지 미정)", PLT:t.plt, 합적: t.items.length>1 ? `합적 ${t.items.length}건${(t.fcs||[]).length>1?` · 상차 ${t.fcs.length}곳`:""}${t.ampmNote?(t.ampmCross?" · 오전→오후 추천":" · 오전→오후"):""}${t.drops?` · 하차 ${t.drops.length}곳(동선)`:""}${fiTruckCats(t).length>1?" · 다른 카테고리":""}` : (t.items[0] && t.items[0].split ? "분할" : "단독"), 카테:cats,
       비고: (fiTruckUnloadNote(t) || ("Group No " + Array.from(codes).map(([c,n])=> many ? `${c} (${n}PLT)` : c).join(" / "))) + warn + (t.ampmNote ? ` ※ ${t.ampmNote}` : "") };   // build 376   // build 375: 동선 문구 뺌(도착지 칸에 1차/2차)
   });
@@ -21943,7 +21950,7 @@ function fiTruckHtml(rows){
   const R = fiTruckRows(T);
   return `<div class="fi-sec-t">🚚 배차요청서 (합적 · 1대 최대 ${FI_TRUCK_MAX}PLT) <span class="fi-mut">${T.length}대 · ${T.reduce((s,t)=>s+t.plt,0)}PLT · 같은 출고일 · 시간 · 도착지 + 상차 FC 같거나 근처(${FI_NEAR_KM}km 안)면 한 차</span></div>
   <div class="fi-xprev"><table><thead><tr>${FI_TRUCK_HDR.map(x=>`<th>${escHtml(x)}</th>`).join("")}</tr></thead><tbody>
-  ${R.map((o,i)=>`${i>0 && (T[i-1].date!==T[i].date || T[i-1].fc!==T[i].fc) ? `<tr><td colspan="${FI_TRUCK_KEYS.length}" style="height:10px;border:none;background:transparent"></td></tr>` : ""}<tr${/^합적/.test(o.합적)?' style="background:#FFF7D6"':""}>${FI_TRUCK_KEYS.map(k=>`<td${k==="출고시간"&&/오[전후]/.test(o.출고시간)?` style="background:${/오전/.test(o.출고시간)?"#DDEBF7":"#FFFF99"}"`:k==="비고"?' style="text-align:left;white-space:pre-line;min-width:220px"':k==="입차CODE"?' style="white-space:pre-line"':""}>${escHtml(o[k]==null?"":o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  ${R.map((o,i)=>`${i>0 && (T[i-1].date!==T[i].date || T[i-1].fc!==T[i].fc) ? `<tr><td colspan="${FI_TRUCK_KEYS.length}" style="height:10px;border:none;background:transparent"></td></tr>` : ""}<tr${/^합적/.test(o.합적)?' style="background:#FFF7D6"':""}>${FI_TRUCK_KEYS.map(k=>`<td${k==="출고시간"&&/오[전후]/.test(o.출고시간)?` style="background:${/오전/.test(o.출고시간)?"#DDEBF7":"#FFFF99"};white-space:pre-line"`:k==="비고"?' style="text-align:left;white-space:pre-line;min-width:220px"':k==="입차CODE"?' style="white-space:pre-line"':""}>${escHtml(k==="출고시간" && o.출고시간표 ? o.출고시간표 : (o[k]==null?"":o[k]))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 function fiTruckText(rows){
   const T = fiTruckPlan(rows); if(!T.length) return "";
@@ -21976,7 +21983,7 @@ function fiTruckBlock(ws, rows, r0, border, upRef){
   T.forEach((t,ti)=>{
     if(ti > 0 && (T[ti-1].date !== t.date || T[ti-1].fc !== t.fc)) r++;   // build 390: 상차지(센터)가 바뀌면 빈 줄 한 칸
     if(t.drops) t.items.sort((a,b)=> t.drops.indexOf(String(a.r.dest||"").trim()) - t.drops.indexOf(String(b.r.dest||"").trim()));   // build 369: 1차 하차부터
-    const o = R[ti], mix = /^합적/.test(o.합적), top = r;
+    const o = R[ti], mix = /^합적/.test(o.합적), top = r, amMix = t.items.some(x=> x.fromAm);   // build 401: 오전/오후 섞인 차 = 출고시간 줄마다
     t.items.forEach(x=>{
       const cat = fiCatLabel(x.r);
       let note = x.unk ? "※PLT 확인" : x.split ? `분할 (전체 ${+x.r.pallets||0}PLT)` : "";
@@ -21987,12 +21994,13 @@ function fiTruckBlock(ws, rows, r0, border, upRef){
         const mixed = fiTruckCats(t).length > 1;
         note = [`${t.drops ? `${dIdx+1}차 ` : ""}${String(x.r.dest||t.dest||"").trim()} 하차 (낙찰 ${fiTruckBno(x)})${t.drops ? ` / ${gno}` : ""}${mixed ? " · "+cat+" 구분" : ""}`, note].filter(Boolean).join(" · ");   // build 380: 사용자 양식
       }
-      const v = [o.차량, o.출고일 ? `${o.출고일.slice(5)} ${o.출고시간}` : o.출고시간, x.r._fc||"", String(x.r.bidcode||"").trim(), t.drops ? `${dIdx+1}차 ${x.r.dest}` : o.도착지, /^\d+$/.test(gno) ? +gno : gno, x.unk ? null : x.plt, t.plt, o.합적, cat, note, null];
+      const ap = amMix ? (x.fromAm ? "오전" : "오후") : o.출고시간, apTxt = amMix && x.fromAm ? `${ap} → 오후 배차` : ap;
+      const v = [o.차량, o.출고일 ? `${o.출고일.slice(5)} ${apTxt}` : apTxt, x.r._fc||"", String(x.r.bidcode||"").trim(), t.drops ? `${dIdx+1}차 ${x.r.dest}` : o.도착지, /^\d+$/.test(gno) ? +gno : gno, x.unk ? null : x.plt, t.plt, o.합적, cat, note, null];
       const ur = up(x);
       if(ur){   // build 394
         const L = k=> UL(k)+ur;
-        if(x === t.items[0] && o.출고일 && !x.fromAm) { const h = L("출고일시");   // build 399: 오전 건을 오후 차에 얹었으면 값(오후) 그대로
-         v[1] = fx(`IFERROR(MID(${h},6,5)&"("&MID("일월화수목금토",WEEKDAY(DATEVALUE(LEFT(${h},10))),1)&")"&MID(${h},11,100),MID(${h},6,100))`, v[1]); }
+        if((amMix || x === t.items[0]) && o.출고일) { const h = L("출고일시");   // build 399: 오전 건을 오후 차에 얹었으면 값(오후) 그대로
+         v[1] = fx(`IFERROR(MID(${h},6,5)&"("&MID("일월화수목금토",WEEKDAY(DATEVALUE(LEFT(${h},10))),1)&")"&MID(${h},11,100),MID(${h},6,100))${amMix && x.fromAm ? '&" → 오후 배차"' : ""}`, v[1]); }
         v[2] = fx(L("FC"), v[2]); v[3] = fx(L("입차CODE"), v[3]);
         v[4] = t.drops ? fx(`"${dIdx+1}차 "&${L("도착지")}`, v[4]) : fx(L("도착지"), v[4]);
         v[5] = fx(L("GroupNumber"), v[5]);
@@ -22005,13 +22013,13 @@ function fiTruckBlock(ws, rows, r0, border, upRef){
       }
       v.forEach((val,ci)=>{ const c = ws.getCell(r, C0+ci); c.value = val===""||val==null ? null : val; c.font = F(11, ci===0||ci===7, ci===10 && val ? "FFC00000" : null);
         c.alignment = { horizontal: ci===10 ? "left" : "center", vertical:"middle", wrapText: ci===10 }; c.border = border; if(mix) c.fill = fill("FFFFF2CC");
-        if(ci===1){ const ap = /오전/.test(o.출고시간) ? "FFDDEBF7" : /오후/.test(o.출고시간) ? "FFFFFF99" : ""; if(ap) c.fill = fill(ap); } });   // build 391: 출고시간 칸 오전=옅은 파랑 · 오후=옅은 노랑
+        if(ci===1){ const apc = /오전/.test(ap) ? "FFDDEBF7" : /오후/.test(ap) ? "FFFFFF99" : ""; if(apc) c.fill = fill(apc); } });   // build 391: 출고시간 칸 오전=옅은 파랑 · 오후=옅은 노랑
       ws.mergeCells(r, C0+10, r, C0+11);
       if(x === t.items[0]){ const nl = String(note||"").split("\n").length + Math.floor(String(note||"").length/45); if(nl > 1) ws.getRow(r).height = Math.min(120, 15*nl+3); }   // build 372
       r++;
     });
     { const pc = fiColL(C0+6), c7 = ws.getCell(top, C0+7); c7.value = fx(`SUM(${pc}${top}:${pc}${r-1})`, t.plt); }   // build 394: 차량 합계 = 이 차 PLT 합
-    if(r - top > 1) (t.drops ? [0,1,7,8] : [0,1,4,7,8]).forEach(ci=> ws.mergeCells(top, C0+ci, r-1, C0+ci));
+    if(r - top > 1) (t.drops ? [0,1,7,8] : [0,1,4,7,8]).filter(ci=> !(amMix && ci===1)).forEach(ci=> ws.mergeCells(top, C0+ci, r-1, C0+ci));
   });
   { const pc = fiColL(C0+6), hd = tRow+2; t0.value = fx(`"${q(t0txt.split(" — ")[0])} — 총 ${T.length}대 · "&SUM(${pc}${hd}:${pc}${r-1})&"PLT  ${q(t0txt.split("PLT  ")[1]||"")}"`, t0txt); }   // build 394: 총 PLT = 아래 PLT 칸 합
   return r;
