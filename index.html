@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 384 · 2026-11-25</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 385 · 2026-11-26</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -4818,6 +4818,22 @@ function auditKgZero(out){
   out.push({ id:`kg-zero-${L}-${run}`, lv:"warn", area:"매장별 매출", msg:`킹고프리(온라인) 주문 ${run}일 연속 없음 (${md(H[i+1].date)}~${md(L)}${nNone?` · 그중 기록 없는 날 ${nNone}일`:""}) — 마지막 ${md(ld)} ${ln}건 ${Math.round(la/10000).toLocaleString()}만원`,
     tip: lines.concat([`직전 ${prev.length}일(매출 파일 있는 날) 중 킹고프리 주문 있는 날 ${okN}일`, "→ 실제로 주문이 없었는지, 매장별 매출현황 파일에 회원명(KINGGOFREE) · 메모 열이 있는지 확인하세요. 두 열이 없으면 킹고프리를 못 찾습니다.", "'칸 없음'인 날은 그날 매장별 매출현황 파일을 다시 올리면 채워집니다."]).join("\n") });
 }
+/* build 385: P261124-02 — 승현 인건비 · 폐기비용 자료의 마지막 달이 기준 달(매출 자료 마지막 날의 달)보다 2달 이상 앞이면 변동 알림.
+   인건비는 월 1회(전월분) 자료라 1달 늦음은 정상. id에 마지막 달 · 기준 달이 들어가 달이 바뀌면 새로 판단. */
+const AUDIT_COST_LAG = 2;
+function auditCostLag(out){
+  if(typeof COST_LIVE==="undefined" || !COST_LIVE) return;
+  const ds = [].concat((SALES_HISTORY||[]).map(h=> h && h.date), (STORE_SALES_HISTORY||[]).map(h=> h && h.date)).filter(d=> /^\d{4}-\d{2}-\d{2}$/.test(d||"")).sort();
+  const ref = (ds.length ? ds[ds.length-1] : fmtDate(new Date())).slice(0,7);
+  const mi = ym=> +ym.slice(0,4)*12 + (+ym.slice(5,7)) - 1;
+  [["labor","인건비"],["waste","폐기비용"]].forEach(([k, name])=>{
+    const C = COST_LIVE[k]; if(!C || typeof C!=="object") return;
+    const ks = Object.keys(C).filter(m=> /^\d{4}-\d{2}$/.test(m) && C[m] && Object.keys(C[m]).length).sort(); if(!ks.length) return;
+    const last = ks[ks.length-1], lag = mi(ref) - mi(last); if(lag < AUDIT_COST_LAG) return;
+    out.push({ id:`cost-lag-${k}-${last}-${ref}`, lv:"chg", area:"본사 비용", msg:`${name} 자료 ${lag}달 늦음(마지막 ${last})`,
+      tip:[`승현 '${name}' 자료가 있는 달: ${ks[0]} ~ ${last} (${ks.length}달)`, `기준 = 매출 자료 마지막 달 ${ref}`, `물어보기에서 ${ref} ${name}을 물으면 가장 최근 ${last} 값을 대신 보여 줍니다`, "→ 승현 사이트에 최근 달 자료가 올라왔는지 확인하고, 관리자 승현 로그인으로 다시 받으세요."].join("\n") });
+  });
+}
 function auditStoreZero(out){
   const day = {};
   (SALES_HISTORY||[]).forEach(h=>{ if(!h || !h.date || !h.byStoreCat) return; const o = day[h.date] || (day[h.date] = {});
@@ -4884,7 +4900,7 @@ function auditStoreJump(out){
 }
 function siteAudit(){
   const out = [];
-  [auditSales, auditPosSplit, auditStoreData, auditStoreZero, auditStoreJump, auditKgZero, auditCenter, auditShip, auditStock].forEach(f=>{ try{ f(out); }catch(e){ console.warn("검수 오류", f.name, e); out.push({ id:"x-"+f.name, lv:"warn", area:"검수", msg:`검수 중 오류(${f.name}): ${String(e && e.message || e)}` }); } });
+  [auditSales, auditPosSplit, auditStoreData, auditStoreZero, auditStoreJump, auditKgZero, auditCostLag, auditCenter, auditShip, auditStock].forEach(f=>{ try{ f(out); }catch(e){ console.warn("검수 오류", f.name, e); out.push({ id:"x-"+f.name, lv:"warn", area:"검수", msg:`검수 중 오류(${f.name}): ${String(e && e.message || e)}` }); } });
   return out;
 }
 function renderAuditBar(){
@@ -11976,10 +11992,14 @@ function askPlt(q){
 function askCost(q, kind){
   const out = {}, add = (k, v, c)=>{ const o = out[k] || (out[k] = {v:0, c:0}); o.v += v||0; o.c += c||0; }; const months = askMonthsIn(q.from, q.to); const C = COST_LIVE && COST_LIVE[kind];
   if(!C){ q.notes.push(`승현 ${kind==="waste"?"폐기비용":"인건비"}을 아직 안 받았습니다 — 관리자 승현 로그인 후 자동으로 받습니다`); return { out, basis:[], months, have:[] }; }
-  const have = months.filter(m=> C[m]);
+  let have = months.filter(m=> C[m] && Object.keys(C[m]).length), fallback = null;
+  if(!have.length && months.length){   // build 385 (P261124-02): 물어본 달이 모두 없으면 그 앞에서 자료가 있는 가장 최근 달로 대신 보여 줌
+    const ks = Object.keys(C).filter(m=> /^\d{4}-\d{2}$/.test(m) && m <= months[months.length-1] && Object.keys(C[m]||{}).some(s=> askInStores(q, s))).sort();
+    if(ks.length){ fallback = ks[ks.length-1]; have = [fallback]; q.notes.push(`${months.join(", ")} ${kind==="waste"?"폐기비용":"인건비"} 자료 없음 — 가장 최근 ${fallback} 값을 대신 보여 줍니다`); }
+  }
   have.forEach(m=> Object.keys(C[m]).forEach(s=>{ if(!askInStores(q, s)) return; const x = C[m][s]; add(q.by==="month" ? m : q.by==="store" ? s : "합계", kind==="waste" ? x.amount : x.total, kind==="waste" ? x.count : 0); }));
-  const miss = months.filter(m=> !C[m]); if(miss.length) q.notes.push(`${miss.join(", ")} 자료 없음`);
-  return { out, have, months, basis:[kind==="waste" ? "폐기비용 = 승현 사이트 '폐기비용' — 메모의 실제 수거일 기준 달(수거분)" : "인건비 = 승현 사이트 '인건비'(급여 + 일용직 + 도급비, 월 1회 엑셀)"] };
+  const miss = months.filter(m=> !C[m]); if(miss.length && !fallback) q.notes.push(`${miss.join(", ")} 자료 없음`);
+  return { out, have, months, fallback, basis:[kind==="waste" ? "폐기비용 = 승현 사이트 '폐기비용' — 메모의 실제 수거일 기준 달(수거분)" : "인건비 = 승현 사이트 '인건비'(급여 + 일용직 + 도급비, 월 1회 엑셀)"] };
 }
 
 /* build 335: 물류비용 · 배차 건수 — 06 통합 배차 대장(배차 앱 Supabase, 본사 로그인 세션을 같은 도메인에서 함께 씀). 숫자는 배차 앱 값 그대로, 읽기만.
@@ -12131,7 +12151,8 @@ function askRun(q){
       if(C.have && C.have.length){ const sales = {}; C.have.forEach(m=>{ const T = monthStoreTotals(m); Object.keys(T.map).forEach(s=>{ if(!askInStores(q, s)) return; const k = q.by==="month" ? m : q.by==="store" ? s : "합계"; sales[k] = (sales[k]||0) + T.map[s]; }); });
         res.rows.forEach(r=>{ const s = sales[r.k]; if(s>0) r.sub = (r.sub ? r.sub+" · " : "") + `매출 대비 ${(r.v/s*100).toFixed(1)}%`; });
         const ts = Object.values(sales).reduce((a,v)=>a+v,0); if(ts>0) res.totalSub = `매출 대비 ${(res.total/ts*100).toFixed(1)}% (매출 = 이 사이트 ${C.have.join("·")} 매출 ${won(ts)}원)`; }
-      res.title = `${cond} · ${(C.have&&C.have.length?C.have:C.months).join("·")} · ${q.metric==="waste"?"폐기비용(수거분)":"인건비"}`; res.jump = "goals:11"; break; }
+      res.title = C.fallback ? `${cond} · ${C.months.join("·")} 자료 없음 — 가장 최근 ${C.fallback} ${q.metric==="waste"?"폐기비용(수거분)":"인건비"}`   // build 385 (P261124-02)
+        : `${cond} · ${(C.have&&C.have.length?C.have:C.months).join("·")} · ${q.metric==="waste"?"폐기비용(수거분)":"인건비"}`; res.jump = "goals:11"; break; }
     case "logi": case "dcount": askDispRun(q, res, per); break;   // build 335
     case "loss": askLossRun(q, res, per); break;
     case "stock": {
@@ -12605,18 +12626,37 @@ function askGemToClaude(j, model){
   const content = parts.filter(p=> !p.thought).map(p=> p.functionCall ? { type:"tool_use", id:"g"+Date.now().toString(36)+(n++), name:p.functionCall.name, input:p.functionCall.args||{}, _g:p } : { type:"text", text:p.text||"", _g:p });
   return { model, stop_reason: content.some(c=> c.type==="tool_use") ? "tool_use" : "end_turn", content, usage: j && j.usageMetadata };
 }
+// build 385 (P261124-01): Gemini가 400 'invalid argument'(또는 thinking)를 주면 같은 질문을 덜어낸 형식으로 다시 보냄.
+//   방식 1 = 그대로 · 2 = 생각 끄기 설정(thinkingConfig) 빼기 · 3 = 그것 + 지난 대화(이어 묻기) · 빈 글 조각 빼기. 성공한 방식은 기억(이 PC)해 다음부터 처음부터 그렇게.
+const ASK_GEM_LV_MAX = 2, ASK_GEM_LV_LS = "kk_askgem_lv_v1";
+let _askGemLevel = (()=>{ try{ const v = +localStorage.getItem(ASK_GEM_LV_LS); return v>0 && v<=ASK_GEM_LV_MAX ? v : 0; }catch(_){ return 0; } })();
+function askGemReqLevel(body, level){
+  let b = body;
+  if(level>=2){ let k = 0; (body.messages||[]).forEach((m,i)=>{ if(m.role==="user" && typeof m.content==="string") k = i; }); b = Object.assign({}, body, { messages: body.messages.slice(k) }); }
+  const req = askGemRequest(b);
+  if(level>=1 && req.generationConfig) delete req.generationConfig.thinkingConfig;
+  if(level>=2){
+    const empty = p=> p && typeof p.text==="string" && !p.text.trim() && Object.keys(p).length===1;
+    req.contents = req.contents.map(c=> Object.assign({}, c, { parts: (c.parts||[]).filter(p=> !empty(p)) })).filter(c=> c.parts.length);
+    req.systemInstruction.parts = req.systemInstruction.parts.filter(p=> p.text && String(p.text).trim());
+  }
+  return req;
+}
+function askGemRetryable(status, msg){ return status===400 && /invalid argument|thinking/i.test(msg) && !/API key/i.test(msg); }
 async function askGemPost(body){
-  const req = askGemRequest(body); const tier = body.tier==="deep" ? "deep" : "fast"; const tryModels = _askGemModel[tier] ? [_askGemModel[tier]] : ASK_GEM_MODELS[tier].filter(m=> !_askGemBad.has(m));
+  const tier = body.tier==="deep" ? "deep" : "fast"; const tryModels = _askGemModel[tier] ? [_askGemModel[tier]] : ASK_GEM_MODELS[tier].filter(m=> !_askGemBad.has(m));
   let last = null;
   for(const model of tryModels){
-    for(let attempt=0; attempt<2; attempt++){
+    let level = _askGemLevel;
+    for(;;){
+      const req = askGemReqLevel(body, level);
       const r = await askClFetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method:"POST", headers:{ "content-type":"application/json", "x-goog-api-key": askClKey() }, body: JSON.stringify(req) });
       let j = null; try{ j = await r.json(); }catch(_){}
-      if(r.ok){ _askGemModel[tier] = model; return askGemToClaude(j, model); }
+      if(r.ok){ _askGemModel[tier] = model; if(level!==_askGemLevel){ _askGemLevel = level; try{ localStorage.setItem(ASK_GEM_LV_LS, String(level)); }catch(_){} } return Object.assign(askGemToClaude(j, model), { gemTry: level+1 }); }
       if(r.status===404) _askGemBad.add(model);
       const msg = (j && j.error && j.error.message) || ("HTTP "+r.status);
-      if(r.status===400 && /thinking/i.test(msg) && req.generationConfig.thinkingConfig){ delete req.generationConfig.thinkingConfig; continue; }   // 생각 끄기를 못 하는 모델
-      last = Object.assign(new Error(msg), { status: r.status===403 || (r.status===400 && /API key/i.test(msg)) ? 401 : r.status });
+      if(askGemRetryable(r.status, msg) && level < ASK_GEM_LV_MAX){ level++; continue; }
+      last = Object.assign(new Error(msg), { status: r.status===403 || (r.status===400 && /API key/i.test(msg)) ? 401 : r.status, gemTry: level+1 });
       break;
     }
     if(last && last.status!==404) throw last;
@@ -12681,7 +12721,7 @@ function askClRender(r, opts){
 // 표만 그림(기록 · 되묻기 없이) — askShow는 typed와 같은 글일 때만 '못 알아들음' 기록을 남김
 function askClShowQuiet(slots, notes, text){ const keep = ASK_STATE.typed; ASK_STATE.typed = "\u0000"; try{ askShow(Object.assign({}, slots||{}), notes||[], [], text); }finally{ ASK_STATE.typed = keep; } }
 function askClSetupHtml(msg){
-  return `<div class="ask-cl-card"><div class="ask-cl-hd">🤖 Claude <button type="button" class="ask-x" data-ask-close title="닫기">✕</button></div><div class="ask-note">${escHtml(msg)}</div>
+  return `<div class="ask-cl-card"><div class="ask-cl-hd">🤖 ${askClName()} <button type="button" class="ask-x" data-ask-close title="닫기">✕</button></div><div class="ask-note">${escHtml(msg)}</div>
     ${(typeof IS_ADMIN!=="undefined" && IS_ADMIN) ? "" : `<div class="ask-teach"><span class="ask-rl">팀 코드</span><input id="askClCodeIn" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" class="ask-secret" style="width:140px" placeholder="관리자에게 받은 코드"><button type="button" class="ask-opt" data-ask-cl-code="1">저장</button></div>`}</div>`;
 }
 async function askClaude(text, opts){
@@ -12719,7 +12759,7 @@ async function askClaude(text, opts){
     }
   }catch(e){
     ASK_CL.busy = false; clearInterval(ASK_CL.tick); ASK_CL.keepRule = false;
-    const st = e && e.status; const msg = st===401 && askClMode()==="direct" ? "API 키가 맞지 않습니다 — 🧠 패널에서 키를 다시 저장해 주세요" : st===401 ? "Claude 연결 권한이 없습니다 — 뷰어는 팀 코드를 넣어 주세요(관리자는 로그인 상태 확인)" : st===400 && /credit|balance/i.test(String(e && e.message)) ? "Claude 계정 잔액(크레딧)이 없습니다 — Claude Platform › Billing에서 충전해 주세요" : st===408 ? `${askClName()} 답이 늦어 멈췄습니다(${ASK_CL_TIMEOUT/1000}초) — 아래는 규칙 검색 결과` : st===429 && askClProv()==="gemini" && !askClUrlOk() ? "Gemini 무료 한도(분당/하루 횟수)를 넘었습니다 — 1분쯤 뒤에 다시 해 주세요(규칙 검색은 그대로)" : st===429 ? "오늘 Claude 질문 한도를 다 썼습니다 — 규칙 검색은 그대로 됩니다" : `Claude 연결 실패: ${String(e && e.message || e).slice(0,120)}`;
+    const st = e && e.status; const msg = st===401 && askClMode()==="direct" ? "API 키가 맞지 않습니다 — 🧠 패널에서 키를 다시 저장해 주세요" : st===401 ? "Claude 연결 권한이 없습니다 — 뷰어는 팀 코드를 넣어 주세요(관리자는 로그인 상태 확인)" : st===400 && /credit|balance/i.test(String(e && e.message)) ? "Claude 계정 잔액(크레딧)이 없습니다 — Claude Platform › Billing에서 충전해 주세요" : st===408 ? `${askClName()} 답이 늦어 멈췄습니다(${ASK_CL_TIMEOUT/1000}초) — 아래는 규칙 검색 결과` : st===429 && askClProv()==="gemini" && !askClUrlOk() ? "Gemini 무료 한도(분당/하루 횟수)를 넘었습니다 — 1분쯤 뒤에 다시 해 주세요(규칙 검색은 그대로)" : st===429 ? "오늘 Claude 질문 한도를 다 썼습니다 — 규칙 검색은 그대로 됩니다" : `${askClName()} 연결 실패${e && e.gemTry ? ` (방식 ${e.gemTry}/${ASK_GEM_LV_MAX+1}까지 해 봄)` : ""}: ${String(e && e.message || e).slice(0,120)}`;   // build 385: Gemini면 'Gemini 연결 실패'
     askLogEvent(t, "claude", { err: msg.slice(0,80) });
     box.hidden = false; box.innerHTML = askClSetupHtml(msg + " — 아래는 규칙 검색 결과");
     try{ const P = askParseSlots(t, null); const keep = box.innerHTML; ASK_STATE.leftovers = []; askClShowQuiet(P.slots, P.notes, t); box.querySelectorAll(".ask-res-hd .ask-x").forEach(x=> x.remove()); box.insertAdjacentHTML("afterbegin", keep); }catch(_){}
@@ -28395,11 +28435,11 @@ const IMPROVE_PROPOSALS = [
   { id:"P261124-01", date:"2026-11-24", area:"물어보기", title:"물어보기 AI(Gemini) 'Request contains an invalid argument' 실패 — 같은 질문을 덜어낸 형식으로 한 번 더 보내기",
     why:"질문 실패 기록 50개 중 13개 질문(35회)이 'Claude 연결 실패: Request contains an invalid argument.'로 끝남(11/12~11/23, 예: '최저 매출 매장' · '점별 매출 피크시간' · '안중점 신선 매출 중단일자' · '매출 점진 하락 원인'). 이 문구는 Gemini(구글)가 400으로 돌려주는 것인데, 지금은 메시지에 'thinking'이 들어 있을 때만 다시 보내고 그 밖의 400은 바로 포기함. 또 Gemini인데도 'Claude 연결 실패'로 표시됨.",
     what:"Gemini가 400 'invalid argument'를 주면 같은 질문을 ① 생각 끄기 설정(thinkingConfig) 빼고 ② 그래도 안 되면 지난 대화(이어 묻기)와 빈 글 조각을 빼고 한 번 더 보냄. 성공한 방식은 기억해 다음부터 처음부터 그렇게. 실패 문구는 'Gemini 연결 실패'로, 실패 기록에 몇 번째 방식까지 해 봤는지 남김.",
-    risk:"낮음 — 실패할 때만 1~2번 더 보냄(무료 한도 소모가 조금 늘 수 있음). 규칙 검색 결과는 그대로." },
+    risk:"낮음 — 실패할 때만 1~2번 더 보냄(무료 한도 소모가 조금 늘 수 있음). 규칙 검색 결과는 그대로.", done:"build 385" },
   { id:"P261124-02", date:"2026-11-24", area:"물어보기", title:"물어보기 '인건비' — 물어본 달 자료가 없으면 가장 최근 달 값을 같이 보여 주기",
     why:"승현 인건비 자료가 2025-12 ~ 2026-08(9달)까지만 있음. 11/23 '11월 인건비'는 빈 결과(실패 기록 empty)로 끝났고 메모 '2026-11 자료 없음'만 보임. 폐기비용은 2026-11까지 있어 인건비만 3달 늦음.",
     what:"인건비 · 폐기비용 질문에서 물어본 달이 모두 없으면 '2026-11 자료 없음 — 가장 최근 2026-08 인건비 N원(매장별)'로 최근 달 표를 대신 보여 주고, 검수에 '인건비 자료 3달 늦음(마지막 2026-08)' 변동 알림 추가.",
-    risk:"낮음 — 자료가 없을 때 표시만 바뀜. 다른 달 값을 보여 주므로 제목에 달을 크게 표시해야 헷갈리지 않음." },
+    risk:"낮음 — 자료가 없을 때 표시만 바뀜. 다른 달 값을 보여 주므로 제목에 달을 크게 표시해야 헷갈리지 않음.", done:"build 385" },
 ];
 var IMPROVE_DECISIONS; if(!IMPROVE_DECISIONS || typeof IMPROVE_DECISIONS!=="object") IMPROVE_DECISIONS = {};
 var IMPROVE_REQUESTS; if(!Array.isArray(IMPROVE_REQUESTS)) IMPROVE_REQUESTS = [];
