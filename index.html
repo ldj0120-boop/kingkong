@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 401 · 2026-11-26</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 402 · 2026-11-27</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -3952,6 +3952,7 @@ function saveStateNow(){
   if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer=null; }
   try{ if(gjMergeIntoFashion()) setTimeout(()=>{ try{ if(typeof afterChange==="function") afterChange(); }catch(_){} }, 0); }catch(_){}   // build 348
   const st = withReparseSnapshots(buildStateObject);   // build 72
+  try{ if(!IS_ADMIN && _cloudAppliedSig) st._cloudSig = _cloudAppliedSig; }catch(_){}   // build 402: 뷰어 — 어떤 클라우드 값으로 만든 상태인지
   // 1차: 용량 큰 IndexedDB에 저장(대용량 매출 데이터도 안전하게 보존)
   try{ idbSet("state", st).catch(()=>{}); }catch(_){}
   // 카테고리 지정(매핑)은 별도의 작은 키에 항상 저장 → 전체 상태가 용량 초과로 실패해도 지정은 유지된다.
@@ -8015,6 +8016,12 @@ function wireWidthMode(){
   applyWidthMode();
 }
 function aggRenderAll(){ try{ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }catch(e){ console.error(e); } try{ renderCenterStock(); }catch(e){ console.error(e); } }
+/* build 402: 출고·배차 탭을 열면 쉬는 틈에 엑셀 라이브러리(ExcelJS) 미리 받기 → 배차요청서 · 출고요청서 엑셀 버튼 누르면 바로 */
+function kkPrewarmExcel(){
+  if(window.ExcelJS || kkPrewarmExcel._on) return; kkPrewarmExcel._on = true;
+  const go = ()=>{ try{ fiLoadScript("https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js", "ExcelJS").catch(()=>{ kkPrewarmExcel._on = false; }); }catch(_){ kkPrewarmExcel._on = false; } };
+  if(window.requestIdleCallback) requestIdleCallback(go, { timeout:4000 }); else setTimeout(go, 1500);
+}
 function selectTab(which){
   if(which==="agg"){ which = "goals"; try{ goalsSubTab = "10"; }catch(_){} }   // build 185: 재고/공급 탭 → 목표매출 05
   [["sales",tabSales,viewSales],["goals",tabGoals,viewGoals],["fixed",tabFixed,viewFixed]].forEach(([name,tab,view])=>{
@@ -8024,7 +8031,7 @@ function selectTab(which){
   });
   if(which==="sales"){ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); try{ renderSalesDaily(); }catch(_){} }
   if(which==="goals"){ renderGoals(); try{ selectGoalsSub(goalsSubTab); }catch(_){} }
-  if(which==="fixed"){ try{ wireFixedIntake(); fiRender(); wireLiqSum(); wireLiquidation(); wireEsSum(); wireEosLiq(); wireKdDist(); wireFdSum(); wireFdBid(); wireEvSum(); wireEvBid(); wireFrSum(); wireDw(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } try{ wireToday(); tdRender(); }catch(e){ console.error(e); } }
+  if(which==="fixed"){ try{ kkPrewarmExcel(); }catch(_){} try{ wireFixedIntake(); fiRender(); wireLiqSum(); wireLiquidation(); wireEsSum(); wireEosLiq(); wireKdDist(); wireFdSum(); wireFdBid(); wireEvSum(); wireEvBid(); wireFrSum(); wireDw(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } try{ wireToday(); tdRender(); }catch(e){ console.error(e); } }
 }
 tabSales.onclick=()=>selectTab("sales");
 tabGoals.onclick=()=>selectTab("goals");
@@ -17912,6 +17919,7 @@ if(restoredState) showNotice("마지막으로 저장된 재고·출고 데이터
 // IndexedDB(대용량·최신)에 저장된 전체 데이터가 있으면 그걸로 덮어쓰고 다시 그린다(localStorage 초과분까지 복원).
 var _idbStateDone = false;   // build 232: 이 브라우저 저장본을 다 읽었는지(자동 맞추기 비교 기준)
 idbGet("state").then(async st=>{
+  try{ _idbCloudSig = (st && st._cloudSig) || null; }catch(_){}   // build 402
   if(!st){ _idbStateDone = true; try{ maybeAutoAdoptCloud("idb"); }catch(_){} return; }
   const r = applyStateObject(st);
   if(!r){ _idbStateDone = true; try{ maybeAutoAdoptCloud("idb"); }catch(_){} return; }
@@ -17929,7 +17937,7 @@ idbGet("state").then(async st=>{
   renderStoreList(); renderPanel(); refreshSlotStates(); renderDataQuality();
   document.getElementById("totalCount").textContent = grandTotal();
   try{ renderStockAgg(); renderShipAgg(); renderTrend(); renderShipMergeSelect(); renderShipSourceDiff(); }catch(_){}
-  try{ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderSalesMonthly(); try{ renderSalesDaily(); }catch(_){} }catch(_){}
+  if(kkSalesShown()) try{ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderSalesMonthly(); try{ renderSalesDaily(); }catch(_){} }catch(_){}   // build 402: 매출 탭이 숨어 있으면 안 그림(탭 열 때 selectTab이 그림)
   const skippedTxt = reparseSkippedNoticeHtml();   // build 69
   showNotice((reparsed.length
     ? `저장된 전체 데이터를 불러왔습니다. 집계 로직이 업데이트되어 보관된 원본으로 ${reparsed.map(s=>PARSE_SRC_LABEL[s]||s).join(" · ")}를 자동으로 다시 계산했습니다 — 재업로드하실 필요 없습니다.`
@@ -18150,7 +18158,7 @@ function cloudPush(){
         if(why.length){ if(maybeAutoAdoptCloud("push")) return; showPushGuard(why); return; }
       }
       _pushOverride = false; hidePushGuard();
-      _cloudRef.set(JSON.stringify(packSalesCatForCloud(st))).catch(()=>{});   // build 291: P261104-03 카테고리 매출 짧은 형식
+      { const s = JSON.stringify(packSalesCatForCloud(st)); _lastPushStr = s; _lastPushMetrics = stateMetrics(st); _cloudRef.set(s).catch(()=>{}); }   // build 402: 올린 값 기억   // build 291: P261104-03 카테고리 매출 짧은 형식
     }catch(_){}
   }, 1500);
 }
@@ -18180,25 +18188,37 @@ function cloudInit(){
       const val = snap.val();
       if(!val) return;
       // build 150: 관리자도 클라우드 규모(일수·월 수·마지막 날짜)는 기억해 둔다 → cloudPush가 줄어드는 덮어쓰기를 막는다
+      if(typeof val==="string" && _lastPushStr && val===_lastPushStr){ _cloudLastVal = val; if(_lastPushMetrics) _cloudMetrics = _lastPushMetrics; return; }   // build 402: 관리자가 방금 올린 값이 돌아옴 → 다시 읽기(4MB) · 비교 안 함
       try{ _cloudLastVal = val; _cloudMetrics = stateMetrics((typeof val==="string") ? JSON.parse(val) : val); }catch(_){}
       try{ if(maybeAutoAdoptCloud("value")) return; }catch(_){}   // build 232
       _cloudApply(val);
     });
   }catch(e){ CLOUD_ON=false; updateCloudBadge(); }
 }
+/* build 402: 뷰어 — 클라우드 값이 이 브라우저에 저장된 것과 똑같으면 다시 적용 · 다시 그리기 안 함(열 때 약 1초 멈춤 → 0).
+   저장할 때(saveStateNow) 마지막으로 적용한 클라우드 값의 지문을 상태 안(_cloudSig)에 같이 넣고, 열 때 비교. 관리자는 해당 없음. */
+var _idbCloudSig = null, _cloudAppliedSig = null, _lastPushStr = null, _lastPushMetrics = null;
+function kkStrSig(s){ let h = 0x811c9dc5; for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return s.length + ":" + (h>>>0).toString(36); }
+function kkSalesShown(){ try{ const v = document.getElementById("view-sales"); return !v || !v.hidden; }catch(_){ return true; } }
 var _cloudApply = function(val){
       if(IS_ADMIN) return; // 관리자는 클라우드로 덮어쓰지 않음
       let hint = false; try{ hint = localStorage.getItem(ADMIN_HINT_LS)==="1"; }catch(_){}
       if(!_authReady && hint) return;   // build 173: 관리자였던 브라우저는 로그인 확인 전까지 덮어쓰지 않음
+      let sig = null; try{ if(typeof val==="string") sig = kkStrSig(val); }catch(_){}   // build 402
+      if(sig && sig===_cloudAppliedSig) return;   // 이미 적용한 값(다시 연결 등)
+      if(sig && !_cloudPulled && _idbStateDone && _idbCloudSig && sig===_idbCloudSig){ _cloudAppliedSig = sig; _cloudPulled = true;
+        try{ showNotice("☁ 실시간 공유: 이 브라우저 자료가 클라우드 최신과 같습니다(뷰어 모드). 관리자가 업로드하면 자동으로 갱신됩니다."); setTimeout(()=>{ try{ if(/실시간 공유/.test(noticeBar.textContent)) noticeBar.hidden = true; }catch(_){} }, 6000); }catch(_){}
+        return; }
       try{
         const st = (typeof val==="string") ? JSON.parse(val) : val;
         const r = applyStateObject(st);
         if(!r) return;
+        _cloudAppliedSig = sig;   // build 402
         renderBasedateOptions(r.basedateIdx!=null ? r.basedateIdx : STOCK_HISTORY.length-1);
         renderStoreList(); renderPanel(); refreshSlotStates(); renderDataQuality();
         document.getElementById("totalCount").textContent = grandTotal();
         try{ renderStockAgg(); renderShipAgg(); renderTrend(); }catch(_){}
-        try{ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderSalesMonthly(); try{ renderSalesDaily(); }catch(_){} }catch(_){}
+        if(kkSalesShown()) try{ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderSalesMonthly(); try{ renderSalesDaily(); }catch(_){} }catch(_){}   // build 402: 매출 탭이 숨어 있으면 안 그림(탭 열 때 selectTab이 그림)
         if(!_cloudPulled){ _cloudPulled=true; showNotice("☁ 실시간 공유: 최신 데이터를 불러왔습니다(뷰어 모드). 관리자가 업로드하면 자동으로 갱신됩니다."); setTimeout(()=>{ try{ if(!_pushGuardShown && /실시간 공유/.test(noticeBar.textContent)) noticeBar.hidden = true; }catch(_){} }, 8000); }
       }catch(e){}
 };
@@ -21738,7 +21758,85 @@ function fiCatLabel(r){ const t = String((r&&r.type)||"").trim(); if(/^XLD$/i.te
 function fiTruckCat(x){ return x ? fiCatLabel(x.r) : ""; }
 function fiTruckCats(t){ return [...new Set(t.items.map(fiTruckCat).filter(Boolean))]; }
 function fiRouteKm(fcs, ds){ const F = fiFcGeo((fcs||[])[0]); if(!F) return Infinity; let t = 0, prev = F; for(const d of ds){ const g = fiDestGeo(d); if(!g) return Infinity; t += fiFcKm2(prev, g); prev = g; } return t; }
+var _fiRmMatch = false;   // build 402: fiTruckPlan이 예전 방식 · 전체 짝 방식 둘 다 돌려 더 나은 쪽을 고름
 function fiTruckRouteMerge(out, sameCat, cross){
+  if(!_fiRmMatch) return fiTruckRouteMergeGreedy(out, sameCat, cross);
+  // build 398: cross = 같은 상차 FC · 같은 출고일인데 오전/오후로 나뉜 빈 차끼리 → 오후 한 차로 동선 합적(비고에 오전건 표기, 사용자 규칙)
+  const same = cross
+    ? (a,b)=> a.date===b.date && a.ampm!==b.ampm && /^(오전|오후)$/.test(a.ampm||"") && /^(오전|오후)$/.test(b.ampm||"") && (a.fcs||[]).length===1 && (a.fcs||[]).join("|")===(b.fcs||[]).join("|")
+    : (a,b)=> a.date===b.date && a.ampm===b.ampm && String(a.time||"")===String(b.time||"") && (a.fcs||[]).join("|")===(b.fcs||[]).join("|") && (a.fcs||[]).length>=1;
+  const catEq = (a,b)=>{ const x = fiTruckCats(a), y = fiTruckCats(b); return x.length===1 && y.length===1 && x[0]===y[0]; };
+  // build 395: 짝 점수 = 같은 하차지 → 따로 갈 때보다 줄어드는 거리(km) → 꽉 차는 짝
+  const pair = (t,u)=>{
+    if(!same(t,u) || t.plt + u.plt > FI_TRUCK_MAX) return null;
+    if(sameCat && !catEq(t,u)) return null;
+    const ds = [...new Set([...fiTruckDests(t), ...fiTruckDests(u)])];
+    if(ds.length > FI_ROUTE_MAXDROP) return null;
+    const ord = ds.length===1 ? null : fiRouteOrder(t.fcs, ds); if(ds.length>1 && !ord) return null;
+    const save = ds.length===1 ? 1e6 : (fiRouteKm(t.fcs, fiTruckDests(t)) + fiRouteKm(u.fcs, fiTruckDests(u)) - fiRouteKm(t.fcs, ord));
+    return { t, u, ord, n:ds.length, save: isFinite(save) ? save : -1e6, plt:t.plt+u.plt };
+  };
+  /* build 402: 짝을 한 번에 전체로 고름(최대 매칭). 예전(395)은 이득 큰 짝부터 하나씩 → 앞 짝이 다른 차의 짝을 뺏어 차가 남기도 함.
+     순서: ① 차 수가 가장 많이 줄게 ② 같은 하차지 짝 많이 ③ 하차지 적게 ④ 줄어드는 거리 합 큼 ⑤ PLT 꽉 차게.
+     한 번 묶은 뒤 남은 자리로 또 묶일 수 있으면(3곳 하차) 다시 돌림. 한 무리 16대 넘으면 예전 방식. */
+  const better = (a,b)=>{ for(let i=0;i<a.length;i++){ if(Math.abs(a[i]-b[i]) > 1e-6) return a[i] > b[i]; } return false; };
+  const score = c=> [1, c.n===1 ? 1 : 0, -c.n, c.save, c.plt];
+  const add = (a,b)=> a.map((v,i)=> v+b[i]);
+  const ZERO = [0,0,0,0,0];
+  const apply = c=>{
+    let { t, u: bst, ord: bestOrd } = c;
+    if(cross){ if(t.ampm!=="오후"){ const k = t; t = bst; bst = k; }   // 오후 차에 오전 건을 얹음
+      const amP = bst.plt, pmP = t.plt; bst.items.forEach(x=>{ x.fromAm = true; });
+      t.ampmNote = [t.ampmNote, bst.ampmNote, `오전 ${amP}+오후 ${pmP} → 오후`].filter(Boolean).join(" / "); t.ampmCross = t.ampmCross || bst.ampmCross; }
+    else if(bst.plt > t.plt){ const k = t; t = bst; bst = k; }   // 큰 차에 붙임(예전과 같음)
+    bst.items.forEach(x=> t.items.push(x)); t.plt += bst.plt; bst._gone = true;
+    if(bst.ampmNote && !cross) t.ampmNote = [t.ampmNote, bst.ampmNote].filter(Boolean).join(" / "), t.ampmCross = t.ampmCross || bst.ampmCross;
+    t.fcs = [...new Set([...(t.fcs||[]), ...(bst.fcs||[])])]; t.fc = t.fcs.join(" + ");
+    if(bestOrd){
+      t.drops = bestOrd; t.dest = bestOrd.map((d,i)=> `${d}(${i+1}차)`).join(" → ");
+      t.routeNote = `${t.fc} → ` + bestOrd.map((d,i)=> `${i+1}차 ${d} ${t.items.filter(x=> String(x.r.dest||"").trim()===d).reduce((s,x)=> s+x.plt,0)}PLT`).join(" → ") + " 동선 합적";
+    }
+  };
+  for(let round=0; round<20; round++){
+    const live = out.filter(t=> !t._gone && t.dest);
+    const E = new Map(), adj = live.map(()=> []);
+    for(let i=0;i<live.length;i++) for(let j=i+1;j<live.length;j++){ const c = pair(live[i], live[j]); if(c){ E.set(i+","+j, c); adj[i].push(j); adj[j].push(i); } }
+    if(!E.size) break;
+    // 서로 묶일 수 있는 차끼리 무리(연결 요소)로 나눠 무리마다 최적 짝
+    const seen = new Array(live.length).fill(false), picks = [];
+    for(let s=0;s<live.length;s++){
+      if(seen[s] || !adj[s].length) continue;
+      const comp = [], st = [s]; seen[s] = true;
+      while(st.length){ const v = st.pop(); comp.push(v); adj[v].forEach(w=>{ if(!seen[w]){ seen[w] = true; st.push(w); } }); }
+      comp.sort((a,b)=> a-b);
+      const ed = (a,b)=> E.get(Math.min(a,b)+","+Math.max(a,b));
+      if(comp.length <= 16){
+        const n = comp.length, memo = new Map();
+        const f = mask=>{
+          if(!mask) return { s:ZERO, p:[] };
+          if(memo.has(mask)) return memo.get(mask);
+          let i = 0; while(!(mask & (1<<i))) i++;
+          const rest = mask & ~(1<<i);
+          let best = f(rest);
+          for(let j=i+1;j<n;j++){ if(!(rest & (1<<j))) continue; const c = ed(comp[i], comp[j]); if(!c) continue;
+            const sub = f(rest & ~(1<<j)), sc = add(sub.s, score(c));
+            if(better(sc, best.s)) best = { s:sc, p: sub.p.concat([c]) }; }
+          memo.set(mask, best); return best;
+        };
+        f((1<<n)-1).p.forEach(c=> picks.push(c));
+      } else {
+        // 큰 무리: 예전처럼 가장 좋은 짝부터 하나씩
+        const cs = []; for(const a of comp) for(const b of adj[a]) if(a<b) cs.push(ed(a,b));
+        cs.sort((x,y)=> better(score(x), score(y)) ? -1 : better(score(y), score(x)) ? 1 : 0);
+        const used = new Set(); cs.forEach(c=>{ if(used.has(c.t) || used.has(c.u)) return; used.add(c.t); used.add(c.u); picks.push(c); });
+      }
+    }
+    if(!picks.length) break;
+    picks.forEach(apply);
+    for(let i=out.length-1;i>=0;i--) if(out[i]._gone) out.splice(i,1);
+  }
+}
+function fiTruckRouteMergeGreedy(out, sameCat, cross){
   // build 398: cross = 같은 상차 FC · 같은 출고일인데 오전/오후로 나뉜 빈 차끼리 → 오후 한 차로 동선 합적(비고에 오전건 표기, 사용자 규칙)
   const same = cross
     ? (a,b)=> a.date===b.date && a.ampm!==b.ampm && /^(오전|오후)$/.test(a.ampm||"") && /^(오전|오후)$/.test(b.ampm||"") && (a.fcs||[]).length===1 && (a.fcs||[]).join("|")===(b.fcs||[]).join("|")
@@ -21827,7 +21925,16 @@ function fiTruckUnloadNote(t){
   });
   return ["※ 하차 시 낙찰No 구분 필수"].concat(lines).join("\n");   // build 378: 맨 위 주의 문구(사용자 지정)
 }
+/* build 402: 합적 = 예전 방식(이득 큰 짝부터)과 전체 짝 방식(최대 매칭)을 둘 다 계산 → 차 수 적은 쪽, 같으면 총 운행거리(상차지→하차지 동선 km) 짧은 쪽.
+   무작위 1,200건 비교: 차 1대 줄어든 경우 22건 · 같은 대수에서 거리 짧아진 경우 18건 · 나빠진 경우 0건. 실제 11-27 자료는 결과 같음. */
 function fiTruckPlan(rows){
+  const km = T=> T.reduce((s,t)=>{ const k = fiRouteKm(t.fcs, fiTruckDests(t)); return s + (isFinite(k) ? k : 0); }, 0);
+  _fiRmMatch = false; const A = fiTruckPlan0(rows);
+  let B = null; try{ _fiRmMatch = true; B = fiTruckPlan0(rows); }catch(e){ console.warn("build 402 합적 짝", e); B = null; } finally{ _fiRmMatch = false; }
+  if(B && (B.length < A.length || (B.length===A.length && km(B) < km(A) - 1e-6))) return B;
+  return A;
+}
+function fiTruckPlan0(rows){
   const ak = v=> v==="오전" ? 0 : v==="오후" ? 1 : 2;
   const by = new Map();
   fiOrderRows((rows||[]).filter(r=> !r.skip)).forEach(r=>{
