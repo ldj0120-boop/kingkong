@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 396 · 2026-11-26</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 398 · 2026-11-26</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -4041,8 +4041,8 @@ function _gjAfter(d){ return !!d && (d.length===7 ? d > GJ_OLD_CLOSE.slice(0,7) 
 function _gjWalk(node, d, seen, st){
   if(!node || typeof node!=="object" || seen.has(node)) return; seen.add(node);
   const isStr = (v, dd)=> typeof v==="string" && (GJ_ALWAYS.includes(v) || (v===GJ_OLD && _gjAfter(dd)));
-  if(Array.isArray(node)){
-    for(let i=0;i<node.length;i++){ if(isStr(node[i], d)){ node[i] = GJ_FASHION; st.n++; } else _gjWalk(node[i], d, seen, st); }
+  if(Array.isArray(node)){   // build 397: 숫자 · 빈칸은 함수 안 부르고 건너뜀(상태 140만 칸 → 열 때 약 0.5초)
+    for(let i=0;i<node.length;i++){ const v = node[i]; if(v===null || typeof v!=="object"){ if(typeof v==="string" && isStr(v, d)){ node[i] = GJ_FASHION; st.n++; } continue; } _gjWalk(v, d, seen, st); }
     return;
   }
   if(typeof node.date==="string" && _gjDate(node.date)) d = _gjDate(node.date);
@@ -4050,9 +4050,9 @@ function _gjWalk(node, d, seen, st){
   const mv = old=>{ if(!Object.prototype.hasOwnProperty.call(node, old)) return; const v = node[old]; if(_gjHas(v)) st.n++;   // 빈 칸만 옮긴 건 변화로 안 셈(저장 ↔ 다시 그리기 반복 방지)
     node[GJ_FASHION] = _gjMerge(node[GJ_FASHION], v); delete node[old]; };
   GJ_ALWAYS.forEach(mv); if(_gjAfter(d)) mv(GJ_OLD);
-  Object.keys(node).forEach(k=>{ const v = node[k];
-    if(isStr(v, d)){ node[k] = GJ_FASHION; st.n++; return; }
-    _gjWalk(v, _gjDate(k) || d, seen, st); });
+  for(const k in node){ if(!Object.prototype.hasOwnProperty.call(node, k)) continue; const v = node[k];
+    if(v===null || typeof v!=="object"){ if(typeof v==="string" && isStr(v, d)){ node[k] = GJ_FASHION; st.n++; } continue; }   // build 397
+    const c = k.charCodeAt(0); _gjWalk(v, (c>=48 && c<=57 && _gjDate(k)) || d, seen, st); }
 }
 function gjMergeIntoFashion(){
   const st = { n:0 }, today = fmtDate(new Date()), seen = new Set();
@@ -7777,6 +7777,10 @@ function czHead(t){
   return t.slice(0, CZ_MAX-1).replace(/\s+\S*$/,"").replace(/[\s·,:(—-]+$/,"") + "…";
 }
 function czApplyEl(el){
+  const tc0 = el.textContent; if(el.__czT === tc0) return;   // build 397: 글이 안 바뀐 칸은 건너뜀(innerText = 화면 배치 계산이라 1500칸이면 0.4초)
+  el.__czT = tc0; czApplyEl0(el); el.__czT = el.textContent;
+}
+function czApplyEl0(el){
   if(el.closest("#kkTip,.audit-list,[data-cz-skip],.modal-overlay .catmap-row,#impPanel,#fiComboImgs,.audit-bar")) return;   // 제안함 · 카톡 그림 안내는 그대로
   if(el.hasAttribute("title") || (el.hasAttribute("data-tip") && !el.dataset.cz)) return;   // 이미 한 줄 + 말풍선으로 만든 칸
   if(el.querySelector("input,select,button,textarea,a,table,canvas,svg,img,[data-cz]")) return;
@@ -21723,8 +21727,11 @@ function fiFcKm2(A, B){ const R = 6371, rad = x=> x*Math.PI/180, dLa = rad(B[0]-
 function fiTruckCat(x){ return x ? (/^XLD$/i.test(String(x.r.type||"")) ? "기저귀/분유" : String(x.r.typeSub||x.r.type||"")) : ""; }
 function fiTruckCats(t){ return [...new Set(t.items.map(fiTruckCat).filter(Boolean))]; }
 function fiRouteKm(fcs, ds){ const F = fiFcGeo((fcs||[])[0]); if(!F) return Infinity; let t = 0, prev = F; for(const d of ds){ const g = fiDestGeo(d); if(!g) return Infinity; t += fiFcKm2(prev, g); prev = g; } return t; }
-function fiTruckRouteMerge(out, sameCat){
-  const same = (a,b)=> a.date===b.date && a.ampm===b.ampm && String(a.time||"")===String(b.time||"") && (a.fcs||[]).join("|")===(b.fcs||[]).join("|") && (a.fcs||[]).length>=1;
+function fiTruckRouteMerge(out, sameCat, cross){
+  // build 398: cross = 같은 상차 FC · 같은 출고일인데 오전/오후로 나뉜 빈 차끼리 → 오후 한 차로 동선 합적(비고에 오전건 표기, 사용자 규칙)
+  const same = cross
+    ? (a,b)=> a.date===b.date && a.ampm!==b.ampm && /^(오전|오후)$/.test(a.ampm||"") && /^(오전|오후)$/.test(b.ampm||"") && (a.fcs||[]).length===1 && (a.fcs||[]).join("|")===(b.fcs||[]).join("|")
+    : (a,b)=> a.date===b.date && a.ampm===b.ampm && String(a.time||"")===String(b.time||"") && (a.fcs||[]).join("|")===(b.fcs||[]).join("|") && (a.fcs||[]).length>=1;
   const catEq = (a,b)=>{ const x = fiTruckCats(a), y = fiTruckCats(b); return x.length===1 && y.length===1 && x[0]===y[0]; };
   // build 395: 짝 고르기 = 전체에서 가장 이득 큰 짝부터(같은 하차지 먼저 → 따로 갈 때보다 줄어드는 거리(km)가 큰 짝 → 꽉 차는 짝).
   //   예전엔 PLT 큰 차부터 처음 걸리는 짝을 골라 아산+김포 · 안중+양주처럼 먼 곳끼리 묶이기도 했음 → 아산+안중 · 김포+양주
@@ -21746,9 +21753,12 @@ function fiTruckRouteMerge(out, sameCat){
     }
     if(!best) break;
     let { t, u: bst, ord: bestOrd } = best;
-    if(bst.plt > t.plt){ const k = t; t = bst; bst = k; }   // 큰 차에 붙임(예전과 같음)
+    if(cross){ if(t.ampm!=="오후"){ const k = t; t = bst; bst = k; }   // 오후 차에 오전 건을 얹음
+      const amP = bst.plt, pmP = t.plt; bst.items.forEach(x=>{ x.fromAm = true; });
+      t.ampmNote = [t.ampmNote, bst.ampmNote, `오전 ${amP}+오후 ${pmP} → 오후`].filter(Boolean).join(" / "); }
+    else if(bst.plt > t.plt){ const k = t; t = bst; bst = k; }   // 큰 차에 붙임(예전과 같음)
     bst.items.forEach(x=> t.items.push(x)); t.plt += bst.plt; bst._gone = true;
-    if(bst.ampmNote) t.ampmNote = [t.ampmNote, bst.ampmNote].filter(Boolean).join(" / "), t.ampmCross = t.ampmCross || bst.ampmCross;
+    if(bst.ampmNote && !cross) t.ampmNote = [t.ampmNote, bst.ampmNote].filter(Boolean).join(" / "), t.ampmCross = t.ampmCross || bst.ampmCross;
     t.fcs = [...new Set([...(t.fcs||[]), ...(bst.fcs||[])])]; t.fc = t.fcs.join(" + ");
     if(bestOrd){
       t.drops = bestOrd; t.dest = bestOrd.map((d,i)=> `${d}(${i+1}차)`).join(" → ");
@@ -21892,6 +21902,8 @@ function fiTruckPlan(rows){
   // build 369: 같은 출고일 · 오전/오후 · 시간 · 같은 상차 FC인데 하차지가 한 동선(예: 경산2 → 진천센터 1차 → 충주점 2차)이면 18PLT 안에서 한 차로 합적
   fiTruckRouteMerge(out, true);    // build 372: 1순위 같은 카테고리(하차지 달라도 동선이면)
   fiTruckRouteMerge(out, false);   // 2순위 다른 카테고리(같은 하차지 먼저) — 비고에 코멘트
+  fiTruckRouteMerge(out, true, true);    // build 398: 3순위 같은 상차 FC 오전 · 오후 남은 차끼리 → 오후 한 차(같은 카테고리 먼저)
+  fiTruckRouteMerge(out, false, true);
   fiTruckDestPairMerge(out);        // build 373: 김해점 ↔ 동김해점은 상차 FC · 오전/오후 달라도 묶음
   // build 389: 차량 순서 = 출고일 → 1순위 상차지(FC) → 2순위 출고시간(오전 먼저)
   const amO = a=> /오전/.test(a||"") ? 0 : /오후/.test(a||"") ? 1 : 2;
@@ -29311,11 +29323,18 @@ try{ const vf = document.getElementById("view-fixed"); if(vf && typeof _genTab!=
 //   대신 옆으로 넘치는 표마다 표 위에 이동바(아래 기본 이동바와 같이 움직임)를 붙인다.
 const KK_SCROLL_SEL = ".agg-scroll, .tblbox, .fi-file, .fi-xprev, div[style*='overflow-x:auto']";
 function kkTopBars(){
+  // build 397: 먼저 모두 재고(읽기) → 그다음 바꾸기(쓰기). 읽고 쓰기를 번갈아 하면 표마다 화면 배치를 다시 계산해 0.2초씩 멈춤
+  const M = [];
   document.querySelectorAll(KK_SCROLL_SEL).forEach(w=>{
-    if(!w.offsetParent || w.classList.contains("kk-topbar")) return;
+    if(w.classList.contains("kk-topbar") || !w.offsetParent) return;
+    const t = w.previousElementSibling, has = !!(t && t.classList.contains("kk-topbar"));
+    const sw = w.scrollWidth, need = sw > w.clientWidth + 2;
+    if(!need && !has) return;
+    if(has && t.style.display === (need ? "" : "none") && t.firstChild && t.firstChild.style.width === sw + "px") return;   // 바뀐 것 없음
+    M.push([w, need, sw, w.scrollLeft]);
+  });
+  M.forEach(([w, need, sw, sl])=>{
     let t = w.previousElementSibling;
-    const need = w.scrollWidth > w.clientWidth + 2;
-    if(!need && !(t && t.classList.contains("kk-topbar"))) return;
     if(!t || !t.classList.contains("kk-topbar")){
       t = document.createElement("div"); t.className = "kk-topbar"; t.innerHTML = "<div></div>"; t.title = "옆으로 밀어서 오른쪽 칸 보기";
       w.parentNode.insertBefore(t, w);
@@ -29323,8 +29342,8 @@ function kkTopBars(){
       w.addEventListener("scroll", ()=>{ if(Math.abs(t.scrollLeft - w.scrollLeft) > 1) t.scrollLeft = w.scrollLeft; }, { passive:true });
     }
     t.style.display = need ? "" : "none";
-    t.firstChild.style.width = w.scrollWidth + "px";
-    if(need) t.scrollLeft = w.scrollLeft;
+    t.firstChild.style.width = sw + "px";
+    if(need) t.scrollLeft = sl;
   });
 }
 (function kkTopBarsWire(){
