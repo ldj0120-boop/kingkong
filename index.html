@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 388 · 2026-11-26</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 389 · 2026-11-26</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21854,6 +21854,9 @@ function fiTruckPlan(rows){
   fiTruckRouteMerge(out, true);    // build 372: 1순위 같은 카테고리(하차지 달라도 동선이면)
   fiTruckRouteMerge(out, false);   // 2순위 다른 카테고리(같은 하차지 먼저) — 비고에 코멘트
   fiTruckDestPairMerge(out);        // build 373: 김해점 ↔ 동김해점은 상차 FC · 오전/오후 달라도 묶음
+  // build 389: 차량 순서 = 출고일 → 1순위 상차지(FC) → 2순위 출고시간(오전 먼저)
+  const amO = a=> /오전/.test(a||"") ? 0 : /오후/.test(a||"") ? 1 : 2;
+  out.sort((a,b)=> String(a.date||"").localeCompare(String(b.date||"")) || String(a.fc||"").localeCompare(String(b.fc||""), "ko") || amO(a.ampm)-amO(b.ampm) || String(a.time||"").localeCompare(String(b.time||"")));
   const seq = {}; out.forEach(t=>{ seq[t.date] = (seq[t.date]||0)+1; t.no = seq[t.date]; });
   return out;
 }
