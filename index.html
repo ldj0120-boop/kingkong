@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 385 · 2026-11-26</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 386 · 2026-11-26</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -2555,7 +2555,35 @@
         <span class="meta">원본 + 낙찰 LOT → 낙찰파일 · 유형은 위 고정 줄(①과 같이 바뀜)</span>
       </div>
       <div class="fi-body">
-<div class="agg-card kk-sub" id="evBidBox"><div class="fi-body"><div class="fi-mut" style="font-size:15px">이벤트 경매는 ① 요약본까지 만듭니다. 낙찰 뒤 낙찰파일이 필요하면 같은 원본을 <b>FC파손</b> ② 낙찰파일 생성기에 넣으면 됩니다(RAW 양식이 같음 · 파일명은 FC파손 형식으로 나옴).</div></div></div>
+<div class="agg-card kk-sub" id="evBidBox">
+      <div class="p-hd">
+        <span class="store-name">이벤트 경매 낙찰파일</span>
+        <span class="meta">원본 + 낙찰 LOT → 낙찰파일 1개 "YYYYMMDD_FC(경매 제목)_A(센터,PLT)_…" · 원본(낙찰 LOT 행) · RAW(매장판매가 · 도매가) · Sheet4 — FC파손 낙찰파일과 같은 양식</span>
+        <button class="act fi-mini fi-del" data-reset="evb" style="margin-left:auto" title="올린 원본 · 입력칸 · 화면 결과를 지웁니다 (기록은 그대로)">↺ 초기화</button>
+      </div>
+      <div class="fi-body">
+        <div class="fi-disp-in">
+          <div id="evbDrop" class="fi-drop" role="button" tabindex="0">
+            <div class="fi-drop-t" title="이벤트 경매 원본(예: FC_리퀴데이션 Orphan 리스트_YYYYMMDD - V.xlsx)을 끌어다 놓거나 클릭" data-cz-skip>이벤트 경매 원본 놓기</div>
+            <div class="fi-drop-s">① 요약본에 올린 원본이 여기에 자동으로 들어옵니다 · 판매가 빈 칸 · PLT(Location 개수)는 ①과 같은 계산 · 경매 제목은 ①의 제목</div>
+            <div id="evbFileInfo" style="margin-top:8px;font-size:14px"></div>
+          </div>
+          <div class="fi-disp-paste">
+            <textarea id="evbLots" class="fi-text" style="min-height:96px" placeholder="낙찰된 LOT (쉼표·띄어쓰기·줄바꿈으로 구분)&#10;예) A, B&#10;PLT를 바꾸려면) A 30, B 25"></textarea>
+            <div id="evbPick" style="margin:4px 0 6px;font-size:14px"></div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <label class="fi-mut">낙찰일 <input id="evbDate" class="fi-sel" style="width:96px" placeholder="YYYYMMDD"></label>
+              <span class="fi-mut">파일명 맨 앞(YYYYMMDD) — 기본 오늘</span>
+              <button class="act primary fi-mini" id="evbGo" style="margin-left:auto">낙찰파일 생성</button>
+            </div>
+          </div>
+        </div>
+        <input type="file" id="evbInput" accept=".xlsx,.xlsm,.xlsb,.xls" hidden>
+        <div id="evbStatus" class="fi-status"></div>
+        <div id="evbResult"></div>
+        <div id="evbHistory"></div>
+      </div>
+    </div>
 <div class="agg-card kk-sub" id="frBidBox"><div class="fi-body"><div class="fi-mut" style="font-size:15px">신선 리퀴데이션 리스트는 ① 한 단계로 끝납니다(낙찰파일 없음) — 위 ①에서 받은 파일을 그대로 쓰면 됩니다.</div></div></div>
 <div class="agg-card kk-sub" id="liqBox">
       <div class="p-hd">
@@ -7964,7 +7992,7 @@ function selectTab(which){
   });
   if(which==="sales"){ renderSalesDateSelect(); renderSalesTrend(); renderSalesAgg(); renderSalesStoreList(); renderSalesDetail(); renderSalesCatSelect(); renderSalesCatRank(); renderPeriodSelects(); renderPeriodCompare(); renderSalesMonthlySelect(); renderSalesMonthly(); try{ renderSalesDaily(); }catch(_){} }
   if(which==="goals"){ renderGoals(); try{ selectGoalsSub(goalsSubTab); }catch(_){} }
-  if(which==="fixed"){ try{ wireFixedIntake(); fiRender(); wireLiqSum(); wireLiquidation(); wireEsSum(); wireEosLiq(); wireKdDist(); wireFdSum(); wireFdBid(); wireEvSum(); wireFrSum(); wireDw(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } try{ wireToday(); tdRender(); }catch(e){ console.error(e); } }
+  if(which==="fixed"){ try{ wireFixedIntake(); fiRender(); wireLiqSum(); wireLiquidation(); wireEsSum(); wireEosLiq(); wireKdDist(); wireFdSum(); wireFdBid(); wireEvSum(); wireEvBid(); wireFrSum(); wireDw(); wireFixedDispatch(); wireFixedLedger(); }catch(e){ console.error(e); } try{ wireToday(); tdRender(); }catch(e){ console.error(e); } }
 }
 tabSales.onclick=()=>selectTab("sales");
 tabGoals.onclick=()=>selectTab("goals");
@@ -24431,7 +24459,8 @@ function evAudit(D, r, title, sheet, ff){
   try{
     const wb = XLSX.read(r.bytes, { type:"array" }), sn = wb.SheetNames;
     const want = [sheet,"종합","Sheet5","Sheet5 (2)","RAW","Sheet4"];
-    C.push(JSON.stringify(sn)===JSON.stringify(want) ? { lv:"ok", t:`받을 파일 · 시트 ${sn.length}개: ${sn.join(" · ")}` } : { lv:"err", t:`받을 파일 · 시트 이름이 다름: ${sn.join(" · ")}` });
+    const snCore = sn.filter(x=> !/^cate\d$/.test(x));   // build 386: FC파손 요약본에 붙은 cate2 · cate5 시트는 빼고 비교
+    C.push(JSON.stringify(snCore)===JSON.stringify(want) ? { lv:"ok", t:`받을 파일 · 시트 ${sn.length}개: ${sn.join(" · ")}` } : { lv:"err", t:`받을 파일 · 시트 이름이 다름: ${sn.join(" · ")}` });
     const S = evAoa(wb.Sheets[sheet]);
     const t2 = String((S[1]||[])[1]||"");
     C.push(t2.indexOf("("+title+")")>=0 ? { lv:"ok", t:`받을 파일 · 제목 "${t2}"` } : { lv:"err", t:`받을 파일 · 제목에 경매 제목이 없음: "${t2}"` });
@@ -24502,7 +24531,9 @@ async function evsHandleFile(f){
   _evsFile = f; _evsData = null;
   const tEl = document.getElementById("evTitle"), src = document.getElementById("evTitleSrc");
   if(tEl && (!tEl.value.trim() || tEl.dataset.auto==="1")){ tEl.value = evTitleFromName(f.name); tEl.dataset.auto = "1"; if(src) src.textContent = "← 파일명에서 자동 · 바꾸면 다시 만듦"; }
+  try{ evbTakeFile(f, true); }catch(_){}   // build 386: ② 이벤트 경매 낙찰파일에도
   await evsBuild();
+  try{ evbRender(); }catch(_){}
 }
 function evsReset(){ _evsFile = null; _evsData = null; _evsCur = null;
   const t = document.getElementById("evTitle"); if(t){ t.value = ""; t.dataset.auto = ""; }
@@ -24545,6 +24576,171 @@ function wireEvSum(){
     if(t.id==="evsDl" && _evsCur) fiDownloadBytes(_evsCur.name, _evsCur.bytes);
     else if(t.id==="evsDel"){ _evsCur = null; _evsFile = null; _evsData = null; document.getElementById("evsStatus").textContent = ""; evsRender(); } });
   evsRender();
+}
+
+/* ================= build 386: 이벤트 경매 낙찰파일 =================
+   ① 이벤트 경매 원본(같은 파일 · 같은 읽기 evLoad — 판매가 빈 칸 채움 · Location 개수 PLT) + 낙찰 LOT
+   → FC파손 낙찰파일과 같은 양식(fdBuildBid · fdBidWorkbook — 계산 한 곳): 원본(낙찰 LOT 행) · RAW(매장판매가 · 도매가) · Sheet4(NO · FC · PLT).
+   파일명 "YYYYMMDD_FC(경매 제목)_A(센터,PLT)_B(…)". 기록은 이 브라우저(localStorage kk_evbid_hist_v1 · 파일 IndexedDB evb_file_<id>). */
+let _evbFile = null, _evbData = null, _evbCur = null, EVB_HISTORY = [];
+const EVB_LS = "kk_evbid_hist_v1";
+try{ EVB_HISTORY = JSON.parse(localStorage.getItem(EVB_LS)||"[]") || []; }catch(_){ EVB_HISTORY = []; }
+function evbPersist(){ try{ localStorage.setItem(EVB_LS, JSON.stringify(EVB_HISTORY.slice(0,100))); }catch(_){} }
+function evbSay(mm, bad){ const st = document.getElementById("evbStatus"); if(st) st.innerHTML = bad ? `<span style="color:var(--red)">${mm}</span>` : mm; }
+function evbTitle(){ const t = document.getElementById("evTitle"); let s = evCleanTitle(t && t.value); if(!s && _evbFile) s = evCleanTitle(evTitleFromName(_evbFile.name)); return s || "이벤트"; }
+function evbDataNow(){
+  if(!_evbFile) return null;
+  if(_evbData && _evbData._file===_evbFile) return _evbData;
+  if(typeof _evsData!=="undefined" && _evsData && _evsData._file===_evbFile){ _evbData = _evsData; return _evbData; }   // ①에서 이미 읽은 것 그대로
+  return null;
+}
+async function evbEnsure(say){
+  let D = evbDataNow(); if(D) return D;
+  const f = _evbFile, ff = await fiLoadScript(LIQ_FFLATE_URL, "fflate");
+  D = await evLoad(f, say || function(){}, ff); D._file = f;
+  if(_evbFile===f) _evbData = D;
+  return D;
+}
+// LOT 입력: 원본 LOT 이름에 맞춰 읽음 — "A, B" · "A 30, B 25" · "A(30)" · 줄바꿈
+function evbParseLots(text, have){
+  const H = new Set((have||[]).map(x=> String(x).toUpperCase())), lots = [], plt = {}, bad = [];
+  let last = null;
+  String(text||"").toUpperCase().replace(/PLT/g," ").split(/[\s,;\/()=:]+/).filter(Boolean).forEach(tok=>{
+    if(H.has(tok)){ if(!lots.includes(tok)) lots.push(tok); last = tok; return; }
+    if(/^\d+(\.\d+)?$/.test(tok) && last){ plt[last] = +tok; last = null; return; }
+    if(!H.size){ if(!lots.includes(tok)) lots.push(tok); last = tok; return; }
+    bad.push(tok); last = null; });
+  return { lots, plt, bad };
+}
+function evbLotsNow(){ const D = evbDataNow(), ta = document.getElementById("evbLots"); return evbParseLots(ta ? ta.value : "", D ? fdLotList(D) : []); }
+function evbChips(D){
+  if(!D._evbChips) D._evbChips = fdLotList(D).map(no=>{ const o = fdLotInfo(D, no, D._pltOver && D._pltOver[no]!=null ? D._pltOver[no] : null); return { lot:no, sub: o.plt!=null ? o.plt+"PLT" : "", tip: `${o.centerKo||o.centerText} · ${fiFmt(o.rows)}행 · 판매가 ${fiFmt(Math.round(o.F))}` }; });
+  return D._evbChips;
+}
+function evbPickRender(){
+  const el = document.getElementById("evbPick"); if(!el) return;
+  const D = evbDataNow();
+  if(!D){ el.innerHTML = _evbFile ? '<span class="fi-mut">원본 LOT 읽는 중…</span>' : ""; return; }
+  const C = evbChips(D), on = new Set(evbLotsNow().lots);
+  el.innerHTML = `<div class="fi-mut" style="margin:2px 0 4px">원본 LOT ${C.length}개 — 눌러서 낙찰 LOT 고르기 <b>(선택 ${C.filter(c=> on.has(c.lot)).length})</b></div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;max-height:132px;overflow:auto">${C.map(c=> `<button type="button" class="act fi-mini bid-chip${on.has(c.lot)?" primary":""}" data-evb-chip="${escHtml(c.lot)}" title="${escHtml(c.tip)}">${escHtml(c.lot)}${c.sub?` <span style="opacity:.7;font-size:13px">${escHtml(c.sub)}</span>`:""}</button>`).join("")}</div>`;
+}
+function evbToggleLot(lot){
+  const ta = document.getElementById("evbLots"); if(!ta) return;
+  const P = evbLotsNow(), L = String(lot).toUpperCase();
+  const next = P.lots.includes(L) ? P.lots.filter(x=> x!==L) : P.lots.concat(L);
+  ta.value = next.map(l=> P.plt[l]!=null ? `${l} ${P.plt[l]}` : l).join(", ");
+  evbPickRender();
+}
+function evbTakeFile(f, fromSum){
+  if(!f) return;
+  if(!/\.(xlsx|xlsm|xlsb|xls)$/i.test(f.name||"")){ evbSay("이벤트 경매 원본 엑셀(.xlsx · .xlsb)을 올려 주세요.", true); return; }
+  _evbFile = f; _evbData = null; _evbCur = null;
+  evbSay(fromSum ? "① 요약본 원본이 들어왔습니다 — 낙찰 LOT을 고르고 '낙찰파일 생성'" : "");
+  evbRender();
+  if(fromSum) return;   // ①이 읽는 중 — 다 읽으면 evsHandleFile이 evbRender
+  evbEnsure(mm=> evbSay(mm)).then(()=>{ if(_evbFile!==f) return; evbSay(""); evbRender(); if(evbLotsNow().lots.length) evbGenerate(); })
+    .catch(e=>{ console.error(e); evbSay("원본 읽기 실패: "+escHtml(e && e.message || e), true); });
+}
+async function evbGenerate(){
+  const dEl = document.getElementById("evbDate");
+  if(!_evbFile){ evbSay("먼저 이벤트 경매 원본을 올려 주세요(① 요약본에 올리면 여기에도 자동으로 들어옵니다).", true); return; }
+  const btn = document.getElementById("evbGo"); if(btn) btn.disabled = true;
+  const t0 = Date.now();
+  try{
+    const D = await evbEnsure(mm=> evbSay(mm));
+    const have = fdLotList(D), P = evbParseLots(document.getElementById("evbLots").value, have);
+    if(!P.lots.length){ evbSay(`낙찰된 LOT을 입력하거나 아래 LOT 버튼을 눌러 고르세요. 원본 LOT: ${escHtml(have.join(", "))}`, true); evbRender(); return; }
+    let date8 = fdYYYYMMDD(dEl && dEl.value); if(!date8){ date8 = fdYYYYMMDD(fiDetectDate("")); if(dEl) dEl.value = date8; }
+    const title = evbTitle();
+    evbSay(`LOT ${escHtml(P.lots.join(", "))} 낙찰파일 만드는 중…`); await liqTick();
+    const ff = await fiLoadScript(LIQ_FFLATE_URL, "fflate");
+    const b = fdBuildBid(D, P.lots, date8, Object.assign({}, D._pltOver||{}, P.plt));
+    b.name = `${date8}_FC(${title})_` + b.parts.map(p=> `${p.no}(${p.centerKo||p.centerText},${p.plt==null?"":p.plt}PLT)`).join("_");
+    b.outName = fdSafeFile(b.name) + ".xlsx";
+    const bytes = await fdBidWorkbook(ff, D, b);
+    // 검수: 받을 파일을 다시 열어 행 수 · 판매가 확인
+    const chk = [];
+    try{ const wb = XLSX.read(bytes, { type:"array" }), R = XLSX.utils.sheet_to_json(wb.Sheets.RAW, { header:1, defval:null });
+      const nR = R.slice(2).filter(r=> r && r.slice(0, b.pick.length).some(v=> v!=null && v!=="")).length;
+      if(nR!==b.rows) chk.push(`RAW ${nR}행 ≠ 원본 낙찰 LOT ${b.rows}행`);
+      const W = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, defval:null }), nW = W.slice(2).filter(r=> r && r.some(v=> v!=null && v!=="")).length;
+      if(nW!==b.rows) chk.push(`원본 시트 ${nW}행 ≠ ${b.rows}행`);
+    }catch(e){ chk.push("받을 파일 다시 열기 실패: "+(e && e.message || e)); }
+    const id = Date.now(), sec = ((Date.now()-t0)/1000).toFixed(1);
+    try{ await idbSet(`evb_file_${id}`, { name:b.outName, data:bytes }); }catch(_){}
+    _evbCur = { id, date8, title, b, bytes, bad:P.bad, chk, sec };
+    EVB_HISTORY = [{ id, at:new Date(id).toLocaleString("ko-KR"), date:date8, title, lots:P.lots, plt:P.plt, srcName:_evbFile.name, name:b.name, outName:b.outName,
+      parts: b.parts.map(p=>({ lot:p.no, fc:p.fcList, plt:p.plt, rows:p.rows, sales:Math.round(p.F) })), rows:b.rows, qty:b.qty, shop:Math.round(b.shop), whole:Math.round(b.whole), sales:Math.round(b.sales) }].concat(EVB_HISTORY);
+    EVB_HISTORY.slice(100).forEach(h=>{ try{ idbSet(`evb_file_${h.id}`, null).catch(()=>{}); }catch(_){} });
+    evbPersist();
+    evbSay(`✓ 낙찰파일 생성 (LOT ${escHtml(P.lots.join(", "))}) — ${b.rows.toLocaleString()}행 (${sec}초)${P.bad.length?` · <span style="color:var(--red)">원본에 없는 LOT: ${escHtml(P.bad.join(", "))}</span>`:""}${chk.length?` · <span style="color:var(--red)">✖ 검수: ${escHtml(chk.join(" · "))}</span>`:""}`);
+    evbRender();
+  }catch(e){ console.error(e); evbSay("생성 실패: "+escHtml(e && e.message || e), true); }
+  finally{ if(btn) btn.disabled = false; }
+}
+function evbReset(){ _evbFile = null; _evbData = null; _evbCur = null;
+  ["evbLots","evbInput"].forEach(id=>{ const e = document.getElementById(id); if(e) e.value = ""; });
+  evbSay(""); evbRender(); }
+function evbRender(){
+  try{ tdRender(); }catch(_){}
+  const f = document.getElementById("evbFileInfo"), D = evbDataNow();
+  if(f) f.innerHTML = _evbFile ? `원본: <b>${escHtml(_evbFile.name)}</b> <span class="fi-mut">(${(_evbFile.size/1048576).toFixed(1)}MB)${D ? ` · LOT ${fdLotList(D).length}개` : ""} · 경매 제목 <b>${escHtml(evbTitle())}</b> — LOT만 바꿔 다시 만들 때는 파일을 다시 올릴 필요 없음</span> <button class="act fi-mini fi-del" id="evbFileDel" title="올린 원본 빼기">✕ 원본 삭제</button>` : `<span class="fi-mut">원본 파일 없음</span>`;
+  evbPickRender();
+  const wrap = document.getElementById("evbResult");
+  if(wrap){
+    if(!_evbCur) wrap.innerHTML = "";
+    else { const c = _evbCur, b = c.b, miss = Object.keys(b.missingRate||{}), guess = b.guessRate||{};
+      wrap.innerHTML = `<div class="fi-file" style="margin-top:10px">
+        <div class="fi-file-hd"><span class="fi-type" style="border-color:var(--c-ev);color:var(--c-ev)">${escHtml(c.title)}</span> <span class="fi-fname">${escHtml(b.outName)}</span> <button class="act primary fi-mini" id="evbDl">⬇ 다운로드</button> <button class="act fi-mini" id="evbCopy">파일명 복사</button>
+          <button class="act fi-mini fi-del" id="evbResDel" title="화면에서 결과 지우기 (기록은 아래에서 삭제)">✕</button></div>
+        ${c.chk && c.chk.length ? `<div class="ev-bad">✖ 검수: ${escHtml(c.chk.join(" · "))}</div>` : ""}
+        <table class="fi-tbl"><thead><tr><th>LOT</th><th>FC (센터)</th><th class="n">PLT</th><th class="n">행</th><th class="n">판매가(부가세x)</th></tr></thead><tbody>
+        ${b.parts.map(p=>`<tr><td><b>${escHtml(p.no)}</b></td><td style="white-space:normal;font-size:13.5px">${escHtml(p.centerKo||p.centerText)} <span class="fi-mut">(${escHtml(p.centerText)})</span></td><td class="n">${p.plt==null?'<span class="fi-mut">-</span>':fiFmt(p.plt)}</td><td class="n">${fiFmt(p.rows)}</td><td class="n">${fiFmt(Math.round(p.F))}</td></tr>`).join("")}
+        <tr style="font-weight:700"><td>합계</td><td></td><td class="n">${b.plt==null?"-":fiFmt(b.plt)}</td><td class="n">${fiFmt(b.rows)}</td><td class="n">${fiFmt(Math.round(b.sales))}</td></tr></tbody></table>
+        <div class="fi-mut" style="margin-top:6px">시트: 원본(낙찰 LOT 행) · RAW(매장판매가 총액 ${fiFmt(Math.round(b.shop))} · 도매판매가 총액 ${fiFmt(Math.round(b.whole))}) · Sheet4(NO. · FC · PLT) — FC파손 낙찰파일과 같은 양식 · PLT를 바꾸려면 LOT 칸에 "A 30, B 25"</div>
+        ${miss.length?`<div style="color:var(--red);font-size:14px;margin-top:6px">⚠ 도매요율표에 없는 분류 ${miss.length}개 → 도매가 100원으로 넣음(확인): ${miss.map(escHtml).join(", ")}</div>`:""}
+        ${Object.keys(guess).length?`<div style="color:var(--amber);font-size:14px;margin-top:6px">ⓘ 도매요율표에 없는 소분류 → 같은 상위 분류 요율로 계산: ${Object.entries(guess).map(([k,v])=>escHtml(k)+" = "+v).join(", ")}</div>`:""}
+      </div>`; }
+  }
+  const hEl = document.getElementById("evbHistory"); if(!hEl) return;
+  recListRender({ key:"evbHist", el:hEl, unit:"낙찰파일 기록", empty:"아직 만든 이벤트 경매 낙찰파일이 없습니다.",
+    items: EVB_HISTORY.map(h=>({ id:h.id, group: rlDateKey(h.date || h.at), h, text: [h.at, h.date, h.title, h.name, h.srcName, (h.lots||[]).join(" ")].join(" ") })),
+    groupLabel: g=> rlDateLabel(g)+" 낙찰",
+    groupInfo: xs=> `${xs.reduce((a,x)=> a+(x.h.rows||0), 0).toLocaleString()}행`,
+    head: ["작성 일시","낙찰일","낙찰파일명",'<span style="float:right">판매가(부가세x)</span>',""],
+    cells: x=>{ const h = x.h; return [`<td>${escHtml(h.at)}</td>`, `<td>${escHtml(h.date||"")}</td>`,
+      `<td style="white-space:normal;word-break:break-all">${escHtml(h.name||h.outName)}</td>`, `<td class="n">${fiFmt(h.sales||0)}</td>`,
+      `<td style="white-space:nowrap"><button class="act fi-mini" data-evb-hdl="${h.id}">⬇ 다시 받기</button> <button class="act fi-mini" data-evb-hcopy="${h.id}">파일명 복사</button> <button class="act fi-mini" data-evb-lots="${h.id}">LOT 다시 입력</button> <button class="act fi-mini" data-evb-hdel="${h.id}">✕</button></td>`]; },
+    onDelete: ids=>{ const del = new Set(ids); ids.forEach(id=>{ try{ idbSet(`evb_file_${id}`, null).catch(()=>{}); }catch(_){} });
+      EVB_HISTORY = EVB_HISTORY.filter(x=> !del.has(x.id)); evbPersist(); evbRender(); } });
+}
+function wireEvBid(){
+  const box = document.getElementById("evBidBox"); if(!box || box._wired) return; box._wired = true;
+  const dz = document.getElementById("evbDrop"), inp = document.getElementById("evbInput"), ta = document.getElementById("evbLots");
+  dz.addEventListener("click", e=>{ if(e.target.closest("button")) return; inp.click(); });
+  dz.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); inp.click(); } });
+  inp.addEventListener("change", ()=>{ evbTakeFile(inp.files && inp.files[0], false); inp.value = ""; });
+  ["dragenter","dragover"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("dragover"); }));
+  ["dragleave","drop"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove("dragover"); }));
+  dz.addEventListener("drop", e=> evbTakeFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0], false));
+  const dEl = document.getElementById("evbDate"); if(dEl && !dEl.value) dEl.value = fdYYYYMMDD(fiDetectDate(""));
+  if(ta) ta.addEventListener("input", ()=> evbPickRender());
+  box.addEventListener("click", async e=>{
+    const t = e.target.closest("button"); if(!t) return;
+    const flash = (msg, back)=>{ t.textContent = msg; setTimeout(()=>{ t.textContent = back; }, 1500); };
+    if(t.dataset.evbChip){ evbToggleLot(t.dataset.evbChip); }
+    else if(t.id==="evbFileDel"){ e.stopPropagation(); _evbFile = null; _evbData = null; _evbCur = null; evbSay("원본 파일을 뺐습니다."); evbRender(); }
+    else if(t.id==="evbResDel"){ _evbCur = null; evbSay(""); evbRender(); }
+    else if(t.id==="evbGo") evbGenerate();
+    else if(t.id==="evbDl" && _evbCur) fiDownloadBytes(_evbCur.b.outName, _evbCur.bytes);
+    else if(t.id==="evbCopy" && _evbCur){ fiCopyText(_evbCur.b.outName.replace(/\.xlsx$/,""), null); flash("복사됨 ✓","파일명 복사"); }
+    else if(t.dataset.evbHdl){ try{ const v = await idbGet(`evb_file_${t.dataset.evbHdl}`); if(v && v.data) fiDownloadBytes(v.name, v.data); else showNotice("이 브라우저에는 그 낙찰파일 보관본이 없습니다. 원본을 올리고 \"LOT 다시 입력\"으로 다시 만들어 주세요."); }catch(_){} }
+    else if(t.dataset.evbHcopy){ const h = EVB_HISTORY.find(x=> x.id===+t.dataset.evbHcopy); if(h){ fiCopyText(String(h.outName||h.name).replace(/\.xlsx$/,""), null); flash("복사됨 ✓","파일명 복사"); } }
+    else if(t.dataset.evbLots){ const h = EVB_HISTORY.find(x=> x.id===+t.dataset.evbLots); if(h){ if(ta) ta.value = (h.lots||[]).map(l=> h.plt && h.plt[l]!=null ? `${l} ${h.plt[l]}` : l).join(", "); if(dEl) dEl.value = h.date||""; evbPickRender(); ta && ta.focus(); } }
+    else if(t.dataset.evbHdel){ if(confirm("이 기록을 삭제할까요?")){ const id = +t.dataset.evbHdel; try{ idbSet(`evb_file_${id}`, null).catch(()=>{}); }catch(_){} EVB_HISTORY = EVB_HISTORY.filter(x=> x.id!==id); evbPersist(); evbRender(); } }
+  });
+  evbRender();
 }
 
 /* ================= build 293: 신선 리퀴데이션 리스트 (쿠팡_신선 리퀴데이션 리스트_YYYYMMDD_킹콩백화점.xlsx) =================
@@ -27822,6 +28018,7 @@ function fiResetCard(k){
   if(k==="eos"){ try{ _eosFile = null; _eosData = null; _eosCur = null; }catch(_){} val("eosLots"); val("eosDate"); clr("eosStatus"); val("eosInput"); try{ eosRender(); }catch(_){} }
   if(k==="fds"){ try{ _fdsFile = null; _fdsCur = null; }catch(_){} clr("fdsStatus"); val("fdsInput"); try{ fdsRender(); }catch(_){} try{ dwsReset(); }catch(_){} }   // build 170 · 188: 데드우드 요약본도
   if(k==="evs"){ try{ evsReset(); }catch(_){} }
+  if(k==="evb"){ try{ evbReset(); }catch(_){} }   // build 386: 이벤트 경매 낙찰파일
   if(k==="frs"){ try{ frsReset(); }catch(_){} }   // build 293: 신선 리스트   // build 266: 이벤트 경매 요약본
   if(k==="fd"){ try{ _fdFile = null; _fdData = null; _fdCur = null; }catch(_){} val("fdLots"); val("fdDate"); clr("fdStatus"); val("fdInput"); try{ fdRender(); }catch(_){} try{ dwReset(); }catch(_){} }   // build 187: 데드우드 탭도
   if(k==="fi"){ try{ _fiCur = null; }catch(_){} clr("fiStatus"); val("fiInput"); try{ fiRender(); }catch(_){} }
@@ -27851,10 +28048,10 @@ document.addEventListener("click", e=>{
   const b = e.target.closest && e.target.closest("button[data-reset]"); if(!b) return;
   e.preventDefault(); e.stopPropagation();
   const k = b.dataset.reset;
-  const name = { ls:"① 요약본 생성기 · 정기비딩", liq:"② 낙찰파일 생성기 · 정기비딩", es:"① 요약본 생성기 · 임박식품", eos:"② 낙찰파일 생성기 · 임박식품", fds:"① 요약본 생성기 · FC파손/데드우드", evs:"① 요약본 생성기 · 이벤트 경매", frs:"① 신선 리퀴데이션 리스트", fd:"② 낙찰파일 생성기 · FC파손/데드우드", kd:"③ 매장 분배표", fi:"② 낙찰파일 생성기 · 고정인수", disp:"④ 배차요청 & 직출 분배표" }[k];
+  const name = { ls:"① 요약본 생성기 · 정기비딩", liq:"② 낙찰파일 생성기 · 정기비딩", es:"① 요약본 생성기 · 임박식품", eos:"② 낙찰파일 생성기 · 임박식품", fds:"① 요약본 생성기 · FC파손/데드우드", evs:"① 요약본 생성기 · 이벤트 경매", evb:"② 낙찰파일 생성기 · 이벤트 경매", frs:"① 신선 리퀴데이션 리스트", fd:"② 낙찰파일 생성기 · FC파손/데드우드", kd:"③ 매장 분배표", fi:"② 낙찰파일 생성기 · 고정인수", disp:"④ 배차요청 & 직출 분배표" }[k];
   if(k==="all"){
     if(!confirm("①~④에 올린 원본 파일 · 입력한 LOT · 화면 결과를 모두 지울까요?\n(낙찰파일 기록 · 분배 히스토리 · 배차 요청 기록은 그대로 남습니다)")) return;
-    ["ls","liq","es","eos","fds","fd","evs","frs","kd","fi","disp"].forEach(fiResetCard); if(typeof flash==="function") flash("초기화 완료 ✓", "업로드 자료"); return;
+    ["ls","liq","es","eos","fds","fd","evs","evb","frs","kd","fi","disp"].forEach(fiResetCard); if(typeof flash==="function") flash("초기화 완료 ✓", "업로드 자료"); return;
   }
   if(k==="dispAll"){
     const n = (FI_DISPATCH_HISTORY||[]).length;
@@ -28695,9 +28892,10 @@ document.addEventListener("click", e=>{ if(e.target.closest && e.target.closest(
 // 단계 카드 상태: 고른 종류(정기 · 임박 · FC파손/데드우드) 기준. ③ 매장 분배는 기록이 없어 '필요할 때'
 function kkStepStatus(rows){
   const g = typeof _genTab!=="undefined" ? _genTab : "ls", by = {}; (rows||[]).forEach(r=> by[r.s.k] = r);
-  const key = { 1: g==="es" ? "es" : (g==="fd"||g==="dw") ? "fds" : g==="ev" ? "evs" : g==="fr" ? "frs" : "ls", 2: g==="es" ? "eos" : (g==="fd"||g==="dw") ? "fd" : (g==="ev"||g==="fr") ? null : "liq", 4:"fi", 5:"disp" };
+  const key = { 1: g==="es" ? "es" : (g==="fd"||g==="dw") ? "fds" : g==="ev" ? "evs" : g==="fr" ? "frs" : "ls", 2: g==="es" ? "eos" : (g==="fd"||g==="dw") ? "fd" : g==="ev" ? "evb" : g==="fr" ? null : "liq", 4:"fi", 5:"disp" };
   if(g==="fr") by.frs = { s:{ k:"frs" }, n:0, done: typeof _frCur!=="undefined" && !!_frCur, skip:false };   // build 293: 신선 리스트
-  if(g==="ev") by.evs = { s:{ k:"evs" }, n:0, done: typeof _evsCur!=="undefined" && !!_evsCur, skip:false };   // build 266: 이벤트 경매는 가끔 — 오늘 할 일 목록에는 넣지 않음
+  if(g==="ev") by.evs = { s:{ k:"evs" }, n:0, done: typeof _evsCur!=="undefined" && !!_evsCur, skip:false };
+  if(g==="ev") by.evb = { s:{ k:"evb" }, n:0, done: typeof _evbCur!=="undefined" && !!_evbCur, skip:false };   // build 386   // build 266: 이벤트 경매는 가끔 — 오늘 할 일 목록에는 넣지 않음
   document.querySelectorAll("#kkNav [data-st]").forEach(e=>{
     const n = +e.dataset.st, r = key[n] && by[key[n]], a = e.closest(".kk-st");
     let cls = "", txt = "필요할 때";
