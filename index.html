@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 403 · 2026-11-27</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 404 · 2026-11-27</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -22065,12 +22065,19 @@ function fiTruckRows(trucks){
 const FI_TRUCK_HDR = ["차량","출고일","출고시간","상차지(FC)","입차CODE","도착지","PLT","합적","카테.","비고 (Group Number)"];
 const FI_TRUCK_KEYS = ["차량","출고일","출고시간","상차지","입차CODE","도착지","PLT","합적","카테","비고"];
 const FI_TRUCK_WIDTH = [8,15,12,14,14,16,7,11,12,46];
+/* build 404 (사용자): 배차요청서 색 정리 — 칠 없앰, 차마다 흰색/옅은 회색 번갈아 + 차 경계 굵은 선, 오전 글자 파랑 · 오후 글자 빨강, 비고는 ※ 있을 때만 빨강 */
+const FI_AM_COLOR = "FF0070C0", FI_PM_COLOR = "FFC00000";
+function fiAmPmHtml(t){ return escHtml(t).replace(/오전/g, '<b style="color:#0070C0">오전</b>').replace(/오후/g, '<b style="color:#C00000">오후</b>'); }
+function fiAmPmRich(t, font){   // 엑셀 글자 일부만 색: 오전 파랑 · 오후 빨강
+  const parts = String(t).split(/(오전|오후)/).filter(x=> x!=="");
+  return { richText: parts.map(x=> ({ text:x, font: Object.assign({}, font, x==="오전" ? { color:{ argb:FI_AM_COLOR } } : x==="오후" ? { color:{ argb:FI_PM_COLOR } } : {}) })) };
+}
 function fiTruckHtml(rows){
   const T = fiTruckPlan(rows); if(!T.length) return "";
   const R = fiTruckRows(T);
   return `<div class="fi-sec-t">🚚 배차요청서 (합적 · 1대 최대 ${FI_TRUCK_MAX}PLT) <span class="fi-mut">${T.length}대 · ${T.reduce((s,t)=>s+t.plt,0)}PLT · 같은 출고일 · 시간 · 도착지 + 상차 FC 같거나 근처(${FI_NEAR_KM}km 안)면 한 차</span></div>
   <div class="fi-xprev"><table><thead><tr>${FI_TRUCK_HDR.map(x=>`<th>${escHtml(x)}</th>`).join("")}</tr></thead><tbody>
-  ${R.map((o,i)=>`${i>0 && (T[i-1].date!==T[i].date || T[i-1].fc!==T[i].fc) ? `<tr><td colspan="${FI_TRUCK_KEYS.length}" style="height:10px;border:none;background:transparent"></td></tr>` : ""}<tr${/^합적/.test(o.합적)?' style="background:#FFF7D6"':""}>${FI_TRUCK_KEYS.map(k=>`<td${k==="출고시간"&&/오[전후]/.test(o.출고시간)?` style="background:${/오전/.test(o.출고시간)?"#DDEBF7":"#FFFF99"};white-space:pre-line"`:k==="비고"?' style="text-align:left;white-space:pre-line;min-width:220px"':k==="입차CODE"?' style="white-space:pre-line"':""}>${escHtml(k==="출고시간" && o.출고시간표 ? o.출고시간표 : (o[k]==null?"":o[k]))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  ${R.map((o,i)=>`${i>0 && (T[i-1].date!==T[i].date || T[i-1].fc!==T[i].fc) ? `<tr><td colspan="${FI_TRUCK_KEYS.length}" style="height:10px;border:none;background:transparent"></td></tr>` : ""}<tr${i%2?' style="background:#F7F7F7"':""}>${FI_TRUCK_KEYS.map(k=>`<td${k==="출고시간"?' style="white-space:pre-line"':k==="비고"?` style="text-align:left;white-space:pre-line;min-width:220px${/※/.test(o.비고||"")?";color:#C00000":""}"`:k==="입차CODE"?' style="white-space:pre-line"':""}>${k==="출고시간" ? fiAmPmHtml(o.출고시간표 || o.출고시간 || "") : escHtml(o[k]==null?"":o[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 function fiTruckText(rows){
   const T = fiTruckPlan(rows); if(!T.length) return "";
@@ -22098,7 +22105,8 @@ function fiTruckBlock(ws, rows, r0, border, upRef){
   const q = t=> String(t).replace(/"/g,'""').replace(/\n/g,'"&CHAR(10)&"');
   const fx = (formula, result)=> ({ formula, result: result==null ? "" : result });
   const H = ["차량","출고시간","상차지(FC)","입차CODE","도착지","Group Number","PLT","차량 합계","합적","카테.","비고 ※ Group No별 구분 하차"];   // build 380: 사용자 양식
-  H.forEach((tx,i)=>{ const c = ws.getCell(r, C0+i); c.value = tx; c.font = F(10,true); c.alignment = { horizontal:"center", vertical:"middle" }; c.border = border; c.fill = fill("FFF2F2F2"); });
+  H.forEach((tx,i)=>{ const c = ws.getCell(r, C0+i); c.value = tx; c.font = F(10,true); c.alignment = { horizontal:"center", vertical:"middle", wrapText:true }; c.border = border; c.fill = fill("FFF2F2F2"); });
+  ws.getRow(r).height = 30;   // build 404: 좁은 칸 머리글(Group Number) 두 줄
   ws.mergeCells(r, C0+10, r, C0+11); ws.getCell(r, C0+11).border = border; r++;
   T.forEach((t,ti)=>{
     if(ti > 0 && (T[ti-1].date !== t.date || T[ti-1].fc !== t.fc)) r++;   // build 390: 상차지(센터)가 바뀌면 빈 줄 한 칸
@@ -22132,15 +22140,27 @@ function fiTruckBlock(ws, rows, r0, border, upRef){
           if(head === `${t.drops ? `${dIdx+1}차 ` : ""}${String(x.r.dest||t.dest||"").trim()} 하차 (낙찰 ${fiTruckBno(x)})${t.drops ? ` / ${gno}` : ""}` && x.r.dest)
             v[10] = fx(`"${t.drops ? `${dIdx+1}차 ` : ""}"&${L("도착지")}&" 하차 (낙찰 "&${L("낙찰NO")}&")"${t.drops ? `&" / "&${L("GroupNumber")}` : ""}${mixed ? `&" · "&${L("카테")}&" 구분"` : ""}${rest ? `&" · ${q(rest)}"` : ""}`, note); }
       }
-      v.forEach((val,ci)=>{ const c = ws.getCell(r, C0+ci); c.value = val===""||val==null ? null : val; c.font = F(11, ci===0||ci===7, ci===10 && val ? "FFC00000" : null);
-        c.alignment = { horizontal: ci===10 ? "left" : "center", vertical:"middle", wrapText: ci===10 }; c.border = border; if(mix) c.fill = fill("FFFFF2CC");
-        if(ci===1){ const apc = /오전/.test(ap) ? "FFDDEBF7" : /오후/.test(ap) ? "FFFFFF99" : ""; if(apc) c.fill = fill(apc); } });   // build 391: 출고시간 칸 오전=옅은 파랑 · 오후=옅은 노랑
+      // build 404 (사용자): 색 정리 — 칠 없음(차마다 흰색/옅은 회색), 칸 안 줄바꿈, 비고 검정(※ 있으면 빨강), 출고시간 오전 파랑 · 오후 빨강 글자만
+      const band = ti % 2 ? fill("FFF7F7F7") : null;
+      v.forEach((val,ci)=>{ const c = ws.getCell(r, C0+ci);
+        const warnTxt = ci===10 && /※/.test(String((val && val.result!=null) ? val.result : (val||"")));
+        c.font = F(11, ci===0||ci===7, ci===10 ? (warnTxt ? "FFC00000" : "FF262626") : null);
+        if(ci===1 && val){ const txt = String(val && val.result!=null ? val.result : val); c.value = /오[전후]/.test(txt) ? fiAmPmRich(txt, F(11)) : txt; }   // 글자 일부 색 = 값(수식 대신)
+        else c.value = val===""||val==null ? null : val;
+        c.alignment = { horizontal: ci===10 ? "left" : "center", vertical:"middle", wrapText:true }; c.border = border; if(band) c.fill = band; });
       ws.mergeCells(r, C0+10, r, C0+11);
       if(x === t.items[0]){ const nl = String(note||"").split("\n").length + Math.floor(String(note||"").length/45); if(nl > 1) ws.getRow(r).height = Math.min(120, 15*nl+3); }   // build 372
       r++;
     });
     { const pc = fiColL(C0+6), c7 = ws.getCell(top, C0+7); c7.value = fx(`SUM(${pc}${top}:${pc}${r-1})`, t.plt); }   // build 394: 차량 합계 = 이 차 PLT 합
     if(r - top > 1) (t.drops ? [0,1,7,8] : [0,1,4,7,8]).filter(ci=> !(amMix && ci===1)).forEach(ci=> ws.mergeCells(top, C0+ci, r-1, C0+ci));
+    { // build 404: 차 경계 굵은 선(위 · 아래), 합친 칸은 맨 위 칸에도 아래 굵은 선 · 한 줄짜리 차는 글이 길면 두 줄 높이
+      const thin = { style:"thin", color:{ argb:"FFBFBFBF" } }, thick = { style:"medium", color:{ argb:"FF595959" } };
+      for(let rr=top; rr<r; rr++) for(let ci=0; ci<NC; ci++){ const c = ws.getCell(rr, C0+ci);
+        const vMaster = rr===top && r-top>1 && c.isMerged && c.master===c && ci!==10 && ci!==11;   // 세로로 합친 칸의 맨 위 칸
+        c.border = { left:thin, right:thin, top: rr===top ? thick : thin, bottom: (rr===r-1 || vMaster) ? thick : thin }; }
+      if(r - top === 1 && !(ws.getRow(top).height > 30) && (String(o.합적||"").length > 7 || String(o.출고시간||"").length > 10)) ws.getRow(top).height = 30;
+    }
   });
   { const pc = fiColL(C0+6), hd = tRow+2; t0.value = fx(`"${q(t0txt.split(" — ")[0])} — 총 ${T.length}대 · "&SUM(${pc}${hd}:${pc}${r-1})&"PLT  ${q(t0txt.split("PLT  ")[1]||"")}"`, t0txt); }   // build 394: 총 PLT = 아래 PLT 칸 합
   return r;
