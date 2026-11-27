@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 406 · 2026-11-27</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 407 · 2026-11-27</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -22193,9 +22193,9 @@ function fiTruckBlock(ws, rows, r0, border, upRef){
       if(t.ampmNote) note = [x.fromAm ? "오전 요청분" : "오후 요청분", note].filter(Boolean).join(" · ") + (x === t.items[0] ? `\n※ ${t.ampmNote}` : "");
       const gno = fiTruckGno(x.r);
       const dIdx = t.drops ? t.drops.indexOf(String(x.r.dest||"").trim()) : -1;
-      if(t.items.length > 1){   // build 376: 줄마다 "이 Group No → 어디 하차"(물류회사 기준), 괄호 낙찰NO
+      if(t.items.length > 1){   // build 407: 하차지 하나여도 Group No 항상(Group별 구분 하차) · build 376: 줄마다 "이 Group No → 어디 하차"(물류회사 기준), 괄호 낙찰NO
         const mixed = fiTruckCats(t).length > 1;
-        note = [`${t.drops ? `${dIdx+1}차 ` : ""}${String(x.r.dest||t.dest||"").trim()} 하차 (낙찰 ${fiTruckBno(x)})${t.drops ? ` / ${gno}` : ""}${mixed ? " · "+cat+" 구분" : ""}`, note].filter(Boolean).join(" · ");   // build 380: 사용자 양식
+        note = [`${t.drops ? `${dIdx+1}차 ` : ""}${String(x.r.dest||t.dest||"").trim()} 하차 (낙찰 ${fiTruckBno(x)}) / ${gno}${mixed ? " · "+cat+" 구분" : ""}`, note].filter(Boolean).join(" · ");   // build 380: 사용자 양식
       }
       if(x === t.items[0]){ const rw = fiTruckRouteWarn(t); if(rw) note = (note ? note + "\n" : "") + "※ " + rw; }   // build 403: 어색한 동선 코멘트(차 첫 줄)
       const ap = amMix ? (x.fromAm ? "오전" : "오후") : o.출고시간, apTxt = amMix && x.fromAm ? `${ap} → 오후 배차` : ap;
@@ -22212,8 +22212,8 @@ function fiTruckBlock(ws, rows, r0, border, upRef){
         { const k = L("카테"); v[9] = fx(`IF(${k}="XLS","물/탄산수",IF(${k}="XLD","기저귀/분유",${k}))`, v[9]); }   // build 400
         if(t.items.length > 1){ const mixed = fiTruckCats(t).length > 1, rest = String(note).split(" · ").slice(mixed?2:1).join(" · ");
           const head = String(note).split(" · ")[0];
-          if(head === `${t.drops ? `${dIdx+1}차 ` : ""}${String(x.r.dest||t.dest||"").trim()} 하차 (낙찰 ${fiTruckBno(x)})${t.drops ? ` / ${gno}` : ""}` && x.r.dest)
-            v[10] = fx(`"${t.drops ? `${dIdx+1}차 ` : ""}"&${L("도착지")}&" 하차 (낙찰 "&${L("낙찰NO")}&")"${t.drops ? `&" / "&${L("GroupNumber")}` : ""}${mixed ? `&" · "&${L("카테")}&" 구분"` : ""}${rest ? `&" · ${q(rest)}"` : ""}`, note); }
+          if(head === `${t.drops ? `${dIdx+1}차 ` : ""}${String(x.r.dest||t.dest||"").trim()} 하차 (낙찰 ${fiTruckBno(x)}) / ${gno}` && x.r.dest)
+            v[10] = fx(`"${t.drops ? `${dIdx+1}차 ` : ""}"&${L("도착지")}&" 하차 (낙찰 "&${L("낙찰NO")}&") / "&${L("GroupNumber")}${mixed ? `&" · "&${L("카테")}&" 구분"` : ""}${rest ? `&" · ${q(rest)}"` : ""}`, note); }
       }
       // build 404 (사용자): 색 정리 — 칠 없음(차마다 흰색/옅은 회색), 칸 안 줄바꿈, 비고 검정(※ 있으면 빨강), 출고시간 오전 파랑 · 오후 빨강 글자만
       const band = ti % 2 ? fill("FFF7F7F7") : null;
