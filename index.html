@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 402 · 2026-11-27</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 403 · 2026-11-27</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21915,6 +21915,19 @@ function fiTruckDestPairMerge(out){
 /* build 372: 합적 차 비고 코멘트 — 하차 시 입차코드별 PLT 분류(하차지별) + 같은/다른 카테고리 */
 function fiTruckBno(x){ try{ return fiBidNoOf(x.r) || x.r.bidcode || "?"; }catch(_){ return x.r.bidcode || "?"; } }
 /* build 376: 물류회사 기준 — 하차지마다 어떤 Group No를 몇 PLT 내리는지(괄호에 낙찰NO = 받는 곳 확인용) */
+/* build 403 (사용자): 동선이 어색해도 합적은 그대로 하고 비고에 코멘트. 기준 = 합적 동선(상차지→1차→2차…)이 따로 갈 때 가장 먼 하차지보다 60km 이상 길면(직선 거리). */
+const FI_ROUTE_WARN_KM = 60;
+function fiTruckRouteWarn(t){
+  try{
+    if(!t || !t.drops || t.drops.length < 2) return "";
+    const F = fiFcGeo((t.fcs||[])[0]); if(!F) return "";
+    const G = t.drops.map(d=> fiDestGeo(d)); if(G.some(g=> !g)) return "";
+    const maxD = Math.max(...G.map(g=> fiFcKm2(F, g))), route = fiRouteKm(t.fcs, t.drops);
+    if(!isFinite(route) || route - maxD < FI_ROUTE_WARN_KM) return "";
+    const legs = []; for(let i=1;i<G.length;i++) legs.push(`${t.drops[i-1]}→${t.drops[i]} ${Math.round(fiFcKm2(G[i-1], G[i]))}km`);
+    return `동선 확인: 돌아가는 거리 약 ${Math.round(route - maxD)}km (${legs.join(", ")} · 직선 기준)`;
+  }catch(_){ return ""; }
+}
 function fiTruckUnloadNote(t){
   if(t.items.length < 2) return "";
   const cats = fiTruckCats(t), mixed = cats.length > 1, drops = t.drops || [String(t.dest||"").trim()];
@@ -22046,7 +22059,7 @@ function fiTruckRows(trucks){
     const icodes = [...new Set((t.drops ? t.items.slice().sort((a,b)=> t.drops.indexOf(String(a.r.dest||"").trim()) - t.drops.indexOf(String(b.r.dest||"").trim())) : t.items).map(x=> String(x.r.bidcode||"").trim()).filter(Boolean))].join("\n");   // build 387: 입차CODE 칸
     return { 차량:`${t.no}호차`, 입차CODE:icodes, 출고일: t.date ? `${t.date}(${fiDispWeekday(t.date)})` : "", 출고시간:`${t.ampm} ${t.time}`.replace(/\s+/g," ").trim(), 출고시간표: fiTruckAmPmLabel(t),
       상차지:t.fc, 도착지:t.dest||"(도착지 미정)", PLT:t.plt, 합적: t.items.length>1 ? `합적 ${t.items.length}건${(t.fcs||[]).length>1?` · 상차 ${t.fcs.length}곳`:""}${t.ampmNote?(t.ampmCross?" · 오전→오후 추천":" · 오전→오후"):""}${t.drops?` · 하차 ${t.drops.length}곳(동선)`:""}${fiTruckCats(t).length>1?" · 다른 카테고리":""}` : (t.items[0] && t.items[0].split ? "분할" : "단독"), 카테:cats,
-      비고: (fiTruckUnloadNote(t) || ("Group No " + Array.from(codes).map(([c,n])=> many ? `${c} (${n}PLT)` : c).join(" / "))) + warn + (t.ampmNote ? ` ※ ${t.ampmNote}` : "") };   // build 376   // build 375: 동선 문구 뺌(도착지 칸에 1차/2차)
+      비고: (fiTruckUnloadNote(t) || ("Group No " + Array.from(codes).map(([c,n])=> many ? `${c} (${n}PLT)` : c).join(" / "))) + warn + (t.ampmNote ? ` ※ ${t.ampmNote}` : "") + (fiTruckRouteWarn(t) ? `\n※ ${fiTruckRouteWarn(t)}` : "") };   // build 403: 어색한 동선 코멘트   // build 376   // build 375: 동선 문구 뺌(도착지 칸에 1차/2차)
   });
 }
 const FI_TRUCK_HDR = ["차량","출고일","출고시간","상차지(FC)","입차CODE","도착지","PLT","합적","카테.","비고 (Group Number)"];
@@ -22101,6 +22114,7 @@ function fiTruckBlock(ws, rows, r0, border, upRef){
         const mixed = fiTruckCats(t).length > 1;
         note = [`${t.drops ? `${dIdx+1}차 ` : ""}${String(x.r.dest||t.dest||"").trim()} 하차 (낙찰 ${fiTruckBno(x)})${t.drops ? ` / ${gno}` : ""}${mixed ? " · "+cat+" 구분" : ""}`, note].filter(Boolean).join(" · ");   // build 380: 사용자 양식
       }
+      if(x === t.items[0]){ const rw = fiTruckRouteWarn(t); if(rw) note = (note ? note + "\n" : "") + "※ " + rw; }   // build 403: 어색한 동선 코멘트(차 첫 줄)
       const ap = amMix ? (x.fromAm ? "오전" : "오후") : o.출고시간, apTxt = amMix && x.fromAm ? `${ap} → 오후 배차` : ap;
       const v = [o.차량, o.출고일 ? `${o.출고일.slice(5)} ${apTxt}` : apTxt, x.r._fc||"", String(x.r.bidcode||"").trim(), t.drops ? `${dIdx+1}차 ${x.r.dest}` : o.도착지, /^\d+$/.test(gno) ? +gno : gno, x.unk ? null : x.plt, t.plt, o.합적, cat, note, null];
       const ur = up(x);
@@ -29166,6 +29180,18 @@ const IMPROVE_PROPOSALS = [
     why:"승현 인건비 자료가 2025-12 ~ 2026-08(9달)까지만 있음. 11/23 '11월 인건비'는 빈 결과(실패 기록 empty)로 끝났고 메모 '2026-11 자료 없음'만 보임. 폐기비용은 2026-11까지 있어 인건비만 3달 늦음.",
     what:"인건비 · 폐기비용 질문에서 물어본 달이 모두 없으면 '2026-11 자료 없음 — 가장 최근 2026-08 인건비 N원(매장별)'로 최근 달 표를 대신 보여 주고, 검수에 '인건비 자료 3달 늦음(마지막 2026-08)' 변동 알림 추가.",
     risk:"낮음 — 자료가 없을 때 표시만 바뀜. 다른 달 값을 보여 주므로 제목에 달을 크게 표시해야 헷갈리지 않음.", done:"build 385" },
+  { id:"P261127-01", date:"2026-11-27", area:"물어보기", title:"물어보기 'N월달 이후/부터' — '달'이 붙으면 그 달만 보는 문제",
+    why:"11/25 '아산점 9월달 이후 매출상황 리뷰'가 9/1~9/30(한 달)로 잡힘. 지금 코드로 다시 해 보면 '아산점 9월 이후 매출' = 9/1~11/26인데 '아산점 9월달 이후 매출' = 9/1~9/30 — '달' 한 글자 때문에 '이후'가 무시됨.",
+    what:"기간 읽기에서 'N월달'을 'N월'과 같게 처리('N월달 이후 · 부터 · 까지 · 이전' 모두). t_b<N> 사례에 '9월달 이후' · '9월달까지' · '10월달 매출' 추가.",
+    risk:"낮음 — 기간 읽기 한 곳만 바뀜. '달'이 붙은 다른 표현(이번달 · 지난달)은 그대로인지 같이 확인 필요.", done:"" },
+  { id:"P261127-02", date:"2026-11-27", area:"물어보기", title:"물어보기 — '리뷰 · 상황 · 분석 · 정리' 같은 말을 상품 이름으로 찾지 않기",
+    why:"같은 질문에서 '리뷰'가 상품 이름 찾기로 들어가 '★_(리뷰이벤트)휴이온 캄바스…' 등 4개 상품만 보고 0행(빈 결과)으로 끝남. 매장 매출을 물은 것인데 결과가 없음.",
+    what:"질문 끝의 요청 말(리뷰 · 상황 · 현황 · 분석 · 정리 · 검토 · 보고)은 상품 찾기 단어에서 빼고, 상품만 걸려 0행이면 같은 조건의 매장 매출로 다시 보여 주며 '상품 「리뷰」는 무시함' 메모 표시.",
+    risk:"낮음 — 실제로 '리뷰'가 든 상품을 찾고 싶을 땐 '리뷰 상품'처럼 써야 함.", done:"" },
+  { id:"P261127-03", date:"2026-11-27", area:"물어보기", title:"물어보기 — 자료가 없는 기간(작년 등)을 물으면 빈 결과 대신 '자료는 2026-01-01부터' 안내",
+    why:"11/24 '용인점 작년매출'이 2025-01-01~2025-12-31로 잡혀 0행 · 메모 없음으로 끝남(실패 기록 empty). 매출 자료(카테고리 · 매장별 329일)는 2026-01-01부터만 있음.",
+    what:"매출 질문 기간이 자료 시작일보다 앞이면 '매출 자료는 2026-01-01부터 있습니다 — 2025년은 없음'을 먼저 보여 주고, 일부만 겹치면 겹치는 기간으로 계산해 제목에 실제 기간 표시.",
+    risk:"낮음 — 표시만 바뀜. 작년 자료를 올리면 자동으로 사라짐.", done:"" },
 ];
 var IMPROVE_DECISIONS; if(!IMPROVE_DECISIONS || typeof IMPROVE_DECISIONS!=="object") IMPROVE_DECISIONS = {};
 var IMPROVE_REQUESTS; if(!Array.isArray(IMPROVE_REQUESTS)) IMPROVE_REQUESTS = [];
