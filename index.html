@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 408 · 2026-11-27</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 409 · 2026-11-27</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21762,6 +21762,12 @@ function fiDatedGroups(rows){
    build 363: 상차 FC가 달라도 주소상 가까우면(지역 중심 직선 FI_NEAR_KM 이내) 같이 합적. 모르는 지역은 같은 센터끼리만.
    18PLT 넘는 건은 18씩 나눠 여러 대. 차 안은 큰 건부터 채움(first-fit). 비고 = 입차코드(합적이면 코드별 PLT). */
 const FI_TRUCK_MAX = 18;
+/* build 409 (사용자): 수원점 · 경안점은 11톤(18PLT) 차 입차 불가 → 작은 차(최대 FI_SMALL_TRUCK_PLT)로만. 매장 더 생기면 여기에 */
+const FI_SMALL_TRUCK_PLT = 10;
+const FI_DEST_TRUCK_MAX = { "수원점":FI_SMALL_TRUCK_PLT, "경안점":FI_SMALL_TRUCK_PLT };
+function fiDestCap(d){ const k = String(d||"").trim(); return FI_DEST_TRUCK_MAX[k] || FI_TRUCK_MAX; }
+function fiTruckCap(t){ return Math.min(...(t.drops ? t.drops : [t.dest]).map(fiDestCap)); }
+function fiCap2(t,u){ return Math.min(fiTruckCap(t), fiTruckCap(u)); }
 const FI_NEAR_KM = 30;
 const FI_AMPM_PAIRS = [["인천49","고양3"]];   // build 367: 오전/오후 나뉜 건을 같은 하차지면 서로 합적 추천하는 센터 묶음(더 넣으려면 여기)
 const FI_FC_GEO = { 고양:[37.66,126.83],김포:[37.62,126.72],인천:[37.46,126.70],부천:[37.50,126.77],시흥:[37.38,126.80],안산:[37.32,126.83],화성:[37.20,126.83],서울:[37.57,126.98],남양주:[37.64,127.22],
@@ -21839,7 +21845,7 @@ function fiTruckRouteMerge(out, sameCat, cross){
   const catEq = (a,b)=>{ const x = fiTruckCats(a), y = fiTruckCats(b); return x.length===1 && y.length===1 && x[0]===y[0]; };
   // build 395: 짝 점수 = 같은 하차지 → 따로 갈 때보다 줄어드는 거리(km) → 꽉 차는 짝
   const pair = (t,u)=>{
-    if(!same(t,u) || t.plt + u.plt > FI_TRUCK_MAX) return null;
+    if(!same(t,u) || t.plt + u.plt > fiCap2(t,u)) return null;
     if(sameCat && !catEq(t,u)) return null;
     const ds = [...new Set([...fiTruckDests(t), ...fiTruckDests(u)])];
     if(ds.length > FI_ROUTE_MAXDROP) return null;
@@ -21922,7 +21928,7 @@ function fiTruckRouteMergeGreedy(out, sameCat, cross){
     let best = null;
     for(let i=0;i<live.length;i++) for(let j=i+1;j<live.length;j++){
       const t = live[i], u = live[j];
-      if(!same(t,u) || t.plt + u.plt > FI_TRUCK_MAX) continue;
+      if(!same(t,u) || t.plt + u.plt > fiCap2(t,u)) continue;
       if(sameCat && !catEq(t,u)) continue;
       const ds = [...new Set([...fiTruckDests(t), ...fiTruckDests(u)])];
       if(ds.length > FI_ROUTE_MAXDROP) continue;
@@ -21960,7 +21966,7 @@ function fiTruckDestPairMerge(out){
       if(t._gone) continue;
       let best = null, bs = -1;
       live.forEach(u=>{
-        if(u===t || u._gone || u.date!==t.date || grp(u)!==grp(t) || t.plt + u.plt > FI_TRUCK_MAX) return;
+        if(u===t || u._gone || u.date!==t.date || grp(u)!==grp(t) || t.plt + u.plt > fiCap2(t,u)) return;
         const ct = fiTruckCats(t), cu = fiTruckCats(u);
         const sc = (ct.length===1 && cu.length===1 && ct[0]===cu[0] ? 4 : 0) + (u.ampm===t.ampm ? 2 : 0) + ((u.fcs||[]).join("|")===(t.fcs||[]).join("|") ? 1 : 0);
         if(sc > bs || (sc===bs && u.plt > best.plt)){ best = u; bs = sc; }
@@ -22039,6 +22045,7 @@ function fiTruckPlan0(rows){
       for(let i=0;i<cl.length;i++) for(let j=i+1;j<cl.length;j++){ let d = 0; for(const x of cl[i]) for(const y of cl[j]) d = Math.max(d, fiFcKm(x, y)); if(d <= FI_NEAR_KM && d < bd){ bd = d; bi = i; bj = j; } }
       if(bi < 0) break; cl[bi] = cl[bi].concat(cl[bj]).sort((a,b)=> ord0.indexOf(a)-ord0.indexOf(b)); cl.splice(bj, 1); }
     cl.sort((a,b)=> ord0.indexOf(a[0]) - ord0.indexOf(b[0]));
+    const CAP = fiDestCap(g.dest);   // build 409: 수원점 · 경안점은 작은 차
     cl.forEach(fcs=>{
       // build 384 (사용자): 상차지는 입차CODE별로 물건을 분류(1PLT ~ 100PLT 넘게, 평균 9PLT). 입차CODE 하나 = 한 묶음.
       //  18PLT 이하 → 통째로 한 차. 18PLT 넘으면 18PLT씩 꽉 찬 차 + 남은 PLT 한 묶음(남은 건 다른 입차CODE와 합적 가능). 줄(Group)은 18 경계에서만 나눔.
@@ -22052,14 +22059,14 @@ function fiTruckPlan0(rows){
         let cur = null;
         const nu = ()=>{ cur = { pcs:[], plt:0, cat:fiTruckCat({ r:rs[0] }), i }; units.push(cur); };
         rs.slice().sort((a,b)=> (+b.pallets||0) - (+a.pallets||0)).forEach(r=>{ let n = +r.pallets||0; const whole = n;
-          while(n > 0){ if(!cur || cur.plt >= FI_TRUCK_MAX) nu();
-            const take = Math.min(n, FI_TRUCK_MAX - cur.plt), x = { r, plt:take, split: take < whole || undefined, codeTot: tot > FI_TRUCK_MAX ? tot : undefined };
+          while(n > 0){ if(!cur || cur.plt >= CAP) nu();
+            const take = Math.min(n, CAP - cur.plt), x = { r, plt:take, split: take < whole || undefined, codeTot: tot > CAP ? tot : undefined };
             cur.pcs.push(x); cur.plt += take; pcs.push(x); n -= take; } });
       });
       const trucks = [];   // build 372: 같은 카테고리끼리 먼저 채움
       const put = (t, u)=>{ u.pcs.forEach(x=> t.items.push(x)); t.plt += u.plt; (t._u = t._u || []).push(u); };
       units.sort((a,b)=> b.plt-a.plt || a.i-b.i).forEach(u=>{
-        let t = trucks.find(t=> t.plt + u.plt <= FI_TRUCK_MAX && t._u[0].cat === u.cat);
+        let t = trucks.find(t=> t.plt + u.plt <= CAP && t._u[0].cat === u.cat);
         if(!t){ t = { date:g.date, ampm:g.ampm, time:g.time, dest:g.dest, plt:0, items:[] }; trucks.push(t); }
         put(t, u);
       });
@@ -22068,7 +22075,7 @@ function fiTruckPlan0(rows){
       while(moved && trucks.length > 1){
         moved = false;
         for(const s of trucks.slice().sort((a,b)=> a.plt-b.plt)){
-          const others = trucks.filter(t=> t!==s), room = new Map(others.map(t=> [t, FI_TRUCK_MAX - t.plt])), plan = [];
+          const others = trucks.filter(t=> t!==s), room = new Map(others.map(t=> [t, CAP - t.plt])), plan = [];
           const ok = s._u.slice().sort((a,b)=> b.plt-a.plt).every(u=>{
             const c = others.filter(t=> room.get(t) >= u.plt).sort((a,b)=> ((b._u[0].cat===u.cat)-(a._u[0].cat===u.cat)) || room.get(a)-room.get(b))[0];
             if(!c) return false; room.set(c, room.get(c) - u.plt); plan.push([c, u]); return true; });
@@ -22086,7 +22093,7 @@ function fiTruckPlan0(rows){
     return all.every(x=> all.every(y=> x===y || FI_AMPM_PAIRS.some(P=> P.includes(x) && P.includes(y)))); };
   out.filter(t=> t.ampm==="오전" && (t.fcs||[]).length>=1).sort((a,b)=> b.plt-a.plt).forEach(am=>{
     if(am.fcs.length>1 && !ampmOk(am.fcs, am.fcs)) return;
-    const cand = out.filter(pm=> pm!==am && !pm._gone && pm.ampm==="오후" && pm.date===am.date && pm.dest===am.dest && (pm.fcs||[]).length>=1 && ampmOk(am.fcs, pm.fcs) && pm.plt + am.plt <= FI_TRUCK_MAX);
+    const cand = out.filter(pm=> pm!==am && !pm._gone && pm.ampm==="오후" && pm.date===am.date && pm.dest===am.dest && (pm.fcs||[]).length>=1 && ampmOk(am.fcs, pm.fcs) && pm.plt + am.plt <= fiCap2(pm, am));
     if(!cand.length) return;
     const same = pm=> pm.fcs.length===1 && am.fcs.length===1 && pm.fcs[0]===am.fcs[0];
     const pm = cand.sort((a,b)=> (same(b)?1:0)-(same(a)?1:0) || b.plt-a.plt)[0];   // 같은 FC 먼저, 그다음 꽉 차게
@@ -22130,7 +22137,7 @@ function fiTruckRows(trucks){
     const icodes = [...new Set((t.drops ? t.items.slice().sort((a,b)=> t.drops.indexOf(String(a.r.dest||"").trim()) - t.drops.indexOf(String(b.r.dest||"").trim())) : t.items).map(x=> String(x.r.bidcode||"").trim()).filter(Boolean))].join("\n");   // build 387: 입차CODE 칸
     return { 차량:`${t.no}호차`, 입차CODE:icodes, 출고일: t.date ? `${t.date}(${fiDispWeekday(t.date)})` : "", 출고시간:`${t.ampm} ${t.time}`.replace(/\s+/g," ").trim(), 출고시간표: fiTruckAmPmLabel(t),
       상차지:t.fc, 도착지:t.dest||"(도착지 미정)", PLT:t.plt, 합적: t.items.length>1 ? `합적 ${t.items.length}건${(t.fcs||[]).length>1?` · 상차 ${t.fcs.length}곳`:""}${t.ampmNote?(t.ampmCross?" · 오전→오후 추천":" · 오전→오후"):""}${t.drops?` · 하차 ${t.drops.length}곳(동선)`:""}${fiTruckCats(t).length>1?" · 다른 카테고리":""}` : (t.items[0] && t.items[0].split ? "분할" : "단독"), 카테:cats,
-      비고: (fiTruckUnloadNote(t) || ("Group No " + Array.from(codes).map(([c,n])=> many ? `${c} (${n}PLT)` : c).join(" / "))) + warn + (t.ampmNote ? ` ※ ${t.ampmNote}` : "") + (fiTruckRouteWarn(t) ? `\n※ ${fiTruckRouteWarn(t)}` : "") };   // build 403: 어색한 동선 코멘트   // build 376   // build 375: 동선 문구 뺌(도착지 칸에 1차/2차)
+      비고: (fiTruckUnloadNote(t) || ("Group No " + Array.from(codes).map(([c,n])=> many ? `${c} (${n}PLT)` : c).join(" / "))) + warn + (t.ampmNote ? ` ※ ${t.ampmNote}` : "") + (fiTruckRouteWarn(t) ? `\n※ ${fiTruckRouteWarn(t)}` : "") + (fiTruckCap(t) < FI_TRUCK_MAX ? `\n※ ${(t.drops||[t.dest]).filter(d=> fiDestCap(d) < FI_TRUCK_MAX).join("·")} 11톤 입차 불가 — 작은 차(최대 ${fiTruckCap(t)}PLT)` : "") };   // build 409   // build 403: 어색한 동선 코멘트   // build 376   // build 375: 동선 문구 뺌(도착지 칸에 1차/2차)
   });
 }
 const FI_TRUCK_HDR = ["차량","출고일","출고시간","상차지(FC)","입차CODE","도착지","PLT","합적","카테.","비고 (Group Number)"];
