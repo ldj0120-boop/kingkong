@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 404 · 2026-11-27</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 405 · 2026-11-27</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21537,7 +21537,28 @@ function fiComboTitleCell(COLS, g, endRow){
   return { formula, result };
 }
 // 엑셀: 출고일자마다 시트 1장 — 제목 · 범례 → 거래처(더한/KPP)별 소제목 + 머리글 + 행
+/* build 405 (사용자): 출고요청서 낙찰NO = 쿠팡 낙찰금액 파일 NO열. 엑셀 만들 때 낙찰금액에 아직 없는 낙찰일 행이 있으면
+   연결된 낙찰금액 파일을 먼저 다시 읽고(버튼 누른 순간이라 크롬 허용 창 가능) 도착지 · 낙찰NO를 다시 맞춤. 그래도 없으면 확인 창. */
+async function fiHbExportGate(C){
+  const rows = []; (C && C.byDate || []).forEach(g=> (g.rows||[]).forEach(r=>{ if(!r.skip) rows.push(r); }));
+  if(!rows.length) return;
+  const lastBd = ()=> FI_HB && FI_HB.rows ? (FI_HB.rows.map(x=> x.bd).filter(Boolean).sort().pop() || "") : "";
+  const late = ()=> rows.filter(r=> !r.hbNo && !r.bidNoManual && String(r.bidDate||"").slice(0,10) > lastBd());
+  if(!late().length) return;
+  const before = lastBd();
+  try{ await Promise.race([ fiHbRefresh(true), new Promise(res=> setTimeout(res, 8000)) ]); }catch(_){}
+  if(lastBd() !== before){
+    try{ fiHbApply(rows, true); rows.forEach(r=>{ r.memo = (r.warn||[]).concat(r.destNote?[r.destNote]:[]).join(" / "); }); fiDispPersist(); }catch(e){ console.warn("build 405 낙찰금액 다시 맞춤", e); }
+    try{ showNotice(`📒 낙찰금액 파일을 새로 읽어 도착지 · 낙찰NO를 다시 맞췄습니다(마지막 낙찰일 ${lastBd()}).`); }catch(_){}
+  }
+  const L = late();
+  if(L.length){
+    const ds = [...new Set(L.map(r=> String(r.bidDate||"").slice(0,10)))].join(", ");
+    if(!confirm(`낙찰금액 파일(마지막 낙찰일 ${lastBd() || "없음"})에 ${ds} 낙찰 ${L.length}건이 없습니다.\n이 행들은 도착지가 자동 추천이고 낙찰NO 칸에 NO 대신 Group이 들어갑니다.\n\n먼저 2026_쿠팡 낙찰금액.xlsx를 저장하고 📒 '↻ 다시 읽기'를 누르는 것을 권합니다.\n그래도 엑셀을 만들까요?`)) throw new Error("취소 — 낙찰금액 파일을 먼저 다시 읽어 주세요");
+  }
+}
 async function fiComboWorkbook(C){
+  await fiHbExportGate(C);   // build 405
   const ExcelJS = await fiLoadScript("https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js", "ExcelJS");
   const wb = new ExcelJS.Workbook();
   wb.calcProperties = Object.assign(wb.calcProperties||{}, { fullCalcOnLoad:true });   // build 232: 열 때 제목 수식 다시 계산
