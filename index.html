@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 405 · 2026-11-27</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 406 · 2026-11-27</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -5017,7 +5017,7 @@ function freshInfo(){
     monthly("본사 출고", HQ_M, maxKey(HQ_D)),
     (()=>{ const c = monthly("센터 출고", CENTER_M, maxKey(CENTER_D));   // build 153: 승현 사이트에서 받았으면 표시
       const sp = PLT_LIVE_META && PLT_LIVE_META.ship;
-      if(sp && sp.last){ c.tip += ` · 승현 사이트(출고내역서 올리기)에서 ${new Date(sp.at).toLocaleString("ko-KR")}에 받음 — ${sp.first}~${sp.last} ${sp.days}일치`; }
+      if(sp && sp.last){ c.tip += ` · ${sp.src==="disp" ? "배차 앱(진천센터 📤 센터 출고내역서)" : "승현 사이트(출고내역서 올리기)"}에서 ${new Date(sp.at).toLocaleString("ko-KR")}에 받음 — ${sp.first}~${sp.last} ${sp.days}일치`; }
       return c; })(),
     (()=>{ const c = monthly("신선 공급", FRESH_M, null);   // build 152: 승현 사이트에서 받았으면 받은 시각을 같이
       const fz = PLT_LIVE_META && PLT_LIVE_META.fresh; const cm = fmtDate(new Date()).slice(0,7);
@@ -18177,7 +18177,8 @@ function cloudInit(){
       if(!u && !was) adminAutoLogin();   // build 176: 저장된 비밀번호로 자동 로그인 시도
       try{ if(u) localStorage.setItem(ADMIN_HINT_LS, "1"); else localStorage.removeItem(ADMIN_HINT_LS); }catch(_){}
       updateCloudBadge();
-      if(IS_ADMIN && !was) setTimeout(()=> afAuto("login"), 6000);   // build 316: 관리자 로그인 6초 뒤 업로드 폴더 자동 읽기
+      if(IS_ADMIN && !was) setTimeout(()=> afAuto("login"), 6000);
+      if(IS_ADMIN && !was) setTimeout(()=> dispShipSync(), 4000);   // build 406   // build 316: 관리자 로그인 6초 뒤 업로드 폴더 자동 읽기
       if(IS_ADMIN && !was && maybeAutoAdoptCloud("login")) return;   // build 232
       if(IS_ADMIN && !was){ showNotice("관리자 모드로 전환됐습니다. 이제 업로드하면 모든 사람에게 실시간 공유됩니다."); cloudPush(); try{ Object.keys(HIST_SYNC).forEach(cloudHistPush); }catch(_){} }
       if(!IS_ADMIN && _cloudLastVal && _cloudApply) _cloudApply(_cloudLastVal);   // 로그인 안 됨 → 클라우드 최신 데이터로 보기
@@ -18559,6 +18560,61 @@ function pltShipApply(res){
   return { months, center: Math.round(cTot*10)/10, direct: Math.round(dTot*10)/10 };
 }
 
+/* build 406: 센터 출고내역서 = 배차 앱(진천센터가 📤 센터 출고내역서로 올린 엑셀) — 승현 사이트 '출고내역서 올리기' 연동을 대체.
+   관리자 브라우저가 1분마다 배차 앱 DB(center_ship_files, 본사 로그인 세션 필요)에서 파일 목록을 보고, 바뀌었으면 원본 엑셀을
+   이 사이트의 parseShipmentWorkbook(수동 업로드와 같은 규칙)으로 다시 계산 → 날짜마다 센터(진천 · 이천)별 가장 나중에 올린 파일 값을 더해
+   CENTER_D(창고 경유) · DIRECT_MAIN_D(본 파일 직출) · DIRECT_FILE_D(직출건 파일)에 넣는다. 그 뒤 이 화면에서 직접 올린 더 새 파일이 있는 날은 건드리지 않음. */
+const DISP_SHIP_TAG = "배차 앱(진천센터 업로드 · 센터 출고내역서)";
+let _dispShipBusy = false, DISP_SHIP_STATUS = { state:"idle" };
+async function dispShipSync(force){
+  if(typeof IS_ADMIN==="undefined" || !IS_ADMIN || _dispShipBusy) return;
+  if(typeof XLSX==="undefined" || !window.supabase || !window.supabase.createClient) return;
+  _dispShipBusy = true;
+  try{
+    const c = await askDispClient();
+    const ses = await c.auth.getSession(); if(!(ses && ses.data && ses.data.session)){ DISP_SHIP_STATUS = { state:"login", at:new Date() }; return; }
+    const since = new Date(Date.now() - 400*864e5).toISOString();
+    const { data: list, error } = await c.from("center_ship_files").select("id,center,kind,name,uploaded_at,days").gte("uploaded_at", since).order("uploaded_at");
+    if(error) throw error;
+    const L = list || [], sig = L.map(f=> f.id).join(",");
+    const prev = PLT_LIVE_META && PLT_LIVE_META.ship && PLT_LIVE_META.ship.src==="disp" ? PLT_LIVE_META.ship.sig : null;
+    if(!force && sig === prev){ DISP_SHIP_STATUS = { state:"ok", at:new Date(), files:L.length }; return; }
+    if(!L.length){ DISP_SHIP_STATUS = { state:"empty", at:new Date() }; return; }
+    const pick = {}; L.forEach(f=> (f.days||[]).forEach(d=>{ pick[f.center+"|"+f.kind+"|"+d] = f; }));
+    const need = [...new Set(Object.values(pick).map(f=> f.id))], parsed = {};
+    for(const id of need){
+      const r = await c.from("center_ship_files").select("data").eq("id", id).single(); if(r.error) throw r.error;
+      const bin = atob(r.data.data), u = new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i] = bin.charCodeAt(i);
+      parsed[id] = parseShipmentWorkbook(XLSX.read(u, {type:"array"}));
+    }
+    const add = (tgt, d, src)=>{ const o = tgt[d] || (tgt[d] = {}); Object.entries(src||{}).forEach(([st,cats])=>{ const so = o[st] || (o[st] = {}); Object.entries(cats).forEach(([k,v])=>{ so[k] = (so[k]||0) + (+v||0); }); }); };
+    const cen = {}, dmain = {}, dfile = {}, dC = new Set(), dD = new Set();
+    Object.entries(pick).forEach(([key,f])=>{ const d = key.split("|")[2], r = parsed[f.id]; if(!r) return;
+      if(f.kind==="direct_file"){ dD.add(d); add(dfile, d, (r.byDayDirect||{})[d]); }
+      else { dC.add(d); add(cen, d, (r.byDay||{})[d]); add(dmain, d, (r.byDayDirect||{})[d]); } });
+    const t = Date.parse(L[L.length-1].uploaded_at) || Date.now();
+    const mine = s => !s || s.f===DISP_SHIP_TAG || !(s.t > t);     // 이 화면에서 직접 올린 더 새 파일이 있는 날은 그대로
+    let cTot = 0, dTot = 0;
+    [...dC].forEach(d=>{ if(!mine(DAY_SRC.center[d])) return;
+      CENTER_D[d] = cen[d] || {}; DAY_SRC.center[d] = { t, f:DISP_SHIP_TAG };
+      DIRECT_MAIN_D[d] = dmain[d] || {}; DAY_SRC.dmain[d] = { t, f:DISP_SHIP_TAG };
+      Object.values(CENTER_D[d]).forEach(o=> Object.values(o).forEach(v=> cTot += +v||0));
+      Object.values(DIRECT_MAIN_D[d]).forEach(o=> Object.values(o).forEach(v=> dTot += +v||0)); });
+    [...dD].forEach(d=>{ if(!mine(DAY_SRC.dfile[d])) return; DIRECT_FILE_D[d] = dfile[d] || {}; DAY_SRC.dfile[d] = { t, f:DISP_SHIP_TAG }; });
+    const days = [...new Set([...dC, ...dD])].sort(), months = [...new Set(days.map(d=> d.slice(0,7)))];
+    rebuildMonthsFromDays(CENTER_M, CENTER_D, months); rebuildCenterDirectM();
+    PLT_LIVE_META = Object.assign({}, PLT_LIVE_META||{}, { ship:{ src:"disp", sig, at:new Date().toISOString(), days:days.length, first:days[0]||null, last:days[days.length-1]||null,
+      center:Math.round(cTot*10)/10, direct:Math.round(dTot*10)/10, files:L.map(f=> ({ center:f.center, name:f.name, at:f.uploaded_at })) } });
+    DISP_SHIP_STATUS = { state:"ok", at:new Date(), files:L.length };
+    try{ _g11Cache.key = ""; }catch(_){}
+    try{ pltLiveRefreshUI(); }catch(_){ try{ afterChange(); }catch(__){} }
+    if(prev !== null || force) showNotice(`센터 출고내역서(배차 앱 · 진천센터 업로드) 반영 — ${days[0]} ~ ${days[days.length-1]} · 창고 경유 ${Math.round(cTot).toLocaleString()} · 직출 ${Math.round(dTot).toLocaleString()} PLT`);
+  }catch(e){ DISP_SHIP_STATUS = { state:"error", at:new Date(), error:(e && e.message) || String(e) }; }
+  finally{ _dispShipBusy = false; }
+}
+setInterval(()=>{ if(!document.hidden) dispShipSync(); }, 60000);
+document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) dispShipSync(); });
+
 // build 151: 오늘 날짜 "(승현 실시간)" 재고 스냅샷 — 매장재고를 쓰는 화면(05 상세표·06 매장 분석·고정인수 분배 등)은
 //   STOCK_HISTORY 최신 스냅샷을 보므로 여기에도 넣는다. 승현 사이트에 없는 열(임박식품·사입 등)은 가장 최근 엑셀 스냅샷 값을 이어 쓴다.
 const PLT_LIVE_DROP_COLS = ["임박식품","생산재고(혼합)","생산재고(가전)","홈쇼핑","사입PLT","FC파손"];
@@ -18625,10 +18681,8 @@ async function pltLiveSync(){
       pltLiveStatus.fresh = fresh; pltLiveStatus.freshError = freshErr;
       // build 153: 센터 출고내역서(창고 경유 + 직출)도 같은 로그인으로
       let ship = null, shipErr = null;
-      try{ const sr = await pltShipFetch(); const ap = pltShipApply(sr);
-           ship = { at:new Date().toISOString(), months: ap.months, days: sr.days.length, first: sr.days[0]||null, last: sr.days[sr.days.length-1]||null,
-                    center: ap.center, direct: ap.direct, bulk: sr.bulk, unmatched: Object.keys(sr.unmatched), unmapped: Object.keys(sr.unmapped) }; }
-      catch(e){ shipErr = (e && e.message) || String(e); }
+      // build 406: 센터 출고내역서는 배차 앱(진천센터 업로드)으로 대체 — 승현 사이트 출고내역서는 더 받지 않음(dispShipSync)
+      dispShipSync();
       pltLiveStatus.ship = ship; pltLiveStatus.shipError = shipErr;
       // build 182: 매장 소진율용 일별 입고·해체 + 이월(최근 3개월)
       try{ const dl = await pltDailyFetch(); if(dl.rows){ PLT_DAILY = dl; try{ saveState(); }catch(_){} } }catch(e){ pltLiveStatus.dailyError = (e && e.message) || String(e); }
