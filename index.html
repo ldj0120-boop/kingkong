@@ -1946,7 +1946,7 @@
   <header class="top">
     <div class="brand"><div class="brand-tx">
       <h1 title="매장 재고 · 출고 · 매출을 한눈에">PLT 출고 관리</h1>
-      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 409 · 2026-11-27</span></span>
+      <span class="sub"><span class="build" title="이 화면이 몇 번째 업데이트본인지 · GitHub에 올린 파일이 실제로 반영됐는지 여기로 바로 확인할 수 있습니다">build 410 · 2026-11-27</span></span>
     </div>
     </div>
     <div class="grow"></div>
@@ -21763,7 +21763,7 @@ function fiDatedGroups(rows){
    18PLT 넘는 건은 18씩 나눠 여러 대. 차 안은 큰 건부터 채움(first-fit). 비고 = 입차코드(합적이면 코드별 PLT). */
 const FI_TRUCK_MAX = 18;
 /* build 409 (사용자): 수원점 · 경안점은 11톤(18PLT) 차 입차 불가 → 작은 차(최대 FI_SMALL_TRUCK_PLT)로만. 매장 더 생기면 여기에 */
-const FI_SMALL_TRUCK_PLT = 10;
+const FI_SMALL_TRUCK_PLT = 9;   // build 410 (사용자): 9PLT
 const FI_DEST_TRUCK_MAX = { "수원점":FI_SMALL_TRUCK_PLT, "경안점":FI_SMALL_TRUCK_PLT };
 function fiDestCap(d){ const k = String(d||"").trim(); return FI_DEST_TRUCK_MAX[k] || FI_TRUCK_MAX; }
 function fiTruckCap(t){ return Math.min(...(t.drops ? t.drops : [t.dest]).map(fiDestCap)); }
